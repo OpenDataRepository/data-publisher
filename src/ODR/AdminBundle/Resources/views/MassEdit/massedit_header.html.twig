@@ -11,6 +11,7 @@
 <script>
     function returnToSearchResults() {
         // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+        showSearchOverlay();    {# defined in Default::common_js.html.twig #}
         var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key, 'offset': '1' } ) }}';
         UpdateURL(url);
     }

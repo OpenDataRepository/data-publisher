@@ -439,10 +439,12 @@ class TrackedJob
         $tracked_job = array();
 
         $tracked_job['id'] = $this->getId();
+        $tracked_job['job_type'] = $this->getJobType();
         $tracked_job['total'] = $this->getTotal();
         $tracked_job['current'] = $this->getCurrent();
         $tracked_job['completed'] = $this->getCompleted();
         $tracked_job['started'] = $this->getStarted();
+        $tracked_job['viewed'] = $this->getViewed();
         $tracked_job['additional_data'] = $this->getAdditionalData();
 
         return $tracked_job;
@@ -490,5 +492,34 @@ class TrackedJob
         }
 
         return $curr_value;
+    }
+    /**
+     * @var \DateTime|null
+     */
+    private $viewed;
+
+
+    /**
+     * Set viewed.
+     *
+     * @param \DateTime|null $viewed
+     *
+     * @return TrackedJob
+     */
+    public function setViewed($viewed = null)
+    {
+        $this->viewed = $viewed;
+
+        return $this;
+    }
+
+    /**
+     * Get viewed.
+     *
+     * @return \DateTime|null
+     */
+    public function getViewed()
+    {
+        return $this->viewed;
     }
 }

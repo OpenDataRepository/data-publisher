@@ -152,6 +152,10 @@ class SortService
         if ( $datarecord_list == false || count($datarecord_list) == 0 ) {
             // Going to need the datatype's sorting datafield, if it exists
             $sortfield = $datatype->getSortField();
+            $cache_result = true;
+
+            // NOTE - $sortfield->getDataType() IS NOT GUARANTEED to be the same as $datatype...it's
+            //  possible that $datatype is using a field from one of its linked descendants
 
             $datarecord_list = array();
             if ($sortfield == null) {
@@ -174,13 +178,24 @@ class SortService
                 // Don't need a natural sort because the ids are guaranteed to just be numeric
                 asort($datarecord_list);
             }
-            else {
+            else if ( $sortfield->getDataType()->getId() === $datatype->getId() ) {
                 // Want to store all datarecords, not just a subset if it was passed in
                 $datarecord_list = self::sortDatarecordsByDatafield($sortfield->getId());
             }
+            else {
+                // If the datatype's sort field belongs to another datatype, then a different sort
+                //  function is needed...
+                $datarecord_list = self::sortDatarecordsByLinkedDatafield($datatype->getId(), $sortfield->getId());
 
-            // Store the sorted datarecord list back in the cache
-            $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
+                // Can't cache a datarecord list returned by this function call...there's too many
+                //  events that can require it to be rebuilt
+                $cache_result = false;
+            }
+
+            if ( $cache_result ) {
+                // Store the sorted datarecord list back in the cache
+                $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
+            }
         }
 
 
@@ -377,8 +392,8 @@ class SortService
                 }
             }
 
-            // Natural sort works in most cases...
-            $flag = SORT_NATURAL;
+            // Case-insensitive natural sort works in most cases...
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
             if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 
@@ -606,8 +621,8 @@ class SortService
                 }
             }
 
-            // Natural sort works in most cases...
-            $flag = SORT_NATURAL;
+            // Case-insensitive natural sort works in most cases...
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
             if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 
@@ -625,6 +640,160 @@ class SortService
             // Otherwise, the list for this request was in the cache
             $datarecord_list = $sorted_datarecord_list[$key];
         }
+
+
+        // ----------------------------------------
+        // Now that we have the correct list of sorted datarecords...
+        return self::applySubsetFilter($datarecord_list, $subset_str);
+    }
+
+
+    /**
+     * Attempts to sort the datarecords belonging to $local_datatype_id, using the values from a
+     * $linked_datafield_id belonging to a different datatype.
+     *
+     * Currently, this function doesn't actually check that $linked_datafield_id belongs to a
+     * datatype that is linked to by $local_datatype...if a link doesn't exist, then there won't
+     * actually be any values to sort with, resulting in a useless sort order.
+     *
+     * @param int $local_datatype_id
+     * @param int $linked_datafield_id
+     * @param bool $sort_ascending
+     * @param null $subset_str
+     *
+     * @return array
+     */
+    public function sortDatarecordsByLinkedDatafield($local_datatype_id, $linked_datafield_id, $sort_ascending = true, $subset_str = null)
+    {
+        $exception_code = 0x5f4c106c;
+
+        // ----------------------------------------
+        /** @var DataFields $linked_datafield */
+        $linked_datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($linked_datafield_id);
+        if ($linked_datafield == null)
+            throw new ODRNotFoundException('Datafield', false, $exception_code);
+        $typeclass = $linked_datafield->getDataFieldMeta()->getFieldType()->getTypeClass();
+
+        $linked_datatype = $linked_datafield->getDataType();
+        if ( $linked_datatype->getDeletedAt() != null )
+            throw new ODRNotFoundException('Linked Datatype', false, $exception_code);
+
+
+        // Templates shouldn't need to call this, but it doesn't break anything if they do
+//        if ($datafield->getIsMasterField())
+//            throw new ODRBadRequestException('sortDatarecordsByDatafield() called with master datafield', $exception_code);
+
+        /** @var DataType $local_datatype */
+        $local_datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+        if ($local_datatype == null)
+            throw new ODRNotFoundException('Datatype', false, $exception_code);
+
+
+        // ----------------------------------------
+        /*
+         * This function is used to sort a "local datatype" (e.g. mineral samples) by a datafield
+         * that belongs to a "remote datatype" (e.g. the 'mineral name' datafield in a mineral list)
+         *
+         * This could be done with the query...
+         * SELECT local_dr.id, remote_df.value
+         * FROM odr_data_record AS local_dr
+         * LEFT JOIN odr_linked_data_tree AS ldt ON ldt.ancestor_id = local_dr.id
+         * LEFT JOIN odr_data_record AS remote_dr ON ldt.descendant_id = remote_dr.id
+         * LEFT JOIN odr_data_record_fields AS remote_drf ON remote_drf.data_record_id = remote_dr.id
+         * LEFT JOIN <storage_entity> AS e ON e.data_record_fields_id = remote_drf.id
+         * WHERE remote_drf.data_fields_id = $sort_df_id
+         *
+         * Fortunately, the search system already has this data cached...but it's spread across
+         * three cache entries.
+         * 1) 'cached_search_dt_<local_datatype_id>_dr_parents': array of local datarecord ids
+         *      ...array(local_dr_id => local_dr_parent_id)
+         *
+         * 2) 'cached_search_dt_<remote_datatype_id>_linked_dr_parents': effectively cached array
+         *      of the linked_datatree, organized by remote_dataype_id
+         *      ...array(remote_dr_id => array( linked_ancestor_dr_id_1 => "", linked_ancestor_dr_id_2 => "", ... )
+         *
+         * 3) 'cached_search_df_<linked_datafield_id>_ordering': array of remote datarecord ids and
+         *      their associated values...array(remote_dr_id => "<sort_value>")
+         *
+         * All of these cache entries are required by the search system, so they typically should
+         * already exist when this function is called.
+         */
+
+
+        // ----------------------------------------
+        // TODO - ...for right now, going to intentionally NOT cache this entry, a lot of changes would require updating/recaching
+        // TODO - 1) adding/deleting records from local datatype
+        // TODO - 2) creating/deleting links between local and remote datatypes
+        // TODO - 3) creating/deleting links between local and remote datarecords
+        // TODO - 4) deleting one of the remote datarecords that the local datatype links to
+        // TODO - 5) changes to $sort_df_id's values in a remote datarecord
+
+        // Check whether this list is already cached or not...
+//        $sorted_datarecord_list = $this->cache_service->get(<cache_entry_key>);
+//        if ( !$sorted_datarecord_list )
+//            $sorted_datarecord_list = array();
+
+//        // TODO - only store the ascending order, then array_reverse() if descending is wanted?
+//        $key = 'asc';
+//        if (!$sort_ascending)
+//            $key = 'desc';
+
+
+        // ----------------------------------------
+        $datarecord_list = array();
+//        if ( !isset($sorted_datarecord_list[$key]) ) {
+            // Need a sorted list of the datarecords in $linked_datatype
+            // Don't pass the subset str, it's for records of $local_datatype, not $linked_datatype
+            $sorted_linked_dr_list = self::sortDatarecordsByDatafield($linked_datafield->getId(), $sort_ascending);
+
+            // Need a list of all datarecords for the datatype to be ordered
+            $dr_list = $this->search_service->getCachedSearchDatarecordList($local_datatype->getId());
+
+            // Need to get a list of datarecords of the linked datatype
+            $linked_dr_parents = $this->search_service->getCachedSearchDatarecordList($linked_datatype->getId(), true);
+
+
+            // $dr_list is currently  <dr_id> => <dr_id>  for compliance elsewhere...
+            foreach ($dr_list as $local_dr_id => $num)
+                $dr_list[$local_dr_id] = '';
+
+            // For all records in the remote datatype that are linked to by something...
+            foreach ($linked_dr_parents as $remote_dr_id => $parent_ids) {
+                // ...look through all records that link to the remote datatype...
+                foreach ($parent_ids as $parent_dr_id => $empty_str) {
+                    // ...and if a record in $dr_list links to $remote_dr_id...
+                    if ( isset($dr_list[$parent_dr_id]) ) {
+                        // ...then use the value for $linked_datafield_id as the sort value for the
+                        //  local record in $dr_list
+                        $dr_list[$parent_dr_id] = $sorted_linked_dr_list[$remote_dr_id];
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Case-insensitive natural sort works in most cases...
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
+            if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+                $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+
+            if ($sort_ascending)
+                asort($dr_list, $flag);
+            else
+                arsort($dr_list, $flag);
+
+            // Done sorting $dr_list
+            $datarecord_list = $dr_list;
+
+
+            // Store the result back in the cache
+//            $sorted_datarecord_list[$key] = $datarecord_list;
+//            $this->cache_service->set(<cache_entry_key>, $sorted_datarecord_list);
+//        }
+//        else {
+//            // Otherwise, the list for this request was in the cache
+//            $datarecord_list = $sorted_datarecord_list[$key];
+//        }
 
 
         // ----------------------------------------

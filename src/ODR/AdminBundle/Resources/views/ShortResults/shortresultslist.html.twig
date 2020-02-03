@@ -60,6 +60,8 @@
 
 <script>
     $(function() {
+        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         $(".MenuDesignArea").remove();
 
         var prevent_scroll = false;
@@ -69,44 +71,29 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
-        // Get the app list to display on the page
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: "{{ path('odr_jupyterhub_app_list', {'datatype_id': datatype.id}) }}",
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if ( parseInt(jqXHR.status) === 200 ) {
-                    $("#jupyterhub_app_list").html(data.html);
-
-                    $("#jupyterhub_app_selector").unbind('change').change(function() {
-                        var selected = $(this).val();
-                        $("#jupyterhub_app_id").val(selected);
-                    });
-
-                    // Store the value of the first option in the form
-                    $("#jupyterhub_app_id").val( $("#jupyterhub_app_selector option:first").val() );
-                }
-            }
-        });
-{% endif %}
-
 {% if intent == 'searching' and display_theme_warning %}
         $("#ODRMainMenu").overhang({
             type: "warn",
             message: "The originally requested layout is marked as private.  The database's default layout is being displayed instead.",
             closeConfirm: true
         });
+{% else %}
+        if ( $(".ODRDataField").length === 0 && $(".ODRShortResults_empty") === undefined ) {
+            $("#ODRMainMenu").overhang({
+                type: "warn",
+                message: "This layout is either empty, or you're unable to view its contents.  You need to switch to a different layout to see any search results.",
+                closeConfirm: true
+            });
+        }
 {% endif %}
 
-        {% if notify_of_sync is defined and notify_of_sync == true %}
+{% if notify_of_sync is defined and notify_of_sync == true %}
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
             'search_key': search_key,
         }%}
-        {% endif %}
+{% endif %}
     });
 
 
@@ -135,7 +122,7 @@
             // Grab necessary attributes
             var file_id = $(this).attr('rel');
 
-            handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
+            handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
         });
 
         {% if scroll_target != '' %}
@@ -149,21 +136,8 @@
         }
         {% endif %}
 
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }
-
-{% if intent == 'searching' and has_datarecords and user_role == 'ROLE_ADMIN' %}
-    {% if can_edit_datatype or is_datatype_admin %}
-    function doMassEdit() {
-        var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
-        UpdateURL(url);
-    }
-    {% endif %}
-
-    function doCSVExport() {
-        var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
-        UpdateURL(url);
-    }
-{% endif %}
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

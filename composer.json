@@ -72,8 +72,8 @@
     },
     "require-dev": {
         "symfony/phpunit-bridge": "^4.2",
-        "symfony/browser-kit": "^4.2",
-        "symfony/css-selector": "^4.2",
+        "symfony/browser-kit": "3.*",
+        "symfony/css-selector": "3.*",
         "symfony/maker-bundle": "^1.11",
         "phpunit/phpunit": "^7.5",
         "symfony/test-pack": "^1.0"

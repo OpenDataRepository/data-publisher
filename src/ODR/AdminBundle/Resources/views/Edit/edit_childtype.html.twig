@@ -2,17 +2,28 @@
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
-{% set can_edit_record = 0 %}
-{% set can_add_record = 0 %}
-{% set can_delete_record = 0 %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_record = 1 %}
+{% set can_edit_parent_record = false %}
+{% if datatype_permissions[ parent_datarecord.dataType.id ] is defined
+    and datatype_permissions[ parent_datarecord.dataType.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_parent_record = true %}
 {% endif %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-    {% set can_add_record = 1 %}
+
+{% set can_edit_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_record = true %}
 {% endif %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-    {% set can_delete_record = 1 %}
+
+{% set can_add_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+    {% set can_add_record = true %}
+{% endif %}
+
+{% set can_delete_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+    {% set can_delete_record = true %}
 {% endif %}
 
 
@@ -34,7 +45,7 @@ datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
 parent: {{ datarecord.parent.id }}</br>
 grandparent: {{ datarecord.grandparent.id }}</br>
 </br>
-parent_datarecord_id: {{ parent_datarecord_id }}</br>
+parent_datarecord_id: {{ parent_datarecord.id }}</br>
 target_datatype_id: {{ target_datatype_id }}</br>
 </br>
 is_top_level: {{ is_top_level }}</br>
@@ -46,6 +57,7 @@ display_type: {{ display_type }}</br>
             'datarecord': datarecord,
             'datatype': datatype,
 
+            'can_edit_parent_record': can_edit_parent_record,
             'can_add_record': can_add_record,
             'can_edit_record': can_edit_record,
             'can_delete_record': can_delete_record,
@@ -60,6 +72,7 @@ display_type: {{ display_type }}</br>
                 'datarecord': datarecord,
                 'theme_array': theme_array,
 
+                'parent_datarecord': parent_datarecord,
                 'target_datatype_id': target_datatype_id,
                 'target_datarecord_id': datarecord.id,
                 'target_theme_id': target_theme_id,

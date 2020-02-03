@@ -98,6 +98,11 @@ class DataFieldsMeta
     private $shorten_filename;
 
     /**
+     * @var bool
+     */
+    private $newFilesArePublic;
+
+    /**
      * @var integer
      */
     private $children_per_row;
@@ -507,6 +512,30 @@ class DataFieldsMeta
     public function getShortenFilename()
     {
         return $this->shorten_filename;
+    }
+
+    /**
+     * Set newFilesArePublic.
+     *
+     * @param bool $newFilesArePublic
+     *
+     * @return DataFieldsMeta
+     */
+    public function setNewFilesArePublic($newFilesArePublic)
+    {
+        $this->newFilesArePublic = $newFilesArePublic;
+
+        return $this;
+    }
+
+    /**
+     * Get newFilesArePublic.
+     *
+     * @return bool
+     */
+    public function getNewFilesArePublic()
+    {
+        return $this->newFilesArePublic;
     }
 
     /**

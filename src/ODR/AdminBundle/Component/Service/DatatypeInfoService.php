@@ -18,6 +18,7 @@ use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -42,6 +43,11 @@ class DatatypeInfoService
      * @var CacheService
      */
     private $cache_service;
+
+    /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
 
     /**
      * @var TagHelperService
@@ -69,14 +75,16 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
-     * @param SearchCacheService $search_cache_service
+     * @param SeachCacheService $search_cache_service
      * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
         SearchCacheService $search_cache_service,
         $odr_web_dir,
@@ -84,6 +92,7 @@ class DatatypeInfoService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
         $this->search_cache_service = $search_cache_service;
         $this->odr_web_dir = $odr_web_dir;
@@ -104,7 +113,7 @@ class DatatypeInfoService
     public function getDatatypeFromUniqueId($unique_id)
     {
         // Ensure it's a valid unique identifier first...
-        $pattern = '/^[a-z0-9]{7}$/';
+        $pattern = '/^[a-z0-9]+$/';
         if ( preg_match($pattern, $unique_id) !== 1 )
             throw new ODRBadRequestException('Invalid unique_id: "'.$unique_id.'"', 0xaf067bda);
 
@@ -569,6 +578,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getGrandparentDatatypeId()
+     *
      * Traverses the cached version of the datatree array in order to return the grandparent id
      * of the given datatype id.
      *
@@ -596,16 +607,18 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getDatatreeArray()
+     *
      * Utility function to returns the DataTree table in array format
      *
      * @return array
      */
-    public function getDatatreeArray($flush = false)
+    public function getDatatreeArray()
     {
         // ----------------------------------------
         // If datatree data exists in cache and user isn't demanding a fresh version, return that
         $datatree_array = $this->cache_service->get('cached_datatree_array');
-        if (!$flush && $datatree_array !== false && count($datatree_array) > 0 )
+        if ( $datatree_array !== false && count($datatree_array) > 0 )
             return $datatree_array;
 
 
@@ -708,6 +721,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getAssociatedDatatypes()
+     *
      * This function locates all datatypes whose grandparent id is in $grandparent_datatype_ids,
      * then calls self::getLinkedDatatypes() to locate all datatypes linked to by these datatypes,
      * which calls this function again to locate any datatypes that are linked to by those
@@ -750,6 +765,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getLinkedDescendants()
+     *
      * Builds and returns a list of all datatypes linked to from the provided datatype ids.
      *
      * @param int[] $ancestor_ids
@@ -945,13 +962,13 @@ class DatatypeInfoService
             $dt_id = $dt['id'];
 
             // Flatten datatype meta
-            // TODO Figure out why DTM is sometimes empty
-            if(count($dt['dataTypeMeta']) == 0) {
-                $dtm = null;
+            if ( count($dt['dataTypeMeta']) == 0 ) {
+                // ...throwing an exception here because this shouldn't ever happen, and also requires
+                //  manual intervention to fix...
+                throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datatype '.$dt_id);
             }
-            else {
-                $dtm = $dt['dataTypeMeta'][0];
-            }
+
+            $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
             $datatype_data[$dt_num]['masterDataType'] = $derived_dt_data[$dt_id];
 
@@ -968,6 +985,12 @@ class DatatypeInfoService
                 $typeclass = $df['dataFieldMeta'][0]['fieldType']['typeClass'];
 
                 // Flatten datafield_meta and masterDatafield of each datafield
+                if ( count($df['dataFieldMeta']) == 0 ) {
+                    // ...throwing an exception here because this shouldn't ever happen, and also
+                    //  requires manual intervention to fix...
+                    throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datafield '.$df_id);
+                }
+
                 $dfm = $df['dataFieldMeta'][0];
                 $df['dataFieldMeta'] = $dfm;
 
@@ -980,6 +1003,12 @@ class DatatypeInfoService
                 // Flatten radio options if they exist
                 // They're ordered by displayOrder, so preserve $ro_num
                 foreach ($df['radioOptions'] as $ro_num => $ro) {
+                    if ( count($ro['radioOptionMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and
+                        //  also requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for radio option '.$ro['id']);
+                    }
+
                     $rom = $ro['radioOptionMeta'][0];
                     $df['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
                 }
@@ -1106,28 +1135,20 @@ class DatatypeInfoService
     {
         // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
         //  to be marked as updated
-        $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-        $datatree_array = self::getDatatreeArray();
-
-        $dt = $datatype;
-        while (
-            isset($datatree_array['descendant_of'][$dt->getId()])
-            && $datatree_array['descendant_of'][$dt->getId()] !== ''
-        ) {
+        while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
             // Mark this (non-top-level) datatype as updated by this user
-            $dt->setUpdatedBy($user);
-            $dt->setUpdated(new \DateTime());
-            $this->em->persist($dt);
+            $datatype->setUpdatedBy($user);
+            $datatype->setUpdated(new \DateTime());
+            $this->em->persist($datatype);
 
             // Continue locating parent datatypes...
-            $parent_dt_id = $datatree_array['descendant_of'][$dt->getId()];
-            $dt = $repo_datatype->find($parent_dt_id);
+            $datatype = $datatype->getParent();
         }
 
-        // $dt is now guaranteed to be top-level
-        $dt->setUpdatedBy($user);
-        $dt->setUpdated(new \DateTime());
-        $this->em->persist($dt);
+        // $datatype is now guaranteed to be top-level
+        $datatype->setUpdatedBy($user);
+        $datatype->setUpdated(new \DateTime());
+        $this->em->persist($datatype);
 
         // Save all changes made
         $this->em->flush();
@@ -1135,11 +1156,44 @@ class DatatypeInfoService
 
         // Child datatypes don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datatype
-        $this->cache_service->delete('cached_datatype_'.$dt->getId());
+        $this->cache_service->delete('cached_datatype_'.$datatype->getId());
     }
 
 
     /**
+     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
+     * e.g.  A links to B links to C links to D links to...etc
+     * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because
+     *  they all need to be loaded via getDatatypeData() in order to properly render A.
+     *
+     * However, this means that linking/unlinking of datatypes between B/C, C/D, D/etc also affects
+     * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
+     *
+     * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
+     * TODO - ...or should this be off in the DatatreeInfoService?
+     *
+     * @param array $datatype_ids array  dt_ids are values in the array, NOT keys
+     */
+    public function deleteCachedDatatypeLinkData($datatype_ids)
+    {
+        // Locate all datatypes that end up needing to load cache entries for the datatypes in
+        //  $datatype_ids...
+        $datatree_array = $this->dti_service->getDatatreeArray();
+        $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
+
+        // Ensure the datatype that were originally passed in get the cache entry cleared
+        foreach ($datatype_ids as $num => $dt_id)
+            $all_linked_ancestors[] = $dt_id;
+
+        // Clearing this cache entry for each of the ancestor datatypes found ensures that the
+        //  newly linked/unlinked datarecords show up (or not) when they should
+        foreach ($all_linked_ancestors as $num => $dt_id)
+            $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+    }
+
+
+    /**
+     * TODO - shouldn't this technically be in SortService?
      * Should be called whenever the default sort order of datarecords within a datatype changes.
      *
      * @param int $datatype_id

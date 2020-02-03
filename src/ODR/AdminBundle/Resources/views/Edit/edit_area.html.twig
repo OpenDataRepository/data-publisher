@@ -3,13 +3,15 @@
 <div class="ODRFormWrap ODRRecord pure-u-1"> 
 
     {% if is_top_level == 1 %}
+        <input type="hidden" id="ODRTopLevelDatarecordId" value="{{ initial_datarecord_id }}" />
+
         {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_array': theme_array,
 
             'target_datatype_id': initial_datatype_id,
-            'parent_datarecord_id': initial_datarecord_id,
+            'parent_datarecord': initial_datarecord,
             'target_theme_id': initial_theme_id,
 
             'datatype_permissions': datatype_permissions,
@@ -31,7 +33,7 @@
             'theme_array': theme_array,
 
             'target_datatype_id': initial_datatype_id,
-            'parent_datarecord_id': datarecord.parent.id,
+            'parent_datarecord': datarecord.parent,
             'target_theme_id': initial_theme_id,
 
             'datatype_permissions': datatype_permissions,

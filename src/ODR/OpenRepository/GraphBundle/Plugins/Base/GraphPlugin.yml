@@ -13,13 +13,14 @@ odr_plugins.base.graph:
         pivot:
             name: Pivot Field 
             description: If multiple data sets are plotted, the pivot field will be displayed to allow the user to switch between data sets.
-            type: IntegerValue|ShortVarchar|MediumVarchar|LongVarchar
+            type: IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar
     config_options:
         graph_type:
             name: Graph Type
             type: string
             default: xy
-            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
+#            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
+            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),histogram||Histogram,lineerror||Line w/Error Bars,stackedarea||Stacked Area,piechart||Pie Chart
             description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
         use_rollup:
             name: Use Rollup Graph
@@ -50,7 +51,7 @@ odr_plugins.base.graph:
             type: string
             default: vert
             choices: vert||Vertical Bars,horizontal||Horizontal Bars
-            description: Direction of bars on bar graph.  Format: [bar_name, value] for vertical bars.  Format: [value, bar_name] for horizontal bars.
+            description: "Direction of bars on bar graph.  Format: [bar_name, value] for vertical bars.  Format: [value, bar_name] for horizontal bars."
             applies_to: bar
         bar_options:
             name: Bar Grouping Option
@@ -171,3 +172,9 @@ odr_plugins.base.graph:
 #            default: selector 
 #            choices: selector||Use dropdown selector on pivot field.,tabs||Tabs will display different graph children.,accordion||Different data sets will unfold like an accordion.
 #            description: Choose how multiple data sets will display. 
+        normalize_y_axis:
+            name: Normalize Y Axis
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose whether y-values of data are normalized or not.  Only works with line plots.

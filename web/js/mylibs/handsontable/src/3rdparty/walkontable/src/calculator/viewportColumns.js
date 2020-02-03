@@ -1,3 +1,5 @@
+import { RENDER_TYPE, FULLY_VISIBLE_TYPE } from './constants';
+
 const privatePool = new WeakMap();
 
 /**
@@ -17,25 +19,34 @@ class ViewportColumnsCalculator {
   }
 
   /**
-   * @param {Number} viewportWidth Width of the viewport
-   * @param {Number} scrollOffset Current horizontal scroll position of the viewport
-   * @param {Number} totalColumns Total number of rows
-   * @param {Function} columnWidthFn Function that returns the width of the column at a given index (in px)
-   * @param {Function} overrideFn Function that changes calculated this.startRow, this.endRow (used by MergeCells plugin)
-   * @param {Boolean} onlyFullyVisible if `true`, only startRow and endRow will be indexes of rows that are fully in viewport
-   * @param {Boolean} stretchH
-   * @param {Function} [stretchingColumnWidthFn] Function that returns the new width of the stretched column.
+   * @param {Object} options Object with all options specyfied for column viewport calculation.
+   * @param {Number} options.viewportWidth Width of the viewport
+   * @param {Number} options.scrollOffset Current horizontal scroll position of the viewport
+   * @param {Number} options.totalColumns Total number of rows
+   * @param {Function} options.columnWidthFn Function that returns the width of the column at a given index (in px)
+   * @param {Function} options.overrideFn Function that changes calculated this.startRow, this.endRow (used by MergeCells plugin)
+   * @param {String} options.calculationType String which describes types of calculation which will be performed.
+   * @param {String} [options.stretchH] Stretch mode 'all' or 'last'
+   * @param {Function} [options.stretchingColumnWidthFn] Function that returns the new width of the stretched column.
    */
-  constructor(viewportWidth, scrollOffset, totalColumns, columnWidthFn, overrideFn, onlyFullyVisible, stretchH,
-              stretchingColumnWidthFn = (width) => width) {
+  constructor({
+    viewportSize,
+    scrollOffset,
+    totalItems,
+    itemSizeFn,
+    overrideFn,
+    calculationType,
+    stretchMode,
+    stretchingItemWidthFn = width => width
+  } = {}) {
     privatePool.set(this, {
-      viewportWidth,
+      viewportWidth: viewportSize,
       scrollOffset,
-      totalColumns,
-      columnWidthFn,
+      totalColumns: totalItems,
+      columnWidthFn: itemSizeFn,
       overrideFn,
-      onlyFullyVisible,
-      stretchingColumnWidthFn,
+      calculationType,
+      stretchingColumnWidthFn: stretchingItemWidthFn,
     });
 
     /**
@@ -68,7 +79,7 @@ class ViewportColumnsCalculator {
 
     this.stretchAllRatio = 0;
     this.stretchLastWidth = 0;
-    this.stretch = stretchH;
+    this.stretch = stretchMode;
     this.totalTargetWidth = 0;
     this.needVerifyLastColumnWidth = true;
     this.stretchAllColumnsWidth = [];
@@ -82,28 +93,28 @@ class ViewportColumnsCalculator {
   calculate() {
     let sum = 0;
     let needReverse = true;
-    let startPositions = [];
+    const startPositions = [];
     let columnWidth;
 
-    let priv = privatePool.get(this);
-    let onlyFullyVisible = priv.onlyFullyVisible;
-    let overrideFn = priv.overrideFn;
-    let scrollOffset = priv.scrollOffset;
-    let totalColumns = priv.totalColumns;
-    let viewportWidth = priv.viewportWidth;
+    const priv = privatePool.get(this);
+    const calculationType = priv.calculationType;
+    const overrideFn = priv.overrideFn;
+    const scrollOffset = priv.scrollOffset;
+    const totalColumns = priv.totalColumns;
+    const viewportWidth = priv.viewportWidth;
 
     for (let i = 0; i < totalColumns; i++) {
       columnWidth = this._getColumnWidth(i);
 
-      if (sum <= scrollOffset && !onlyFullyVisible) {
+      if (sum <= scrollOffset && calculationType !== FULLY_VISIBLE_TYPE) {
         this.startColumn = i;
       }
 
       // +1 pixel for row header width compensation for horizontal scroll > 0
-      let compensatedViewportWidth = scrollOffset > 0 ? viewportWidth + 1 : viewportWidth;
+      const compensatedViewportWidth = scrollOffset > 0 ? viewportWidth + 1 : viewportWidth;
 
-      if (sum >= scrollOffset && sum + columnWidth <= scrollOffset + compensatedViewportWidth) {
-        if (this.startColumn == null) {
+      if (sum >= scrollOffset && sum + (calculationType === FULLY_VISIBLE_TYPE ? columnWidth : 0) <= scrollOffset + compensatedViewportWidth) {
+        if (this.startColumn === null || this.startColumn === void 0) {
           this.startColumn = i;
         }
         this.endColumn = i;
@@ -111,7 +122,7 @@ class ViewportColumnsCalculator {
       startPositions.push(sum);
       sum += columnWidth;
 
-      if (!onlyFullyVisible) {
+      if (calculationType !== FULLY_VISIBLE_TYPE) {
         this.endColumn = i;
       }
       if (sum >= scrollOffset + viewportWidth) {
@@ -124,10 +135,10 @@ class ViewportColumnsCalculator {
       this.startColumn = this.endColumn;
 
       while (this.startColumn > 0) {
-        let viewportSum = startPositions[this.endColumn] + columnWidth - startPositions[this.startColumn - 1];
+        const viewportSum = startPositions[this.endColumn] + columnWidth - startPositions[this.startColumn - 1];
 
-        if (viewportSum <= viewportWidth || !onlyFullyVisible) {
-          this.startColumn--;
+        if (viewportSum <= viewportWidth || calculationType !== FULLY_VISIBLE_TYPE) {
+          this.startColumn -= 1;
         }
         if (viewportSum > viewportWidth) {
           break;
@@ -135,14 +146,20 @@ class ViewportColumnsCalculator {
       }
     }
 
-    if (this.startColumn !== null && overrideFn) {
+    if (calculationType === RENDER_TYPE && this.startColumn !== null && overrideFn) {
       overrideFn(this);
     }
     this.startPosition = startPositions[this.startColumn];
 
-    if (this.startPosition == void 0) {
+    if (this.startPosition === void 0) {
       this.startPosition = null;
     }
+
+    // If totalColumns exceeded its total columns size set endColumn to the latest item
+    if (totalColumns < this.endColumn) {
+      this.endColumn = totalColumns - 1;
+    }
+
     if (this.startColumn !== null) {
       this.count = this.endColumn - this.startColumn + 1;
     }
@@ -157,32 +174,33 @@ class ViewportColumnsCalculator {
     if (this.stretch === 'none') {
       return;
     }
-    this.totalTargetWidth = totalWidth;
+    let totalColumnsWidth = totalWidth;
+    this.totalTargetWidth = totalColumnsWidth;
 
-    let priv = privatePool.get(this);
-    let totalColumns = priv.totalColumns;
+    const priv = privatePool.get(this);
+    const totalColumns = priv.totalColumns;
     let sumAll = 0;
 
     for (let i = 0; i < totalColumns; i++) {
-      let columnWidth = this._getColumnWidth(i);
-      let permanentColumnWidth = priv.stretchingColumnWidthFn(void 0, i);
+      const columnWidth = this._getColumnWidth(i);
+      const permanentColumnWidth = priv.stretchingColumnWidthFn(void 0, i);
 
       if (typeof permanentColumnWidth === 'number') {
-        totalWidth -= permanentColumnWidth;
+        totalColumnsWidth -= permanentColumnWidth;
       } else {
         sumAll += columnWidth;
       }
     }
-    let remainingSize = totalWidth - sumAll;
+    const remainingSize = totalColumnsWidth - sumAll;
 
     if (this.stretch === 'all' && remainingSize > 0) {
-      this.stretchAllRatio = totalWidth / sumAll;
+      this.stretchAllRatio = totalColumnsWidth / sumAll;
       this.stretchAllColumnsWidth = [];
       this.needVerifyLastColumnWidth = true;
 
-    } else if (this.stretch === 'last' && totalWidth !== Infinity) {
-      let columnWidth = this._getColumnWidth(totalColumns - 1);
-      let lastColumnWidth = remainingSize + columnWidth;
+    } else if (this.stretch === 'last' && totalColumnsWidth !== Infinity) {
+      const columnWidth = this._getColumnWidth(totalColumns - 1);
+      const lastColumnWidth = remainingSize + columnWidth;
 
       this.stretchLastWidth = lastColumnWidth >= 0 ? lastColumnWidth : columnWidth;
     }
@@ -216,12 +234,12 @@ class ViewportColumnsCalculator {
    */
   _getStretchedAllColumnWidth(column, baseWidth) {
     let sumRatioWidth = 0;
-    let priv = privatePool.get(this);
-    let totalColumns = priv.totalColumns;
+    const priv = privatePool.get(this);
+    const totalColumns = priv.totalColumns;
 
     if (!this.stretchAllColumnsWidth[column]) {
-      let stretchedWidth = Math.round(baseWidth * this.stretchAllRatio);
-      let newStretchedWidth = priv.stretchingColumnWidthFn(stretchedWidth, column);
+      const stretchedWidth = Math.round(baseWidth * this.stretchAllRatio);
+      const newStretchedWidth = priv.stretchingColumnWidthFn(stretchedWidth, column);
 
       if (newStretchedWidth === void 0) {
         this.stretchAllColumnsWidth[column] = stretchedWidth;
@@ -250,8 +268,8 @@ class ViewportColumnsCalculator {
    * @private
    */
   _getStretchedLastColumnWidth(column) {
-    let priv = privatePool.get(this);
-    let totalColumns = priv.totalColumns;
+    const priv = privatePool.get(this);
+    const totalColumns = priv.totalColumns;
 
     if (column === totalColumns - 1) {
       return this.stretchLastWidth;
@@ -268,7 +286,7 @@ class ViewportColumnsCalculator {
   _getColumnWidth(column) {
     let width = privatePool.get(this).columnWidthFn(column);
 
-    if (width === void 0) {
+    if (isNaN(width)) {
       width = ViewportColumnsCalculator.DEFAULT_WIDTH;
     }
 

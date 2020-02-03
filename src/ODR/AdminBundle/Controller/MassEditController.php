@@ -226,7 +226,7 @@ class MassEditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x50ff5a99;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -571,11 +571,14 @@ exit();
             $tracked_job->setTotal($job_count);
             $em->persist($tracked_job);
             $em->flush();
+
+            $return['d'] = array('tracked_job_id' => $tracked_job_id);
+
         }
         catch (\Exception $e) {
             $source = 0xf0de8b70;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -732,7 +735,7 @@ exit();
         catch (\Exception $e) {
             $source = 0xb506e43f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1109,7 +1112,7 @@ $ret .=  "---------------\n";
         catch (\Exception $e) {
             $source = 0x99001e8b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1143,6 +1146,8 @@ $ret .=  "---------------\n";
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -1217,6 +1222,8 @@ $ret .=  "---------------\n";
             unset( $list[$odr_tab_id] );
             $session->set('mass_edit_datarecord_lists', $list);
 
+
+            // TODO - replace with EntityDeletionService::deleteDatarecord()
 
             // ----------------------------------------
             // Recursively locate all children of these datarecords
@@ -1329,7 +1336,10 @@ $ret .=  "---------------\n";
 //            if ( !$is_top_level )
 //                $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // Delete all cache entries that could reference the datarecords that were just deleted
+            // Ensure no records think they're still linked to this now-deleted record
+            $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
+
+            // Delete all search cache entries that could reference the deleted datarecords
             $search_cache_service->onDatarecordDelete($datatype);
             // Force anything that linked to this datatype to rebuild link entries since at least
             //  one record got deleted
@@ -1383,7 +1393,7 @@ $ret .=  "---------------\n";
 
             $source = 0xd3f22684;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

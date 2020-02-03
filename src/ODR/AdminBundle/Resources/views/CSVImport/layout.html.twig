@@ -1,761 +1,807 @@
 {% spaceless %}
 
-{% set external_id_field = datatype.getexternalidfield %}
+    {% set external_id_field = datatype.getexternalidfield %}
 
-{%  if not linked_importing %}
-<div class="csvimport_header pure-u-1">
-    <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
-    &nbsp;
-    <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
-</div>
-{% endif %}
+    <div id="CSVImportLayoutForm">
+        {% if not linked_importing %}
+            <div class="csvimport_header pure-u-1">
+                <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
+                &nbsp;
+                <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
+            </div>
+        {% endif %}
 
-{# Store the max length of all values in each given column #}
-{% for column_id, column_length in column_lengths %}
-    <input type="hidden" id="column_{{ column_id }}_length" value="{{ column_length }}"/>
-{% endfor %}
+        {# Store the max length of all values in each given column #}
+        {% for column_id, column_length in column_lengths %}
+            <input type="hidden" id="column_{{ column_id }}_length" value="{{ column_length }}"/>
+        {% endfor %}
 
-<form id="csv_import_form">
-    <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />{# is the remote_datatype id if this is a linked import, or the child datatype id if importing into a childtype, or the top-level datatype otherwise #}
-    {% if parent_datatype != null %}
-    <input type="hidden" name="parent_datatype_id" value="{{ parent_datatype.id }}" />
-    {% endif %}
+        <form id="csv_import_form">
+            <input type="hidden" name="datatype_id"
+                   value="{{ datatype.id }}"/>{# is the remote_datatype id if this is a linked import, or the child datatype id if importing into a childtype, or the top-level datatype otherwise #}
+            {% if parent_datatype != null %}
+                <input type="hidden" name="parent_datatype_id" value="{{ parent_datatype.id }}"/>
+            {% endif %}
 
-    {% if parent_datatype != null %}
-        {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {
-            'parent_datatype': parent_datatype,
-            'datatype': datatype,
-            'linked_importing': linked_importing,
-            'columns': columns,
-            'presets': presets
-        } %}
-    {% endif %}
+            {% if parent_datatype != null %}
+                {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {
+                    'parent_datatype': parent_datatype,
+                    'datatype': datatype,
+                    'linked_importing': linked_importing,
+                    'columns': columns,
+                    'presets': presets
+                } %}
+            {% endif %}
 
-{% if not linked_importing %}
-    {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {
-        'datatype': datatype,
-        'datafields': datafields,
-        'datatree_array': datatree_array,
-        'file_encoding_converted': file_encoding_converted
-    } %}
+            {% if not linked_importing %}
+                {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {
+                    'datatype': datatype,
+                    'datafields': datafields,
+                    'datatree_array': datatree_array,
+                    'file_encoding_converted': file_encoding_converted
+                } %}
 
-    <table id="csv_import_table" class="pure-table pure-table-striped">
-        <thead>
-        <tr id="header">
-            <th>Column Name</th>
-            <th>Import?</th>
-            <th>Require unique values?</th>
-            <th>Map to datafield...</th>
-            <th>Fieldtype...</th>
-            <th></th>
-            <th>Secondary Delimiter...</th>
-            <th>Tag Hierarchy Delimiter...</th>
-            <th></th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for column_id, column_name in columns %}
-            <tr>
-                <td>{{ column_name }}</td>
+                <table id="csv_import_table" class="pure-table pure-table-striped">
+                    <thead>
+                    <tr id="header">
+                        <th>Column Name</th>
+                        <th>Import?</th>
+                        <th>Require unique values?</th>
+                        <th>Map to datafield...</th>
+                        <th>Fieldtype...</th>
+                        <th></th>
+                        <th>Secondary Delimiter...</th>
+                        <th>Tag Hierarchy Delimiter...</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for column_id, column_name in columns %}
+                        <tr>
+                            <td>{{ column_name }}</td>
 
-                <td><input type="checkbox" id="import_checkbox_{{ column_id }}" class="import_checkbox" rel="{{ column_id }}" /></td>
+                            <td><input type="checkbox" id="import_checkbox_{{ column_id }}" class="import_checkbox"
+                                       rel="{{ column_id }}"/></td>
 
-                <td>
-                    <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
-                    <span class="csvimport_inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
+                            <td>
+                                <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox"
+                                       name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}"/>
+                                <span class="csvimport_inline_warning"
+                                      title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
                         &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
                     </span>
-                </td>
+                            </td>
 
-                <td>
-                    <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" {#disabled#}>
-                        <option value="new">Create new datafield...</option>
-                        {% for df_id, df in datafields %}
-                            {% set df_meta = df.dataFieldMeta %}
-                            {% if df_meta.fieldType.id in allowed_fieldtypes|keys %}
-                                <option value="{{ df_id }}" rel="{{ df_meta.fieldType.id }}">{{ df_meta.fieldName }}</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </td>
+                            <td>
+                                <select id="column_{{ column_id }}" class="datafield_mapping"
+                                        name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" {#disabled#}>
+                                    <option value="new">Create new datafield...</option>
+                                    {% for df_id, df in datafields %}
+                                        {% set df_meta = df.dataFieldMeta %}
+                                        {% if df_meta.fieldType.id in allowed_fieldtypes|keys %}
+                                            <option value="{{ df_id }}"
+                                                    {% if column_name == df_meta.fieldName %}selected{% endif %}
+                                                    rel="{{ df_meta.fieldType.id }}">{{ df_meta.fieldName }}</option>
 
-                <td>
-                    <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" {#disabled#}>
-                        {% for fieldtype in fieldtypes %}
-                            <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
 
-                <td id="column_{{ column_id }}_length_warning"></td>
+                            <td>
+                                <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping"
+                                        name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" {#disabled#}>
+                                    {% for fieldtype in fieldtypes %}
+                                        <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
 
-                <td>
-                    <select id="column_{{ column_id }}_select" class="secondary_delimiter" rel="{{ column_id }}" {#disabled#}>
-                        <option rel="">Select a delimiter...</option>
-                        <option rel="|">{pipe}</option>
-                        <option rel=":">{colon}</option>
-                        <option rel="">{other}</option>
-                    </select>
-                    &nbsp;
-                    <input type="text" id="column_{{ column_id }}_delimiter" name="column_delimiters[{{ column_id }}]" class="ODRDelimiterField ODRCSVImportDelimiter" maxlength="3" size="4" />
-                </td>
+                            <td id="column_{{ column_id }}_length_warning"></td>
 
-                <td>
-                    <select id="column_{{ column_id }}_hierarchy_select" class="hierarchy_delimiter" rel="{{ column_id }}" {#disabled#}>
-                        <option rel="">Select a delimiter...</option>
-                        {#<option rel="none">{N/A}</option>#} {# TODO - how to provide an "ignore this" option that doesn't also bypass this check when it's required? #}
-                        {#<option rel=">">{bracket}</option>#}
-                        <option rel="">{other}</option>
-                    </select>
-                    &nbsp;
-                    <input type="text" id="column_{{ column_id }}_hierarchy_delimiter" name="hierarchy_delimiters[{{ column_id }}]" class="ODRDelimiterField ODRCSVImportDelimiter" maxlength="3" size="4" />
-                </td>
+                            <td>
+                                <select id="column_{{ column_id }}_select" class="secondary_delimiter"
+                                        rel="{{ column_id }}" {#disabled#}>
+                                    <option rel="">Select a delimiter...</option>
+                                    <option rel="|">{pipe}</option>
+                                    <option rel="space">{space}</option>
+                                    <option rel=",">{comma}</option>
+                                    <option rel="">{other}</option>
+                                </select>
+                                &nbsp;
+                                <input type="text" id="column_{{ column_id }}_delimiter"
+                                       name="column_delimiters[{{ column_id }}]"
+                                       class="ODRDelimiterField ODRCSVImportDelimiter" maxlength="3" size="4"/>
+                            </td>
 
-                <td id="column_{{ column_id }}_warning" class="odr_csvimport_warning"></td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %} {# if not linked_importing #}
+                            <td>
+                                <select id="column_{{ column_id }}_hierarchy_select" class="hierarchy_delimiter"
+                                        rel="{{ column_id }}" {#disabled#}>
+                                    <option rel="">Select a delimiter...</option>
+                                    {#<option rel="none">{N/A}</option>#} {# TODO - how to provide an "ignore this" option that doesn't also bypass this check when it's required? #}
+                                    {#<option rel=">">{bracket}</option>#}
+                                    <option rel="">{other}</option>
+                                </select>
+                                &nbsp;
+                                <input type="text" id="column_{{ column_id }}_hierarchy_delimiter"
+                                       name="hierarchy_delimiters[{{ column_id }}]"
+                                       class="ODRDelimiterField ODRCSVImportDelimiter" maxlength="3" size="4"/>
+                            </td>
 
-</form>
+                            <td id="column_{{ column_id }}_warning" class="odr_csvimport_warning"></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %} {# if not linked_importing #}
 
-{% if not linked_importing %}
-    <hr>
-    <div><b>Any files or images that you want to import using this CSV file need to be uploaded here.</b></div>
-    {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
-    <hr>
-{% endif %}
+        </form>
 
-<div style="margin-top: 10px;">
-    <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
-</div>
+        {% if not linked_importing %}
+            <hr>
+            <div><b>Any files or images that you want to import using this CSV file need to be uploaded here.</b></div>
+            {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
+            <hr>
+        {% endif %}
 
-<style>
-    .ODRCSVImportDelimiter {
-        background: white !important;
-        border: 2px solid blue !important;
-        border-radius: 5px !important;
-    }
-</style>
 
-<script>
-    var block_changes = false;
+        <div style="margin-top: 10px;">
+            <button id="validate_button" type="button" class="pure-button pure-button-primary"
+                    onclick="validateImport();">Validate Import
+            </button>
+        </div>
 
-    var allowed_fieldtypes = {};
-    var unique_datafields = [];
-    var unique_fieldtypes = [];
-    var multilevel_tag_datafields = [];
 
-    $(function() {
+    </div>
 
-{% if not linked_importing %}
 
-{% for ft_id,ft_typename in allowed_fieldtypes %}
-        allowed_fieldtypes[{{ ft_id }}] = "{{ ft_typename }}";
-{% endfor %}
-{% for df in datafields %}{% if df.dataFieldMeta.is_unique == 1 %}
-        unique_datafields.push("{{ df.id }}");
-{% endif %}{% endfor %}
-{% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
-        unique_fieldtypes.push("{{ ft.id }}");
-{% endif %}{% endfor %}
-{% for df_id, num in multilevel_tag_datafields %}
-        multilevel_tag_datafields.push({{ df_id }});
-{% endfor %}
+    <div id="LoadingBlock" class="ODRHidden">
+        <div class="ODRRemodalLoading pure-u-1">
+            <div class="JobStatusWrapper">
+                <div class="JobComplete ODRHidden">Import Validation Complete</div>
+                <div class="loading-container">
+                    <div class="loading"></div>
+                    <div class="loading-text">validating</div>
+                </div>
+            </div>
+            <div class="JobTracker"></div>
+            <div class="CSVExportMessage">Import validation will be ready momentarily. If you don't want to wait, feel
+                free
+                to continue to use the site and a message will inform you when your import is ready for the next step in
+                the process.
+            </div>
+        </div>
+    </div>
 
-        $(".csvimport_inline_warning").hide();
 
-        // Disable all the dropdowns and the secondary delimiter fields to begin with
-        $('#csv_import_table select').each(function() {
-            $(this).prop('disabled', true);
-        });
-        $(".ODRDelimiterField").each(function() {
-            $(this).hide();
-            $(this).prop('disabled', true);
-        });
 
-        $(".import_checkbox").unbind('change').change(function() {
-            var column_id = $(this).attr('rel');
+    <style>
+        .ODRCSVImportDelimiter {
+            background: white !important;
+            border: 2px solid blue !important;
+            border-radius: 5px !important;
+        }
+    </style>
 
-            if ( $(this).is(':checked') ) {
-                // Checkbox is now checked...enable other controls for this column of the CSV file
-                $("#column_" + column_id).prop('disabled', false);
-                $("#column_" + column_id + "_unique").prop('disabled', false);
+    <script>
+        var block_changes = false;
 
-                if ( $("#column_" + column_id).val() === "new" )
-                    $("#column_" + column_id + "_fieldtype").prop('disabled', false);
+        var allowed_fieldtypes = {};
+        var unique_datafields = [];
+        var unique_fieldtypes = [];
+        var multilevel_tag_datafields = [];
+
+        $(function () {
+
+            {% if not linked_importing %}
+
+            {% for ft_id,ft_typename in allowed_fieldtypes %}
+            allowed_fieldtypes[{{ ft_id }}] = "{{ ft_typename }}";
+            {% endfor %}
+            {% for df in datafields %}{% if df.dataFieldMeta.is_unique == 1 %}
+            unique_datafields.push("{{ df.id }}");
+            {% endif %}{% endfor %}
+            {% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
+            unique_fieldtypes.push("{{ ft.id }}");
+            {% endif %}{% endfor %}
+            {% for df_id, num in multilevel_tag_datafields %}
+            multilevel_tag_datafields.push({{ df_id }});
+            {% endfor %}
+
+            $(".csvimport_inline_warning").hide();
+
+            // Disable all the dropdowns and the secondary delimiter fields to begin with
+            $('#csv_import_table select').each(function () {
+                $(this).prop('disabled', true);
+            });
+            $(".ODRDelimiterField").each(function () {
+                $(this).hide();
+                $(this).prop('disabled', true);
+            });
+
+            $(".import_checkbox").unbind('change').change(function () {
+                var column_id = $(this).attr('rel');
+
+                if ($(this).is(':checked')) {
+                    // Checkbox is now checked...enable other controls for this column of the CSV file
+                    $("#column_" + column_id).prop('disabled', false);
+                    $("#column_" + column_id + "_unique").prop('disabled', false);
+
+                    if ($("#column_" + column_id).val() === "new")
+                        $("#column_" + column_id + "_fieldtype").prop('disabled', false);
+
+                    // Warn about unique datafields
+                    setUniqueWarnings(column_id, unique_datafields);
+                    updateHeaderWarnings();
+                    updateFieldMappings();
+                } else {
+                    // Checkbox is now unchecked...reset and disable the controls for this column...
+
+                    // ...the unique requirement column
+                    $("#column_" + column_id + "_unique").prop('disabled', true);
+                    $("#column_" + column_id + "_unique").parent().find('.csvimport_inline_warning').hide();
+                    if ($("#column_" + column_id + "_unique").is(':checked'))
+                        $("#column_" + column_id + "_unique").prop('checked', false);
+
+                    // ...and the datafield mapping
+                    $("#column_" + column_id).children().first().prop('selected', true);
+                    $("#column_" + column_id).prop('disabled', true);
+
+                    // ...and the fieldtype mapping column
+                    $("#column_" + column_id + "_fieldtype").children().first().prop('selected', true);
+                    $("#column_" + column_id + "_fieldtype").prop('disabled', true);
+
+                    // ...and the secondary delimiter column
+                    $("#column_" + column_id + "_delimiter").prop('disabled', true);
+                    $("#column_" + column_id + "_select").children().first().prop('selected', true);
+                    $("#column_" + column_id + "_select").prop('disabled', true);
+
+                    // ...and the hierarchy delimiter column
+                    $("#column_" + column_id + "_hierarchy_delimiter").prop('disabled', true);
+                    $("#column_" + column_id + "_hierarchy_select").children().first().prop('selected', true);
+                    $("#column_" + column_id + "_hierarchy_select").prop('disabled', true);
+
+
+                    // Update warnings about unique or external_id fields
+                    updateHeaderWarnings();
+
+                    // Reset/disable all other warnings
+                    updateHiddenFields();
+                    $("#column_" + column_id + "_fieldtype").trigger('change');
+                }
+
+                if (block_changes)
+                    preventImport();
+            });
+
+            $(".unique_checkbox").unbind('click').click(function () {
+                var column_id = $(this).attr('rel');
 
                 // Warn about unique datafields
-                setUniqueWarnings(column_id, unique_datafields);
-                updateHeaderWarnings();
-            }
-            else {
-                // Checkbox is now unchecked...reset and disable the controls for this column...
+                setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
 
-                // ...the unique requirement column
-                $("#column_" + column_id + "_unique").prop('disabled', true);
-                $("#column_" + column_id + "_unique").parent().find('.csvimport_inline_warning').hide();
-                if ( $("#column_" + column_id + "_unique").is(':checked') )
-                    $("#column_" + column_id + "_unique").prop('checked', false);
+                if (block_changes)
+                    preventImport();
+            });
 
-                // ...and the datafield mapping
-                $("#column_" + column_id).children().first().prop('selected', true);
-                $("#column_" + column_id).prop('disabled', true);
+            $(".datafield_mapping").unbind('change').change(function () {
+                var column_id = $(this).attr('rel');
+                var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
 
-                // ...and the fieldtype mapping column
-                $("#column_" + column_id + "_fieldtype").children().first().prop('selected', true);
-                $("#column_" + column_id + "_fieldtype").prop('disabled', true);
+                // Provide the option to select a fieldtype if the user wants a new datafield
+                var df_id = $(this).val();
+                if (df_id === 'new') {
+                    $(fieldtype_selector).prop('disabled', false);
+                } else {
+                    var fieldtype_id = $(this).children('option:selected').attr('rel');
+                    $(fieldtype_selector).val(fieldtype_id);
+                    $(fieldtype_selector).prop('disabled', true);
+                }
 
-                // ...and the secondary delimiter column
-                $("#column_" + column_id + "_delimiter").prop('disabled', true);
-                $("#column_" + column_id + "_select").children().first().prop('selected', true);
-                $("#column_" + column_id + "_select").prop('disabled', true);
-
-                // ...and the hierarchy delimiter column
-                $("#column_" + column_id + "_hierarchy_delimiter").prop('disabled', true);
-                $("#column_" + column_id + "_hierarchy_select").children().first().prop('selected', true);
-                $("#column_" + column_id + "_hierarchy_select").prop('disabled', true);
-
-
-                // Update warnings about unique or external_id fields
-                updateHeaderWarnings();
-
-                // Reset/disable all other warnings
+                // Want to update every datafield selector so that a mapped datafield only shows up in
+                //  the selector of the column it's mapped to...TODO
                 updateHiddenFields();
-                $("#column_" + column_id + "_fieldtype").trigger('change');
+
+                // Let the fieldtype event handler deal with updating warnings...
+                $(fieldtype_selector).trigger('change');
+            });
+
+            $(".fieldtype_mapping").unbind('change').change(function () {
+                var column_id = $(this).attr('rel');
+
+                var fieldtype_id = $(this).val();
+                var df_id = $("#column_" + column_id).val();
+
+                // Need to select a delimiter for multiple radio/select fields, and for file/image fields
+                var typename = allowed_fieldtypes[fieldtype_id];
+                setDelimiters(typename, column_id, df_id);
+
+                // Display some metadata about the selected fieldtype if needed
+                setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+                updateHeaderWarnings();
+                updateDatafieldMeta(column_id, allowed_fieldtypes);
+                updateDelimiterWarnings();
+
+                if (block_changes)
+                    preventImport();
+            });
+
+            $(".secondary_delimiter").unbind('change').change(function () {
+                if (block_changes) {
+                    preventImport();
+                    return false;
+                }
+
+                var column_id = $(this).attr('rel');
+                var delimiter_input = $("#column_" + column_id + "_delimiter");
+
+                var char = $(this).children(':selected').attr('rel');
+                $(delimiter_input).val(char);
+
+                if ($(this).children(':selected').html() === '{other}')
+                    $(delimiter_input).show();
+                else
+                    $(delimiter_input).hide();
+
+                updateDelimiterWarnings();
+            });
+
+            $(".hierarchy_delimiter").unbind('change').change(function () {
+                if (block_changes) {
+                    preventImport();
+                    return false;
+                }
+
+                var column_id = $(this).attr('rel');
+                var delimiter_input = $("#column_" + column_id + "_hierarchy_delimiter");
+
+                var char = $(this).children(':selected').attr('rel');
+                $(delimiter_input).val(char);
+
+                if ($(this).children(':selected').html() === '{other}')
+                    $(delimiter_input).show();
+                else
+                    $(delimiter_input).hide();
+
+                updateDelimiterWarnings();
+            });
+
+            $(".ODRCSVImportDelimiter").unbind('keyup paste').on('keyup paste', function () {
+                updateDelimiterWarnings();
+            });
+
+
+            {% if presets != null %}
+
+            // Initialize the page to display the correct settings for this import
+            {% for column_id, target in presets.datafield_mapping %}
+            $("#import_checkbox_{{ column_id }}").trigger('click');
+            $("#column_{{ column_id }}").val("{{ target }}");
+            {% if target != "new" %}
+            $("#column_{{ column_id }}_fieldtype").prop('disabled', true);    // don't want this fieldtype selector to be enabled
+            {% endif %}
+            {% endfor %}
+
+            {% for column_id, target in presets.fieldtype_mapping %}
+            $("#column_{{ column_id }}_fieldtype").val("{{ target }}");
+            $("#column_{{ column_id }}_fieldtype").trigger('change');
+            {% endfor %}
+
+            var target_found = false;
+            {% for column_id, target in presets.column_delimiters %}
+            // console.log( 'presets.column_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
+
+            target_found = false;
+            $("#column_{{ column_id }}_select").children().each(function () {
+                if ($(this).attr('rel') === "{{ target|raw }}") {
+                    $(this).prop('selected', true);
+                    target_found = true;
+                    $("#column_{{ column_id }}_select").trigger('change');
+                }
+            });
+            if (!target_found) {
+                $("#column_{{ column_id }}_select").children().last().prop('selected', true);
+                $("#column_{{ column_id }}_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
             }
+            {% endfor %}
+            {% for column_id, target in presets.hierarchy_delimiters %}
+            // console.log( 'presets.hierarchy_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
 
-            if (block_changes)
-                preventImport();
-        });
-
-        $(".unique_checkbox").unbind('click').click(function() {
-            var column_id = $(this).attr('rel');
-
-            // Warn about unique datafields
-            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
-
-            if (block_changes)
-                preventImport();
-        });
-
-        $(".datafield_mapping").unbind('change').change(function() {
-            var column_id = $(this).attr('rel');
-            var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
-
-            // Provide the option to select a fieldtype if the user wants a new datafield
-            var df_id = $(this).val();
-            if (df_id === 'new') {
-                $(fieldtype_selector).prop('disabled', false);
+            target_found = false;
+            $("#column_{{ column_id }}_hierarchy_select").children().each(function () {
+                if ($(this).attr('rel') === "{{ target|raw }}") {
+                    $(this).prop('selected', true);
+                    target_found = true;
+                    $("#column_{{ column_id }}_hierarchy_select").trigger('change');
+                }
+            });
+            if (!target_found) {
+                $("#column_{{ column_id }}_hierarchy_select").children().last().prop('selected', true);
+                $("#column_{{ column_id }}_hierarchy_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
             }
-            else {
-                var fieldtype_id = $(this).children('option:selected').attr('rel');
-                $(fieldtype_selector).val( fieldtype_id );
-                $(fieldtype_selector).prop('disabled', true);
+            {% endfor %}
+
+            {% for column_id, tmp in presets.unique_columns %}
+            if ($("#column_{{ column_id }}_unique").is(':enabled') && !$("#column_{{ column_id }}_unique").is(':checked')) {
+                $("#column_{{ column_id }}_unique").trigger('click');
+                setUniqueWarnings("{{ column_id }}", unique_datafields, unique_fieldtypes);
             }
+            {% endfor %}
 
-            // Want to update every datafield selector so that a mapped datafield only shows up in
-            //  the selector of the column it's mapped to...TODO
-            updateHiddenFields();
+            {% for column_id, tmp in presets.synch_columns %}
+            $("#unlisted_{{ column_id }}_checkbox").attr('checked', 'checked');
+            {% endfor %}
 
-            // Let the fieldtype event handler deal with updating warnings...
-            $(fieldtype_selector).trigger('change');
-        });
-
-        $(".fieldtype_mapping").unbind('change').change(function() {
-            var column_id = $(this).attr('rel');
-
-            var fieldtype_id = $(this).val();
-            var df_id = $("#column_" + column_id).val();
-
-            // Need to select a delimiter for multiple radio/select fields, and for file/image fields
-            var typename = allowed_fieldtypes[fieldtype_id];
-            setDelimiters(typename, column_id, df_id);
-
-            // Display some metadata about the selected fieldtype if needed
-            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+            // Ensure header warnings are accurate
             updateHeaderWarnings();
-            updateDatafieldMeta(column_id, allowed_fieldtypes);
             updateDelimiterWarnings();
 
-            if (block_changes)
-                preventImport();
+            block_changes = true;
+            {% endif %} {# if presets != null #}
+
+            {% endif %} {# if not linked_importing #}
         });
 
-        $(".secondary_delimiter").unbind('change').change(function() {
-            if (block_changes) {
-                preventImport();
-                return false;
-            }
-
-            var column_id = $(this).attr('rel');
-            var delimiter_input = $("#column_" + column_id + "_delimiter");
-
-            var char = $(this).children(':selected').attr('rel');
-            $(delimiter_input).val(char);
-
-            if ( $(this).children(':selected').html() === '{other}' )
-                $(delimiter_input).show();
-            else
-                $(delimiter_input).hide();
-
-            updateDelimiterWarnings();
-        });
-
-        $(".hierarchy_delimiter").unbind('change').change(function() {
-            if (block_changes) {
-                preventImport();
-                return false;
-            }
-
-            var column_id = $(this).attr('rel');
-            var delimiter_input = $("#column_" + column_id + "_hierarchy_delimiter");
-
-            var char = $(this).children(':selected').attr('rel');
-            $(delimiter_input).val(char);
-
-            if ( $(this).children(':selected').html() === '{other}' )
-                $(delimiter_input).show();
-            else
-                $(delimiter_input).hide();
-
-            updateDelimiterWarnings();
-        });
-
-        $(".ODRCSVImportDelimiter").unbind('keyup paste').on('keyup paste', function() {
-            updateDelimiterWarnings();
-        });
-
-
-{% if presets != null %}
-
-        // Initialize the page to display the correct settings for this import
-    {% for column_id, target in presets.datafield_mapping %}
-        $("#import_checkbox_{{ column_id }}").trigger('click');
-        $("#column_{{ column_id }}").val("{{ target }}");
-        {% if target != "new" %}
-        $("#column_{{ column_id }}_fieldtype").prop('disabled', true);    // don't want this fieldtype selector to be enabled
-        {% endif %}
-    {% endfor %}
-
-    {% for column_id, target in presets.fieldtype_mapping %}
-        $("#column_{{ column_id }}_fieldtype").val("{{ target }}");
-        $("#column_{{ column_id }}_fieldtype").trigger('change');
-    {% endfor %}
-
-        var target_found = false;
-    {% for column_id, target in presets.column_delimiters %}
-        // console.log( 'presets.column_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
-
-        target_found = false;
-        $("#column_{{ column_id }}_select").children().each(function() {
-            if ( $(this).attr('rel') === "{{ target|raw }}") {
-                $(this).prop('selected', true);
-                target_found = true;
-                $("#column_{{ column_id }}_select").trigger('change');
-            }
-        });
-        if ( !target_found ) {
-            $("#column_{{ column_id }}_select").children().last().prop('selected', true);
-            $("#column_{{ column_id }}_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
+        function preventImport() {
+            var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
+            $("#import_button").removeAttr('onclick').prop('disabled', true).attr('title', change_block_str);
         }
-    {% endfor %}
-    {% for column_id, target in presets.hierarchy_delimiters %}
-        // console.log( 'presets.hierarchy_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
 
-        target_found = false;
-        $("#column_{{ column_id }}_hierarchy_select").children().each(function() {
-            if ( $(this).attr('rel') === "{{ target|raw }}") {
-                $(this).prop('selected', true);
-                target_found = true;
-                $("#column_{{ column_id }}_hierarchy_select").trigger('change');
-            }
-        });
-        if ( !target_found ) {
-            $("#column_{{ column_id }}_hierarchy_select").children().last().prop('selected', true);
-            $("#column_{{ column_id }}_hierarchy_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
-        }
-    {% endfor %}
+        {% if not linked_importing %}
+        function setDelimiters(typename, column_id, df_id) {
+            var delimiter_select = $("#column_" + column_id + "_select");
+            var delimiter_field = $("#column_" + column_id + "_delimiter");
+            var hierarchy_select = $("#column_" + column_id + "_hierarchy_select");
+            var hierarchy_field = $("#column_" + column_id + "_hierarchy_delimiter");
 
-    {% for column_id, tmp in presets.unique_columns %}
-        if ( $("#column_{{ column_id }}_unique").is(':enabled') && !$("#column_{{ column_id }}_unique").is(':checked') ) {
-            $("#column_{{ column_id }}_unique").trigger('click');
-            setUniqueWarnings("{{ column_id }}", unique_datafields, unique_fieldtypes);
-        }
-    {% endfor %}
+            if (typename === 'Tags') {
+                // Tags need the secondary delimiters
+                $(delimiter_select).prop('disabled', false);
+                $(delimiter_field).prop('disabled', false);
 
-    {% for column_id, tmp in presets.synch_columns %}
-        $("#unlisted_{{ column_id }}_checkbox").attr('checked', 'checked');
-    {% endfor %}
+                if (df_id === 'new' || multilevel_tag_datafields.indexOf(parseInt(df_id)) !== -1) {
+                    // Only enable the hierarchy delimiter stuff if the tag field needs it
+                    $(hierarchy_select).prop('disabled', false);
+                    $(hierarchy_field).prop('disabled', false);
+                } else {
+                    // Otherwise, ensure it's disabled
+                    $(hierarchy_select).prop('disabled', true);
+                    $(hierarchy_select).children('option').first().prop('selected', true);
+                    $(hierarchy_select).trigger('change');
+                    $(hierarchy_field).prop('disabled', true);
+                }
+            } else if (typename === 'File' || typename === 'Image' || typename === 'Multiple Radio' || typename === 'Multiple Select') {
+                // These fieldtypes need the secondary delimiter
+                $(delimiter_select).prop('disabled', false);
+                $(delimiter_field).prop('disabled', false);
 
-        // Ensure header warnings are accurate
-        updateHeaderWarnings();
-        updateDelimiterWarnings();
+                // ...but not the hierarchy delimiters
+                $(hierarchy_select).prop('disabled', true);
+                $(hierarchy_select).children('option').first().prop('selected', true);
+                $(hierarchy_select).trigger('change');
+                $(hierarchy_field).prop('disabled', true);
+            } else {
+                // Every other fieldtype does not need either secondary or hierarchy delimiters
+                $(delimiter_select).prop('disabled', true);
+                $(delimiter_select).children('option').first().prop('selected', true);
+                $(delimiter_select).trigger('change');
+                $(delimiter_field).prop('disabled', true);
 
-        block_changes = true;
-{% endif %} {# if presets != null #}
-
-{% endif %} {# if not linked_importing #}
-    });
-
-    function preventImport() {
-        var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
-        $("#import_button").removeAttr('onclick').prop('disabled', true).attr('title', change_block_str);
-    }
-
-{% if not linked_importing %}
-    function setDelimiters(typename, column_id, df_id) {
-        var delimiter_select = $("#column_" + column_id + "_select");
-        var delimiter_field = $("#column_" + column_id + "_delimiter");
-        var hierarchy_select = $("#column_" + column_id + "_hierarchy_select");
-        var hierarchy_field = $("#column_" + column_id + "_hierarchy_delimiter");
-
-        if ( typename === 'Tags') {
-            // Tags need the secondary delimiters
-            $(delimiter_select).prop('disabled', false);
-            $(delimiter_field).prop('disabled', false);
-
-            if ( df_id === 'new' || multilevel_tag_datafields.indexOf(parseInt(df_id)) !== -1 ) {
-                // Only enable the hierarchy delimiter stuff if the tag field needs it
-                $(hierarchy_select).prop('disabled', false);
-                $(hierarchy_field).prop('disabled', false);
-            }
-            else {
-                // Otherwise, ensure it's disabled
                 $(hierarchy_select).prop('disabled', true);
                 $(hierarchy_select).children('option').first().prop('selected', true);
                 $(hierarchy_select).trigger('change');
                 $(hierarchy_field).prop('disabled', true);
             }
         }
-        else if ( typename === 'File' || typename === 'Image' || typename === 'Multiple Radio' || typename === 'Multiple Select' ) {
-            // These fieldtypes need the secondary delimiter
-            $(delimiter_select).prop('disabled', false);
-            $(delimiter_field).prop('disabled', false);
 
-            // ...but not the hierarchy delimiters
-            $(hierarchy_select).prop('disabled', true);
-            $(hierarchy_select).children('option').first().prop('selected', true);
-            $(hierarchy_select).trigger('change');
-            $(hierarchy_field).prop('disabled', true);
-        }
-        else {
-            // Every other fieldtype does not need either secondary or hierarchy delimiters
-            $(delimiter_select).prop('disabled', true);
-            $(delimiter_select).children('option').first().prop('selected', true);
-            $(delimiter_select).trigger('change');
-            $(delimiter_field).prop('disabled', true);
+        function updateDelimiterWarnings() {
 
-            $(hierarchy_select).prop('disabled', true);
-            $(hierarchy_select).children('option').first().prop('selected', true);
-            $(hierarchy_select).trigger('change');
-            $(hierarchy_field).prop('disabled', true);
-        }
-    }
-
-    function updateDelimiterWarnings() {
-
-        var csv_delimiter = "{{ csv_delimiter }}";
-        $(".odr_csvimport_warning").each(function() {
-            var data = $(this).attr('id').split(/_/);
-            var secondary_delimiter_field = $("#column_" + data[1] + "_delimiter");
-            // If secondary delimiter is disabled, no sense doing anything
-            if ( $(secondary_delimiter_field).prop('disabled') === true ) {
-                $(this).html('');    // TODO - this field isn't getting disabled at the right times...
-                return;
-            }
-
-            var secondary_delimiter = $(secondary_delimiter_field).val().trim();
-            if (secondary_delimiter === '') {
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
-                return;
-            }
-            else if ( secondary_delimiter.indexOf(csv_delimiter) !== -1) {
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Secondary delimiter can't contain the primary delimiter");
-                return;
-            }
-            else {
-                // No error here, continue if possible
-                $(this).html('');
-            }
-
-
-            // Similarly, if the hierarchy delimiter is disabled, don't continue
-            var hierarchy_delimiter_field = $("#column_" + data[1] + "_hierarchy_delimiter");
-            if ( $(hierarchy_delimiter_field).prop('disabled') === true )
-                return;
-
-            var hierarchy_delimiter = $(hierarchy_delimiter_field).val().trim();
-            if (hierarchy_delimiter === '')
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
-            else if ( hierarchy_delimiter.indexOf(csv_delimiter) !== -1)
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the primary delimiter");
-            else if ( hierarchy_delimiter.indexOf(secondary_delimiter) !== -1
-                || secondary_delimiter.indexOf(hierarchy_delimiter) !== -1
-            ) {
-                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the secondary delimiter");
-            }
-            else
-                $(this).html('');
-        });
-
-    }
-
-    function updateDatafieldMeta(column_id, allowed_fieldtypes) {
-        var datafield_id = $("#column_" + column_id).val();
-        var fieldtype_id = $("#column_" + column_id + "_fieldtype").val();
-        var meta_column = "#column_" + column_id + "_length_warning";
-        var column_length = $("#column_" + column_id + "_length" ).val();
-        column_length = parseInt(column_length);
-
-        // Display some metadata about the selected fieldtype if needed
-        var typename = allowed_fieldtypes[fieldtype_id];
-        if ( (typename === 'File' || typename === 'Image') && datafield_id !== 'new') {
-            $(meta_column).html('<span id="unlisted_' + column_id + '_note" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</span>');
-            $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
-
-            if (block_changes) {
-                $(".synch_checkbox").unbind('click').click(function () {
-                    preventImport();
-                });
-            }
-        }
-        else if (typename === 'Long Text') {
-            if ( column_length <= 255 )
-                $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
-            else
-                $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 255 characters, but column requires ' + column_length);
-        }
-        else if (typename === 'Medium Text') {
-            if ( column_length <= 64 )
-                $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
-            else
-                $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 64 characters, but column requires ' + column_length);
-        }
-        else if (typename === 'Short Text') {
-            if ( column_length <= 32 )
-                $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
-            else
-                $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 32 characters, but column requires ' + column_length);
-        }
-        else {
-            $(meta_column).html('');
-        }
-    }
-
-    function updateHiddenFields() {
-        // Need to build a list of which datafields are currently mapped to a column
-        var selected_fields = [];
-        $(".datafield_mapping").each(function() {
-            var selection = $(this).children('option:selected').val();
-            if ( selection !== "new" )
-                selected_fields.push(selection);
-        });
-
-        // Now, for each datafield mapping selector on the page...
-        $(".datafield_mapping").each(function() {
-            // ...look at each datafield that this column could be mapped to...
-            $(this).children('option').each(function () {
-                var df_id = $(this).val();
-                if ( jQuery.inArray(df_id, selected_fields) !== -1 ) {
-                    // ...and hide the datafield in the selector if a column is already mapped to it...
-                    if ( !$(this).is(':selected') ) {
-                        // ...unless this option is the one defining column_id => datafield mapping
-                        //  in the first place
-                        $(this).hide();
-                    }
+            var csv_delimiter = "{{ csv_delimiter }}";
+            $(".odr_csvimport_warning").each(function () {
+                var data = $(this).attr('id').split(/_/);
+                var secondary_delimiter_field = $("#column_" + data[1] + "_delimiter");
+                // If secondary delimiter is disabled, no sense doing anything
+                if ($(secondary_delimiter_field).prop('disabled') === true) {
+                    $(this).html('');    // TODO - this field isn't getting disabled at the right times...
+                    return;
                 }
-                else {
-                    // ...otherwise, ensure the option is visible so it can be selected
-                    $(this).show();
+
+                var secondary_delimiter = $(secondary_delimiter_field).val().trim();
+                if (secondary_delimiter === 'space')
+                    secondary_delimiter = ' ';
+
+                if (secondary_delimiter === '') {
+                    $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
+                    return;
+                } else if (secondary_delimiter.indexOf(csv_delimiter) !== -1) {
+                    $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Secondary delimiter can't contain the primary delimiter");
+                    return;
+                } else {
+                    // No error here, continue if possible
+                    $(this).html('');
+                }
+
+
+                // Similarly, if the hierarchy delimiter is disabled, don't continue
+                var hierarchy_delimiter_field = $("#column_" + data[1] + "_hierarchy_delimiter");
+                if ($(hierarchy_delimiter_field).prop('disabled') === true)
+                    return;
+
+                var hierarchy_delimiter = $(hierarchy_delimiter_field).val().trim();
+                if (hierarchy_delimiter === '')
+                    $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
+                else if (hierarchy_delimiter.indexOf(csv_delimiter) !== -1)
+                    $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the primary delimiter");
+                else if (hierarchy_delimiter.indexOf(secondary_delimiter) !== -1
+                    || secondary_delimiter.indexOf(hierarchy_delimiter) !== -1
+                ) {
+                    $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the secondary delimiter");
+                } else
+                    $(this).html('');
+            });
+
+        }
+
+        function updateDatafieldMeta(column_id, allowed_fieldtypes) {
+            var datafield_id = $("#column_" + column_id).val();
+            var fieldtype_id = $("#column_" + column_id + "_fieldtype").val();
+            var meta_column = "#column_" + column_id + "_length_warning";
+            var column_length = $("#column_" + column_id + "_length").val();
+            column_length = parseInt(column_length);
+
+            // Display some metadata about the selected fieldtype if needed
+            var typename = allowed_fieldtypes[fieldtype_id];
+            if ((typename === 'File' || typename === 'Image') && datafield_id !== 'new') {
+                $(meta_column).html('<span id="unlisted_' + column_id + '_note" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</span>');
+                $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
+
+                if (block_changes) {
+                    $(".synch_checkbox").unbind('click').click(function () {
+                        preventImport();
+                    });
+                }
+            } else if (typename === 'Long Text') {
+                if (column_length <= 255)
+                    $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
+                else
+                    $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 255 characters, but column requires ' + column_length);
+            } else if (typename === 'Medium Text') {
+                if (column_length <= 64)
+                    $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
+                else
+                    $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 64 characters, but column requires ' + column_length);
+            } else if (typename === 'Short Text') {
+                if (column_length <= 32)
+                    $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
+                else
+                    $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 32 characters, but column requires ' + column_length);
+            } else {
+                $(meta_column).html('');
+            }
+        }
+
+        function updateHiddenFields() {
+            // Need to build a list of which datafields are currently mapped to a column
+            var selected_fields = [];
+            $(".datafield_mapping").each(function () {
+                var selection = $(this).children('option:selected').val();
+                if (selection !== "new")
+                    selected_fields.push(selection);
+            });
+
+            // Now, for each datafield mapping selector on the page...
+            $(".datafield_mapping").each(function () {
+                // ...look at each datafield that this column could be mapped to...
+                $(this).children('option').each(function () {
+                    var df_id = $(this).val();
+                    if (jQuery.inArray(df_id, selected_fields) !== -1) {
+                        // ...and hide the datafield in the selector if a column is already mapped to it...
+                        if (!$(this).is(':selected')) {
+                            // ...unless this option is the one defining column_id => datafield mapping
+                            //  in the first place
+                            $(this).hide();
+                        }
+                    } else {
+                        // ...otherwise, ensure the option is visible so it can be selected
+                        $(this).show();
+                    }
+                });
+            });
+        }
+
+        function setUniqueWarnings(column_id, unique_datafields) {
+            // Check if the "require unique" datafield is already checked
+            var is_checked = false;
+            if ($("#column_" + column_id + "_unique").is(":checked"))
+                is_checked = true;
+
+            // Check if the datafield is marked as unique
+            var is_unique = false;
+            if ($("#import_checkbox_" + column_id).is(':checked')) {
+                var df_id = $("#column_" + column_id).children('option:selected').val();
+                if (unique_datafields.indexOf(df_id) != -1)
+                    is_unique = true;
+            }
+
+            // Check if the fieldtype is allowed to be unique
+            var prevent_unique_checkbox = false;
+            if ($("#import_checkbox_" + column_id).is(':checked')) {
+                var ft_id = $("#column_" + column_id + "_fieldtype").children('option:selected').val();
+                if (unique_fieldtypes.indexOf(ft_id) == -1)
+                    prevent_unique_checkbox = true;
+            }
+
+            var unique_checkbox = "#column_" + column_id + "_unique";
+            if (prevent_unique_checkbox) {
+                // Fieldtype is not allowed to be unique...ensure "require unique" is unchecked
+                if (is_checked) {
+                    $(unique_checkbox).prop('checked', false);
+                    $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+                }
+
+                // Disable checkbox so it can't be checked
+                $(unique_checkbox).prop('disabled', true);
+            } else if (is_unique) {
+                // Datafield is marked as unique, ensure "require unique" is checked
+                if (!is_checked) {
+                    $(unique_checkbox).prop('checked', true);
+                    $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
+                }
+
+                // Disable checkbox so it can't be unchecked
+                $(unique_checkbox).prop('disabled', true);
+            } else {
+                if ($(unique_checkbox).prop('disabled')) {
+                    // checkbox was disabled...enable it
+                    $(unique_checkbox).prop('disabled', false);
+                } else {
+                    // checkbox was already enabled
+                    if (is_checked)
+                        $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
+                    else
+                        $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+                }
+            }
+        }
+
+        function selectAllFields() {
+            $(".import_checkbox").each(function () {
+                if (!$(this).is(':checked')) {
+                    $(this).trigger('click');
                 }
             });
-        });
-    }
-
-    function setUniqueWarnings(column_id, unique_datafields) {
-        // Check if the "require unique" datafield is already checked
-        var is_checked = false;
-        if ( $("#column_" + column_id + "_unique").is(":checked") )
-            is_checked = true;
-
-        // Check if the datafield is marked as unique
-        var is_unique = false;
-        if ( $("#import_checkbox_" + column_id).is(':checked') ) {
-            var df_id = $("#column_" + column_id).children('option:selected').val();
-            if ( unique_datafields.indexOf(df_id) != -1 )
-                is_unique = true;
         }
 
-        // Check if the fieldtype is allowed to be unique
-        var prevent_unique_checkbox = false;
-        if ( $("#import_checkbox_" + column_id).is(':checked') ) {
-            var ft_id = $("#column_" + column_id + "_fieldtype").children('option:selected').val();
-            if ( unique_fieldtypes.indexOf(ft_id) == -1 )
-                prevent_unique_checkbox = true;
+        function deselectAllFields() {
+            $(".import_checkbox").each(function () {
+                if ($(this).is(':checked')) {
+                    $(this).trigger('click');
+                }
+            });
         }
 
-        var unique_checkbox = "#column_" + column_id + "_unique";
-        if ( prevent_unique_checkbox ) {
-            // Fieldtype is not allowed to be unique...ensure "require unique" is unchecked
-            if (is_checked) {
-                $(unique_checkbox).prop('checked', false);
-                $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+        {% endif %} {# if not linked_importing #}
+
+
+        function updateFieldMappings() {
+            $(".datafield_mapping").each(function () {
+                var column_id = $(this).attr('rel');
+                var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
+
+                // Provide the option to select a fieldtype if the user wants a new datafield
+                var df_id = $(this).val();
+                if (df_id === 'new') {
+                    $(fieldtype_selector).prop('disabled', false);
+                } else {
+                    var fieldtype_id = $(this).children('option:selected').attr('rel');
+                    $(fieldtype_selector).val(fieldtype_id);
+                    $(fieldtype_selector).prop('disabled', true);
+                }
+
+                // Want to update every datafield selector so that a mapped datafield only shows up in
+                //  the selector of the column it's mapped to...TODO
+                updateHiddenFields();
+
+                // Let the fieldtype event handler deal with updating warnings...
+                $(fieldtype_selector).trigger('change');
+            });
+        }
+
+        function validateImport() {
+
+            {% if parent_datatype == null %}
+            {# do nothing #}
+            {% else %}
+            if ($("#parent_external_id_column").val() === '') {
+                alert('ERROR: One column of the CSV file must be mapped to the external ID for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}"');
+                return;
+            }
+            {% if linked_importing %}
+            if ($("#remote_external_id_column").val() === '') {
+                alert('ERROR: One column of the CSV file must be mapped to the external ID for the remote Datatype "{{ datatype.getshortname }}"');
+                return;
             }
 
-            // Disable checkbox so it can't be checked
-            $(unique_checkbox).prop('disabled', true);
-        }
-        else if ( is_unique ) {
-            // Datafield is marked as unique, ensure "require unique" is checked
-            if (!is_checked) {
-                $(unique_checkbox).prop('checked', true);
-                $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
+            if ($("#parent_external_id_column").val() === $("#remote_external_id_column").val()) {
+                alert("ERROR: The external IDs for the local and remote datatypes can't both be mapped to the same column");
+                return;
+            }
+            {% endif %}
+            {% endif %}
+
+            // If no checkboxes checked, no point doing any importing...
+            var any_checked = false;
+            var block_import = false;
+            $(".import_checkbox:checked").each(function () {
+                any_checked = true;
+
+                {% if parent_datatype != null %}
+                if ($("#parent_external_id_column").val() === $(this).attr('rel')) {
+                    alert("ERROR: The column mapped to the parent Datatype's external ID can't also be mapped to a Datafield");
+                    block_import = true;
+                }
+                {% endif %}
+            });
+
+            {% if not linked_importing %}
+            if (!any_checked) {
+                alert('ERROR: No columns selected for import');
+                return;
             }
 
-            // Disable checkbox so it can't be unchecked
-            $(unique_checkbox).prop('disabled', true);
-        }
-        else {
-            if ( $(unique_checkbox).prop('disabled') ) {
-                // checkbox was disabled...enable it
-                $(unique_checkbox).prop('disabled', false);
-            }
-            else {
-                // checkbox was already enabled
-                if (is_checked)
-                    $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
-                else
-                    $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
-            }
-        }
-    }
-
-    function selectAllFields() {
-        $(".import_checkbox").each(function() {
-            if ( !$(this).is(':checked') ) {
-                $(this).trigger('click');
-            }
-        });
-    }
-    function deselectAllFields() {
-        $(".import_checkbox").each(function() {
-            if ( $(this).is(':checked') ) {
-                $(this).trigger('click');
-            }
-        });
-    }
-
-{% endif %} {# if not linked_importing #}
-
-    function validateImport() {
-
-{% if parent_datatype == null %}
-    {# do nothing #}
-{% else %}
-        if ( $("#parent_external_id_column").val() === '' ) {
-            alert('ERROR: One column of the CSV file must be mapped to the external ID for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}"');
-            return;
-        }
-    {% if linked_importing %}
-        if ( $("#remote_external_id_column").val() === '' ) {
-            alert('ERROR: One column of the CSV file must be mapped to the external ID for the remote Datatype "{{ datatype.getshortname }}"');
-            return;
-        }
-
-        if ( $("#parent_external_id_column").val() === $("#remote_external_id_column").val() ) {
-            alert("ERROR: The external IDs for the local and remote datatypes can't both be mapped to the same column");
-            return;
-        }
-    {% endif %}
-{% endif %}
-
-        // If no checkboxes checked, no point doing any importing...
-        var any_checked = false;
-        var block_import = false;
-        $(".import_checkbox:checked").each(function() {
-            any_checked = true;
-
-{% if parent_datatype != null %}
-            if ( $("#parent_external_id_column").val() === $(this).attr('rel') ) {
-                alert( "ERROR: The column mapped to the parent Datatype's external ID can't also be mapped to a Datafield" );
-                block_import = true;
-            }
-{% endif %}
-        });
-
-{% if not linked_importing %}
-        if (!any_checked) {
-            alert('ERROR: No columns selected for import');
-            return;
-        }
-
-        // Remove disabled attribute from any checked unique checkboxes so they're included in the post
-        $(".unique_checkbox:checked").each(function() {
-            $(this).prop('disabled', true);
-        });
+            // Remove disabled attribute from any checked unique checkboxes so they're included in the post
+            $(".unique_checkbox:checked").each(function () {
+                $(this).prop('disabled', true);
+            });
 
 
-        // Notify when same datafield selected for two different columns
-        var selections = [];
-        $(".datafield_mapping:enabled").each(function() {
-            var selection = $(this).val();
-            if (selection === 'new') {
-                // Don't care about situations where a new datafield has to be created
+            // Notify when same datafield selected for two different columns
+            var selections = [];
+            $(".datafield_mapping:enabled").each(function () {
+                var selection = $(this).val();
+                if (selection === 'new') {
+                    // Don't care about situations where a new datafield has to be created
 //                continue;
-            }
-            else if ( selections.indexOf(selection) !== -1 ) {
-                // Notify of duplicate selection
-                var fieldname = $(this).children('option:selected').first().text();
-                alert( 'ERROR: Multiple columns are mapped to DataField "' + fieldname + '".' );
-                block_import = true;
-            }
-            else {
-                // Haven't seen this datafield before, continue
-                selections.push(selection);
-            }
-        });
+                } else if (selections.indexOf(selection) !== -1) {
+                    // Notify of duplicate selection
+                    var fieldname = $(this).children('option:selected').first().text();
+                    alert('ERROR: Multiple columns are mapped to DataField "' + fieldname + '".');
+                    block_import = true;
+                } else {
+                    // Haven't seen this datafield before, continue
+                    selections.push(selection);
+                }
+            });
 
-        // Repeat any warning currently in the meta column about delimiters
-        $(".odr_csvimport_warning").each(function() {
-            if ( $(this).children('i.fa-warning').length > 0 ) {
-                block_import = true;
-                alert( 'ERROR: The delimiter columns MUST NOT have warnings' );
-                return false;
-            }
-        });
+            // Repeat any warning currently in the meta column about delimiters
+            $(".odr_csvimport_warning").each(function () {
+                if ($(this).children('i.fa-warning').length > 0) {
+                    block_import = true;
+                    alert('ERROR: The delimiter columns MUST NOT have warnings');
+                    return false;
+                }
+            });
 
 
-        // If any of the conditions aren't met, don't proceed with import
-        if (block_import)
-            return;
+            // If any of the conditions aren't met, don't proceed with import
+            if (block_import)
+                return;
 
-{% endif %} {# if not linked_importing #}
+            {% endif %} {# if not linked_importing #}
 
-        if ( confirm("Are you sure you want to validate this import?") ) {
-            var import_data = $("#csv_import_form").serialize();
-            var url = '{{ path('odr_csv_import_start_validate') }}';
 
-            // console.log(import_data);
-            // return;
+
+            {% if tracked_job_id is defined %}
+            {# Delete existing tracked job before revalidating #}
+            var delete_url = "{{ path('odr_delete_user_job', {'job_id': tracked_job_id} ) }}";
 
             $.ajax({
-                cache: false,
-                type: 'POST',
-                url: url,
+                type: 'GET',
+                url: delete_url,
                 dataType: 'json',
-                data: import_data,
-                success: function(data, textStatus, jqXHR) {
-                    alert('Beginning validation of CSV Import...');
-
-                    var url = '{{ path('odr_job_list', {'section': 'csv_import_validate'}) }}';
-                    UpdateURL(url);
+                success: function (data) {
                 },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR, textStatus) {
+                complete: function (jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -765,13 +811,57 @@
                         var currentElement = $('.sf-toolbar')[0];
 
                         // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
                     }
                 }
             });
 
+            {% endif %}
+            // console.log(import_data);
+            // return;
+
+            // if ( confirm("Are you sure you want to validate this import?") ) {
+            var import_data = $("#csv_import_form").serialize();
+            var url = '{{ path('odr_csv_import_start_validate') }}';
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                url: url,
+                dataType: 'json',
+                data: import_data,
+                success: function (data) {
+                    // Replace this with loading message/checker directly
+                    $('#CSVImportLayoutForm').hide();
+                    $('.ODRValidationSystem').hide();
+                    $('#LoadingBlock').fadeIn('fast');
+                    // Get CSV Exports from Jobs Page - add messaging
+
+                    // data.d.tracked_job_id
+                    getJobProgress('csv_import_validate', data.d.tracked_job_id);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+
+            // }
         }
-    }
-</script>
+    </script>
+
+
+    {% include 'ODRAdminBundle:Job:job_progress.html.twig' %}
 
 {% endspaceless %}

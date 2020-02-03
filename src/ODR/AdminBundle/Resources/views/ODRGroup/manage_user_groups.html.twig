@@ -5,9 +5,9 @@
 {% if datatypes|length == 0 %}
     <div class="ODRDatarecordListHeader">No Datatypes exist!</div>
 {% else %}
-<div class="pure-u-1-2">
-    <table id="ODRDatatypeList" class="display dataTable">
-        <thead>
+    <div class="pure-u-1-2">
+        <table id="ODRDatatypeList" class="display dataTable">
+            <thead>
             <tr>
                 <th></th>
                 <th>Database Name</th>
@@ -15,128 +15,156 @@
                 <th>Database is public?</th>
                 <th></th>
             </tr>
-        </thead>
-        <tbody>
+            </thead>
+            <tbody>
             {% for dt_id, dt in datatypes %}
-            <tr>
-                <td>
-                    <span class="ODRDatatypeInfoDiv">
-                        <i class="fa fa-lg fa-info-circle"></i>
-                        <span class="ODRDatatypeInfo">
-                            <div>
-                                <b>Created By: </b>{{ dt.createdBy|user_string }}<b> on </b>{{ dt.created|date('Y-m-d') }}
-                            </div>
-                            <div>
-                                <b>Description: </b>{{ dt.dataTypeMeta.description }}
-                            </div>
+                {% set datatype_meta = dt.dataTypeMeta %}
+                <tr>
+                    <td>
+                        <span class="ODRDatatypeInfoDiv">
+                            <i class="fa fa-lg fa-info-circle"></i>
+                            <span class="ODRDatatypeInfo">
+                                <div>
+                                    <b>Created By: </b>{{ dt.createdBy|user_string }}<b> on </b>{{ dt.created|date('Y-m-d') }}
+                                </div>
+                                <div>
+                                    <b>Description: </b>{{ datatype_meta.description }}
+                                </div>
+                            </span>
                         </span>
-                    </span>
-                </td>
-                <td>{{ dt.dataTypeMeta.shortName }}</td>
-                <td>
-                    <i id="in_datatype_{{ dt_id }}_group" class="fa fa-lg{% if user_datatype_group_membership[ dt_id ] is defined %} fa-check{% endif %} Cursor" style="left:45%; position:relative;"></i>
-                </td>
-                <td>
-                    {% if dt.dataTypeMeta.publicDate|is_public %}
-                        <i class="fa fa-lg fa-check Cursor" style="left:45%; position:relative;"></i>
+                    </td>
+                    <td>{{ datatype_meta.shortName }}</td>
+                    <td>
+                        <i
+                            id="in_datatype_{{ dt_id }}_group"
+                            class="fa fa-lg{% if user_datatype_group_membership[ dt_id ] is defined %} fa-check{% endif %} Cursor ODRGroupListCheckbox"
+                        >
+                            <span class="ODRHidden">{% if user_datatype_group_membership[ dt_id ] is defined %}1{% else %}0{% endif %}</span>
+                        </i>
+                    </td>
+                    <td>
+                    {% if datatype_meta.publicDate|is_public %}
+                        <i class="fa fa-lg fa-check Cursor ODRGroupListCheckbox"></i>
                     {% endif %}
-                </td>
-                <td id="ODRDatatype_{{ dt_id }}_arrow" class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ dt_id }}"></i></td>
-            </tr>
+                    </td>
+                    <td id="ODRDatatype_{{ dt_id }}_arrow" class="Pointer ODRListExpand">
+                        <i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ dt_id }}"></i>
+                    </td>
+                </tr>
             {% endfor %}
-        </tbody>
-    </table>
-</div>
-<div class="pure-u-1-24"></div>
-
-{% for dt_id, dt in datatypes %}
-<div id="datatype_groups_{{ dt_id }}" class="ODRGroupList pure-u-11-24" rel="{{ dt_id }}">
-    <div class="pure-u-1 ODRGroupListHeader">Default Groups for "{{ dt.dataTypeMeta.shortName }}"</div>
-    <div class="pure-u-1">
-        {# print out the four default groups across the top #}
-        {% set group_id = dt['groups']['view_only']['id'] %}
-        <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_only']['groupMeta']['groupDescription'] }}">
-            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
-            <span class="ODRGroupName">View Only</span>
-        </span>
-        {% set group_id = dt['groups']['view_all']['id'] %}
-        <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_all']['groupMeta']['groupDescription'] }}">
-            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
-            <span class="ODRGroupName">View All</span>
-        </span>
-        {% set group_id = dt['groups']['edit_all']['id'] %}
-        <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['edit_all']['groupMeta']['groupDescription'] }}">
-            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
-            <span class="ODRGroupName">Edit All</span>
-        </span>
-        {% set group_id = dt['groups']['admin']['id'] %}
-        <span class="pure-u-1-4 Cursor" title="{{ dt['groups']['admin']['groupMeta']['groupDescription'] }}">
-            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
-            <span class="ODRGroupName">Admin</span>
-        </span>
-    </div>
-    <div class="pure-u-1 ODRGroupListHeader">Custom Groups for "{{ dt.dataTypeMeta.shortName }}"</div>
-    <div class="pure-u-1" style="margin-bottom:15px;">
-        {# print out the remaining non-default groups as a list #}
-        {% for group in datatypes[dt_id]['groups'] %}
-            {% if group.purpose == "" %}
-                <div class="pure-u-1">
-                    <span class="ODRDatatypeInfoDiv">
-                        <i class="fa fa-lg fa-info-circle"></i>
-                        <span class="ODRDatatypeInfo">
-                            <div>
-                                <b>Created By: </b>{{ group.createdBy|user_string }}<b> on </b>{{ group.created|date('Y-m-d') }}
-                            </div>
-                            <div>
-                                <b>Description: </b>{{ group.groupMeta.groupDescription }}
-                            </div>
-                        </span>
-                    </span>
-                    <span class="ODRGroupName">
-                        <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group['id'] }}" class="ODRGroupCheckbox" {% if user_group_list[ group['id'] ] is defined %}checked{% endif %} />
-                    </span>
-                    <span class="ODRGroupName Cursor">
-                        {{ group.groupMeta.groupName }}
-                    </span>
-                </div>
-            {% endif %}
-        {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups for "{{ dt.dataTypeMeta.shortName }}"</button>
-    <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View User's Effective Permissions</button>
-</div>
-{% endfor %}
+    <div class="pure-u-1-24"></div>
+
+    {% for dt_id, dt in datatypes %}
+        {% set datatype_meta = dt.dataTypeMeta %}
+
+        <div id="datatype_groups_{{ dt_id }}" class="ODRGroupList pure-u-11-24" rel="{{ dt_id }}">
+            <div class="pure-u-1 ODRManageGroupsHeader">Default Groups for "{{ datatype_meta.shortName }}"</div>
+
+            <div class="pure-u-1">
+                {# print out the four default groups across the top #}
+                {% set group_id = dt['groups']['view_only']['id'] %}
+                <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_only']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">View Only</span>
+                </span>
+
+                {% set group_id = dt['groups']['view_all']['id'] %}
+                <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_all']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">View All</span>
+                </span>
+
+                {% set group_id = dt['groups']['edit_all']['id'] %}
+                <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['edit_all']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">Edit All</span>
+                </span>
+
+                {% set group_id = dt['groups']['admin']['id'] %}
+                <span class="pure-u-1-4 Cursor" title="{{ dt['groups']['admin']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">Admin</span>
+                </span>
+            </div>
+
+            <div class="pure-u-1 ODRManageGroupsHeader">Custom Groups for "{{ datatype_meta.shortName }}"</div>
+            <div class="pure-u-1" style="margin-bottom:15px;">
+                {# print out the remaining non-default groups as a list #}
+                {% for group in datatypes[dt_id]['groups'] %}
+                    {% if group.purpose == "" %}
+                        <div class="pure-u-1">
+                            <span class="ODRDatatypeInfoDiv">
+                                <i class="fa fa-lg fa-info-circle"></i>
+                                <span class="ODRDatatypeInfo">
+                                    <div>
+                                        <b>Created By: </b>{{ group.createdBy|user_string }}<b> on </b>{{ group.created|date('Y-m-d') }}
+                                    </div>
+                                    <div>
+                                        <b>Description: </b>{{ group.groupMeta.groupDescription }}
+                                    </div>
+                                </span>
+                            </span>
+                            <span class="ODRGroupName">
+                                <input
+                                    type="checkbox"
+                                    id="checkbox_{{ target_user.id }}_{{ group['id'] }}"
+                                    class="ODRGroupCheckbox"
+                                    {% if user_group_list[ group['id'] ] is defined %}checked{% endif %}
+                                />
+                            </span>
+                            <span class="ODRGroupName Cursor">
+                                {{ group.groupMeta.groupName }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups for "{{ datatype_meta.shortName }}"</button>
+            <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View User's Effective Permissions</button>
+        </div>
+    {% endfor %}
 
 {% endif %}
 
-<style>
-    .ODRGroupListHeader {
-        border-bottom: 1px solid #111111;
-        font-weight: bold;
-        padding: 10px 18px;
-        margin-top: 15px;
-    }
-    .ODRGrayIcon {
-        opacity: 0.4;
-    }
-
-    .ODRGroupCheckbox {
-        cursor: pointer;
-    }
-    .ODRGroupName {
-        margin-left: 10px;
-    }
-</style>
-
 <script>
+    function notifySaved() {
+        $.jGrowl('SAVED');
+    }
+
     $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         $("#ODRDatatypeList").dataTable({
             "paging": false,
             "info": false,
             "columnDefs": [
                 {
-                    "targets": [0, 2, 3, 4],
+                    "targets": [0, 4],
                     "orderable": false,
                     "searchable": false
                 }
@@ -279,26 +307,35 @@
                 url: url,
                 dataType: 'json',
                 success: function(data, textStatus, jqXHR) {
-                    if (data.r == 0) {
-                        if ( value == 1 && $(element).hasClass('ODRDefaultGroupCheckbox') ) {
-                            // Set all other default group checkboxes to false
-                            $(element).parent().parent().find('.ODRDefaultGroupCheckbox').each(function() {
-                                $(this).prop('checked', false);
-                            });
-                            // Set this specific group checkbox to true
-                            $(element).prop('checked', true);
-                        }
+                    if ( value === 1 && $(element).hasClass('ODRDefaultGroupCheckbox') ) {
+                        // Set all other default group checkboxes to false
+                        $(element).parent().parent().find('.ODRDefaultGroupCheckbox').each(function() {
+                            $(this).prop('checked', false);
+                        });
+                        // Set this specific group checkbox to true
+                        $(element).prop('checked', true);
+                    }
 
-                        if (data.in_datatype_group == 1)
-                            $("#in_datatype_" + data.datatype_id + "_group").addClass('fa-check');
-                        else
-                            $("#in_datatype_" + data.datatype_id + "_group").removeClass('fa-check');
+                    var target = $("#in_datatype_" + data.datatype_id + "_group");
+                    if (data.in_datatype_group === 1) {
+                        $(target).addClass('fa-check');
+                        $(target).children('span').html(1);
                     }
                     else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
+                        $(target).removeClass('fa-check');
+                        $(target).children('span').html(0);
                     }
+
+                    notifySaved();
+                    // Delete the sort order that datatables cached so sorting works afterwards
+                    $("#ODRDatatypeList").DataTable().rows().invalidate();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Change the checkbox that triggered this event back to its original state
+                    if ( value === 1 )
+                        $(element).prop('checked', false);
+                    else
+                        $(element).prop('checked', true);
                 },
                 complete: function (jqXHR, textStatus) {
                     // Get the xdebugToken from response headers

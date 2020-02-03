@@ -66,7 +66,6 @@ use ODR\AdminBundle\Exception\ODRException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\Filesystem\LockHandler;
 
 
 class EntityCreationService
@@ -83,6 +82,11 @@ class EntityCreationService
     private $cache_service;
 
     /**
+     * @var LockService
+     */
+    private $lock_service;
+
+    /**
      * @var UUIDService
      */
     private $uuid_service;
@@ -96,19 +100,22 @@ class EntityCreationService
     /**
      * EntityCreationService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param CacheService $cacheService
-     * @param UUIDService $UUIDService
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param LockService $lock_service
+     * @param UUIDService $uuid_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        LockService $lock_service,
         UUIDService $uuid_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->lock_service = $lock_service;
         $this->uuid_service = $uuid_service;
 
         $this->logger = $logger;
@@ -176,18 +183,20 @@ class EntityCreationService
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
-        $datafield_meta->setRadioOptionNameSort(0);
-        $datafield_meta->setRadioOptionDisplayUnselected(0);
-        $datafield_meta->setTagsAllowNonAdminEdit(0);
-        $datafield_meta->setTagsAllowMultipleLevels(0);
+        $datafield_meta->setRadioOptionNameSort(false);
+        $datafield_meta->setRadioOptionDisplayUnselected(false);
+        $datafield_meta->setTagsAllowNonAdminEdit(false);
+        $datafield_meta->setTagsAllowMultipleLevels(false);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
-            $datafield_meta->setAllowMultipleUploads(1);
-            $datafield_meta->setShortenFilename(1);
+            $datafield_meta->setAllowMultipleUploads(true);
+            $datafield_meta->setShortenFilename(true);
         }
         else {
-            $datafield_meta->setAllowMultipleUploads(0);
-            $datafield_meta->setShortenFilename(0);
+            $datafield_meta->setAllowMultipleUploads(false);
+            $datafield_meta->setShortenFilename(false);
         }
+        $datafield_meta->setNewFilesArePublic(false);    // Newly uploaded files/images default to non-public
+
         $datafield_meta->setCreatedBy($user);
         $datafield_meta->setUpdatedBy($user);
 
@@ -236,7 +245,11 @@ class EntityCreationService
 
         $datarecord_meta = new DataRecordMeta();
         $datarecord_meta->setDataRecord($datarecord);
-        $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+        if ( $datatype->getNewRecordsArePublic() )
+            $datarecord_meta->setPublicDate(new \DateTime());   // public
+        else
+            $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
         $datarecord_meta->setCreatedBy($user);
         $datarecord_meta->setUpdatedBy($user);
@@ -277,11 +290,11 @@ class EntityCreationService
             // Need to create a new datarecordfield entry...
 
             // Bad Things (tm) happen if there's more than one drf entry for this datarecord/datafield
-            //  pair, so use Symfony's LockHandler component to prevent that...
-            $lockHandler = new LockHandler('drf_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
-            if (!$lockHandler->lock()) {
+            //  pair, so use a locking service to prevent that...
+            $lockHandler = $this->lock_service->createLock('drf_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
                 // Another process is attempting to create this drf entry...block until it finishes...
-                $lockHandler->lock(true);
+                $lockHandler->acquire(true);
 
                 // ...then reload and return the drf that the other process created
                 $drf = $this->em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
@@ -337,13 +350,14 @@ class EntityCreationService
         );
 
         if ($linked_datatree == null) {
-            // Use Symfony's file locking to ensure there's at most one (ancestor, descendant) pair
-            $lockHandler = new LockHandler('ldt_'.$ancestor_datarecord->getId().'_'.$descendant_datarecord->getId().'.lock');
-            if ( !$lockHandler->lock() ) {
-                // Another process is attempting to create this entity...wait for it to finish...
-                $lockHandler->lock(true);
 
-                // ...then reload and return the drf that got created
+            // Use a locking service to ensure there's at most one (ancestor, descendant) pair...
+            $lockHandler = $this->lock_service->createLock('ldt_'.$ancestor_datarecord->getId().'_'.$descendant_datarecord->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
+
+                // ...then reload and return the linked_datatree entry that got created
                 $linked_datatree = $this->em->getRepository('ODRAdminBundle:LinkedDataTree')->findOneBy(
                     array(
                         'ancestor' => $ancestor_datarecord,
@@ -463,6 +477,8 @@ class EntityCreationService
 
         // Default to "not-public"
         $datatype_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+
+        $datatype_meta->setNewRecordsArePublic(false);    // newly created datarecords default to not-public
 
         $datatype_meta->setMasterPublishedRevision(0);
         $datatype_meta->setMasterRevision(0);
@@ -1065,11 +1081,10 @@ class EntityCreationService
                 return $radio_option;
 
             // ...if not, then acquire a lock
-            // TODO - symfony seems to just drop characters out of $option_name that are illegal for filenames?  can't use hashes, those aren't guaranteed to be unique either...
-            $lockHandler = new LockHandler('ro_'.$datafield->getId().'_'.$option_name.'.lock');
-            if (!$lockHandler->lock()) {
+            $lockHandler = $this->lock_service->createLock('ro_'.$datafield->getId().'_'.$option_name.'.lock');
+            if ( !$lockHandler->acquire() ) {
                 // Another process is attempting to create this radio option...block until it finishes...
-                $lockHandler->lock(true);
+                $lockHandler->acquire(true);
 
                 // ...then reload and return what the other process created
                 $radio_option = $this->em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
@@ -1167,13 +1182,13 @@ class EntityCreationService
             // Need to create a new radio selection entry...
 
             // Bad Things (tm) happen if there's more than one radio selection entry for this
-            //  radioOption/drf pair, so use Symfony's LockHandler component to prevent that...
-            $lockHandler = new LockHandler('rs_'.$radio_option->getId().'_'.$drf->getId().'.lock');
-            if (!$lockHandler->lock()) {
-                // Another process is attempting to create this entry...block until it finishes...
-                $lockHandler->lock(true);
+            //  radioOption/drf pair, so use a locking service to prevent that...
+            $lockHandler = $this->lock_service->createLock('rs_'.$radio_option->getId().'_'.$drf->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
 
-                // ...then reload and return the drf that the other process created
+                // ...then reload and return the radio selection that the other process created
                 $radio_selection = $this->em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
                     array(
                         'dataRecordFields' => $drf->getId(),
@@ -1377,14 +1392,13 @@ class EntityCreationService
         );
         if ( $storage_entity == null ) {
             // Bad Things (tm) happen if there's more than one storage entity for this
-            //  datarecord/datafield/fieldtype tuple, so use Symfony's LockHandler component to
-            //  prevent that...
-            $lockHandler = new LockHandler('storage_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
-            if (!$lockHandler->lock()) {
-                // Another process is attempting to create this storage entity...wait for it to finish...
-                $lockHandler->lock(true);
+            //  datarecord/datafield/fieldtype tuple, so use a locking service to prevent that...
+            $lockHandler = $this->lock_service->createLock('storage_'.$datarecord->getId().'_'.$datafield->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
 
-                // ...then reload and return the drf that got created
+                // ...then reload and return the storage entity that got created
                 $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
                     array(
                         'dataRecord' => $datarecord->getId(),
@@ -1478,13 +1492,12 @@ class EntityCreationService
                 return $tag;
 
             // ...if not, then acquire a lock
-            // TODO - symfony seems to just drop characters out of $option_name that are illegal for filenames?  can't use hashes, those aren't guaranteed to be unique either...
-            $lockHandler = new LockHandler('tag_'.$datafield->getId().'_'.$tag_name.'.lock');
-            if (!$lockHandler->lock()) {
-                // Another process is attempting to create this tag...block until it finishes...
-                $lockHandler->lock(true);
+            $lockHandler = $this->lock_service->createLock('tag_'.$datafield->getId().'_'.$tag_name.'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
 
-                // ...then reload and return what the other process created
+                // ...then reload and return the tag the other process created
                 $tag = $this->em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                     array(
                         'tagName' => $tag_name,
@@ -1583,13 +1596,13 @@ class EntityCreationService
         );
 
         if ($tag_tree == null) {
-            // Use Symfony's file locking to ensure there's at most one (ancestor, descendant) pair
-            $lockHandler = new LockHandler('tt_'.$parent_tag->getId().'_'.$child_tag->getId().'.lock');
-            if ( !$lockHandler->lock() ) {
+            // Use a locking service to ensure there's at most one (ancestor, descendant) pair
+            $lockHandler = $this->lock_service->createLock('tt_'.$parent_tag->getId().'_'.$child_tag->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
                 // Another process is attempting to create this entity...wait for it to finish...
-                $lockHandler->lock(true);
+                $lockHandler->acquire(true);
 
-                // ...then reload and return the tag tree that got created
+                // ...then reload and return the tag tree entity that got created
                 $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')->findOneBy(
                     array(
                         'parent' => $parent_tag,
@@ -1644,11 +1657,11 @@ class EntityCreationService
             // Need to create a new tag selection entry...
 
             // Bad Things (tm) happen if there's more than one tag selection entry for this
-            //  tag/drf pair, so use Symfony's LockHandler component to prevent that...
-            $lockHandler = new LockHandler('tag_'.$tag->getId().'_'.$drf->getId().'.lock');
-            if (!$lockHandler->lock()) {
-                // Another process is attempting to create this entry...block until it finishes...
-                $lockHandler->lock(true);
+            //  tag/drf pair, so use a locking service to prevent that...
+            $lockHandler = $this->lock_service->createLock('tag_'.$tag->getId().'_'.$drf->getId().'.lock');
+            if ( !$lockHandler->acquire() ) {
+                // Another process is attempting to create this entity...wait for it to finish...
+                $lockHandler->acquire(true);
 
                 // ...then reload and return the tag selection that the other process created
                 $tag_selection = $this->em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(

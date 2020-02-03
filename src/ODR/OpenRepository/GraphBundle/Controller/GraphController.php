@@ -174,15 +174,20 @@ class GraphController extends ODRCustomController
         catch (\Exception $e) {
             $message = $e->getMessage();
             $message_data = json_decode($message);
-            if($message_data) {
+
+            if ($message_data) {
+                // Not sure whether this gets used
                 $response = self::svgWarning($message_data->message, $message_data->detail);
             }
             else {
+                // Error div only has space for around 75 characters
+                $message = str_split($message, 75);
                 $response = self::svgWarning($message);
             }
+
             $headers = array(
-                'Content-Type' => 'image:svg+xml',
-                'Content-Disposition' => 'inline;filename=error_message.svg'
+                'Content-Type' => 'image/svg+xml',
+//                'Content-Disposition' => 'inline;filename=error_message.svg'    // uncommenting this breaks IE and chrome
             );
             return new Response($response, '200', $headers);
         }
@@ -190,7 +195,7 @@ class GraphController extends ODRCustomController
 
 
     /**
-     * @param string $message
+     * @param string|array $message
      * @param string $detail
      *
      * @return mixed

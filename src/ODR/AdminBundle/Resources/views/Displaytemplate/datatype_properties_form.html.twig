@@ -19,7 +19,7 @@
                     </label>
                     <div class="ODRFieldWrapper">
                         {{ form_errors(datatype_form.long_name) }}
-                        {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'pure-u-1 required', 'data-error-type': 'inline' } }) }}
+                        {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'pure-u-1 required ODRDatasetName', 'data-error-type': 'inline' } }) }}
                     </div>
                 </div>
             {% else  %}
@@ -53,6 +53,13 @@
                 </div>
             {% endif %}
 
+            <div class="pure-control-group">
+                <label for="{{ datatype_form.newRecordsArePublic.vars.id }}">
+                    {{ datatype_form.newRecordsArePublic.vars.label }}
+                </label>
+                {{ form_errors(datatype_form.newRecordsArePublic) }}
+                {{ form_widget(datatype_form.newRecordsArePublic, { 'attr': {'style': 'width:auto'} }) }}
+            </div>
 
             <div class="pure-control-group">
                 <label for="{{ datatype_form.externalIdField.vars.id }}">
@@ -169,11 +176,23 @@
     {{ form_end(datatype_form) }}
 
     {% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
-        {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with {'datatree': datatree, 'datatree_form': datatree_form, 'force_multiple': force_multiple} %}
+        {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with
+            {
+                'datatree': datatree,
+                'datatree_form': datatree_form,
+                'force_multiple': force_multiple,
+                'affects_sortfield': affects_sortfield
+            }
+        %}
     {% endif %}
 
     {% if is_top_level == false and theme_datatype != null %}   {# display theme_datatype properties if not a top-level datatype #}
-        {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with {'theme_datatype': theme_datatype, 'theme_datatype_form': theme_datatype_form} %}
+        {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with
+            {
+                'theme_datatype': theme_datatype,
+                'theme_datatype_form': theme_datatype_form
+            }
+        %}
     {% endif %}
 
 {% endspaceless %}

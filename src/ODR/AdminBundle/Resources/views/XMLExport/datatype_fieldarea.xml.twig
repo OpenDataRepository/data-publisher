@@ -45,7 +45,7 @@
             {% set child_theme_id = theme_datatype.childTheme.id %}
 
             {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-            {% if datatype['descendants'][child_datatype_id] is defined %}
+            {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                 {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                 {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
@@ -79,7 +79,7 @@
             {% set child_theme_id = theme_datatype.childTheme.id %}
 
             {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-            {% if datatype['descendants'][child_datatype_id] is defined %}
+            {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                 {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                 {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 

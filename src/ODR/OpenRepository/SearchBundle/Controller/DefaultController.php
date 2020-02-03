@@ -32,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -39,6 +40,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -66,12 +68,12 @@ class DefaultController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $ssb_service */
+            $ssb_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
@@ -171,52 +173,10 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
-            // Most of the data required to build the search page is already contained within the
-            //  cached datatype arrays...
-            $datatype_array = $dti_service->getDatatypeArray($target_datatype_id, true);
-
-            // ...conveniently, they can also be filtered right here
-            $datarecord_array = array();
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-            // In the interest of making finding these datafields a bit easier...sort by name
-            foreach ($datatype_array as $dt_id => $dt) {
-                uasort($datatype_array[$dt_id]['dataFields'], function($a, $b) {
-                    $a_name = $a['dataFieldMeta']['fieldName'];
-                    $b_name = $b['dataFieldMeta']['fieldName'];
-
-                    return strcmp($a_name, $b_name);
-                });
-            }
-
-
-            // ----------------------------------------
-            // Need to determine whether a datatype is a child of the top-level datatype...if it's
-            //  not, then it's linked
-            $datatree_array = $dti_service->getDatatreeArray();
-            $datatype_list = array(
-                'child_datatypes' => array(),
-                'linked_datatypes' => array(),
-            );
-            foreach ($datatype_array as $dt_id => $datatype_data) {
-                // Don't want the top-level datatype in this array
-                if ($dt_id === $target_datatype_id)
-                    continue;
-
-                // Locate this particular datatype's grandparent id...
-                $gp_dt_id = $dti_service->getGrandparentDatatypeId($dt_id, $datatree_array);
-
-                if ($gp_dt_id === $target_datatype_id) {
-                    // If it's the same as the target datatype being searched on, then it's a child
-                    //  datatype
-                    $datatype_list['child_datatypes'][] = $dt_id;
-                }
-                else {
-                    // Otherwise, it's a linked datatype (or a child of a linked datatype)
-                    $datatype_list['linked_datatypes'][] = $dt_id;
-                }
-            }
-
+            // Need to build everything used by the sidebar...
+            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
+            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
+            $user_list = $ssb_service->getSidebarUserList($admin_user);
 
 
             // ----------------------------------------
@@ -268,9 +228,6 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
-            // Grab users to populate the created/modified by boxes with
-            $user_list = self::getSearchUserList($admin_user, $datatype_permissions);
-
             // Generate a random key to identify this tab
             $odr_tab_id = $odr_tab_service->createTabId();
 
@@ -299,6 +256,7 @@ class DefaultController extends Controller
                     'logged_in' => $logged_in,
                     'window_title' => $target_datatype->getShortName(),
                     'intent' => 'searching',
+                    'sidebar_reload' => false,
                     'search_slug' => $search_slug,
                     'site_baseurl' => $site_baseurl,
                     'search_string' => $search_string,
@@ -308,9 +266,10 @@ class DefaultController extends Controller
                     'background_image_id' => $background_image_id,
 
                     // datatype/datafields to search
+                    'search_params' => array(),
                     'target_datatype' => $target_datatype,
                     'datatype_array' => $datatype_array,
-                    'datatype_list' => $datatype_list,
+                    'datatype_relations' => $datatype_relations,
 
                     // theme selection
                     'available_themes' => $available_themes,
@@ -325,7 +284,7 @@ class DefaultController extends Controller
         catch (\Exception $e) {
             $source = 0xd75fa46d;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -334,225 +293,6 @@ class DefaultController extends Controller
         $response->headers->set('Content-Type', 'text/html');
         $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
         return $response;
-    }
-
-
-    /**
-     * Renders a version of the search page currently used for linking datarecords.
-     * TODO - move this somewhere?  reorganize so that this is the action that renders search page?
-     *
-     * @param integer $target_datatype_id The database id of the DataType marked for searching...
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function searchboxAction($target_datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Need to only return top-level datatypes
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
-
-
-            // Need to grab all searchable datafields for the target_datatype and its descendants
-            $target_datatype_id = intval($target_datatype_id);
-            /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_datatype_id);
-            if ($target_datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-
-            // ------------------------------
-            // Grab user and their permissions if possible
-            /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $logged_in = true;
-
-
-            // ----------------------------------------
-            // Most of the data required to build the search page is already contained within the
-            //  cached datatype arrays...
-            $datatype_array = $dti_service->getDatatypeArray($target_datatype_id, true);
-
-            // ...conveniently, they can also be filtered right here
-            $datarecord_array = array();
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-            // In the interest of making finding these datafields a bit easier...sort by name
-            foreach ($datatype_array as $dt_id => $dt) {
-                uasort($datatype_array[$dt_id]['dataFields'], function($a, $b) {
-                    $a_name = $a['dataFieldMeta']['fieldName'];
-                    $b_name = $b['dataFieldMeta']['fieldName'];
-
-                    return strcmp($a_name, $b_name);
-                });
-            }
-
-
-            // ----------------------------------------
-            // Need to determine whether a datatype is a child of the top-level datatype...if it's
-            //  not, then it's linked
-            $datatree_array = $dti_service->getDatatreeArray();
-            $datatype_list = array(
-                'child_datatypes' => array(),
-                'linked_datatypes' => array(),
-            );
-            foreach ($datatype_array as $dt_id => $datatype_data) {
-                // Don't want the top-level datatype in this array
-                if ($dt_id === $target_datatype_id)
-                    continue;
-
-                // Locate this particular datatype's grandparent id...
-                $gp_dt_id = $dti_service->getGrandparentDatatypeId($dt_id, $datatree_array);
-
-                if ($gp_dt_id === $target_datatype_id) {
-                    // If it's the same as the target datatype being searched on, then it's a child
-                    //  datatype
-                    $datatype_list['child_datatypes'][] = $dt_id;
-                }
-                else {
-                    // Otherwise, it's a linked datatype (or a child of a linked datatype)
-                    $datatype_list['linked_datatypes'][] = $dt_id;
-                }
-            }
-
-
-            // ----------------------------------------
-            // Grab all the users
-            $user_list = self::getSearchUserList($admin_user, $datatype_permissions);
-
-            // Save which theme the user wants to use to render the search box with
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype->getId(), 'search_results');
-
-
-            // ----------------------------------------
-            // Render the template
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:search.html.twig',
-                    array(
-                        // required twig/javascript parameters
-                        'user' => $admin_user,
-                        'datatype_permissions' => $datatype_permissions,
-                        'datafield_permissions' => $datafield_permissions,
-
-                        'user_list' => $user_list,
-                        'logged_in' => $logged_in,
-                        'intent' => 'linking',
-                        'site_baseurl' => $site_baseurl,
-                        'preferred_theme_id' => $preferred_theme_id,
-
-                        // required for background image
-                        'background_image_id' => null,
-
-                        // datatype/datafields to search
-                        'target_datatype' => $target_datatype,
-                        'datatype_array' => $datatype_array,
-                        'datatype_list' => $datatype_list,
-                    )
-                )
-            );
-
-            // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
-            $session = $request->getSession();
-            $session->set('scroll_target', '');
-
-        }
-        catch (\Exception $e) {
-            $source = 0x5078a3e1;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Returns an array of user ids and usernames based on the datatypes that $admin_user can see,
-     * so that the search page can populate createdBy/updatedBy fields correctly
-     *
-     * @param ODRUser $admin_user
-     * @param array $datatype_permissions
-     *
-     * @return array
-     */
-    private function getSearchUserList($admin_user, $datatype_permissions)
-    {
-        // Determine if the user has the permissions required to see anybody in the created/modified by search fields
-        $admin_permissions = array();
-        foreach ($datatype_permissions as $datatype_id => $up) {
-            if ( (isset($up['dr_edit']) && $up['dr_edit'] == 1)
-                || (isset($up['dr_delete']) && $up['dr_delete'] == 1)
-                || (isset($up['dr_add']) && $up['dr_add'] == 1)
-            ) {
-                $admin_permissions[ $datatype_id ] = $up;
-            }
-        }
-
-        if ( $admin_user == 'anon.' || count($admin_permissions) == 0 ) {
-            // Not logged in, or has none of the required permissions
-            return array();
-        }
-
-
-        // Otherwise, locate users to populate the created/modified by boxes with
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        // Get a list of datatypes the user is allowed to access
-        $datatype_list = array();
-        foreach ($admin_permissions as $dt_id => $tmp)
-            $datatype_list[] = $dt_id;
-
-        // Get all other users which can view that list of datatypes
-        $query = $em->createQuery(
-           'SELECT u.id, u.username, u.email, u.firstName, u.lastName
-            FROM ODROpenRepositoryUserBundle:User AS u
-            JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
-            JOIN ODRAdminBundle:Group AS g WITH ug.group = g
-            JOIN ODRAdminBundle:GroupDatatypePermissions AS gdtp WITH gdtp.group = g
-            JOIN ODRAdminBundle:GroupDatafieldPermissions AS gdfp WITH gdfp.group = g
-            WHERE u.enabled = 1 AND g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
-            GROUP BY u.id'
-        )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
-        $results = $query->getArrayResult();
-
-        // Convert them into a list of users that the admin user is allowed to search by
-        $user_list = array();
-        foreach ($results as $user) {
-            $username = '';
-            if ( is_null($user['firstName']) || $user['firstName'] === '' )
-                $username = $user['email'];
-            else
-                $username = $user['firstName'].' '.$user['lastName'];
-
-            $user_list[ $user['id'] ] = $username;
-        }
-
-        return $user_list;
     }
 
 
@@ -598,7 +338,7 @@ class DefaultController extends Controller
         catch (\Exception $e) {
             $source = 0x11286399;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -726,7 +466,7 @@ class DefaultController extends Controller
         catch (\Exception $e) {
             $source = 0xb1c117ba;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -801,6 +541,9 @@ class DefaultController extends Controller
 
 
             // ----------------------------------------
+            // Check whether the search key is valid first...
+            $search_key_service->validateSearchKey($search_key);
+
             // Check whether the search key needs to be filtered or not
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
             if ($filtered_search_key !== $search_key) {
@@ -893,10 +636,12 @@ class DefaultController extends Controller
             $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
             $datarecords = $search_results['grandparent_datarecord_list'];
 
-            // Bypass list entirely if only one datarecord
+            // Bypass list entirely if only one datarecord...
             if ( count($datarecords) == 1 && $intent === 'searching') {
                 $datarecord_id = $datarecords[0];
-                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id);
+                // ...but also send the search_theme_id and the search key so the search sidebar
+                //  doesn't disappear on users
+                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $filtered_search_key);
             }
 
 
@@ -924,6 +669,7 @@ class DefaultController extends Controller
 
             $return['d'] = array(
                 'html' => $html,
+                'search_key' => $filtered_search_key,
             );
         }
         catch (\Exception $e) {
@@ -985,7 +731,208 @@ class DefaultController extends Controller
         catch (\Exception $e) {
             $source = 0xc49e75eb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Handles an "inline" linking request...takes search values from fields on the page, and then
+     * returns an array so that a jQuery autocomplete plugin can render an abbreviated view of the
+     * datarecords that matched the search.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function inlinelinkAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        // The max number of results this function should return
+        $max_results = 10;
+
+        try {
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+            if ( !isset($post['dt_id']) || !is_numeric($post['dt_id']) ) {
+                throw new ODRBadRequestException();
+            }
+
+            $datatype_id = intval($post['dt_id']);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Find the first/single datafield in the post
+            $search_params = array('dt_id' => $datatype_id);
+            foreach ($post as $key => $value) {
+                if ( $key === 'dt_id' || $key === 'ajax_request' )
+                    continue;
+
+                if ( !is_numeric($key) )
+                    throw new ODRBadRequestException();
+
+                $search_params[ intval($key) ] = trim($value);
+            }
+
+            // Verify the posted search request
+            $search_key = $search_key_service->encodeSearchKey($search_params);
+            $search_key_service->validateSearchKey($search_key);
+
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            $can_view_datarecords = $pm_service->canViewNonPublicDatarecords($user, $datatype);
+            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
+            // ----------------------------------------
+
+
+            // Ensure the user isn't trying to search on something they can't access...
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            // Run a search on the given parameters
+            $result = $search_api_service->performSearch($datatype, $filtered_search_key, $user_permissions);
+
+
+            // Load the cached versions of the first couple datarecords matching the search
+            $dr_array = array();
+            $output = array();
+            foreach ($result['grandparent_datarecord_list'] as $num => $dr_id) {
+                $dr = $dri_service->getDatarecordArray($dr_id, false);
+
+                // Only store the cached datarecord if the user can view it
+                $public_date = $dr[$dr_id]['dataRecordMeta']['publicDate'];
+                if ( $can_view_datarecords || $public_date->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' ) {
+                    $dr_array[$dr_id] = $dr[$dr_id];
+
+                    // Also initialize an output container for each datarecord
+                    $output[$dr_id] = array();
+                }
+
+                // Continue loading datarecord entries until the limit is reached
+                if ( count($dr_array) >= $max_results)
+                    break;
+            }
+
+            // Filter out all datafields from the datarecord arrays that the user isn't allowed to see
+            // Need to have the actual cached datatype array, otherwise it won't work properly
+            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);
+            $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+
+
+            // ----------------------------------------
+            // Only interested in these typeclasses...
+            $typeclasses = array(
+                'IntegerValue' => 1,
+                'DecimalValue' => 1,
+                'ShortVarchar' => 1,
+                'MediumVarchar' => 1,
+                'LongVarchar' => 1,
+                'LongText' => 1,
+            );
+
+            // datarecordFields use the same typeclass name, but the first character is lowercase
+            foreach ($typeclasses as $typeclass => $num)
+                $typeclasses[$typeclass] = lcfirst($typeclass);
+
+
+            // Need to display all fields of these typeclasses in the same order...
+            foreach ($dt_array as $dt_id => $dt) {
+                // ...so for each datafield in the datatype...
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    // ...if it's one of the correct typeclasses...
+                    $field_typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                    if ( isset($typeclasses[$field_typeclass]) ) {
+                        // ...then locate the value for this field in each of the datarecords
+                        $drf_typeclass = $typeclasses[$field_typeclass];
+
+                        foreach ($dr_array as $dr_id => $dr) {
+                            // ...entries for each datafield aren't guaranteed to exist in the
+                            //  datarecord array...
+                            if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                                // Only save the value if it's not empty
+                                $field_value = trim($dr['dataRecordFields'][$df_id][$drf_typeclass][0]['value']);
+                                if ($field_value !== '')
+                                    $output[$dr_id][$df_id] = $field_value;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // TODO - convert $output into a string here so .autocomplete( "instance" )._renderItem
+            // TODO -  in edit_ajax.html.twig doesn't have to?
+            $final_output = array(
+                'can_add_datarecord' => $can_add_datarecord
+            );
+            if ( empty($output) ) {
+                if ( $can_add_datarecord )
+                    $dr_id = -1;
+                else
+                    $dr_id = -2;
+
+                $final_output[$dr_id] = array(
+                    'record_id' => $dr_id,
+                    'fields' => array(),
+                );
+            }
+            else {
+                foreach ($output as $dr_id => $data) {
+                    $final_output[$dr_id] = array(
+                        'record_id' => $dr_id,
+                        'fields' => array()
+                    );
+
+                    foreach ($data as $df_id => $value) {
+                        $final_output[$dr_id]['fields'][] = array(
+                            'field_id' => $df_id,
+                            'field_value' => $value,
+                        );
+                    }
+                }
+            }
+
+            $return['d'] = $final_output;
+        }
+        catch (\Exception $e) {
+            $source = 0x76b670c0;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1064,7 +1011,156 @@ class DefaultController extends Controller
         catch (\Exception $e) {
             $source = 0x9d85646e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders and returns the HTML for a reload of the search sidebar.
+     *
+     * @param string $search_key
+     * @param int $force_rebuild
+     * @param string $intent
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadsearchsidebarAction($search_key, $force_rebuild, $intent, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchSidebarService $ssb_service */
+            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var ThemeInfoService $ti_service */
+            $ti_service = $this->container->get('odr.theme_info_service');
+
+
+            // Ensure it's a valid search key first...
+            $search_key_service->validateSearchKey($search_key);
+
+            // Need to get the datatype id out of the search key service
+            $search_params = $search_key_service->decodeSearchKey($search_key);
+            $dt_id = intval( $search_params['dt_id'] );
+
+            /** @var DataType $target_datatype */
+            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            if ( $target_datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            if ( !$pm_service->canViewDatatype($user, $target_datatype) )
+                throw new ODRForbiddenException();
+
+            $logged_in = true;
+            if ($user === 'anon.')
+                $logged_in = false;
+            // --------------------
+
+            if ( $intent !== 'searching' && $intent !== 'linking' )
+                throw new ODRBadRequestException();
+
+            // Default to not making any changes
+            $return['d'] = array('html' => '');
+
+            // Only rebuild the search sidebar when it's not a default search
+            if ( count($search_params) > 1 || $force_rebuild == 1 ) {
+                // Need to build everything used by the sidebar...
+                $datatype_array = $ssb_service->getSidebarDatatypeArray($user, $target_datatype->getId());
+                $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
+                $user_list = $ssb_service->getSidebarUserList($user);
+
+                $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
+
+                // Twig can figure out which radio options/tags are selected or unselected, but it's
+                //  difficult to actually set them inside the template file...easier to use php
+                //  to tweak the search params array here
+                foreach ($datatype_array as $dt_id => $dt) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
+                            if ( isset($search_params[$df_id]) ) {
+                                // This search has criteria for a radio/tag datafield
+                                $ids = explode(',', $search_params[$df_id]);
+
+                                $selected_ids = array();
+                                $unselected_ids = array();
+                                foreach ($ids as $id) {
+                                    if ( strpos($id, '-') !== false )
+                                        $unselected_ids[] = substr($id, 1);
+                                    else
+                                        $selected_ids[] = $id;
+                                }
+
+                                // Save everything and continue
+                                $search_params[$df_id] = array(
+                                    'selected' => $selected_ids,
+                                    'unselected' => $unselected_ids
+                                );
+                            }
+                        }
+                    }
+                }
+
+                $templating = $this->get('templating');
+                $return['d'] = array(
+                    'num_params' => count($search_params),
+                    'html' => $templating->render(
+                        'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
+                        array(
+                            'search_key' => $search_key,
+                            'search_params' => $search_params,
+
+                            // required twig/javascript parameters
+                            'user' => $user,
+                            'datatype_permissions' => $datatype_permissions,
+                            'datafield_permissions' => $datafield_permissions,
+
+                            'user_list' => $user_list,
+                            'logged_in' => $logged_in,
+                            'intent' => $intent,
+                            'sidebar_reload' => true,
+
+                            // datatype/datafields to search
+                            'target_datatype' => $target_datatype,
+                            'datatype_array' => $datatype_array,
+                            'datatype_relations' => $datatype_relations,
+
+                            // theme selection
+                            'preferred_theme_id' => $preferred_theme_id,
+                        )
+                    )
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xaf1f4a0f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

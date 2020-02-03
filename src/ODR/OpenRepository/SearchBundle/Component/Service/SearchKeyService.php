@@ -365,9 +365,13 @@ class SearchKeyService
                             if (!$ret)
                                 throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid date', $exception_code);
                         }
-                        else if ( $pieces[3] !== 'by' ) {
+                        else if ( $pieces[3] === 'by' && !is_numeric($value) ) {
+                            throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid user id', $exception_code);
+                        }
+                        else if ( $pieces[3] !== 'by') {
                             throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
                         }
+
                     }
                 }
             }
@@ -490,8 +494,8 @@ class SearchKeyService
                                 case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
-                                    // A general search doesn't make sense for Files/Images/Datetime fields
-                                    // continue 2;
+                                    // A general search doesn't make sense for Files/Images/Datetime
+                                    //  fields...don't create a criteria entry to be searched on
                                     break;
 
                                 case 'IntegerValue':
@@ -686,7 +690,7 @@ class SearchKeyService
                             // createdBy or modifiedBy
                             $type .= 'By';
                             $criteria[$dt_id]['search_terms'][$type] = array(
-                                'value' => $value,
+                                'user' => intval($value),
                                 'entity_type' => 'datatype',
                                 'entity_id' => $dt_id,
                                 'datatype_id' => $dt_id,
@@ -778,7 +782,7 @@ class SearchKeyService
 
         if ( !isset($search_params['template_uuid']) )
             throw new ODRBadRequestException('Invalid search key: missing "template_uuid"', $exception_code);
-        $pattern = '/^[a-z0-9]{7}$/';
+        $pattern = '/^[a-z0-9]+$/';
         if ( preg_match($pattern, $search_params['template_uuid']) !== 1 )
             throw new ODRBadRequestException('Invalid search key: "template_uuid" is in wrong format', $exception_code);
 
@@ -1102,7 +1106,8 @@ class SearchKeyService
                                 case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
-                                    // A general search doesn't make sense for Files/Images/Datetime fields
+                                    // A general search doesn't make sense for Files/Images/Datetime
+                                    //  fields...don't create a criteria entry to be searched on
                                     break;
 
                                 case 'IntegerValue':

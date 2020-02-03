@@ -142,6 +142,11 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                                 $entity = $drf['integerValue'];
                             }
                             break;
+                        case 'DecimalValue':
+                            if (isset($drf['decimalValue'])) {
+                                $entity = $drf['decimalValue'];
+                            }
+                            break;
                         case 'ShortVarchar':
                             if (isset($drf['shortVarchar'])) {
                                 $entity = $drf['shortVarchar'];
@@ -334,6 +339,12 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                                 if ($now < $public_date)
                                     array_push($files_to_delete, $file_path);
                             }
+
+                            // Check the file for errors now, since errors inside plotly end up
+                            //  never being displayed to the user...
+                            $errors = self::validateFile($options, $filepath);
+                            if ( !empty($errors) )
+                                self::validateFileError($errors, $file['fileMeta']['originalFileName']);
                         }
 
                         // Set the chart id
@@ -355,6 +366,12 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                             if ($now < $public_date)
                                 array_push($files_to_delete, $file_path);
                         }
+
+                        // Check the file for errors now, since errors inside plotly end up never
+                        //  being displayed to the user...
+                        $errors = self::validateFile($options, $filepath);
+                        if ( !empty($errors) )
+                            self::validateFileError($errors, $file['fileMeta']['originalFileName']);
 
                         // Set the chart id
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
@@ -470,6 +487,100 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
 
             throw new \Exception('The file "'. $output_svg .'" does not exist');
         }
+    }
+
+
+    /**
+     * Performs some checks as to whether a file is valid for graphing or not...
+     *
+     * @param array $options
+     * @param string $filepath
+     *
+     * @throws \Exception
+     */
+    private function validateFile($options, $filepath)
+    {
+        // Ensure the file exists first...
+        ini_set('auto_detect_line_endings', TRUE);
+        $handle = fopen($filepath, "r");
+        if ( !$handle )
+            throw new \Exception('Could not open "'.$filepath.'"');
+
+        $errors = array();
+
+        /*
+         * TODO
+         * web/js/mylibs/odr_plotly_graphs.js is currently written so it ignores lines with fewer
+         *  columns than expected, and also ignores extra values in each line...having php throw an
+         *  error here on either condition doesn't really make sense...
+         *
+         * It would make sense if there was some sort of a "strict" option...but that would require
+         *  the ability to "validate files before saving", and/or also require users being able to
+         *  edit/replace existing files...
+         */
+/*
+        // Currently, this only makes sense on a couple graph types
+        $graph_type = $options['graph_type'];
+        if ( $graph_type === 'xy' || $graph_type === 'bar' || $graph_type === 'stackedarea' ) {
+            $line_num = 1;
+            $expected_separator = null;
+
+            // These graphs need at least 2 columns...bar graphs could have a 3rd for y-error values
+            $max_separators = 1;
+            if ( $options['graph_type'] === 'bar' )
+                $max_separators = 2;
+
+            do {
+                // Read a line from the file...
+                $line = trim( fgets($handle) );
+                if ( !empty($line) && $line{0} !== '#' ) {
+                    // Get the number of characters in this line since it's not a comment
+                    $counts = count_chars($line, 1);
+
+                    if ( is_null($expected_separator) ) {
+                        // For the first line of data, determine which separator the file claims
+                        //  to be using...
+                        if ( isset($counts[44]) )     // ascii value for comma
+                            $expected_separator = 44;
+                        else if ( isset($counts[9]) ) // ascii value for horizontal tab
+                            $expected_separator = 9;
+                    }
+                    else if ( !isset($counts[$expected_separator]) || $counts[$expected_separator] > $max_separators ) {
+                        // If any subsequent line of data either doesn't have that separator, or has
+                        //  more than one of them, then that's an error with the file...
+                        $errors[] = $line_num;
+                    }
+                }
+                $line_num++;
+
+            } while ( !feof($handle) );
+        }
+*/
+        fclose($handle);
+        return $errors;
+    }
+
+
+    /**
+     * Easier to throw file validation errors this way...
+     *
+     * @param array $errors
+     * @param string $filename
+     *
+     * @throws \Exception
+     */
+    private function validateFileError($errors, $filename)
+    {
+        $str = 'Error in file "'.$filename.'": ';
+        if ( count($errors) == 1 )
+            $str .= 'Line '.$errors[0].' has';
+        else if ( count($errors) < 15 )
+            $str .= 'Lines '.implode(', ', $errors).' have';
+        else
+            $str .= 'Lines '.implode(', ', array_slice($errors, 0, 15)).' (and more) have';
+        $str .= ' an unexpected number of columns';
+
+        throw new \Exception($str);
     }
 
 

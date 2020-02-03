@@ -14,15 +14,18 @@
 
 namespace ODR\AdminBundle\Form;
 
+// ODR
+use ODR\AdminBundle\Entity\DataFields;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 //
 use Doctrine\ORM\EntityRepository;
 
@@ -39,6 +42,7 @@ class UpdateDataTypeForm extends AbstractType
         $datatype_id = $options['datatype_id'];
         $is_top_level = $options['is_top_level'];
         $is_link = $options['is_link'];
+        $sortfield_datatypes = $options['sortfield_datatypes'];
 
         // None of these should be changable if viewing the properties of a linked datatype...
         if ($is_link == true)
@@ -117,12 +121,17 @@ class UpdateDataTypeForm extends AbstractType
             EntityType::class,
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
+                'query_builder' => function(EntityRepository $er) use ($sortfield_datatypes) {
                     return $er->createQueryBuilder('df')
                                 ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                                 ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                                ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype_id);
+                                ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
+                                ->setParameter(1, $sortfield_datatypes);
+                },
+
+                'group_by' => function($df, $key, $value) use ($datatype_id) {
+                    /** @var DataFields $df */
+                    return $df->getDataType()->getShortName();
                 },
 
                 'label' => 'Sort Field',
@@ -166,6 +175,14 @@ class UpdateDataTypeForm extends AbstractType
             );
         }
 
+        $builder->add(
+            'newRecordsArePublic',
+            CheckboxType::class,
+            array(
+                'label'  => 'Created Records default to public',
+                'required' => false
+            )
+        );
     }
 
 
@@ -208,5 +225,7 @@ class UpdateDataTypeForm extends AbstractType
         $resolver->setRequired('datatype_id');
         $resolver->setRequired('is_top_level');
         $resolver->setRequired('is_link');
+
+        $resolver->setRequired('sortfield_datatypes');
     }
 }

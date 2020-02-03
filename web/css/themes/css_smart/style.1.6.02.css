@@ -498,8 +498,8 @@ footer ul li:first-child {
 .ODRTableOuterWrap,
 #ODRDataTypeListWrapper,
 #ODRRenderPluginListWrapper {
-    margin-top: 1.2em;
-    margin-bottom: 2.2em;
+    /*margin-top: 1.2em;*/
+    /*margin-bottom: 2.2em;*/
     padding: 12px;
     background: white none;
     border-radius: 4px;
@@ -589,7 +589,7 @@ footer ul li:first-child {
 .NavSlideOut,
 .ODRDatatypeProperties {
     /* background: #7fb9d8 none; */
-    padding-bottom: 0px;
+    padding-bottom: 0;
     cursor: pointer;
 }
 
@@ -1570,7 +1570,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     font-size: 1.1em !important;
 }
 .ODRSearchButton {
-    width: 10em !important;
+    min-width: 10em !important;
 }
 .ODRResetButton {
     max-width: 4em !important;
@@ -1612,4 +1612,21 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 
 #page_settings_menu {
     background-color: white;
+    text-align: left;
 }
+
+.ODRSparklineGreen {
+    color: #04710a;
+}
+.ODRSparklineRed {
+    color: #9f1915;
+}
+.jqstooltip {
+    background: #FFFFFF;
+    border: 1px solid #000000;
+}
+.jqstooltip > div {
+    color: #000000 !important;
+}
+
+

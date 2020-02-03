@@ -83,6 +83,11 @@ class DataTypeMeta
     private $publicDate;
 
     /**
+     * @var bool
+     */
+    private $newRecordsArePublic;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -404,6 +409,30 @@ class DataTypeMeta
     public function getPublicDate()
     {
         return $this->publicDate;
+    }
+
+    /**
+     * Set newRecordsArePublic.
+     *
+     * @param bool $newRecordsArePublic
+     *
+     * @return DataTypeMeta
+     */
+    public function setNewRecordsArePublic($newRecordsArePublic)
+    {
+        $this->newRecordsArePublic = $newRecordsArePublic;
+
+        return $this;
+    }
+
+    /**
+     * Get newRecordsArePublic.
+     *
+     * @return bool
+     */
+    public function getNewRecordsArePublic()
+    {
+        return $this->newRecordsArePublic;
     }
 
     /**

@@ -609,9 +609,11 @@ class SearchAPIServiceNoConflict
         // Sort by dataset name
         $sort_array = [];
         foreach($records as $record) {
-            foreach($record['fields'] as $field) {
-                if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
-                    $sort_array[$field['value']] = $record;
+            if(isset($record['fields'])) {
+                foreach($record['fields'] as $field) {
+                    if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
+                        $sort_array[$field['value']] = $record;
+                    }
                 }
             }
         }

@@ -2736,42 +2736,6 @@ form .row {
     /*margin-top: 30px;*/
 }
 
-.ODRDashboardHeader {
-    background: url("../img/elements/stats/bg.png") repeat-x scroll 0 0 #3a4454;
-    border-bottom: 1px solid #08192e;
-    box-sizing: border-box;
-    display: table;
-    margin: 30px 0 0;
-    padding: 22px 15px 24px;
-    table-layout: fixed;
-}
-
-.ODRDashboardHeader > div {
-    display: table-cell;
-    text-align: center;
-}
-
-.ODRDashboardHeader > div > strong {
-    color: #fff;
-    font-size: 25px;
-    font-weight: bold;
-    text-shadow: 0 1px 0 #000;
-
-    display: block;
-}
-
-.ODRDashboardHeader > div > small {
-    color: #7a828d;
-    font-size: 12px;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-
-    display: block;
-}
-
-
-
-
-
 
 /* Multi-select Dropdown */
 
@@ -3008,10 +2972,10 @@ form .row {
 
 .ODRProgressBarLabel {
     position: absolute;
-    left: 45%;
     top: 4px;
     font-weight: bold;
-    text-shadow: 1px 1px 0 #fff;
+    text-align: center;
+    width: 100%;
 }
 
 .ODRMenuWrapper {
@@ -3222,7 +3186,7 @@ form .row {
 }
 
 .ODRFileDatafield {
-    margin-bottom: 4px;
+    margin: 4px;
 }
 
 .ODRFileDatafield_header {
@@ -3233,8 +3197,9 @@ form .row {
     color: white;
     padding: 4px 0 4px 8px;
     font-size: 0.8em;
+    border-radius: 5px 5px 0px 0px;
 }
-.ODRFileDatafield_file {
+.ODRFileDatafield_file, .ODRFileDatafield_empty {
     font-size: 0.8em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
@@ -3273,6 +3238,13 @@ form .row {
 }
 .ODRFileSpacer_nonpublic {
     background: red none repeat scroll 0 0;
+}
+.ODRFileSpacer_empty {
+    flex: 0 0 auto;
+
+    width: 8px;
+    display: inline-block;
+    cursor: default;
 }
 
 .ODRFileInfoDiv {
@@ -3785,6 +3757,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRSearchPageNotes_wrapper {
     box-sizing: border-box;
     padding: 4px 4px 4px 8px;
+    margin-top: 10px;
 }
 
 .ODRSearchPageNotes_wrapper p {
@@ -4059,4 +4032,194 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
     color: #555;
     line-height: 1.6;
+}
+
+.ODRLinkHeaderWrapper {
+    margin-top: 25px;
+
+    border: 1px solid #7fb9d8;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+    border-radius: 4px;
+    background-color: white;
+}
+.ODRLinkHeader_caret {
+    margin-right: 10px;
+    font-size: 1.5em;
+}
+
+#ODRSearchBoxContent {
+    margin-top: 25px;
+}
+
+.SearchResults_link_box {
+    line-height: 1.1em;
+    margin: 0.5em;
+    font-size: 1.2em;
+}
+#TextResults_current_paginate > a {
+    margin: 5px;
+}
+
+#ODRLinkDetails_wrapper {
+    text-align: left;
+    min-height: 250px;
+}
+.ODRLinkDetailsHeader {
+    color: black;
+    text-align: right;
+    width: 10em;
+    margin-right: 1em;
+}
+.ODRLinkDetailsContent {
+    display: inline-block;
+}
+
+
+.ODRManageGroupsHeader {
+    border-bottom: 1px solid #111111;
+    font-weight: bold;
+    padding: 10px 18px;
+    margin-top: 15px;
+}
+.ODRGrayIcon {
+    opacity: 0.4;
+}
+.ODRGroupListCheckbox {
+    left: 35%;
+    position: relative;
+}
+
+.ODRGroupCheckbox {
+    cursor: pointer;
+}
+.ODRGroupName {
+    margin-left: 10px;
+}
+
+#ODRPageSelectSettings {
+    text-align: left;
+}
+
+#ODRPageSelectForm {
+    text-align: left;
+}
+
+#ODRPageSelect_header {
+    margin-top: 15px;
+    text-align: left;
+}
+
+.CSVExportMessage {
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 1;
+    text-align: center;
+}
+
+.JobDownloadLink {
+    font-size: 14px;
+    text-align: center;
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 16px;
+}
+
+#ImportLoadingBlock .ODRProgressBar,
+#LoadingBlock .ODRProgressBar {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 2px solid #3b8bba;
+}
+
+.JobStatusWrapper {
+    height: 177px;
+}
+
+.JobComplete {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #3b8bba;
+    margin-top: 60px;
+}
+i {
+    position: relative;
+}
+.badge:after{
+    content:"";
+    position: absolute;
+    /* background: #f6ffa8; */
+    background: white;
+    color: #3b8bba;
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+    top: -7px;
+    right: -3px;
+    height:16px;
+    width: 16px;
+    border-radius: 50%;
+    border:1px solid white;
+}
+
+#ODRMessageList {
+    position: fixed;
+    z-index: 1000;
+    top: 40px;
+    right: 10px;
+    width: 400px;
+    height: 400px;
+    overflow-y: scroll;
+    background: white;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid blue;
+    border-radius: 6px;
+    list-style-type: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b8bba;
+}
+
+#ODRMessageList i {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: red;
+}
+
+#ODRMessageList li {
+    position: relative;
+    background: rgba(0,0,255, 0.04);
+    padding: 8px;
+    margin-left: -30px;
+    margin-right: 8px;
+    margin-top: 6px;
+    border-radius: 6px;
+}
+
+#ODRMessageList h3 {
+    color: #3b8bba;
+}
+
+#ODRMessageList .viewed,
+#ODRMessageList .viewed h3 {
+    font-weight: normal;
+    color: black;
+}
+
+#ODRMessageList .JobDownloadLink {
+    position: absolute;
+    top: 25px;
+    right: 10px;
+    width: 137px;
 }

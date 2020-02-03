@@ -34,6 +34,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
+// OAuth
+use HWI\Bundle\OAuthBundle\Security\OAuthUtils;
+use ODR\OpenRepository\OAuthServerBundle\OAuth\ClientManager;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -106,7 +109,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaa9d56a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -165,15 +168,19 @@ class ODRUserController extends ODRCustomController
             $user = $user_manager->findUserByEmail($email);
 
             // If found, return their user id
-            if ($user !== null)
-                $return['d'] = $user->getId();
+            if ($user !== null) {
+                if ( $user->getId() !== $admin_user->getId() && !$user->hasRole('ROLE_SUPER_ADMIN') )
+                    $return['d'] = $user->getId();
+                else
+                    $return['d'] = -1;
+            }
             else
                 $return['d'] = 0;
         }
         catch (\Exception $e) {
             $source = 0x4a78400f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -284,7 +291,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc5f96e25;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -328,6 +335,7 @@ class ODRUserController extends ODRCustomController
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                /** @var OAuthUtils $oauth_utils */
                 $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
@@ -353,6 +361,7 @@ class ODRUserController extends ODRCustomController
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
+                /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }
@@ -387,7 +396,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x97f688bd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -475,6 +484,7 @@ class ODRUserController extends ODRCustomController
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                /** @var OAuthUtils $oauth_utils */
                 $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
@@ -500,6 +510,7 @@ class ODRUserController extends ODRCustomController
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
+                /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }
@@ -534,7 +545,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb6a03520;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -582,7 +593,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4c69f197;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -670,7 +681,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc6125a86;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -815,7 +826,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6c1fc667;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -928,7 +939,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x482172cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1019,7 +1030,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4f9fcf8c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1085,7 +1096,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaa351c38;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1222,7 +1233,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee335a24;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1304,21 +1315,16 @@ class ODRUserController extends ODRCustomController
             // Update the user list
             $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
-            $templating = $this->get('templating');
+            // Generate a redirect to the user list
+            $router = $this->get('router');
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
-                        'users' => $users,
-                        'admin_user' => $admin_user
-                    )
-                )
+                'url' => $router->generate('odr_user_list')
             );
         }
         catch (\Exception $e) {
             $source = 0x750059fa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1371,21 +1377,16 @@ class ODRUserController extends ODRCustomController
             // Update the user list
             $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
-            $templating = $this->get('templating');
+            // Generate a redirect to the user list
+            $router = $this->get('router');
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
-                        'users' => $users,
-                        'admin_user' => $admin_user
-                    )
-                )
+                'url' => $router->generate('odr_user_list')
             );
         }
         catch (\Exception $e) {
             $source = 0x79443334;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1434,7 +1435,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1cfad2a4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1508,7 +1509,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xbf591415;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1607,7 +1608,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f12f6cb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1698,7 +1699,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1206f648;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1786,7 +1787,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1aeac909;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

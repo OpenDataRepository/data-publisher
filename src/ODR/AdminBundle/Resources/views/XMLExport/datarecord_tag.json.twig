@@ -18,43 +18,44 @@
     {% set child_is_selected = 1 %}
 {% endif %}
 
-{% if is_selected == 1 or child_is_selected == 1 %}
-
-{# each tag is its own JSON object...required because "value" is an array #}
-{
-    {% if version == 'v1' %}
-    "tag_{{ tag.id }}": {
-        "name": "{{ tag_meta.tagName }}",
-    {% elseif version == 'v2' %}
-    "{{ tag_meta.tagName }}": {
-    {% endif %}
-
+{% if is_selected == 1 %}
+    {
         "id": {{ tag.id }},
-    {% if not has_children %}
-        "selected": "1",
-    {% endif %}
-    {% if tag.userCreated %}
-        "user_created": 1,
-    {% endif %}
+        {% if not has_children %}
+            "selected": "1",
+        {% endif %}
+        {% if tag.userCreated %}
+            "user_created": 1,
+        {% endif %}
         "name": "{{ tag_meta.tagName }}",
         "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
-        "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
-    {% if has_children and child_is_selected == 1 %}
-        "children": [
-        {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
-                'tag_selections': tag_selections,
-                'child_tag_selections': child_tag_selections,
-                'tag': child_tag,
-            } %}
-        {% endfor %}
-        ]
-    {% endif %}
-    {% if version == 'v1' or version == 'v2' %}
-    }
+
+        {# Need to check which is vald in AHED system #}
+        {% if parent_tags_prefix == '' %}
+            "name": "{{ tag.tagName }}",
+        {% else %}
+            "name": "{{ parent_tags_prefix }} &gt; {{ tag.tagName }}",
+        {% endif %}
+
+        "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}",
+        "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",
+        "selected": 1,
+    },
+{% elseif has_children and child_is_selected == 1 %}
+    {% if parent_tags_prefix == '' %}
+        {% set parent_tags_prefix = tag.tagName %}
+    {% else %}
+        {% set parent_tags_prefix = parent_tags_prefix ~ ' > ' ~ tag.tagName %}
+        {# Twig will convert the '>' into '&gt;' on the next template include #}
     {% endif %}
 
-{# each tag is its own JSON object #}
-},
+    {% for child_tag_id, child_tag in tag.children %}
+        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
+            'tag_selections': tag_selections,
+            'child_tag_selections': child_tag_selections,
+            'tag': child_tag,
 
+            'parent_tags_prefix': parent_tags_prefix
+        } %}
+    {% endfor %}
 {% endif %}

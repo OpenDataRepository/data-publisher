@@ -83,14 +83,13 @@
     {% elseif field_typename == "Image" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+                {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+                {{ datafield_meta.fieldName }}
+            </h3>
         </span>
         <div class="pure-u-1">
-            <div class="pure-u-1">&nbsp;<i class="ODRDeleteImage Pointer fa fa-lg fa-trash-o" title="Delete Image"></i>&nbsp;<i class="PublicImage Pointer fa fa-lg fa-globe"></i>&nbsp;</div>
-            <div class="pure-u-1">
-                <img class="pure-img" src="/img/_demo/_tmb/1.jpg" />
-            </div>
+            <img class="pure-img" src="/img/blank.jpg" />
         </div>
     </fieldset>
 

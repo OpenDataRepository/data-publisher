@@ -312,6 +312,16 @@
         </div>
         {% endif %}
 
+        {% if typename == 'File' or typename == 'Image' %}
+        <div class="">
+            <label for="{{ datafield_form.newFilesArePublic.vars.id }}">
+                {{ datafield_form.newFilesArePublic.vars.label }}
+            </label>
+            {{ form_errors(datafield_form.newFilesArePublic) }}
+            {{ form_widget(datafield_form.newFilesArePublic, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+        {% endif %}
+
         <div class="">
             <label for="{{ datafield_form.internal_reference_name.vars.id }}">
                 {{ datafield_form.internal_reference_name.vars.label }}

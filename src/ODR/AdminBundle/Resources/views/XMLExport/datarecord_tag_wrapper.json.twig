@@ -9,24 +9,15 @@
 {% endif %}
 
 "value": [
-    {% if datafield.tags is defined %}
-        {% for tag in datafield.tags %}
-            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
-                'tag_selections': tag_selections,
-                'child_tag_selections': child_tag_selections,
-                'tag': tag,
-            } %}
-        {% endfor %}
-    {% elseif datafield.tagSelection is defined %}
-        {% for tag in datafield.tagSelection %}
-            {
-                "name": "{{ tag.tag.tagName }}",
-                "id": {{ tag.tag.id }},
-                "selected": "1",
-                "template_tag_uuid": {{ tag.tag.tagUuid|json_encode|raw }},
-                "updated_at": "{{ tag.updated|date('Y-m-d H:i:s') }}",
-                "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}"
-            }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    {% endif %}
+{% if datafield.tags is defined %}
+    {% for tag in datafield.tags %}
+        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
+            'tag_selections': tag_selections,
+            'child_tag_selections': child_tag_selections,
+            'tag': tag,
+
+            'parent_tags_prefix': ''
+        } %}
+    {% endfor %}
+{% endif %}
 ]

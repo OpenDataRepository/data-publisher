@@ -41,6 +41,9 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -83,8 +86,6 @@ class LinkController extends ODRCustomController
             $local_datatype = $repo_datatype->find($datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Datatype');
-
-
 
 
             /** @var ThemeElement $theme_element */
@@ -287,7 +288,7 @@ class LinkController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8930415b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -330,6 +331,7 @@ class LinkController extends ODRCustomController
             $local_datatype = $repo_datatype->find($datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Datatype');
+            $is_master_template = $local_datatype->getIsMasterType();
 
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
@@ -403,120 +405,107 @@ class LinkController extends ODRCustomController
                     $has_linked_datarecords = true;
             }
 
-
             // Going to need the id of the local datatype's grandparent datatype
             $current_datatree_array = $dti_service->getDatatreeArray();
             $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
 
 
             // ----------------------------------------
-            // Grab all the ids of all datatypes currently in the database
+            // Grab all the ids of all top-level non-metadata datatypes currently in the database
             $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, dt.is_master_type as is_master_type, dtm.publicDate AS public_date
+               'SELECT
+                    partial dt.{id, unique_id, is_master_type, created},
+                    partial dt_cb.{id, username, email, firstName, lastName},
+                    partial dtm.{id, shortName, description, publicDate},
+                    partial dt_md.{id}
+
                 FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                JOIN dt.grandparent AS gp
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.metadata_datatype AS dt_md
+
+                WHERE dt.setup_step = :setup_step AND dt.id = gp.id AND dt.metadata_for IS NULL
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gp.deletedAt IS NULL
+                AND (dt_md.id IS NULL OR dt_md.deletedAt IS NULL)'
+            )->setParameters(
+                array(
+                    'setup_step' => DataType::STATE_OPERATIONAL
+                )
             );
             $results = $query->getArrayResult();
 
-            $all_datatype_ids = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $is_public = true;
-                if ( $result['public_date']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
-                    $is_public = false;
+            // TODO - get rid of dtm.shortName and dtm.description
+            // TODO - pull info from the metadata datatype somehow...use "cached_datarecord_<dr_id>" probably, loading the data via query here is stupid
 
-                // Check if this is a Master Template.  If so, only other master templates
-                // (isMasterType = 1) can be linked.  TODO - check this
-                if ($local_datatype->getIsMasterType() && $result['is_master_type'] > 0) {
-                    $all_datatype_ids[$dt_id] = $is_public;
-                }
-                else if (!$local_datatype->getIsMasterType()) {
-                    $all_datatype_ids[$dt_id] = $is_public;
+            $linkable_datatypes = array();
+            foreach ($results as $dt) {
+                // Datatypes should only have one meta entry...
+                $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
+                $dt['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
+
+                // "regular" datatypes can't link to "master template" datatypes, and vice versa
+                if ( ($is_master_template && $dt['is_master_type'])
+                    || (!$is_master_template && !$dt['is_master_type'])
+                ) {
+                    $linkable_datatypes[ $dt['id'] ] = $dt;
                 }
             }
 
             // Ensure user can't link to a datatype they aren't able to see
-            foreach ($all_datatype_ids as $dt_id => $datatype_is_public) {
-                // "Manually" determining permissions on purpose
+            foreach ($linkable_datatypes as $dt_id => $dt) {
+                // "Manually" determining permissions to avoid having to hydrate query results
                 $can_view_datatype = false;
-                if ( isset($datatype_permissions[$dt_id])
-                    && isset($datatype_permissions[$dt_id]['dt_view'])
-                ) {
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
                     $can_view_datatype = true;
-                }
+
+                $is_public = true;
+                if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                    $is_public = false;
 
                 // If the datatype is not public and the user doesn't have view permissions,
                 //  then remove it from the array
-                if ( !($datatype_is_public || $can_view_datatype) )
-                    unset( $all_datatype_ids[$dt_id] );
+                if ( !$is_public && !$can_view_datatype )
+                    unset( $linkable_datatypes[$dt_id] );
             }
 
-            // Iterate through the remaining datatype ids...
-            $linkable_datatype_ids = array();
-            foreach ($all_datatype_ids as $dt_id => $datatype_is_public) {
-                // Don't allow linking to child datatypes
-                if ( isset($current_datatree_array['descendant_of'][ $dt_id ])
-                    && $current_datatree_array['descendant_of'][ $dt_id ] !== ''
-                ) {
-                    continue;
+            // Iterate through the remaining datatype ids to remove ones that the user can't link
+            //  to because it would screw up ODR...
+            foreach ($linkable_datatypes as $dt_id => $dt) {
+
+                if ( $grandparent_datatype_id == $dt_id ) {
+                    // $dt is one of the local datatype's ancestors (or itself, for top-levels)
+                    unset( $linkable_datatypes[$dt_id] );
                 }
-
-                // Don't allow linking to the local datatype's grandparent
-                if ($dt_id == $grandparent_datatype_id)
-                    continue;
-
-                // Don't allow the local datatype to link to a remote datatype more than once
-                if ( isset($current_datatree_array['linked_from'][$dt_id])
+                else if ( isset($current_datatree_array['linked_from'][$dt_id])
                     && in_array($local_datatype->getId(), $current_datatree_array['linked_from'][$dt_id])
                 ) {
-                    continue;
+                    // The local datatype already links to $dt...
+                    if ( $current_remote_datatype !== null && $current_remote_datatype->getId() === $dt_id ) {
+                        // ...and the local datatype links to $dt in this very $theme_element, even
+                        // Need to preserve this entry so that the user can check the existing link
+                    }
+                    else {
+                        // ...otherwise, don't allow the local datatype to link to $dt more than once
+                        unset($linkable_datatypes[$dt_id]);
+                    }
+                }
+                else if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype->getId(), $dt_id) ) {
+                    // Also need to block this request if it would cause rendering recursion
+                    // e.g. if A is linked to B, then don't allow B to also link to A
+                    // e.g. if A links to B, and B to C, then don't allow C to link to A
+                    unset( $linkable_datatypes[$dt_id] );
                 }
 
-                // Don't allow the local datatype to link to this remote datatype if it would cause
-                //  recursion...for instance, if datatype_a is linked to datatype_b, don't allow
-                //  datatype_b to link to datatype_a.
-                // Also don't allow situations like datatype_a => datatype_b, datatype_b => datatype_c,
-                //  and datatype_c => datatype_a, etc
-                if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype->getId(), $dt_id) )
-                    continue;
-
                 // Otherwise, linking to this datatype is acceptable
-                $linkable_datatype_ids[] = $dt_id;
             }
 
 
-            // If this theme element currently "contains" a linked datatype, ensure that the linked
-            //  datatype exists in the array
-            if ($current_remote_datatype !== null) {
-                if ( !in_array($current_remote_datatype->getId(), $linkable_datatype_ids) )
-                    $linkable_datatype_ids[] = $current_remote_datatype->getId();
-            }
-
-            // Load all datatypes which can be linked to
-            /** @var DataType[] $linkable_datatypes */
-            $linkable_datatypes = array();
-            foreach ($linkable_datatype_ids as $dt_id)
-                $linkable_datatypes[] = $repo_datatype->find($dt_id);
-
-            // Sort the linkable datatypes list by name
+            // Sort the linkable datatypes by name
             usort($linkable_datatypes, function($a, $b) {
-                /** @var DataType $a */
-                /** @var DataType $b */
-                return strcmp($a->getShortName(), $b->getShortName());
+                return strnatcasecmp($a['dataTypeMeta']['shortName'], $b['dataTypeMeta']['shortName']);
             });
 
-
-            // ----------------------------------------
-            // TODO - Remove - Need to auto-create table themes on demand
-            // Need to display a warning when the potential remote datatype doesn't have a table theme
-            $datatypes_with_table_themes = array();
-            foreach ($linkable_datatypes as $l_dt) {
-
-                // if ($l_dt->getSetupStep() == DataType::STATE_OPERATIONAL)
-                    $datatypes_with_table_themes[ $l_dt->getId() ] = 1;
-
-            }
 
             // ----------------------------------------
             // Get Templating Object
@@ -538,7 +527,7 @@ class LinkController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf8083699;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -647,38 +636,40 @@ class LinkController extends ODRCustomController
 
 
             // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
-            $datatype_meta_data = new DataTypeMeta();
-            $datatype_meta_data->setDataType($datatype);
-            $datatype_meta_data->setShortName('New Dataset');
-            $datatype_meta_data->setLongName('New Dataset');
+            $datatype_meta = new DataTypeMeta();
+            $datatype_meta->setDataType($datatype);
+            $datatype_meta->setShortName('New Dataset');
+            $datatype_meta->setLongName('New Dataset');
 
             /** @var RenderPlugin $default_render_plugin */
             $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-            $datatype_meta_data->setRenderPlugin($default_render_plugin);
+            $datatype_meta->setRenderPlugin($default_render_plugin);
 
             // Default search slug to Dataset ID
-            $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
-            $datatype_meta_data->setXmlShortName('');
+            $datatype_meta->setSearchSlug($datatype->getUniqueId());
+            $datatype_meta->setXmlShortName('');
 
             // Master Template Metadata
             // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
-            $datatype_meta_data->setMasterRevision(0);
-            $datatype_meta_data->setMasterPublishedRevision(0);
-            $datatype_meta_data->setTrackingMasterRevision(0);
+            $datatype_meta->setMasterRevision(0);
+            $datatype_meta->setMasterPublishedRevision(0);
+            $datatype_meta->setTrackingMasterRevision(0);
 
-            $datatype_meta_data->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+            $datatype_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
 
-            $datatype_meta_data->setExternalIdField(null);
-            $datatype_meta_data->setNameField(null);
-            $datatype_meta_data->setSortField(null);
-            $datatype_meta_data->setBackgroundImageField(null);
+            $datatype_meta->setNewRecordsArePublic(false);    // newly created datarecords default to not-public
 
-            $datatype_meta_data->setCreatedBy($user);
-            $datatype_meta_data->setUpdatedBy($user);
-            $em->persist($datatype_meta_data);
+            $datatype_meta->setExternalIdField(null);
+            $datatype_meta->setNameField(null);
+            $datatype_meta->setSortField(null);
+            $datatype_meta->setBackgroundImageField(null);
+
+            $datatype_meta->setCreatedBy($user);
+            $datatype_meta->setUpdatedBy($user);
+            $em->persist($datatype_meta);
 
             // Ensure the "in-memory" version of the new datatype knows about its meta entry
-            $datatype->addDataTypeMetum($datatype_meta_data);
+            $datatype->addDataTypeMetum($datatype_meta);
             $em->flush();
 
 
@@ -747,7 +738,7 @@ class LinkController extends ODRCustomController
 
             $source = 0xa1ee8e79;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -759,38 +750,31 @@ class LinkController extends ODRCustomController
 
 
     /**
-     *
      * Links data types but does not support un-linking.
      *
      * @param $local_datatype_id
      * @param $remote_datatype_id
      * @param $theme_element_id
      * @param Request $request
+     *
      * @return Response
      */
-    public function quicklinkdatatypeAction(
-        $local_datatype_id,
-        $remote_datatype_id,
-        $theme_element_id,
-        Request $request
-    ) {
-
+    public function quicklinkdatatypeAction($local_datatype_id, $remote_datatype_id, $theme_element_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $conn = null;
-
         try {
 
             $return = self::link_datatype($local_datatype_id, $remote_datatype_id, '', $theme_element_id);
 
-        } catch (\Exception $e) {
-            // Don't commit changes if any error was encountered...
+        }
+        catch (\Exception $e) {
             $source = 0x988ee802;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -812,28 +796,30 @@ class LinkController extends ODRCustomController
      */
     public function linkdatatypeAction(Request $request)
     {
-        $conn = null;
 
         try {
             // TODO This is a post without CSRF Protection.  Should use form handler properly.
             // Grab the data from the POST request
             $post = $request->request->all();
 
-            if (!isset($post['local_datatype_id']) || !isset($post['selected_datatype']) || !isset($post['previous_remote_datatype']) || !isset($post['theme_element_id']))
+            if (!isset($post['local_datatype_id']) || !isset($post['previous_remote_datatype']) || !isset($post['theme_element_id']))
                 throw new ODRBadRequestException('Invalid Form');
 
             $local_datatype_id = $post['local_datatype_id'];
-            $remote_datatype_id = $post['selected_datatype'];
             $previous_remote_datatype_id = $post['previous_remote_datatype'];
             $theme_element_id = $post['theme_element_id'];
 
+            $remote_datatype_id = '';
+            if ( isset($post['selected_datatype']) )
+                $remote_datatype_id = $post['selected_datatype'];
+
             $return = self::link_datatype($local_datatype_id, $remote_datatype_id, $previous_remote_datatype_id, $theme_element_id);
 
-        } catch (\Exception $e) {
-            // Don't commit changes if any error was encountered...
+        }
+        catch (\Exception $e) {
             $source = 0xd2aa5e3e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -843,9 +829,20 @@ class LinkController extends ODRCustomController
         return $response;
     }
 
-    public function link_datatype($local_datatype_id, $remote_datatype_id, $previous_remote_datatype_id, $theme_element_id)
-    {
 
+    /**
+     * Attempts to link $local_datatype to $remote_datatype (unless it's empty), removing the link
+     * to $previous_remote_datatype (also unless it's empty).
+     *
+     * @param int $local_datatype_id
+     * @param int|null $remote_datatype_id
+     * @param int|null $previous_remote_datatype_id
+     * @param int $theme_element_id
+     *
+     * @return array
+     */
+    private function link_datatype($local_datatype_id, $remote_datatype_id, $previous_remote_datatype_id, $theme_element_id)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'json';
@@ -871,6 +868,8 @@ class LinkController extends ODRCustomController
             $theme_service = $this->container->get('odr.theme_info_service');
             /** @var CloneThemeService $clone_theme_service */
             $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1001,15 +1000,27 @@ class LinkController extends ODRCustomController
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update);
 
+                // If the local datatype's sortfield belongs to remote datatype, update that
+                $needs_flush = false;
+                if ( !is_null($local_datatype->getSortField()) ) {
+                    $sortfield = $local_datatype->getSortField();
+                    if ( $sortfield->getDataType()->getId() == $previous_remote_datatype_id ) {
+                        $props = array('sortField' => null);
+                        $emm_service->updateDatatypeMeta($user, $local_datatype, $props, true);  // delay flush
+                        $needs_flush = true;
+                    }
+                }
+
+
                 // Done making mass updates, commit everything
                 $conn->commit();
 
+                // Only flush if needed, and only after the previous transaction is committed
+                if ($needs_flush)
+                    $em->flush();
+
 
                 // ----------------------------------------
-                // Delete the cached version of the datatree array because a link between datatypes got deleted
-                $cache_service->delete('cached_datatree_array');
-                $cache_service->delete('associated_datatypes_for_' . $local_datatype->getGrandparent()->getId());
-
                 // Mark the ancestor datatype as has having been updated
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
                 // Mark the ancestor datatype's theme as having been updated
@@ -1045,15 +1056,24 @@ class LinkController extends ODRCustomController
 
 
                 // ----------------------------------------
-                // Since a link between datatypes got created, delete the cached datatree array
-                $cache_service->delete('cached_datatree_array');
-                $cache_service->delete('associated_datatypes_for_' . $local_datatype->getGrandparent()->getId());
-
                 // Mark the ancestor datatype has having been updated
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
                 // Mark the the ancestor datatype's master theme as updated
                 $theme_service->updateThemeCacheEntry($theme, $user);
+                // Also delete the list of top-level themes, just incase...
+                $cache_service->delete('top_level_themes');
             }
+
+
+            // Since a link between datatypes got created/deleted, delete the cached datatree array
+            $cache_service->delete('cached_datatree_array');
+
+            // Regardless of whether something got linked or unlinked, the cache entry
+            //  'associated_datatypes_for_<dt_id>' only relies on the local datatype...
+            $dti_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
+            // ...and the cache entry 'cached_search_dt_<dt_id>_linked_dr_parents' only depends
+            //  on the remote datatype
+            $search_cache_service->onLinkStatusChange($remote_datatype);
 
 
             if ($remote_datatype_id === '')
@@ -1073,7 +1093,7 @@ class LinkController extends ODRCustomController
 
             $source = 0xb6e90878;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1174,8 +1194,8 @@ class LinkController extends ODRCustomController
             'theme_datatypes' => array(),
         );
 
-        // Locate all ThemeElements in all Themes of $local_datatype_id that contain links to
-        //  $remote_datatype_id
+        // Locate all ThemeElements in all Themes across the database where $local_datatype_id
+        //  contains a link to $remote_datatype_id
         $query = $em->createQuery(
            'SELECT te.id AS theme_element_id
             FROM ODRAdminBundle:ThemeDataType AS tdt
@@ -1217,6 +1237,8 @@ class LinkController extends ODRCustomController
 
 
         // ----------------------------------------
+        // TODO - move parts of this into the EntityDeletionService?
+
         // There are six different entities to mark as deleted based on the prior criteria...
         // ...theme entries
         $query = $em->createQuery(
@@ -1488,35 +1510,11 @@ class LinkController extends ODRCustomController
         );
         $query->execute();
 
-        // Locate the grandparent ids of all datarecords that got updated for cache clearing purposes
-        $query = $em->createQuery(
-           'SELECT grandparent.id AS grandparent_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
-            WHERE dr.id IN (:datarecord_ids)
-            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'datarecord_ids' => $datarecord_ids
-            )
-        );
-        $results = $query->getArrayResult();
-
-        // Delete cache entries for all datarecords that got updated...
-        $updated = array();
-        $cache_service = $this->container->get('odr.cache_service');
-        foreach ($results as $result) {
-            $grandparent_id = $result['grandparent_id'];
-
-            if ( !isset($updated[$grandparent_id]) ) {
-                $updated[$grandparent_id] = 1;
-
-                // ...delete the cache entry that stores what this datarecord is linked to
-                $cache_service->delete('associated_datarecords_for_'.$grandparent_id);
-                // ...delete its cached entry
-                $cache_service->delete('cached_datarecord_'.$grandparent_id);
-            }
-        }
+        // Locate and clear all cache entries claiming that a datarecord links to something
+        //  in $datarecord_ids
+        /** @var DatarecordInfoService $dri_service */
+        $dri_service = $this->container->get('odr.datarecord_info_service');
+        $dri_service->deleteCachedDatarecordLinkData($datarecord_ids);
     }
 
 
@@ -1555,6 +1553,8 @@ class LinkController extends ODRCustomController
             $tth_service = $this->container->get('odr.table_theme_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
 
 
             // Grab the datatypes from the database
@@ -1602,8 +1602,8 @@ class LinkController extends ODRCustomController
                     throw new ODRNotFoundException('Search Theme');
 
                 // ...require it to match the datatype being rendered
-                if ($search_theme->getDataType()->getId() !== $local_datatype->getId())
-                    throw new ODRBadRequestException();
+//                if ($search_theme->getDataType()->getId() !== $local_datatype->getId())
+//                    throw new ODRBadRequestException();
             }
 
 
@@ -1647,6 +1647,13 @@ class LinkController extends ODRCustomController
             // Since the above statement didn't throw an exception, the one below shouldn't either...
             $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
             // $theme_id may be for a "master" theme instead of a "search_results" or "table" theme
+
+            // Create a base search key for the remote datatype, so the search sidebar can be used
+            $remote_datatype_search_key = $search_key_service->encodeSearchKey(
+                array(
+                    'dt_id' => $remote_datatype->getId()
+                )
+            );
 
 
             // ----------------------------------------
@@ -1774,6 +1781,7 @@ class LinkController extends ODRCustomController
                     array(
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key,
+                        'remote_datatype_search_key' => $remote_datatype_search_key,
 
                         'local_datarecord' => $local_datarecord,
                         'local_datarecord_is_ancestor' => $local_datarecord_is_ancestor,
@@ -1795,7 +1803,7 @@ class LinkController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x30878efd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1834,16 +1842,25 @@ class LinkController extends ODRCustomController
             $descendant_datatype_id = $post['descendant_datatype_id'];
             $datarecords = array();
             if ( isset($post['datarecords']) ) {
-                if(isset($post['post_type']) && $post['post_type'] == 'JSON') {
-                    foreach($post['datarecords'] as $index => $data) {
+                if ( isset($post['post_type']) && $post['post_type'] == 'JSON' ) {
+                    foreach ($post['datarecords'] as $index => $data) {
                         $datarecords[$data] = $data;
                     }
                 }
                 else {
                     $datarecords = $post['datarecords'];
                 }
-
             }
+
+            // The "search" linking sends this controller action a list of datarecords that should
+            //  remain linked...requiring the removal of records not listed in the post request
+            $remove_records_not_in_post = true;
+            if ( isset($post['post_action']) && $post['post_action'] == 'ADD_ONLY' ) {
+                // The "inline" linking only sends the id of a single datarecord that should be
+                //  linked...so this controller action should not attempt to do cleanup
+                $remove_records_not_in_post = false;
+            }
+
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1851,14 +1868,288 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
+
+            /** @var DataRecord $local_datarecord */
+            $local_datarecord = $repo_datarecord->find($local_datarecord_id);
+            if ($local_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $local_datatype = $local_datarecord->getDataType();
+            if ($local_datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Local Datatype');
+            $local_datatype_id = $local_datatype->getId();
+
+
+            /** @var DataType $ancestor_datatype */
+            $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
+            if ($ancestor_datatype == null)
+                throw new ODRNotFoundException('Ancestor Datatype');
+
+            /** @var DataType $descendant_datatype */
+            $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
+            if ($descendant_datatype == null)
+                throw new ODRNotFoundException('Descendant Datatype');
+
+            // Ensure a link exists from ancestor to descendant datatype
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
+            if ($datatree == null)
+                throw new ODRNotFoundException('DataTree');
+
+            // Determine which datatype is the remote one
+            $remote_datatype_id = $descendant_datatype_id;
+            if ($local_datatype_id == $descendant_datatype_id)
+                $remote_datatype_id = $ancestor_datatype_id;
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
+            $can_view_ancestor_datatype = $pm_service->canViewDatatype($user, $ancestor_datatype);
+            $can_view_descendant_datatype = $pm_service->canViewDatatype($user, $descendant_datatype);
+            $can_view_local_datarecord = $pm_service->canViewDatarecord($user, $local_datarecord);
+            $can_edit_ancestor_datarecord = $pm_service->canEditDatatype($user, $ancestor_datatype);
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !$can_view_ancestor_datatype || !$can_view_descendant_datatype || !$can_view_local_datarecord || !$can_edit_ancestor_datarecord )
+                throw new ODRForbiddenException();
+
+
+            // Need to also check whether user has view permissions for remote datatype...
+            $can_view_remote_datarecords = false;
+            if ( isset($datatype_permissions[$remote_datatype_id]) && isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
+                $can_view_remote_datarecords = true;
+
+            if (!$can_view_remote_datarecords) {
+                // User apparently doesn't have view permissions for the remote datatype...prevent them from touching a non-public datarecord in that datatype
+                $remote_datarecord_ids = array();
+                foreach ($datarecords as $id => $num)
+                    $remote_datarecord_ids[] = $id;
+
+                // Determine whether there are any non-public datarecords in the list that the user wants to link...
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = :public_date
+                    AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'datarecord_ids' => $remote_datarecord_ids,
+                        'public_date' => "2200-01-01 00:00:00"
+                    )
+                );
+                $results = $query->getArrayResult();
+
+                // ...if there are, then prevent the action since the user isn't allowed to see them
+                if ( count($results) > 0 )
+                    throw new ODRForbiddenException();
+            }
+            else {
+                /* user can view remote datatype, no other checks needed */
+            }
+            // --------------------
+
+
+            // Ensure these actions are undertaken on the correct entity
+            $linked_datatree = null;
+            $local_datarecord_is_ancestor = true;
+            if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+                $local_datarecord_is_ancestor = false;
+            }
+
+
+            // ----------------------------------------
+            // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
+            //  potentially multiple datarecords...
+            $records_to_check = array();
+
+            if ($remove_records_not_in_post) {
+                // Locate all records currently linked to the local_datarecord
+                $remote = 'ancestor';
+                if (!$local_datarecord_is_ancestor)
+                    $remote = 'descendant';
+
+                $query = $em->createQuery(
+                   'SELECT ldt
+                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                    WHERE ldt.'.$remote.' = :datarecord
+                    AND ldt.deletedAt IS NULL'
+                )->setParameters( array('datarecord' => $local_datarecord->getId()) );
+                $results = $query->getResult();
+
+                $linked_datatree = array();
+                foreach ($results as $num => $ldt)
+                    $linked_datatree[] = $ldt;
+                /** @var LinkedDataTree[] $linked_datatree */
+
+                foreach ($linked_datatree as $ldt) {
+                    $remote_datarecord = null;
+                    if ($local_datarecord_is_ancestor)
+                        $remote_datarecord = $ldt->getDescendant();
+                    else
+                        $remote_datarecord = $ldt->getAncestor();
+
+                    if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
+                        // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
+                        continue;
+                    } else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+                        // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
+                        continue;
+                    }
+
+                    // If a descendant datarecord isn't listed in $datarecords, it got unlinked
+                    if ( !isset($datarecords[$remote_datarecord->getId()]) ) {
+                        // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
+
+                        // Mark the ancestor datarecord as updated
+                        $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
+                        // Setup for figuring out which cache entries need deleted
+                        $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
+
+                        // Have to save who deleted this linked_datatree entry first...
+                        $ldt->setDeletedBy($user);
+                        $em->persist($ldt);
+                        $em->flush($ldt);
+                        // ...then mark the linked_datatree entry as deleted...can't do both at once
+                        $em->remove($ldt);
+                    } else {
+                        // Otherwise, a datarecord was linked and still is linked...
+                        unset($datarecords[$remote_datarecord->getId()]);
+                        // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Anything remaining in $datarecords is a newly linked datarecord
+            foreach ($datarecords as $id => $num) {
+                // Must be a valid record
+                $remote_datarecord = $repo_datarecord->find($id);
+                if ($remote_datarecord === null)
+                    throw new ODRForbiddenException();
+
+
+                // For readability, translate local/remote datarecord into ancestor/descendant
+                $ancestor_datarecord = null;
+                $descendant_datarecord = null;
+                if ($local_datarecord_is_ancestor) {
+                    $ancestor_datarecord = $local_datarecord;
+                    $descendant_datarecord = $remote_datarecord;
+                    // print 'ensuring link from local datarecord '.$local_datarecord->getId().' to remote datarecord '.$remote_datarecord->getId()."\n";
+                }
+                else {
+                    $ancestor_datarecord = $remote_datarecord;
+                    $descendant_datarecord = $local_datarecord;
+                    // print 'ensuring link from remote datarecord '.$remote_datarecord->getId().' to local datarecord '.$local_datarecord->getId()."\n";
+                }
+
+                // Ensure there is a link between the two datarecords
+                $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
+
+                // Force a rebuild of the cached entry for the ancestor datarecord
+                $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+                // Setup for figuring out which cache entries need deleted
+                $records_to_check[ $ancestor_datarecord->getGrandparent()->getId() ] = 1;
+            }
+
+            // Done modifying the database
+            $em->flush();
+
+
+            // ----------------------------------------
+            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
+            //  cache entry removed so the view/edit pages show the correct linked records
+            $records_to_check = array_flip($records_to_check);
+            $dri_service->deleteCachedDatarecordLinkData($records_to_check);
+            // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
+            //  searching isn't using old cache entries
+            $search_cache_service->onLinkStatusChange($descendant_datatype);
+
+
+            // ----------------------------------------
+            $return['d'] = array(
+                'datatype_id' => $descendant_datatype->getId(),
+                'datarecord_id' => $local_datarecord->getId()
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x5392e9e1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a $_POST request to modify whether a 'local' datarecord is linked to a 'remote'
+     * datarecord.  If such a link exists, GetDisplayData() will render a read-only version of the
+     * 'remote' datarecord in a ThemeElement of the 'local' datarecord.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function unlinkrecordAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
+
+            if ( !isset($post['local_datarecord_id']) || !isset($post['ancestor_datatype_id']) || !isset($post['descendant_datatype_id']))
+                throw new ODRBadRequestException();
+
+            $local_datarecord_id = $post['local_datarecord_id'];
+            $ancestor_datatype_id = $post['ancestor_datatype_id'];
+            $descendant_datatype_id = $post['descendant_datatype_id'];
+            $datarecords = array();
+            if ( isset($post['datarecords']) ) {
+                if ( isset($post['post_type']) && $post['post_type'] == 'JSON' ) {
+                    foreach ($post['datarecords'] as $index => $data) {
+                        $datarecords[$data] = $data;
+                    }
+                }
+                else {
+                    $datarecords = $post['datarecords'];
+                }
+            }
+
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $local_datarecord */
@@ -1939,14 +2230,14 @@ class LinkController extends ODRCustomController
             }
             // --------------------
 
-
+            // Ensure these actions are undertaken on the correct entity
             $linked_datatree = null;
             $local_datarecord_is_ancestor = true;
             if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                 $local_datarecord_is_ancestor = false;
             }
 
-            // Grab records currently linked to the local_datarecord
+            // Load all records currently linked to the local_datarecord
             $remote = 'ancestor';
             if (!$local_datarecord_is_ancestor)
                 $remote = 'descendant';
@@ -1965,268 +2256,12 @@ class LinkController extends ODRCustomController
             /** @var LinkedDataTree[] $linked_datatree */
 
 
-            if(
-                !isset($post['post_action'])
-                || (
-                    isset($post['post_action'])
-                    && $post['post_action'] != 'ADD_ONLY'
-                )
-            ) {
-                // If this is add only we don't check and remove
-                foreach ($linked_datatree as $ldt) {
-                    $remote_datarecord = null;
-                    if ($local_datarecord_is_ancestor)
-                        $remote_datarecord = $ldt->getDescendant();
-                    else
-                        $remote_datarecord = $ldt->getAncestor();
+            // ----------------------------------------
+            // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
+            //  potentially multiple datarecords...
+            $records_to_check = array();
 
-                    if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
-                        // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
-                        continue;
-                    } else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
-                        // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
-                        continue;
-                    }
-
-                    // If a descendant datarecord isn't listed in $datarecords, it got unlinked
-                    if (!isset($datarecords[$remote_datarecord->getId()])) {
-                        // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
-
-                        // Mark the ancestor datarecord as updated
-                        $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
-                        // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
-                        $cache_service->delete('associated_datarecords_for_' . $ldt->getAncestor()->getGrandparent()->getId());
-
-                        // Remove the linked_data_tree entry
-                        $ldt->setDeletedBy($user);
-                        $em->persist($ldt);
-                        $em->flush($ldt);
-
-                        $em->remove($ldt);
-                    } else {
-                        // Otherwise, a datarecord was linked and still is linked...
-                        unset($datarecords[$remote_datarecord->getId()]);
-                        // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
-                    }
-                }
-            }
-
-
-            // Anything remaining in $datarecords is a newly linked datarecord
-            foreach ($datarecords as $id => $num) {
-                $remote_datarecord = $repo_datarecord->find($id);
-
-                // Must be a valid record
-                if($remote_datarecord === null)
-                    throw new ODRForbiddenException();
-
-
-                // Attempt to find a link between these two datarecords that was deleted at some point in the past
-                $ancestor_datarecord = null;
-                $descendant_datarecord = null;
-                if ($local_datarecord_is_ancestor) {
-                    $ancestor_datarecord = $local_datarecord;
-                    $descendant_datarecord = $remote_datarecord;
-                    // print 'ensuring link from local datarecord '.$local_datarecord->getId().' to remote datarecord '.$remote_datarecord->getId()."\n";
-                }
-                else {
-                    $ancestor_datarecord = $remote_datarecord;
-                    $descendant_datarecord = $local_datarecord;
-                    // print 'ensuring link from remote datarecord '.$remote_datarecord->getId().' to local datarecord '.$local_datarecord->getId()."\n";
-                }
-
-                // Ensure there is a link between the two datarecords
-                $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
-
-
-                // Force a rebuild of the cached entry for the ancestor datarecord
-                $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
-                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
-                $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
-            }
-
-            $em->flush();
-
-            $return['d'] = array(
-                'datatype_id' => $descendant_datatype->getId(),
-                'datarecord_id' => $local_datarecord->getId()
-            );
-
-            // Any cached entries that needed clearing have already been cleared
-        }
-        catch (\Exception $e) {
-            $source = 0x5392e9e1;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-    /**
-     * Parses a $_POST request to modify whether a 'local' datarecord is linked to a 'remote'
-     * datarecord.  If such a link exists, GetDisplayData() will render a read-only version of the
-     * 'remote' datarecord in a ThemeElement of the 'local' datarecord.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function unlinkrecordAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        try {
-            // Symfony firewall won't permit GET requests to reach this point
-            $post = $request->request->all();
-
-            if ( !isset($post['local_datarecord_id']) || !isset($post['ancestor_datatype_id']) || !isset($post['descendant_datatype_id']))
-                throw new ODRBadRequestException();
-
-            $local_datarecord_id = $post['local_datarecord_id'];
-            $ancestor_datatype_id = $post['ancestor_datatype_id'];
-            $descendant_datatype_id = $post['descendant_datatype_id'];
-            $datarecords = array();
-            if ( isset($post['datarecords']) ) {
-                if(isset($post['post_type']) && $post['post_type'] == 'JSON') {
-                    foreach($post['datarecords'] as $index => $data) {
-                        $datarecords[$data] = $data;
-                    }
-                }
-                else {
-                    $datarecords = $post['datarecords'];
-                }
-
-            }
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-
-            /** @var DataRecord $local_datarecord */
-            $local_datarecord = $repo_datarecord->find($local_datarecord_id);
-            if ($local_datarecord == null)
-                throw new ODRNotFoundException('Datarecord');
-
-            $local_datatype = $local_datarecord->getDataType();
-            if ($local_datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Local Datatype');
-            $local_datatype_id = $local_datatype->getId();
-
-
-            /** @var DataType $ancestor_datatype */
-            $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
-            if ($ancestor_datatype == null)
-                throw new ODRNotFoundException('Ancestor Datatype');
-
-            /** @var DataType $descendant_datatype */
-            $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
-            if ($descendant_datatype == null)
-                throw new ODRNotFoundException('Descendant Datatype');
-
-            // Ensure a link exists from ancestor to descendant datatype
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
-            if ($datatree == null)
-                throw new ODRNotFoundException('DataTree');
-
-            // Determine which datatype is the remote one
-            $remote_datatype_id = $descendant_datatype_id;
-            if ($local_datatype_id == $descendant_datatype_id)
-                $remote_datatype_id = $ancestor_datatype_id;
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
-
-            $can_view_ancestor_datatype = $pm_service->canViewDatatype($user, $ancestor_datatype);
-            $can_view_descendant_datatype = $pm_service->canViewDatatype($user, $descendant_datatype);
-            $can_view_local_datarecord = $pm_service->canViewDatarecord($user, $local_datarecord);
-            $can_edit_ancestor_datarecord = $pm_service->canEditDatatype($user, $ancestor_datatype);
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !$can_view_ancestor_datatype || !$can_view_descendant_datatype || !$can_view_local_datarecord || !$can_edit_ancestor_datarecord )
-                throw new ODRForbiddenException();
-
-
-            // Need to also check whether user has view permissions for remote datatype...
-            $can_view_remote_datarecords = false;
-            if ( isset($datatype_permissions[$remote_datatype_id]) && isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
-                $can_view_remote_datarecords = true;
-
-            if (!$can_view_remote_datarecords) {
-                // User apparently doesn't have view permissions for the remote datatype...prevent them from touching a non-public datarecord in that datatype
-                $remote_datarecord_ids = array();
-                foreach ($datarecords as $id => $num)
-                    $remote_datarecord_ids[] = $id;
-
-                // Determine whether there are any non-public datarecords in the list that the user wants to link...
-                $query = $em->createQuery(
-                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                    WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
-                    AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
-                )->setParameters( array('datarecord_ids' => $remote_datarecord_ids) );
-                $results = $query->getArrayResult();
-
-                // ...if there are, then prevent the action since the user isn't allowed to see them
-                if ( count($results) > 0 )
-                    throw new ODRForbiddenException();
-            }
-            else {
-                /* user can view remote datatype, no other checks needed */
-            }
-            // --------------------
-
-
-            $linked_datatree = null;
-            $local_datarecord_is_ancestor = true;
-            if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
-                $local_datarecord_is_ancestor = false;
-            }
-
-            // Grab records currently linked to the local_datarecord
-            $remote = 'ancestor';
-            if (!$local_datarecord_is_ancestor)
-                $remote = 'descendant';
-
-            $query = $em->createQuery(
-                'SELECT ldt
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                WHERE ldt.'.$remote.' = :datarecord
-                AND ldt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $local_datarecord->getId()) );
-            $results = $query->getResult();
-
-            $linked_datatree = array();
-            foreach ($results as $num => $ldt)
-                $linked_datatree[] = $ldt;
-            /** @var LinkedDataTree[] $linked_datatree */
-
-
-            // If this is add only we don't check and remove
             foreach ($linked_datatree as $ldt) {
-                // TODO This is a really dangerous way of doing things...
                 $remote_datarecord = null;
                 if ($local_datarecord_is_ancestor)
                     $remote_datarecord = $ldt->getDescendant();
@@ -2242,36 +2277,46 @@ class LinkController extends ODRCustomController
                 }
 
                 // If a descendant datarecord is listed in $datarecords, it got unlinked
-                if (isset($datarecords[$remote_datarecord->getId()])) {
+                if ( isset($datarecords[$remote_datarecord->getId()]) ) {
                     // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                     // Mark the ancestor datarecord as updated
                     $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
-                    // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
-                    $cache_service->delete('associated_datarecords_for_' . $ldt->getAncestor()->getGrandparent()->getId());
+                    // Setup for figuring out which cache entries need deleted
+                    $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                    // Remove the linked_data_tree entry
+                    // Have to save who deleted this linked_datatree entry first...
                     $ldt->setDeletedBy($user);
                     $em->persist($ldt);
                     $em->flush($ldt);
-
+                    // ...then mark the linked_datatree entry as deleted...can't do both at once
                     $em->remove($ldt);
                 }
             }
 
             $em->flush();
 
+
+            // ----------------------------------------
+            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
+            //  cache entry removed so the view/edit pages show the correct linked records
+            $records_to_check = array_flip($records_to_check);
+            $dri_service->deleteCachedDatarecordLinkData($records_to_check);
+            // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
+            //  searching isn't using old cache entries
+            $search_cache_service->onLinkStatusChange($descendant_datatype);
+
+
+            // ----------------------------------------
             $return['d'] = array(
                 'datatype_id' => $descendant_datatype->getId(),
                 'datarecord_id' => $local_datarecord->getId()
             );
-
-            // Any cached entries that needed clearing have already been cleared
         }
         catch (\Exception $e) {
             $source = 0xdd047dcd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

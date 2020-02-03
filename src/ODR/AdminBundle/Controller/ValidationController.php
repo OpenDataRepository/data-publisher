@@ -15,16 +15,25 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -244,7 +253,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0x82f7ce43;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -333,7 +342,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0xba8a4083;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -383,6 +392,8 @@ class ValidationController extends ODRCustomController
 
             /** @var RenderPlugin $default_render_plugin */
             $default_render_plugin = $repo_render_plugin->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
+            /** @var FieldType $default_fieldtype */
+            $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -419,11 +430,12 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_datafields as $num => $df_id) {
+                    /** @var DataFields $df */
                     $df = $repo_datafield->find($df_id);
 
                     $dfm = new DataFieldsMeta();
                     $dfm->setDataField($df);
-                    $dfm->setFieldType( $repo_fieldtype->find(9) );     // shortvarchar
+                    $dfm->setFieldType($default_fieldtype);
                     $dfm->setRenderPlugin($default_render_plugin);
 
                     $dfm->setMasterRevision(0);
@@ -441,7 +453,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setIsUnique(false);
                     $dfm->setRequired(false);
                     $dfm->setSearchable(0);
-                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
                     $dfm->setChildrenPerRow(1);
                     $dfm->setRadioOptionNameSort(0);
@@ -483,11 +495,16 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_datarecords as $num => $dr_id) {
+                    /** @var DataRecord $dr */
                     $dr = $repo_datarecord->find($dr_id);
 
                     $drm = new DataRecordMeta();
                     $drm->setDataRecord($dr);
-                    $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+                    if ( $dr->getDataType()->getNewRecordsArePublic() )
+                        $drm->setPublicDate(new \DateTime());   // public
+                    else
+                        $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
                     $drm->setCreatedBy($user);
                     $drm->setUpdatedBy($user);
@@ -542,6 +559,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_datatypes as $num => $dt_id) {
+                    /** @var DataType $dt */
                     $dt = $repo_datatype->find($dt_id);
 
                     $dtm = new DataTypeMeta();
@@ -557,7 +575,7 @@ class ValidationController extends ODRCustomController
                     $dtm->setSearchNotesUpper(null);
                     $dtm->setSearchNotesLower(null);
 
-                    $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+                    $dtm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));    // public
 
                     $dtm->setExternalIdField(null);
                     $dtm->setNameField(null);
@@ -602,13 +620,18 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_files as $num => $f_id) {
+                    /** @var File $file */
                     $file = $repo_file->find($f_id);
 
                     $fm = new FileMeta();
                     $fm->setFile($file);
                     $fm->setOriginalFileName('file_name');
                     $fm->setExternalId('');
-                    $fm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    if ( $file->getDataField()->getNewFilesArePublic() )
+                        $fm->setPublicDate(new \DateTime());    // public
+                    else
+                        $fm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));    // not public
 
                     $fm->setCreatedBy($user);
                     $fm->setUpdatedBy($user);
@@ -644,6 +667,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_images as $num => $i_id) {
+                    /** @var Image $image */
                     $image = $repo_image->find($i_id);
 
                     $im = new ImageMeta();
@@ -652,7 +676,11 @@ class ValidationController extends ODRCustomController
                     $im->setOriginalFileName('image name');
                     $im->setCaption('image caption');
                     $im->setExternalId('');
-                    $im->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    if ( $image->getDataField()->getNewFilesArePublic() )
+                        $im->setPublicDate(new \DateTime());    // public
+                    else
+                        $im->setPublicDate(new \DateTime('2200-01-01 00:00:00'));    // not public
 
                     $im->setCreatedBy($user);
                     $im->setUpdatedBy($user);
@@ -688,6 +716,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_radio_options as $num => $ro_id) {
+                    /** @var RadioOptions $ro */
                     $ro = $repo_radio_options->find($ro_id);
 
                     $rom = new RadioOptionsMeta();
@@ -731,6 +760,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_themes as $num => $t_id) {
+                    /** @var Theme $theme */
                     $theme = $repo_theme->find($t_id);
 
                     $tm = new ThemeMeta();
@@ -777,6 +807,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_theme_elements as $num => $te_id) {
+                    /** @var ThemeElement $te */
                     $te = $repo_theme_element->find($te_id);
 
                     $tem = new ThemeElementMeta();
@@ -815,7 +846,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0x914b6e40;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -953,7 +984,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0x50885ebf;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1078,7 +1109,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0xabcdef00;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1291,6 +1322,8 @@ class ValidationController extends ODRCustomController
             );
             $query->execute();
 
+            print "Deleting these datatree and their datatree_meta entries...\n".print_r($datatree_ids, true)."\n\n";
+
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
                 SET dtm.deletedAt = :now
@@ -1321,7 +1354,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0x7410a96e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1552,7 +1585,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0xed5c5053;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1720,7 +1753,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0xd5882c91;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1735,10 +1768,11 @@ class ValidationController extends ODRCustomController
      *
      * @return Response
      */
-    public function finddatatypeswithoutmasterthemesAction(Request $request)
+    public function finddatatypeswithoutmasterthemesAction($check_top_level, Request $request)
     {
-//        $top_level = false;
         $top_level = true;
+        if ( $check_top_level == 0 )
+            $top_level = false;
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -1923,7 +1957,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0xfa5b93c9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1988,7 +2022,7 @@ class ValidationController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5fc5aa02;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2054,7 +2088,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0x5fc5aa03;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2112,7 +2146,7 @@ class ValidationController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc0b59c97;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2149,11 +2183,12 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
             $conn->beginTransaction();
 
+            // ----------------------------------------
             // If a datatype has
             $relationships = array(
                 'externalIdField',
                 'nameField',
-                'sortField',
+//                'sortField',
                 'backgroundImageField'
             );
 
@@ -2192,6 +2227,90 @@ class ValidationController extends ODRCustomController
                 print '<pre>updated '.$rows.' rows</pre>';
             }
 
+
+            // ----------------------------------------
+            // Sortfields can technically belong to another datatype, but only if the ancestor
+            //  datatype doesn't allow multiple records of the descendant datatype
+
+            // Find all instances where datatype A's sortfield belongs to datatype B...
+            $query = $em->createQuery(
+               'SELECT dt_1.id AS dt_1_id, dtm_1.shortName AS dt_1_name, df.id AS df_id, dfm.fieldName AS df_name, dt_2.id AS dt_2_id, dtm_2.shortName AS dt_2_name
+                FROM ODRAdminBundle:DataType AS dt_1
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm_1 WITH dtm_1.dataType = dt_1
+                JOIN ODRAdminBundle:DataFields AS df WITH dtm_1.sortField = df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:DataType AS dt_2 WITH df.dataType = dt_2
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm_2 WITH dtm_2.dataType = dt_2
+                WHERE dt_1.id != dt_2.id
+                AND dt_1.deletedAt IS NULL AND dtm_1.deletedAt IS NULL
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                AND dt_2.deletedAt IS NULL AND dtm_2.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            print_r( '<pre>Datatypes claiming a sortField datafield that belongs to another Datatype: '.print_r($results, true).'</pre>' );
+
+            // If there are any instances of datatype A's sortfield belonging to datatype B...
+            $affected_datatypes = array();
+            foreach ($results as $result) {
+                // ...check whether datatype A links to datatype B
+                $ancestor_id = $result['dt_1_id'];
+                $descendant_id = $result['dt_2_id'];
+
+                $df_id = $result['df_id'];
+                $df_name = $result['df_name'];
+                $ancestor_name = $result['dt_1_name'];
+                $descendant_name = $result['dt_2_name'];
+
+                $query = $em->createQuery(
+                   'SELECT dtm.is_link, dtm.multiple_allowed
+                    FROM ODRAdminBundle:DataTree AS dt
+                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                    WHERE dt.ancestor = :ancestor_id AND dt.descendant = :descendant_id
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'ancestor_id' => $ancestor_id,
+                        'descendant_id' => $descendant_id
+                    )
+                );
+                $sub_results = $query->getArrayResult();
+
+                if ( empty($sub_results) ) {
+                    // Datatype A isn't even related to Datatype B
+                    $affected_datatypes[] = $ancestor_id;
+                }
+                else {
+                    $is_link = $sub_results[0]['is_link'];
+                    $multiple_allowed = $sub_results[0]['multiple_allowed'];
+
+                    if ( $is_link == 0 ) {
+                        // Datatype B is a child of Datatype A
+                        $affected_datatypes[] = $ancestor_id;
+                    }
+                    else if ( $multiple_allowed == 1 ) {
+                        // Datatype A can link to multiple datarecords of Datatype B...sorting will
+                        //  be nonsense
+                        $affected_datatypes[] = $ancestor_id;
+                    }
+                    else {
+                        print '<pre><b>Datatype '.$ancestor_id.' ("'.$ancestor_name.'") is allowed to sort with the field '.$df_id.' ("'.$df_name.'"), belonging to Datatype '.$descendant_id.' ("'.$descendant_name.'")</b></pre>';
+                    }
+                }
+            }
+
+            print_r( '<pre>clearing sortField for datatypes: '.print_r($affected_datatypes, true).'</pre>' );
+
+            $update_query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
+                SET dtm.sortField = NULL
+                WHERE dtm.deletedAt IS NULL AND dtm.dataType IN (:datatype_ids)'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $rows = $update_query->execute();
+            print '<pre>updated '.$rows.' rows</pre>';
+
+
+            // ----------------------------------------
             if (!$save)
                 $conn->rollBack();
             else
@@ -2204,7 +2323,7 @@ class ValidationController extends ODRCustomController
 
             $source = 0x3e162dec;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

@@ -54,6 +54,11 @@ class DataType
     private $setup_step;
 
     /**
+     * @var string|null
+     */
+    private $preload_status;
+
+    /**
      * @var boolean
      */
     private $is_master_type;
@@ -275,6 +280,30 @@ class DataType
     public function getSetupStep()
     {
         return $this->setup_step;
+    }
+
+    /**
+     * Set preloadStatus.
+     *
+     * @param string|null $preloadStatus
+     *
+     * @return DataType
+     */
+    public function setPreloadStatus($preloadStatus = null)
+    {
+        $this->preload_status = $preloadStatus;
+
+        return $this;
+    }
+
+    /**
+     * Get preloadStatus.
+     *
+     * @return string|null
+     */
+    public function getPreloadStatus()
+    {
+        return $this->preload_status;
     }
 
     /**
@@ -1055,6 +1084,16 @@ class DataType
     }
 
     /**
+     * Get newRecordsArePublic
+     *
+     * @return bool
+     */
+    public function getNewRecordsArePublic()
+    {
+        return $this->getDataTypeMeta()->getNewRecordsArePublic();
+    }
+
+    /**
      * Get externalIdField
      *
      * @return \ODR\AdminBundle\Entity\DataFields
@@ -1103,36 +1142,9 @@ class DataType
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
     }
-    /**
-     * @var string|null
-     */
-    private $preload_status;
-
 
     /**
-     * Set preloadStatus.
-     *
-     * @param string|null $preloadStatus
-     *
-     * @return DataType
-     */
-    public function setPreloadStatus($preloadStatus = null)
-    {
-        $this->preload_status = $preloadStatus;
-
-        return $this;
     }
-
-    /**
-     * Get preloadStatus.
-     *
-     * @return string|null
-     */
-    public function getPreloadStatus()
-    {
-        return $this->preload_status;
-    }
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $dataRecords;

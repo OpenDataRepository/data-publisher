@@ -31,7 +31,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\Filesystem\LockHandler;
 
 
 class CloneTemplateService
@@ -71,6 +70,11 @@ class CloneTemplateService
      * @var EntityCreationService
      */
     private $ec_service;
+
+    /**
+     * @var LockService
+     */
+    private $lock_service;
 
     /**
      * @var PermissionsManagementService
@@ -147,15 +151,16 @@ class CloneTemplateService
      * CloneTemplateService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param EntityMetaModifyService $entityMetaModifyService
-     * @param CacheService $cacheService
-     * @param SearchCacheService $searchCacheService
-     * @param CloneThemeService $cloneThemeService
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param EntityCreationService $entityCreationService
-     * @param PermissionsManagementService $pm_service
-     * @param ThemeInfoService $themeInfoService
-     * @param UUIDService $UUIDService
+     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param CacheService $cache_service
+     * @param SearchCacheService $search_cache_service
+     * @param CloneThemeService $clone_theme_service
+     * @param DatatypeInfoService $datatype_info_service
+     * @param EntityCreationService $entity_creation_service
+     * @param LockService $lock_service
+     * @param PermissionsManagementService $permissions_service
+     * @param ThemeInfoService $theme_info_service
+     * @param UUIDService $uuid_service
      * @param Logger $logger
      */
     public function __construct(
@@ -166,6 +171,7 @@ class CloneTemplateService
         CloneThemeService $clone_theme_service,
         DatatypeInfoService $datatype_info_service,
         EntityCreationService $entity_creation_service,
+        LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         UUIDService $uuid_service,
@@ -178,6 +184,7 @@ class CloneTemplateService
         $this->ct_service = $clone_theme_service;
         $this->dti_service = $datatype_info_service;
         $this->ec_service = $entity_creation_service;
+        $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->ti_service = $theme_info_service;
         $this->uuid_service = $uuid_service;
@@ -515,11 +522,13 @@ class CloneTemplateService
                         // This datafield got deleted out of the template datatype...create a "fake"
                         //  entry so that syncDatatype() can figure out it needs to delete the
                         //  relevant derived datafield
-                        $template_array[$t_dt_id]['dataFields'][$master_df_id] = array(
-                            'id' => $master_df_id,
-                            'masterDataField' => null,
-                            'deleted' => true,
-                        );
+
+                        // TODO - revisit, disabled again because deleting a derived field will likely cause data loss
+//                        $template_array[$t_dt_id]['dataFields'][$master_df_id] = array(
+//                            'id' => $master_df_id,
+//                            'masterDataField' => null,
+//                            'deleted' => true,
+//                        );
                     }
                     else {
                         // Field exists
@@ -842,10 +851,10 @@ class CloneTemplateService
 
         // Bad Things (tm) happen if multiple processes attempt to synchronize the same template at
         //  the same time, so use Symfony's LockHandler component to prevent that...
-        $lockHandler = new LockHandler('datatype_'.$datatype->getId().'_sync_with_master.lock');
-        if (!$lockHandler->lock()) {
+        $lockHandler = $this->lock_service->createLock('datatype_'.$datatype->getId().'_sync_with_master.lock', 900.0);    // acquire lock for 15 minutes?
+        if ( !$lockHandler->acquire() ) {
             // Another process is already synchronizing this template...block until it's done...
-            $lockHandler->lock(true);
+            $lockHandler->acquire(true);
             // ...then abort the synchronization without duplicating any changes
             return false;
         }
@@ -1011,6 +1020,9 @@ class CloneTemplateService
         $datatype->setDatatypeType(null);
         $this->em->persist($datatype);
         $this->em->flush();
+
+        // Can release the lock on the template cloning now
+        $lockHandler->release();
 
         return true;
     }
@@ -1435,10 +1447,11 @@ class CloneTemplateService
 
                 if ( !isset($this->template_datafields[$df_id]) ) {
                     // This datafield got deleted out of the template datatype
-                    // TODO - move into an entity deletion service or something?
-                    self::deleteDatafield($derived_df, $user);
 
-                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted datafield '.$df_id.' "'.$derived_df->getFieldName().'" (derived_dt: '.$derived_datatype->getId().')');
+                    // TODO - revisit, disabled again because deleting a derived field will likely cause data loss
+//                    self::deleteDatafield($derived_df, $user);
+//
+//                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted datafield '.$df_id.' "'.$derived_df->getFieldName().'" (derived_dt: '.$derived_datatype->getId().')');
 
                     // Skip the rest of this loop and move on to the next datafield
                     continue;
@@ -1982,6 +1995,9 @@ class CloneTemplateService
         // Going to need this in a bit
         $derived_dt = $derived_df->getDataType();
 
+        // Delete any relevant search cache entries before the datafield gets deleted
+        $this->search_cache_service->onDatafieldDelete($derived_df);
+
         // Mark the datafield and its meta entry as deleted
         $derived_df_meta = $derived_df->getDataFieldMeta();
         $derived_df->setDeletedAt(new \DateTime());
@@ -2040,6 +2056,8 @@ class CloneTemplateService
         else
             unset( $properties['nameField'] );
 
+
+        // TODO - doesn't handle sortfields in different datatypes
         // Ensure that the datatype doesn't continue to think this datafield is its sort field
         if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
             $properties['sortField'] = null;

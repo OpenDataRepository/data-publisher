@@ -161,6 +161,7 @@ class EntityMetaModifyService
             'is_unique' => $old_meta_entry->getIsUnique(),
             'allow_multiple_uploads' => $old_meta_entry->getAllowMultipleUploads(),
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
+            'newFilesArePublic' => $old_meta_entry->getNewFilesArePublic(),
             'children_per_row' => $old_meta_entry->getChildrenPerRow(),
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
@@ -228,6 +229,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setIsUnique( $properties['is_unique'] );
         if ( isset($properties['allow_multiple_uploads']) )
             $new_datafield_meta->setAllowMultipleUploads( $properties['allow_multiple_uploads'] );
+        if ( isset($properties['newFilesArePublic']) )
+            $new_datafield_meta->setNewFilesArePublic( $properties['newFilesArePublic'] );
         if ( isset($properties['shorten_filename']) )
             $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
         if ( isset($properties['children_per_row']) )
@@ -496,6 +499,8 @@ class EntityMetaModifyService
 
             'publicDate' => $old_meta_entry->getPublicDate(),
 
+            'newRecordsArePublic' => $old_meta_entry->getNewRecordsArePublic(),
+
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
@@ -604,6 +609,9 @@ class EntityMetaModifyService
 
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
+
+        if ( isset($properties['newRecordsArePublic']) )
+            $new_datatype_meta->setNewRecordsArePublic( $properties['newRecordsArePublic'] );
 
         if ( isset($properties['master_revision']) )
             $new_datatype_meta->setMasterRevision( $properties['master_revision'] );
@@ -1423,6 +1431,9 @@ class EntityMetaModifyService
         //  and numbers
         if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
             $existing_values['value'] = strval($existing_values['value']);
+
+        // NOTE - intentionally doesn't prevent overly-long strings from being saved into the
+        //  Short/Medium/LongVarchar entities...an exception being thrown is usually desirable
 
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] !== $value )

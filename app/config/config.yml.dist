@@ -9,15 +9,15 @@ framework:
     #esi:             ~
     #translator:      { fallback: %locale% }
     translator: ~
-    secret:          %secret%
+    secret:          "%secret%"
     router:
         resource: "%kernel.root_dir%/config/routing.yml"
-        strict_requirements: %kernel.debug%
+        strict_requirements: "%kernel.debug%"
     form:            true
     csrf_protection: true
     validation:      { enabled: true, enable_annotations: false }
     templating:      { engines: ['twig'] } #assets_version: SomeVersionScheme
-    default_locale:  %locale%
+    default_locale:  "%locale%"
     session:
         gc_probability: 0
         handler_id: ~  #  session.handler.memcached
@@ -27,30 +27,30 @@ framework:
 
 # Twig Configuration
 twig:
-    debug:            %kernel.debug%
-    strict_variables: %kernel.debug%
+    debug:            "%kernel.debug%"
+    strict_variables: "%kernel.debug%"
     #cache: memcached
     #cache: false
     exception_controller: ODR.exception_controller:showAction
 
-## Knp Markdown Configuration
-#knp_markdown:
-#    parser:
-#        service: odr.markdown.parser
+# Knp Markdown Configuration
+knp_markdown:
+    parser:
+        service: odr.markdown.parser
 
 # Doctrine Configuration
 doctrine:
     dbal:
-        driver:   %database_driver%
-        host:     %database_host%
-        port:     %database_port%
-        dbname:   %database_name%
-        user:     %database_user%
-        password: %database_password%
+        driver:   "%database_driver%"
+        host:     "%database_host%"
+        port:     "%database_port%"
+        dbname:   "%database_name%"
+        user:     "%database_user%"
+        password: "%database_password%"
         charset:  UTF8
 
     orm:
-        auto_generate_proxy_classes: %kernel.debug%
+        auto_generate_proxy_classes: "%kernel.debug%"
         auto_mapping: true
         result_cache_driver:
             type: memcached
@@ -96,10 +96,10 @@ lexik_jwt_authentication:
 
 # Swiftmailer Configuration
 swiftmailer:
-    transport: %mailer_transport%
-    host:      %mailer_host%
-    username:  %mailer_user%
-    password:  %mailer_password%
+    transport: "%mailer_transport%"
+    host:      "%mailer_host%"
+    username:  "%mailer_user%"
+    password:  "%mailer_password%"
     spool:     { type: memory }
 
 # dterranovaCrypto Configuration
@@ -181,16 +181,16 @@ services:
     memcached:
         class: Memcached
         calls:
-            - [ addServers, [ %memcached.servers% ]]
+            - [ addServers, [ "%memcached.servers%" ]]
     session.memcached:
         class: Memcached
-        arguments:
-            persistent_id: %session_memcached_prefix%
+#        arguments:
+#            persistent_id: %session_memcached_prefix%
         calls:
-            - [ addServer, [ %session_memcached_host%, %session_memcached_port% ]]
+            - [ addServer, [ "%session_memcached_host%", "%session_memcached_port%" ]]
     session.handler.memcached:
         class:     Symfony\Component\HttpFoundation\Session\Storage\Handler\MemcachedSessionHandler
-        arguments: ["@session.memcached", { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
+        arguments: ["@session.memcached", { prefix: "%session_memcached_prefix%", expiretime: "%session_memcached_expire%" }]
 
     ODR.exception_controller:
         class: ODR\AdminBundle\Controller\ODRExceptionController

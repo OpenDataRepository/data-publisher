@@ -1,11 +1,4 @@
 # ----------------------------------------
-odr_search_box:
-    path:  /edit/search_box/{target_datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchbox }
-    requirements:
-        target_datatype_id: \d+
-
-#
 # Support for old routes and GET routes
 #
 odr_legacy_search_results:
@@ -39,6 +32,11 @@ odr_search_results:
     defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
     methods: [ POST ]
 
+odr_inline_link_search:
+    path:  /search/inline_link
+    defaults: { _controller:ODROpenRepositorySearchBundle:Default:inlinelink }
+    methods: [ POST ]
+
 odr_search_render:
     path: /search/display/{search_theme_id}/{search_key}/{offset}/{intent}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, intent: 'searching' }
@@ -46,7 +44,7 @@ odr_search_render:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
-        intent: searching|linking|linking_ajax
+        intent: searching|linking
 
 odr_default_search_render:
     path: /search/render_default/{datatype_id}
@@ -60,31 +58,30 @@ odr_reload_search_overlay_datafield:
     requirements:
         datafield_id:  \d+
 
-# ----------------------------------------
+odr_reload_search_sidebar:
+    path:  /search/reload_sidebar/{force_rebuild}/{search_key}/{intent}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:reloadsearchsidebar }
+    requirements:
+        force_rebuild: 0|1
+        search_key: '[a-zA-Z0-9\-\_]*'
+        intent: 'searching|linking|'
 
 # ----------------------------------------
 
-
-
 # ----------------------------------------
+# NOTE: odr.search_slug_blacklist parameter is defined in SearchBundle/Resources/config/services.yml
 
-# ----------------------------------------
 # These routes MUST be the absolute last routes imported by ODR due to generic terms...they'll typically override any route imported later
 odr_search_immediate:
     path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
     requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 charactera alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+        # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
 
 odr_search:
     path:  /{search_slug}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
-
-
-odr_search_find_landing:
-    path:  /admin/find/landing/{datatype_unique_id}
-    defaults: { _controller: ODRAdminBundle:Datatype:find_landing }
-    requirements:
-        datatype_unique_id: '[a-zA-Z0-9]+'
+        # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter

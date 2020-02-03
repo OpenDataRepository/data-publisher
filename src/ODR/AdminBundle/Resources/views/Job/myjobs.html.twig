@@ -1,0 +1,258 @@
+{% spaceless %}
+
+{% if job_type == 'csv_export' %}
+    {% include 'ODRAdminBundle:Job:csv_export.html.twig' %}
+{% elseif job_type == 'csv_import_validate' %}
+    {% include 'ODRAdminBundle:Job:csv_import_validate.html.twig' %}
+{% else %}
+<div class="accordion-content ODRJobList_general_wrapper" rel="{{ job_type }}">
+    <table id="ODRJobList_{{ job_type }}" class="display">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Started At</th>
+                <th>Started By</th>
+                <th>Description</th>
+                <th>Progress</th>
+                <th>Time Elapsed</th>
+                <th>ETA</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<script>
+    $(function() {
+        var window_intervals = {};
+{% for job_type, job_name in jobs %}
+        window_intervals["{{ job_type }}"] = window.clearInterval( window.ODRJobTracking_{{ job_type }}_interval );
+{% endfor %}
+
+        $(".ODRJobTrackingToggle").unbind('click').click(function(event) {
+            // Don't also trigger the header show/hide toggle
+            event.stopPropagation();
+
+            var job_type = $(this).attr('rel');
+            var delay = 10000;
+
+            if ( $(this).hasClass("fa-play") ) {
+                // Switch to refresh icon
+                $(this).addClass('fa-pause').removeClass('fa-play');
+                $(this).attr('title', 'Refreshing job progress every ' + (delay / 1000) + ' seconds');
+
+                // Start polling the server for updates every 10 seconds
+                window_intervals[ job_type ] = window.clearInterval( window_intervals[ job_type ] );
+                window_intervals[ job_type ] = window.setInterval( '$("#ODRJobList_' + job_type + '").DataTable().ajax.reload();', delay);
+            }
+            else {
+                // Switch to pause icon
+                $(this).addClass('fa-play').removeClass('fa-pause');
+                $(this).attr('title', 'Displaying snapshot of job progress');
+
+                // Stop polling the server for updates
+                window_intervals[ job_type ] = window.clearInterval( window_intervals[ job_type ] );
+            }
+        });
+
+        $(".ODRJobList_general_wrapper").each(function() {
+            var job_type = $(this).attr('rel');
+            var ajax_url = "{{ path('odr_job_refresh',{'job_type': ''}) }}";
+            ajax_url += job_type;
+
+            var table = $("#ODRJobList_" + job_type).dataTable({
+                "columns": [
+                    {
+                        "data": "can_delete",
+                        "render": function(can_delete, type, row, meta) {  // can_delete is a boolean
+                            if (can_delete == true)
+                                return '<div><span id="job_' + row.tracked_job_id + '" class="pure-button ODRDeleteJob" rel="' + row.tracked_job_id + '">Delete</span></div>';
+                            else
+                                return '';
+                        }
+                    },
+                    { "data": "created_at" },
+                    { "data": "created_by" },
+                    { "data": "description" },
+                    {
+                        "data": "progress",
+                        "render": function(data, type, row, meta) {    // data is an array containing total and current
+                            return '<div class="ODRProgressBar" max_value="' + data.total + '" current_value="' + data.current + '"><div class="ODRProgressBarLabel"></div></div>';
+                        }
+                    },
+                    { "data": "time_elapsed" },
+                    {
+                        "data": "eta",
+                        "render": function(data, type, row, meta) {
+                            if (data == 'Done') {
+                                // If job is done, make a link back to the datarecord list for this datatype
+                                return '<a onclick="viewResults(' + row.top_level_datatype_id + ');">Done</a>';
+                            }
+                            else {
+                                // If job is not done, display ETA
+                                return data;
+                            }
+                        }
+                    },
+                ],
+
+                "lengthChange": false,
+                "info": false,
+                "ordering": false,
+                "searching": false,
+                "paging": false,
+                // "autoWidth": false,  // doesn't work as expected
+
+                "language": {
+                    "emptyTable": "No Jobs found"
+                },
+
+                // https://datatables.net/manual/server-side
+                "processing": true,   // only displays a little "processing..." blurb
+//                serverSide: true,
+
+                "ajax": {
+                    url: ajax_url,
+                    type: "GET",
+                    dataSrc: "d",
+                    complete: function() {
+                        if (typeof doProgressBars == 'function')
+                            doProgressBars();
+                    }
+                }
+            });
+
+            // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+            $.fn.dataTable.ext.errMode = 'none';
+            $("#ODRJobList_" + job_type).on('error.dt', function(e, settings, techNote, message) {
+                console.log(message);
+            });
+        });
+
+        $("table.dataTable").on("click", "span.ODRDeleteJob", function() {
+            deleteJob( $(this).attr('rel') );
+        });
+
+        // Hide all job list headers by default
+        $(".ODRJobList_header").next().hide();
+
+        $(".ODRJobList_header").unbind('click').click(function() {
+            if ( $(this).next().is(':hidden') ) {
+                $(this).next().show();
+
+                // Need to ensure the width attribute doesn't exist, or it'll override the redraw
+                var table = $(this).next().find('table');
+                $(table).removeAttr('style');
+
+                table.DataTable().columns.adjust().draw();
+            }
+            else {
+                $(this).next().hide();
+            }
+        });
+
+        // If one of the headers is supposed to be shown, unhide it
+        if ( '{{ show_section }}' !== '' ) {
+            $("#ODRJobList_{{ show_section }}").parent().parent().prev().trigger('click');
+        }
+    });
+
+    function doProgressBars() {
+        $(".ODRProgressBar").each(function() {
+            var current_value = parseInt( $(this).attr('current_value') );
+            var max_value = $(this).attr('max_value');
+
+            var progress_label = $(this).children(".ODRProgressBarLabel").first();
+
+            if ( $(this).progressbar('instance') !== undefined )
+                $(this).progressbar('destroy');
+
+            $(this).progressbar({
+                value: current_value,
+                max: max_value,
+                create: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                },
+                change: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                }
+            });
+        });
+    }
+
+    function deleteJob(job_id) {
+        var row = $("#job_" + job_id).parent().parent().parent();
+
+        var url = "{{ path( 'odr_delete_tracked_job', {'job_id': 0} ) }}";
+        url = url.substr(0, url.length-1);
+        url += job_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                // Delete the row and redraw the table
+                var table = $(row).parent().parent();
+                $(table).DataTable().row( $(row) ).remove().draw();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function viewResults(datatype_id) {
+        var url = '{{ path('odr_default_search_render', { 'datatype_id': 0 }) }}';
+
+        url = url.substring(0, (url.length - 1));
+        url += datatype_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                //
+                var baseurl = '{{ path('odr_search', { 'search_slug': '' } ) }}' + data.d.search_slug;
+                window.location = baseurl + '#' + data.d.url;
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

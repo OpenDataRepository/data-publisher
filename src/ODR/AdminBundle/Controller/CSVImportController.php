@@ -201,7 +201,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc37afbaf;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -249,7 +249,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x99d8cc4b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -534,7 +534,7 @@ class CSVImportController extends ODRCustomController
             $safe_message = Encoding::toUTF8($e->getMessage());
 
             if ($e instanceof ODRException)
-                throw new ODRException($safe_message, $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($safe_message, $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($safe_message, 500, $source, $e);
         }
@@ -632,7 +632,7 @@ class CSVImportController extends ODRCustomController
         $line_num = 0;
         while ( $csv_file->valid() ) {
             $row = $csv_file->fgetcsv();    // automatically increments file pointer
-            if ( count($row) == 0 )
+            if ( $row === null || count($row) == 0 )
                 continue;
 //print_r($row);
 
@@ -730,7 +730,7 @@ class CSVImportController extends ODRCustomController
         $line_num = 0;
         while ( $csv_file->valid() ) {
             $row = $csv_file->fgetcsv();    // automatically advances file pointer
-            if ( count($row) == 0 )
+            if ( $row === null || count($row) == 0 )
                 continue;
 
             $line_num++;
@@ -845,7 +845,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x81eae304;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -893,7 +893,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x9b61078d;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -938,7 +938,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x15cde5cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -988,7 +988,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x336d4581;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1311,6 +1311,9 @@ class CSVImportController extends ODRCustomController
             // Verify any secondary delimiters
             foreach ($column_delimiters as $col_num => $delimiter) {
                 $delimiter = trim($delimiter);
+                if ($delimiter === 'space')
+                    $delimiter = ' ';
+
                 $column_delimiters[$col_num] = $delimiter;
 
                 if ( $delimiter === '' || strlen($delimiter) > 3 )
@@ -1700,7 +1703,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xfa64ef3c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2168,6 +2171,7 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
 
+                    // TODO - make these use ValidUtility?
                     case "IntegerValue":
                         if ($value !== '') {
                             // Warn about invalid characters in an integer conversion
@@ -2226,13 +2230,14 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
 
+                    // TODO - make these use ValidUtility?
                     case "ShortVarchar":
                         if ($length > 32) {
                             $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store 32 characters',
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store up to 32 characters',
                                 ),
                             );
                         }
@@ -2243,7 +2248,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store 64 characters',
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store up to 64 characters',
                                 ),
                             );
                         }
@@ -2254,7 +2259,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store 255 characters',
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store up to 255 characters',
                                 ),
                             );
                         }
@@ -2469,7 +2474,7 @@ class CSVImportController extends ODRCustomController
 
             $source = 0xc2313827;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2584,6 +2589,7 @@ class CSVImportController extends ODRCustomController
             /** @var DataType[]|null $childtypes */
             $childtypes = null;
             if ($parent_datatype_id !== '') {
+                $childtypes = array();
                 foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                     if ($parent_dt_id == $datatype_id) {
                         // Ensure user has permissions to modify this childtype before storing it
@@ -2595,13 +2601,14 @@ class CSVImportController extends ODRCustomController
                         }
                     }
                 }
-                if (count($childtypes) == 0)
+                if ( count($childtypes) == 0 )
                     $childtypes = null;
             }
 
             /** @var DataType[]|null $linked_types */
             $linked_types = null;
             if ($parent_datatype_id !== '') {
+                $linked_types = array();
                 foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
                     if ( in_array($datatype_id, $ancestor_ids) ) {
                         // Ensure user has permissions to modify this linked type before storing it
@@ -2610,7 +2617,7 @@ class CSVImportController extends ODRCustomController
                         }
                     }
                 }
-                if (count($linked_types) == 0)
+                if ( count($linked_types) === 0 )
                     $linked_types = null;
             }
 
@@ -2679,6 +2686,11 @@ class CSVImportController extends ODRCustomController
             $reader = new CsvReader($csv_file, $delimiter);
             $reader->setHeaderRowNumber(0);     // want associative array
             $file_headers = $reader->getColumnHeaders();
+
+            // TODO - In theory, this shouldn't rewrite the file, since it was called back in layoutAction()...
+            // TODO - ...figure out a clean way to get column lengths without doing this?
+            $column_lengths = array();
+            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_lengths);
 
 
             // ----------------------------------------
@@ -2786,6 +2798,7 @@ class CSVImportController extends ODRCustomController
 
                         'csv_delimiter' => $delimiter,
                         'columns' => $file_headers,
+                        'column_lengths' => $column_lengths,
                         'datafields' => $datafields,
                         'fieldtypes' => $fieldtypes,
 
@@ -2803,7 +2816,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee919ae8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2861,13 +2874,13 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Load the data from the finished validation job
-            /** @var TrackedJob $tracked_job */
-            $tracked_job = $repo_tracked_job->find($job_id);
-            if ($tracked_job->getCompleted() == null)
+            /** @var TrackedJob $validate_tracked_job */
+            $validate_tracked_job = $repo_tracked_job->find($job_id);
+            if ($validate_tracked_job->getCompleted() == null)
                 throw new ODRException('Invalid job');
 
-            $job_data = $tracked_job->getAdditionalData();
-            $target_entity = $tracked_job->getTargetEntity();
+            $job_data = $validate_tracked_job->getAdditionalData();
+            $target_entity = $validate_tracked_job->getTargetEntity();
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
 
@@ -2897,6 +2910,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
@@ -2939,7 +2953,13 @@ class CSVImportController extends ODRCustomController
             $restrictions = '';
             $total = $reader->count();
             $reuse_existing = false;
-//$reuse_existing = true;
+
+
+            // Delete the original tracked Job (CSV Import Validate)
+            $em->remove($validate_tracked_job);
+            // TODO Not sure if the other flush will fire every time.  Probably should flush all at the end.
+            $em->flush();
+
 
             $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
@@ -3091,6 +3111,7 @@ class CSVImportController extends ODRCustomController
                 }
 
                 // Save all changes
+                // TODO Is this needed here?
                 $em->flush();
 
                 // Update cached versions of datatype and master theme since new datafields were added
@@ -3268,11 +3289,13 @@ print_r($new_mapping);
                 $pheanstalk->useTube('csv_import_worker')->put($payload, $priority, $delay);
             }
 
+            $return['d'] = array("tracked_job_id" => $tracked_job_id);
+
         }
         catch (\Exception $e) {
             $source = 0x61dc8b30;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3908,9 +3931,29 @@ exit();
                         /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
+                        // Need to truncate overly-long strings here...otherwise doctrine will throw
+                        //  an error and the import of this record will fail
+                        $truncated = false;
+                        if ( $typeclass == 'ShortVarchar' && strlen($column_data) > 32 ) {
+                            $truncated = true;
+                            $column_data = substr($column_data, 0, 32);
+                        }
+                        else if ( $typeclass == 'MediumVarchar' && strlen($column_data) > 64 ) {
+                            $truncated = true;
+                            $column_data = substr($column_data, 0, 64);
+                        }
+                        else if ( $typeclass == 'LongVarchar' && strlen($column_data) > 255 ) {
+                            $truncated = true;
+                            $column_data = substr($column_data, 0, 255);
+                        }
+
                         // Ensure the value stored in the entity matches the value in the import file
                         $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
+
+                        if ( $truncated )
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
+                        else
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
 
                     }
                     else if ($typeclass == 'DatetimeValue') {
@@ -4245,7 +4288,7 @@ exit();
 
             $source = 0x121707ab;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4320,12 +4363,18 @@ exit();
 
         try {
             $post = $_POST;
-//print_r($post);
-//return;
+//exit( print_r($post, true) );
 
             // TODO - correct requirements
-            if ( !isset($post['tracked_job_id']) || /*!isset($post['mapping']) || */ !isset($post['line']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id'])
+                /*|| !isset($post['mapping']) */
+                || !isset($post['line'])
+                || !isset($post['datatype_id'])
+                || !isset($post['user_id'])
+                || !isset($post['api_key'])
+            ) {
                 throw new ODRException('Invalid job data');
+            }
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -4341,7 +4390,8 @@ exit();
                 $column_delimiters = $post['column_delimiters'];
 */
 
-            // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
+            // If the import is for a child or linked datatype, then one of the columns from the csv
+            //  file has to be mapped to the parent/local datatype's external id datafield
             $parent_datatype_id = '';
             if ( isset($post['parent_datatype_id']) )
                 $parent_datatype_id = $post['parent_datatype_id'];
@@ -4349,7 +4399,8 @@ exit();
             if ( isset($post['parent_external_id_column']) )
                 $parent_external_id_column = $post['parent_external_id_column'];
 
-            // If the import is for a linked datatype, then another column from the csv file also has to be mapped to the remote datatype's external id datafield
+            // If the import is for a linked datatype, then another column from the csv file also
+            //  has to be mapped to the remote datatype's external id datafield...
             $remote_external_id_column = '';
             if ( isset($post['remote_external_id_column']) )
                 $remote_external_id_column = $post['remote_external_id_column'];
@@ -4365,8 +4416,12 @@ exit();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -4404,15 +4459,14 @@ exit();
 
             // ----------------------------------------
             // Ensure a link exists from the local datarecord to the remote datarecord
-//            parent::ODR_linkDataRecords($em, $user, $local_datarecord, $remote_datarecord);
-            $ec_service->createDatarecordLink($user, $local_datarecord, $remote_datarecord);    // TODO - test this
-            $status .= ' -- Datarecord '.$local_datarecord->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' (external id: "'.$remote_external_id.'")'."\n";
+            $ec_service->createDatarecordLink($user, $local_datarecord, $remote_datarecord);
+            $status .= ' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")'."\n";
 
-            // TODO - put this somewhere, it's no longer inside createDatarecordLink()
             // Force a rebuild of the cached entry for the ancestor datarecord
-//            $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+            $dri_service->updateDatarecordCacheEntry($local_datarecord, $user);
             // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
-//            $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
+            $dri_service->deleteCachedDatarecordLinkData( array($local_datarecord->getId()) );
+            $search_cache_service->onLinkStatusChange($remote_datarecord->getDataType());
 
             // Linking/unlinking a datarecord has no effect on datarecord order
 
@@ -4462,7 +4516,7 @@ exit();
 
             $source = 0xf520f9b1;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

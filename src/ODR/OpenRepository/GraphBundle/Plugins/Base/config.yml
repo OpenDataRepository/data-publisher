@@ -36,7 +36,6 @@ services:
         arguments:
             $templating: '@templating'
             $tokenGenerator: '@fos_user.util.token_generator'
-            $config_options: '%google_maps_config%'
 
 
     # Datafield plugins

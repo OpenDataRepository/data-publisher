@@ -110,7 +110,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x9c453393;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -204,6 +204,8 @@ class DisplayController extends ODRCustomController
             $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
             // Store whether the user is permitted to edit this specific datarecord
             $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
+            // Store whether the user is permitted to create new datarecords for this datatype
+            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
 
             if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canViewDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
@@ -326,6 +328,7 @@ class DisplayController extends ODRCustomController
                 'ODRAdminBundle:Display:display_header.html.twig',
                 array(
                     'can_edit_datarecord' => $can_edit_datarecord,
+                    'can_add_datarecord' => $can_add_datarecord,
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
 
@@ -369,7 +372,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f465413;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -559,7 +562,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xcc3f073c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -656,7 +659,7 @@ class DisplayController extends ODRCustomController
 
             $source = 0xe3de488a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -805,7 +808,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x81bed420;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -944,12 +947,79 @@ class DisplayController extends ODRCustomController
                 $url = '../../uploads/images/' . $filename;
                 return $this->redirect($url, 301);
 
+//
+//            if ( $image->isPublic() ) {
+//                // Since the image is public, it's expected to continue to exist...so return a
+//                //  redirect to its current location instead of streaming its contents
+//                $baseurl = $this->container->getParameter('site_baseurl');
+//                $upload_dir = $image->getUploadDir();
+//
+//                $response = new RedirectResponse($baseurl.'/'.$upload_dir.'/'.$filename);
+//
+//                fclose($handle);
+//                return $response;
+//            }
+//            else {
+//                // The image is not public...any decrypted version will only briefly exist, so need
+//                //  to create/return a Reponse for the user to download it
+//                $response = new Response();
+//                $response->setPrivate();
+//                switch (strtolower($image->getExt())) {
+//                    case 'gif':
+//                        $response->headers->set('Content-Type', 'image/gif');
+//                        break;
+//                    case 'png':
+//                        $response->headers->set('Content-Type', 'image/png');
+//                        break;
+//                    case 'jpg':
+//                    case 'jpeg':
+//                        $response->headers->set('Content-Type', 'image/jpeg');
+//                        break;
+//                }
+//
+//                // Attach the image's original name to the headers...
+//                $display_filename = $image->getOriginalFileName();
+//                if ($display_filename == null)
+//                    $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
+//                $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
+//
+//                $response->sendHeaders();
+//
+//                // After headers are sent, send the image itself
+//                $im = null;
+//                switch (strtolower($image->getExt())) {
+//                    case 'gif':
+//                        $im = imagecreatefromgif($image_path);
+//                        imagegif($im);
+//                        break;
+//                    case 'png':
+//                        $im = imagecreatefrompng($image_path);
+//                        imagepng($im);
+//                        break;
+//                    case 'jpg':
+//                    case 'jpeg':
+//                        $im = imagecreatefromjpeg($image_path);
+//                        imagejpeg($im);
+//                        break;
+//                }
+//                imagedestroy($im);
+//
+//                fclose($handle);
+//
+//                // If the image isn't public, delete the decrypted version so it can't be accessed
+//                //  without going through symfony
+//                if (!$image->isPublic())
+//                    unlink($image_path);
+//
+//                // Return the previously created response
+//                return $response;
+
             }
         }
         catch (\Exception $e) {
             $source = 0xc2fbf062;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1123,32 +1193,28 @@ class DisplayController extends ODRCustomController
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
-            if ( is_null($ret) ) {
-                $return['d'] = 'No files are available to download';
-            }
-            else {
-                $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
+            $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
-                $templating = $this->get('templating');
-                $return['d'] = $templating->render(
-                    'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
-                    array(
-                        'datarecord_id' => $grandparent_datarecord_id,
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
+                array(
+                    'datarecord_id' => $grandparent_datarecord_id,
 
-                        'datarecord_array' => $stacked_datarecord_array,
-                        'datafield_names' => $datafield_names,
-                        'datatype_names' => $datatype_names,
+                    'datarecord_array' => $stacked_datarecord_array,
+                    'datafield_names' => $datafield_names,
+                    'datatype_names' => $datatype_names,
 
-                        'is_top_level' => true,
-                    )
-                );
-            }
+                    'is_top_level' => true,
+                )
+            );
+
         }
         catch (\Exception $e) {
             $source = 0xce2c6ae9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1407,7 +1473,7 @@ exit();
         catch (\Exception $e) {
             $source = 0xc31d45b5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1495,7 +1561,7 @@ exit();
 
             $source = 0xc953bbf3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1552,6 +1618,10 @@ exit();
             // Get all available themes for this datatype that the user can view
             $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
 
+            // If the previous query didn't return anything, then load the master layout instead
+            if ( empty($themes) )
+                $themes = $theme_service->getAvailableThemes($user, $datatype, "master");
+
             // Get the user's default theme for this datatype, if they have one
             $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
             $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);
@@ -1574,7 +1644,7 @@ exit();
         catch (\Exception $e) {
             $source = 0x81fad8c3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

@@ -14,6 +14,7 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Other
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
@@ -91,6 +92,8 @@ class SearchQueryService
 
         if ($type === 'modified')
             $type = 'updated';
+        if ($type === 'modifiedBy')
+            $type = 'updatedBy';
 
         if ( $type === 'updated' || $type === 'created' ) {
             $search_params['str'] = 'dr.'.$type.' BETWEEN :after AND :before';
@@ -101,7 +104,7 @@ class SearchQueryService
             );
         }
         else {
-            // $type == 'modifiedBy' || $type == 'createdBy'
+            // $type == 'updatedBy' || $type == 'createdBy'
             $search_params['str'] = 'dr.'.$type.' = :target_user';
             $search_params['params'] = array(
                 'datatype_id' => $datatype_id,
@@ -208,6 +211,133 @@ class SearchQueryService
 
 
     /**
+     * Boolean fields are technically stored on the backend with either a '1' or a '0', but they
+     * need the Radio rules to search them properly.
+     *
+     * @param array $all_datarecord_ids
+     * @param int $datafield_id
+     *
+     * @return array
+     */
+    public function searchBooleanDatafield($all_datarecord_ids, $datafield_id)
+    {
+        // ----------------------------------------
+        // Get all datarecords of this datatype where this boolean field is selected
+        $query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN odr_boolean AS e ON e.data_record_fields_id = drf.id
+            WHERE e.data_field_id = :datafield_id AND e.value = 1
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, array('datafield_id' => $datafield_id));
+
+        // The results are the datarecords which are selected...
+        $selected_datarecords = array();
+        foreach ($results as $result)
+            $selected_datarecords[ $result['dr_id'] ] = 1;
+
+        // The difference between all the datarecords and the previous list are the unselected
+        //  datarecords
+        $unselected_datarecords = array_diff_key($all_datarecord_ids, $selected_datarecords);
+
+        return array(
+            '0' => $unselected_datarecords,
+            '1' => $selected_datarecords
+        );
+    }
+
+
+    /**
+     * Returns two arrays of datarecord ids...one array has all the datarecords where the given
+     * template boolean field is "selected"...the other array has all the datarecords where it isn't.
+     *
+     * @param array $all_datarecord_ids
+     * @param string $datafield_uuid
+     *
+     * @return array
+     */
+    public function searchBooleanTemplateDatafield($all_datarecord_ids, $datafield_uuid)
+    {
+        // ----------------------------------------
+        // Get all datarecords of this datatype involving this boolean field
+        $query =
+           'SELECT dt.id AS dt_id, df.id AS df_id, e.value AS selected, dr.id AS dr_id
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            JOIN odr_data_record_fields AS drf ON drf.data_field_id = df.id
+            JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+            JOIN odr_boolean AS e ON e.data_record_fields_id = drf.id
+            WHERE df.template_field_uuid = :template_df_id AND mdt.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND e.deletedAt IS NULL
+            AND drf.deletedAt IS NULL OR dr.deletedAt IS NULL';
+
+        // NOTE - drf and dr don't need a LEFT JOIN, $all_datarecord_ids will supply the records
+        //  that won't be picked up by this query
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, array('template_df_id' => $datafield_uuid));
+
+
+        // Need to use the search result and $all_datarecord_ids to build two arrays...one of
+        //  datarecords that are selected, and another of all datarecords that aren't
+        $unselected_datarecords = array();
+        $selected_datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+            $selected = $result['selected'];
+            $dr_id = $result['dr_id'];
+
+            // Datatype/datafield ids should always exist in the array...
+            if ( !isset($unselected_datarecords[$dt_id]) ) {
+                $unselected_datarecords[$dt_id] = array();
+                $selected_datarecords[$dt_id] = array();
+            }
+            if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
+                $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
+                $selected_datarecords[$dt_id][$df_id] = array();
+            }
+
+            // The results set contains at least one entry for each datatype/datafield pair...
+            if ( !is_null($selected) && $selected === '1' ) {
+                // ...but only need to do extra stuff when the datarecord is selected
+                unset( $unselected_datarecords[$dt_id][$df_id][$dr_id] );
+                $selected_datarecords[$dt_id][$df_id][$dr_id] = 1;
+            }
+        }
+
+        // Filter out empty entries from both arrays
+        foreach ($unselected_datarecords as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $dr_list) {
+                if ( empty($dr_list) )
+                    unset( $unselected_datarecords[$dt_id][$df_id] );
+            }
+            if ( empty($unselected_datarecords[$dt_id]) )
+                unset( $unselected_datarecords[$dt_id] );
+        }
+        foreach ($selected_datarecords as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $dr_list) {
+                if ( empty($dr_list) )
+                    unset( $selected_datarecords[$dt_id][$df_id] );
+            }
+            if ( empty($selected_datarecords[$dt_id]) )
+                unset( $selected_datarecords[$dt_id] );
+        }
+
+        return array(
+            '0' => $unselected_datarecords,
+            '1' => $selected_datarecords
+        );
+    }
+
+
+    /**
      * Returns two arrays of datarecord ids...one array has all the datarecords where the radio option
      * is selected...the other array has all the datarecords where the radio option is unselected.
      *
@@ -297,7 +427,7 @@ class SearchQueryService
                 $unselected_datarecords[$dt_id] = array();
                 $selected_datarecords[$dt_id] = array();
             }
-            else if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
+            if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
                 $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
                 $selected_datarecords[$dt_id][$df_id] = array();
             }
@@ -1211,9 +1341,18 @@ class SearchQueryService
 
 
         // ----------------------------------------
+        // Typehint the parameters so inequality searches work better
+        $types = array();
+        foreach ($search_params['params'] as $key => $value) {
+            if ( is_numeric($value) )
+                $types[$key] = ParameterType::INTEGER;
+            else
+                $types[$key] = ParameterType::STRING;
+        }
+
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAll($query, $search_params['params'], $types);
 
         $datarecords = array();
         foreach ($results as $result)
@@ -1272,7 +1411,7 @@ class SearchQueryService
         $search_params_text['params']['template_df_id'] = $master_datafield_uuid;
         $params[0] = $params[1] = $params[2] = $params[3] = $search_params_text;
 
-        // ...and a second for the numericla fieldtypes because their value columns can store nulls
+        // ...and a second for the numerical fieldtypes because their value columns can store nulls
         $search_params_num = self::parseField($value, $is_filename, true);
         $search_params_num['params']['template_df_id'] = $master_datafield_uuid;
         $params[4] = $params[5] = $search_params_num;
@@ -1347,8 +1486,18 @@ class SearchQueryService
         $conn = $this->em->getConnection();
 
         $results = array();
-        foreach ($typeclasses as $id => $typeclass)
-            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params']);
+        foreach ($typeclasses as $id => $typeclass) {
+            // Typehint the parameters so inequality searches work better
+            $types = array();
+            foreach ($params[$id]['params'] as $key => $value) {
+                if ( is_numeric($value) )
+                    $types[$key] = ParameterType::INTEGER;
+                else
+                    $types[$key] = ParameterType::STRING;
+            }
+
+            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params'], $types);
+        }
 
         // Create an array structure so the matching datarecords can be filtered based on user
         //  datatype/datafield permissions later
@@ -1534,9 +1683,13 @@ if ( isset($debug['search_string_parsing']) ) {
         $in_quotes = false;
         $tmp = '';
         for ($i = 0; $i < strlen($str); $i++) {
-            $char = $str[$i];
+            // Need to use multibyte substr to be able to handle multibyte unicode sequences...
+//            $char = $str[$i];
+            $char = mb_substr($str, $i, 1);
 
-            if ($char == "\"") {
+            // Attempt to treat doublequote (U+0022) the same as the unicode "smart quote" characters
+            //  e.g. (U+0022) should equal (U+201C and U+201D)
+            if ($char == "\"" || $char == "“" || $char == "”") {
                 if ($in_quotes) {
                     // found closing quote
                     $in_quotes = false;

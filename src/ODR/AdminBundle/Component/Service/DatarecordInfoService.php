@@ -16,10 +16,14 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -115,6 +119,8 @@ class DatarecordInfoService
             if ($datarecord_data == false)
                 $datarecord_data = self::buildDatarecordData($dr_id);
 
+            // TODO - if sortfield belongs to a linked datatype, then sortfieldValue doesn't contain the value used for sorting
+
             foreach ($datarecord_data as $dr_id => $data)
                 $datarecord_array[$dr_id] = $data;
         }
@@ -124,6 +130,8 @@ class DatarecordInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getAssociatedDatarecords()
+     *
      * This function locates all datarecords whose grandparent id is in $grandparent_datarecord_ids,
      * then calls self::getLinkedDatarecords() to locate all datarecords linked to by these datarecords,
      * which calls this function again to locate any datarecords that are linked to by those
@@ -164,6 +172,8 @@ class DatarecordInfoService
 
 
     /**
+     * @deprecated
+     *
      * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
      *
      * @param int[] $ancestor_ids
@@ -218,10 +228,10 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id}, df_dt, dfm_dt, ft_dt,
+               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
                dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
-               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName }, partial ft.{id, typeClass, typeName},
+               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName}, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
@@ -251,11 +261,9 @@ class DatarecordInfoService
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
-            LEFT JOIN dt.dataFields AS df_dt
-            LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
-            LEFT JOIN dfm_dt.fieldType AS ft_dt
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.metadata_for AS mf
+
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dtm.nameField AS dt_nf
             LEFT JOIN dtm.sortField AS dt_sf
@@ -336,7 +344,15 @@ class DatarecordInfoService
         //  object for each entity.  Therefore, the preceding query generates an array that needs
         //  to be slightly flattened in a few places.
         foreach ($datarecord_data as $dr_num => $dr) {
+            $dr_id = $dr['id'];
+
             // Flatten datarecord_meta
+            if ( count($dr['dataRecordMeta']) == 0 ) {
+                // ...throwing an exception here because this shouldn't ever happen, and also requires
+                //  manual intervention to fix...
+                throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datarecord '.$dr_id);
+            }
+
             $drm = $dr['dataRecordMeta'][0];
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
             $datarecord_data[$dr_num]['createdBy'] = UserUtility::cleanUserData( $dr['createdBy'] );
@@ -383,22 +399,21 @@ class DatarecordInfoService
                 if ( $cdr_id == $dr['id'] )
                     continue;
 
-                if ($cdr_dt_id !== null &&  !isset($child_datarecords[$cdr_dt_id]) )
+                if ( $cdr_dt_id !== null && !isset($child_datarecords[$cdr_dt_id]) )
                     $child_datarecords[$cdr_dt_id] = array();
 
-                if($cdr_id !== null)
+                if ( $cdr_id !== null )
                     $child_datarecords[$cdr_dt_id][] = $cdr_id;
             }
             foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
                 $ldr_id = $ldt['descendant']['id'];
                 $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
-                if ($ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
+                if ( $ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
                     $child_datarecords[$ldr_dt_id] = array();
 
-                if($ldr_id !== null) {
+                if ( $ldr_id !== null )
                     $child_datarecords[$ldr_dt_id][] = $ldr_id;
-                }
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
@@ -408,25 +423,41 @@ class DatarecordInfoService
             //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
+                // Not going to end up saving datafield/datafieldmeta...but need to verify it exists
+                if ( !is_array($drf['dataField']) || count($drf['dataField']) == 0 ) {
+                    // If the dataField array is empty, then this is most likely a datarecordfield
+                    //  entry that references a deleted datafield
 
-                // Save FieldMeta
-                $data_field = $drf['dataField'];
-                $data_field['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
+                    // Not really an error, since deleting datafields doesn't also delete drf entries
+                    continue;
+                }
+                $df_id = $drf['dataField']['id'];
+
+                if ( count($drf['dataField']['dataFieldMeta']) == 0 ) {
+                    // ...throwing an exception here because this shouldn't ever happen, and also
+                    //  requires manual intervention to fix...
+                    throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datafield '.$df_id);
+                }
+
+                $drf['dataField']['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
 
                 // Going to delete most of the sub arrays inside $drf that are empty...
-                $expected_fieldtype = $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'];
+                $expected_fieldtype = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
                 $expected_fieldtype = lcfirst($expected_fieldtype);
                 if ($expected_fieldtype == 'radio')
                     $expected_fieldtype = 'radioSelection';
                 else if ($expected_fieldtype == 'tag')
                     $expected_fieldtype = 'tagSelection';
 
-                $df_id = $drf['dataField']['id'];
-                unset( $drf['dataField'] );
-
                 // Flatten file metadata and get rid of encrypt_key
                 foreach ($drf['file'] as $file_num => $file) {
                     unset( $drf['file'][$file_num]['encrypt_key'] );
+
+                    if ( count($file['fileMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and also
+                        //  requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for file '.$file['id']);
+                    }
 
                     $fm = $file['fileMeta'][0];
                     $drf['file'][$file_num]['fileMeta'] = $fm;
@@ -443,6 +474,13 @@ class DatarecordInfoService
                     unset( $image['parent']['encrypt_key'] );
 
                     unset( $image['imageMeta'] );   // This is a phantom meta entry created for this image's thumbnail
+
+                    if ( count($image['parent']['imageMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and also
+                        //  requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for image '.$image['parent']['id']);
+                    }
+
                     $im = $image['parent']['imageMeta'][0];
                     $image['parent']['imageMeta'] = $im;
 
@@ -574,7 +612,6 @@ class DatarecordInfoService
                 }
 
                 // Store the resulting $drf array by its datafield id
-                $drf['dataField'] = $data_field;
                 $new_drf_array[$df_id] = $drf;
             }
 
@@ -597,6 +634,7 @@ class DatarecordInfoService
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
+
 
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
@@ -686,10 +724,7 @@ class DatarecordInfoService
         // Delete the filtered list of data meant specifically for table themes
         $this->cache_service->delete('cached_table_data_'.$dr->getId());
 
-        // Delete associated datarecords cache
-        $this->cache_service->delete('associated_datarecords_for_'.$dr->getId());
-        //
-        //        // Clear json caches used in API
+        // Clear json caches used in API
         $this->cache_service->delete('json_record_' . $dr->getUniqueId());
     }
 
@@ -714,6 +749,55 @@ class DatarecordInfoService
 
         foreach ($results as $result)
             $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
+    }
+
+
+    /**
+     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datarecords...
+     * e.g.  A links to B links to C links to D links to...etc
+     * ...the cache entry 'associated_datarecords_for_<A>' will then mention (B, C, D, etc.), because
+     *  they all need to be loaded via getDatarecordArray() in order to properly render A.
+     *
+     * However, this means that linking/unlinking of datarecords between B/C, C/D, D/etc also affects
+     * which datarecords A needs to load...so any linking/unlinking needs to be propagated upwards...
+     *
+     * TODO - potentially modify this to use SearchService::getCachedSearchDatarecordList()?
+     * TODO - ...or create a new CacheClearService and move every single cache clearing function into there instead?
+     *
+     * @param array $datarecord_ids array  dr_ids are values in the array, NOT keys
+     */
+    public function deleteCachedDatarecordLinkData($datarecord_ids)
+    {
+        $records_to_check = $datarecord_ids;
+        $records_to_clear = $records_to_check;
+
+        while ( !empty($records_to_check) ) {
+            // Determine whether anything links to the given datarecords...
+            $query = $this->em->createQuery(
+               'SELECT grandparent.id AS ancestor_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS grandparent WITH ancestor.grandparent = grandparent
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE descendant.id IN (:datarecords)
+                AND ldt.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
+                AND grandparent.deletedAt IS NULL'
+            )->setParameters( array('datarecords' => $records_to_check) );
+            $results = $query->getArrayResult();
+
+            $records_to_check = array();
+            foreach ($results as $result) {
+                $ancestor_id = $result['ancestor_id'];
+                $records_to_clear[] = $ancestor_id;
+                $records_to_check[] = $ancestor_id;
+            }
+        }
+
+        // Clearing this cache entry for each of the ancestor records found ensures that the
+        //  newly linked/unlinked datarecords show up (or not) when they should
+        foreach ($records_to_clear as $num => $dr_id)
+            $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
     }
 
 
@@ -749,5 +833,80 @@ class DatarecordInfoService
         }
 
         return $token_list;
+    }
+
+
+    /**
+     * Uses the given cached datatype array to generate a cache entry for a barebones "fake" record
+     * of the given datatype id.
+     *
+     * This function assumes it's creating a fake top-level datarecord.  The caller will need to
+     * splice this fake datarecord's ids into the cached array of a parent datarecord, if needed.
+     * The caller will also need to deal with setting the parent/grandparent attributes in this case.
+     *
+     * @param array $datatype_array @see DatatypeInfoService::getDatatypeArray()
+     * @param int $target_datatype_id
+     *
+     * @return array
+     */
+    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id)
+    {
+        if ( !isset($datatype_array[$target_datatype_id]) )
+            throw new ODRBadRequestException('Unable to generate a fake record of datatype '.$target_datatype_id, 0x00ba0e84);
+
+        // Going to need to copy most of the cached datatype array into the fake datarecord entry
+        $dt_entry = $datatype_array[$target_datatype_id];
+        // It doesn't really matter whether these entries exist or not, but unset them to be tidy
+        unset( $dt_entry[$target_datatype_id]['dataFields'] );
+        unset( $dt_entry[$target_datatype_id]['createdBy'] );
+        unset( $dt_entry[$target_datatype_id]['updatedBy'] );
+
+
+        // The new "fake" datarecord needs an id
+        // generateCSRFTokens() doesn't require it to be numeric
+        $fake_id = UniqueUtility::uniqueIdReal();
+        while ( is_numeric($fake_id) )
+            $fake_id = UniqueUtility::uniqueIdReal();
+
+        $entry = array(
+            'id' => $fake_id,
+            'is_fake' => true,
+
+            // These values shouldn't cause a problem...
+            'provisioned' => true,
+            'unique_id' => '',
+
+            'dataRecordMeta' => array(
+                'id' => null,    // TODO - problem here?  drf_id should never be used...
+                'publicDate' => new \DateTime('2200-00-00 00:00:00'),
+            ),
+
+            'parent' => array(
+                'id' => $fake_id,
+            ),
+            'grandparent' => array(
+                'id' => $fake_id,
+            ),
+            'dataType' => $dt_entry,
+
+            // These null values shouldn't cause a problem...
+            'created' => null,
+            'updated' => null,
+            'createdBy' => null,
+            'updatedBy' => null,
+            'deletedAt' => null,
+
+            'children' => array(),
+            'externalIdField_value' => '',
+            'nameField_value' => $fake_id,    // Get Edit mode to render the datatype name instead of a blank
+            'sortField_value' => '',
+            'sortField_typeclass' => '',
+
+            // Don't actually need to create entries here, twig effectively assumes all fields
+            //  have no value in this case
+            'dataRecordFields' => array()
+        );
+
+        return $entry;
     }
 }

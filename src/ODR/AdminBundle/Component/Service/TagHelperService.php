@@ -114,7 +114,12 @@ class TagHelperService
             );
             $results = $query->getArrayResult();
 
-            $tag_hierarchy = array();
+            // Apparently can't save an empty array into a cache entry, so define a not-quite-empty
+            //  array here in case the above query returns nothing...
+            // The rest of ODR is already designed to not assume any of the potentially three levels
+            //  of this array exist, so this shouldn't cause a problem
+            $tag_hierarchy = array($grandparent_datatype_id => array());
+
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $df_id = $result['df_id'];

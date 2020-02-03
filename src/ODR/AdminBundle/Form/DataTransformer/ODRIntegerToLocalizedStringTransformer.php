@@ -13,6 +13,7 @@
 
 namespace ODR\AdminBundle\Form\DataTransformer;
 
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use Symfony\Component\Form\Exception\TransformationFailedException;
 use Symfony\Component\Form\Extension\Core\DataTransformer\IntegerToLocalizedStringTransformer;
 
@@ -39,10 +40,7 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
      */
     public function reverseTransform($value)
     {
-        // Regex matches "0"
-        // OR
-        // an optional minus sign followed by a non-zero integer value
-        if ( preg_match('/^0$|^-?[1-9][0-9]*$/', $value) !== 1 )
+        if ( !ValidUtility::isValidInteger($value) )
             throw new TransformationFailedException();
 
         // If the given value is acceptable, let the parent class do its thing

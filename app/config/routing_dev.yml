@@ -2,9 +2,9 @@ _errors:
     resource: "@TwigBundle/Resources/config/routing/errors.xml"
     prefix:   /_error
 
-_pheanstalk:
-    resource: "@drymekPheanstalkBundle/Resources/config/routing.yml"
-    prefix:   /_pheanstalk
+#_pheanstalk:
+#    resource: "@drymekPheanstalkBundle/Resources/config/routing.yml"
+#    prefix:   /_pheanstalk
 
 _wdt:
     resource: "@WebProfilerBundle/Resources/config/routing/wdt.xml"

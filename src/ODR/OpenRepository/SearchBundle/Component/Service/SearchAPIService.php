@@ -1152,13 +1152,25 @@ class SearchAPIService
         }
 
 
-        // Sort the resulting array
+        // Sort the resulting array if any results were found
         $sorted_datarecord_list = array();
         if ( !empty($grandparent_ids) ) {
-            if ($sort_df_id === 0)
-                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
-            else
-                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
+            $source_dt_id = $datatype->getId();
+            $grandparent_ids_for_sorting = implode(',', $grandparent_ids);
+
+            if ($sort_df_id === 0) {
+                // No sort datafield defined for this request, use datarecord_id order
+                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($source_dt_id, $grandparent_ids_for_sorting);
+            }
+            else if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) ) {
+                // The sort datafield belongs to the datatype being searched on
+                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
+            }
+
+            else {
+                // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
+                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
+            }
 
             // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
             $sorted_datarecord_list = array_keys($sorted_datarecord_list);
@@ -1644,12 +1656,20 @@ class SearchAPIService
         foreach ($inflated_list as $top_level_dt_id => $top_level_datarecords) {
             foreach ($top_level_datarecords as $dr_id => $child_dt_list) {
 
-                if ( !is_array($child_dt_list) ) {
-                    // No child datarecords...only save if it matched the search result
+                if ( $flattened_list[$dr_id] < 0 ) {
+                    // Either the user can't see this top-level datarecord, or it didn't match the
+                    //  search query...doesn't matter whether it has children or not
+                    unset( $inflated_list[$top_level_dt_id][$dr_id] );
+                }
+                else if ( !is_array($child_dt_list) ) {
+                    // This top-level datarecord has no children...only save if it matched the
+                    //  search query
                     if ( $flattened_list[$dr_id] !== 1 )
                         unset( $inflated_list[$top_level_dt_id][$dr_id] );
                 }
                 else {
+                    // This top-level datarecord could match the search, but whether it does or not
+                    //  depends on whether its children match...
                     $votes = array();
                     foreach ($child_dt_list as $child_dt_id => $child_dr_list) {
                         //
@@ -1715,11 +1735,12 @@ class SearchAPIService
         foreach ($dr_list as $dr_id => $child_dt_list) {
 
             if ( $flattened_list[$dr_id] === -2 ) {
-                // This datarecord is non-public, doesn't matter if it has child datarecords
-                // This is different from
+                // The user can't view this datarecord, so they also can't see any child datarecords
+                // Whether the child datarecords matched the search or not is irrelevant
             }
             else if ($flattened_list[$dr_id] === -1 ) {
-                // This datarecord didn't match the search...doesn't matter if it has children
+                // This datarecord didn't match the search, so there's no point to checking any
+                //  child datarecords
                 $exclude = true;
             }
             else {
@@ -1774,7 +1795,8 @@ class SearchAPIService
             return -1;
         }
         else {
-            // Otherwise, the results from this child datatype doesn't matter
+            // Otherwise, the results from this child datatype can't be used to change the match
+            //  status of the parent datarecord
             return 0;
         }
     }

@@ -1,5 +1,9 @@
 {% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+
 <fieldset>
-    <div class="ODRMarkdownContent" title="{{ datafield.dataFieldMeta.description }}">{% if datafield.dataFieldMeta.markdownText != null %}{{ datafield.dataFieldMeta.markdownText|markdown }}{% endif %}</div>
+    <div class="ODRMarkdownContent" title="{{ datafield_meta.description }}">{% if datafield_meta.markdownText != null %}{{ datafield_meta.markdownText|markdown }}{% endif %}</div>
 </fieldset>
+
 {% endspaceless %}

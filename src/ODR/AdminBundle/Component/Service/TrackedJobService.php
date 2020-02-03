@@ -16,18 +16,13 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\TrackedError;
 // Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Doctrine\ORM\EntityManager;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bridge\Monolog\Logger;
-
 
 class TrackedJobService
 {
@@ -101,6 +96,42 @@ class TrackedJobService
         return $job_data;
     }
 
+
+    /**
+     * Returns jobs for users that users may need to acknowledge.
+     *
+     * @param $user_id
+     * @return array
+     */
+    public function getJobDataByUserId($user_id)
+    {
+        // Ensure the tracked job exists first
+        /** @var TrackedJob $tracked_job */
+        $qb = $this->em->createQueryBuilder();
+
+        $qb->select('tj')
+            ->from('ODRAdminBundle:TrackedJob', 'tj')
+            ->where($qb->expr()->isNotNull('tj.completed'))
+            ->andWhere('tj.createdBy = :user_id')
+            ->andWhere($qb->expr()->isNull('tj.deletedAt'))
+            ->andWhere($qb->expr()->in('tj.job_type', ':jobs_array'))
+            ->orderBy('tj.created', 'DESC');
+
+        $qb->setParameter('user_id', $user_id);
+        $qb->setParameter('jobs_array', array(
+            'csv_export',
+            'csv_import',
+            'csv_import_validate',
+            'mass_edit',
+            'migrate'
+        ));
+        $tracked_jobs = $qb->getQuery()->getArrayResult();
+
+        if ($tracked_jobs == null)
+            return array();
+
+        return $tracked_jobs;
+    }
 
     /**
      * Returns a formatted array of useful data about all tracked jobs of the given job type

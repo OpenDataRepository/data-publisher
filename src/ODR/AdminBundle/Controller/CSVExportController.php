@@ -160,6 +160,8 @@ class CSVExportController extends ODRCustomController
             if ($list == null)
                 $list = array();
 
+            // TODO - whenever CSVExport can handle child/linked datatypes with multiple child/linked records...
+            // TODO - ...this is going to have to be changed to not use the "grandparent_datarecord_list"
             $list[$odr_tab_id] = array('datarecord_list' => $datarecord_list, 'encoded_search_key' => $filtered_search_key);
             $session->set('csv_export_datarecord_lists', $list);
 
@@ -184,7 +186,7 @@ class CSVExportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8647bcc3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -285,7 +287,6 @@ class CSVExportController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to export from a master template');
 
 
-
             // Translate the primary delimiter if needed
             if ($delimiter === 'tab')
                 $delimiter = "\t";
@@ -302,7 +303,11 @@ class CSVExportController extends ODRCustomController
             if ( !is_null($radio_delimiter)
                 && ($radio_delimiter === '' || strlen($radio_delimiter) > 3)
             ) {
-                throw new ODRBadRequestException('Invalid radio delimiter');
+                if ( $radio_delimiter !== 'space' ) {
+                    // Radio delimiter is allowed to be 'space', otherwise it wouldn't really
+                    //  transfer through the background jobs
+                    throw new ODRBadRequestException('Invalid radio delimiter');
+                }
             }
 
             if ( !is_null($tag_delimiter)
@@ -349,34 +354,44 @@ class CSVExportController extends ODRCustomController
 
             // ----------------------------------------
             // Need to validate the given datafield information...
-            $dt_array = $dti_service->getDatatypeArray($datatype->getId(), false);    // don't want links
-            $dt_array = $dt_array[$datatype->getId()];
+            $datatree_array = $dti_service->getDatatreeArray();
+            $valid_csv_export_datatypes = self::getValidCSVExportDatatypes($datatree_array, $datatype->getId());
+
+            $dt_array = $dti_service->getDatatypeArray($datatype->getId(), true);    // may need linked datatypes
+            $df_mapping = array();
 
             foreach ($datafields as $num => $df_id) {
-                $df_id = intval($df_id);
+                foreach ($dt_array as $dt_id => $dt) {
+                    if ( isset($dt['dataFields'][$df_id]) ) {
+                        // This field isn't valid to export when it's from a child/linked datatype
+                        //  that allows multiple child/linked datarecords
+                        if ( !isset($valid_csv_export_datatypes[$dt_id]) )
+                            throw new ODRBadRequestException('Datafield '.$df_id.' (datatype '.$dt_id.') can exist multiple times relative to top-level datatype '.$datatype->getId());
 
-                // Ensure that the requested datafield exists, and belongs to the given datatype
-                if ( !isset($dt_array['dataFields']) || !isset($dt_array['dataFields'][$df_id]) ) {
-                    throw new ODRNotFoundException('Datafield');
-                }
-                else {
-                    $df = $dt_array['dataFields'][$df_id];
-                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        // Otherwise, ensure the correct delimiters are set
+                        $df_mapping[$df_id] = $dt_id;
 
-                    // Require the relevant delimiter to be set if exporting File/Image/Radio/Tag typeclasses
-                    if ( ($typeclass === 'File' || $typeclass === 'Image') && is_null($file_image_delimiter) )
-                        throw new ODRBadRequestException('File/Image delimiter not set');
-                    if ($typeclass === 'Radio' && is_null($radio_delimiter) )
-                        throw new ODRBadRequestException('Radio delimiter not set');
-                    if ($typeclass === 'Tag' && is_null($tag_delimiter) )
-                        throw new ODRBadRequestException('Tag delimiter not set');
+                        $df = $dt['dataFields'][$df_id];
+                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
-                    // Tag fields that permit multiple levels also need the tag hierarchy delimiter
-                    $allow_multiple_levels = $df['dataFieldMeta']['tags_allow_multiple_levels'];
-                    if ($allow_multiple_levels && is_null($tag_hierarchy_delimiter) )
-                        throw new ODRBadRequestException('Tag hierarchy delimiter not set');
+                        // Require the relevant delimiter to be set if exporting File/Image/Radio/Tag typeclasses
+                        if ( ($typeclass === 'File' || $typeclass === 'Image') && is_null($file_image_delimiter) )
+                            throw new ODRBadRequestException('File/Image delimiter not set');
+                        if ($typeclass === 'Radio' && is_null($radio_delimiter) )
+                            throw new ODRBadRequestException('Radio delimiter not set');
+                        if ($typeclass === 'Tag' && is_null($tag_delimiter) )
+                            throw new ODRBadRequestException('Tag delimiter not set');
+
+                        // Tag fields that permit multiple levels also need the tag hierarchy delimiter
+                        $allow_multiple_levels = $df['dataFieldMeta']['tags_allow_multiple_levels'];
+                        if ($allow_multiple_levels && is_null($tag_hierarchy_delimiter) )
+                            throw new ODRBadRequestException('Tag hierarchy delimiter not set');
+                    }
                 }
             }
+
+            if ( count($datafields) !== count($df_mapping) )
+                throw new ODRNotFoundException('Datafield');
 
 
             // ----------------------------------------
@@ -434,6 +449,7 @@ class CSVExportController extends ODRCustomController
 
             $tracked_job_id = $tracked_job->getId();
 
+            $return['d'] = array("tracked_job_id" => $tracked_job_id);
 
             // ----------------------------------------
             // Create a beanstalk job for each of these datarecords
@@ -452,7 +468,7 @@ class CSVExportController extends ODRCustomController
                         'tag_delimiter' => $tag_delimiter,
                         'tag_hierarchy_delimiter' => $tag_hierarchy_delimiter,
 
-                        'datarecord_id' => $datarecord_id,
+                        'datarecord_id' => $datarecord_id,    // top-level datarecord id
                         'datafields' => $datafields,
                         'redis_prefix' => $redis_prefix,    // debug purposes only
                         'datatype_id' => $datatype_id,
@@ -470,7 +486,7 @@ class CSVExportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x86acf50b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -478,6 +494,65 @@ class CSVExportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Digs through the given $datatree_array starting from $top_level_datatype_id, and returns an
+     * array of all child/linked datatype ids that are only permitted to have a single child/linked
+     * record.
+     *
+     * Required because CSV format can't really describe multiple child/linked records in a single
+     * sheet in a single file.
+     *
+     * @param array $datatree_array @see DatatypeInfoService::getDatatreeArray()
+     * @param int $top_level_datatype_id
+     *
+     * @return array
+     */
+    private function getValidCSVExportDatatypes($datatree_array, $top_level_datatype_id)
+    {
+        // Going to build a list of child/linked datatype ids that don't allow multiple child/linked
+        //  records, relative to the top-level datatype id
+        $valid_datatype_ids = array($top_level_datatype_id => 1);
+
+        $ids = array();
+        $ids[] = $top_level_datatype_id;
+        while ( count($ids) > 0 ) {
+            foreach ($ids as $num => $current_dt_id) {
+                // Going to deal with this datatype id now...
+                unset( $ids[$num] );
+
+                // See if the current datatype has any child datatypes...
+                foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
+                    if ( $parent_dt_id === $current_dt_id ) {
+                        // ...if it does, then only save the child datatatype id if the relationship
+                        //  only allows single child records
+                        if ( !isset($datatree_array['multiple_allowed'][$child_dt_id]) ) {
+                            $ids[] = $child_dt_id;
+                            $valid_datatype_ids[$child_dt_id] = 1;
+                        }
+                    }
+                }
+
+                // See if the current datatype links to any other datatype...
+                foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_dt_ids) {
+                    foreach ($ancestor_dt_ids as $parent_dt_id) {
+                        if ( $parent_dt_id === $current_dt_id ) {
+                            // ...if it does, then only save the remote datatatype id if the relationship
+                            //  only allows single linked records
+                            if ( !isset($datatree_array['multiple_allowed'][$descendant_dt_id]) ) {
+                                $ids[] = $descendant_dt_id;
+                                $valid_datatype_ids[$descendant_dt_id] = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Done locating everything
+        return $valid_datatype_ids;
     }
 
 
@@ -531,6 +606,8 @@ class CSVExportController extends ODRCustomController
             $radio_delimiter = null;
             if ( isset($post['radio_delimiter']) )
                 $radio_delimiter = $post['radio_delimiter'];
+            if ( $radio_delimiter === 'space' )
+                $radio_delimiter = ' ';
 
             $tag_delimiter = null;
             if ( isset($post['tag_delimiter']) )
@@ -586,187 +663,93 @@ class CSVExportController extends ODRCustomController
             $datarecord_data = array();
 
             // ----------------------------------
-            // Load FieldTypes of the datafields
-            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);    // don't get links
-            $dt_array = $dt_array[$datatype_id];
+            // Gather basic info about all datafields prior to actually loading data
+            $dt_array = $dti_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
+            $flipped_datafields = array_flip($datafields);
+            $df_mapping = array();
 
             $fieldtype_list = array();
-            foreach ($dt_array['dataFields'] as $df_id => $df) {
-                $fieldtype = $df['dataFieldMeta']['fieldType'];
-                $typeclass = $fieldtype['typeClass'];
-                $typename = $fieldtype['typeName'];
+            foreach ($dt_array as $dt_id => $dt) {
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    if ( isset($flipped_datafields[$df_id]) ) {
+                        $fieldtype = $df['dataFieldMeta']['fieldType'];
+                        $typeclass = $fieldtype['typeClass'];
+                        $typename = $fieldtype['typeName'];
 
-                if ($typename !== 'Markdown') {
-                    if ( !isset($fieldtype_list[$typeclass]) )
-                        $fieldtype_list[$typeclass] = array();
-                    $fieldtype_list[$typeclass][] = $df_id;
+                        if ($typename !== 'Markdown') {
+                            if ( !isset($fieldtype_list[$typeclass]) )
+                                $fieldtype_list[$typeclass] = array();
+                            $fieldtype_list[$typeclass][] = $df_id;
 
-                    if ($typeclass == 'File')
-                        $datarecord_data[$df_id] = array('typeclass' => 'file');
-                    else if ($typeclass == 'Image')
-                        $datarecord_data[$df_id] = array('typeclass' => 'image');
-                    else if ($typeclass == 'Radio')
-                        $datarecord_data[$df_id] = array('typeclass' => 'radio');
-                    else if ($typeclass == 'Tag')
-                        $datarecord_data[$df_id] = array('typeclass' => 'tag');
-                    else
-                        $datarecord_data[$df_id] = '';
+                            $df_mapping[$df_id] = $dt_id;
+
+                            if ($typeclass == 'File')
+                                $datarecord_data[$df_id] = array('typeclass' => 'file');
+                            else if ($typeclass == 'Image')
+                                $datarecord_data[$df_id] = array('typeclass' => 'image');
+                            else if ($typeclass == 'Radio')
+                                $datarecord_data[$df_id] = array('typeclass' => 'radio');
+                            else if ($typeclass == 'Tag')
+                                $datarecord_data[$df_id] = array('typeclass' => 'tag');
+                            else
+                                $datarecord_data[$df_id] = '';
+                        }
+                    }
                 }
             }
 
+//print_r($df_mapping);  exit();
 //print_r($fieldtype_list);  exit();
 //print_r($datarecord_data);  exit();
 
             // ----------------------------------
-            // Need to grab external id for this datarecord
-            $dr = $dri_service->getDatarecordArray($datarecord->getId(), false);    // don't get links
-            $dr = $dr[$datarecord->getId()];
+            // Need to grab external id for this top-level datarecord
+            $dr_array = $dri_service->getDatarecordArray($datarecord->getId(), true);    // may need links
 
-            $external_id = $dr['externalIdField_value'];
+            $external_id = $dr_array[$datarecord->getId()]['externalIdField_value'];
             if ( is_null($external_id) )
                 $external_id = '';
             $tag_hierarchy = null;
 
 
             // ----------------------------------
-            // Going to need these in case of a file/image export
-            $baseurl = $this->container->getParameter('site_baseurl');
-            $router = $this->container->get('router');
-
-            // Grab data for each of the datafields selected for export
+            // Locate data from the cache entry for each of the datafields selected for export
             foreach ($fieldtype_list as $typeclass => $df_list) {
                 if ($typeclass == 'File') {
-                    foreach ($df_list as $num => $df_id) {
-                        // Ensure the radio selection entry exists first...
-                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                            $drf = $dr['dataRecordFields'][$df_id];
-                            if ( isset($drf['file']) ) {
-                                foreach ($drf['file'] as $num => $file) {
-                                    $file_id = $file['id'];
-                                    $route = $baseurl.$router->generate('odr_file_download', array('file_id' => $file_id));
-
-                                    $datarecord_data[$df_id][] = $route;
-                                }
-                            }
-                        }
-                    }
+                    // Load file data from the cached datarecord array
+                    self::getFileData($datarecord_data, $dr_array, $df_list);
                 }
                 else if ($typeclass == 'Image') {
-                    foreach ($df_list as $num => $df_id) {
-                        // Ensure the image entry exists first...
-                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                            $drf = $dr['dataRecordFields'][$df_id];
-                            if ( isset($drf['image']) ) {
-                                foreach ($drf['image'] as $num => $image) {
-                                    // First level in here will be the thumbnail...want the full-size image
-                                    $parent_image_id = $image['parent']['id'];
-                                    $route = $baseurl.$router->generate('odr_image_download', array('image_id' => $parent_image_id));
-
-                                    $datarecord_data[$df_id][] = $route;
-                                }
-                            }
-                        }
-                    }
+                    // Load image data from the cached datarecord array
+                    self::getImageData($datarecord_data, $dr_array, $df_list);
                 }
                 else if ($typeclass == 'Radio') {
-                    foreach ($df_list as $num => $df_id) {
-                        // Ensure the radio selection entry exists first...
-                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                            $drf = $dr['dataRecordFields'][$df_id];
-                            if ( isset($drf['radioSelection']) ) {
-                                foreach ($drf['radioSelection'] as $ro_id => $rs) {
-                                    // Only save in the data array if it's selected
-                                    if ($rs['selected'] === 1) {
-                                        $option_name = $rs['radioOption']['optionName'];
-                                        $datarecord_data[$df_id][] = $option_name;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Load radio selection data from the cached datarecord array
+                    self::getRadioData($datarecord_data, $dr_array, $df_list);
                 }
                 else if ($typeclass == 'Tag') {
                     // Going to need the tag hierarchy for this, most likely
-                    if ( is_null($tag_hierarchy) )
-                        $tag_hierarchy = $th_service->getTagHierarchy($datatype_id);
+                    if ( is_null($tag_hierarchy) ) {
+                        $tag_hierarchy = array();
 
-                    foreach ($df_list as $num => $df_id) {
-                        // Get the tag tree for this datatype/datafield if it exists
-                        $tag_tree = array();
-                        if ( isset($tag_hierarchy[$datatype_id]) && isset($tag_hierarchy[$datatype_id][$df_id]) ) {
-                            // Flip the tag hierarchy so it's easier to work with from child tags
-                            $tmp = $tag_hierarchy[$datatype_id][$df_id];
-                            foreach ($tmp as $parent_tag_id => $child_tags) {
-                                foreach ($child_tags as $child_tag_id => $num)
-                                    $tag_tree[$child_tag_id] = $parent_tag_id;
-                            }
-                        }
-
-                        // Ensure the tag selection entry exists first...
-                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                            $drf = $dr['dataRecordFields'][$df_id];
-                            if ( isset($drf['tagSelection']) ) {
-                                foreach ($drf['tagSelection'] as $t_id => $ts) {
-                                    // Only save in the data array if it's selected
-                                    // The dri_service only marks leaf tags as selected
-                                    if ($ts['selected'] === 1) {
-                                        $current_tag_id = $ts['tag']['id'];
-                                        $full_tag_name = null;
-
-                                        // Need to locate every parent of this tag so all of the
-                                        //  tag names can be concatenated together
-                                        $parents = array();
-                                        $parents[] = $current_tag_id;
-                                        while ( isset($tag_tree[$current_tag_id]) ) {
-                                            $current_tag_id = $tag_tree[$current_tag_id];
-                                            $parents[] = $current_tag_id;
-                                        }
-
-                                        // Reverse the order so the datatype_array can be traversed
-                                        //  from top-level to leaf-level
-                                        $parents = array_reverse($parents);
-                                        $tag_group = $dt_array['dataFields'][$df_id]['tags'];
-                                        foreach ($parents as $num => $tag_id) {
-                                            // Store this part of the tag name
-                                            $tag_name = $tag_group[$tag_id]['tagName'];
-                                            if ( is_null($full_tag_name) )
-                                                $full_tag_name = $tag_name;
-                                            else
-                                                $full_tag_name .= ' '.$tag_hierarchy_delimiter.' '.$tag_name;
-
-                                            // Drop down to the next level if it exists
-                                            if ( isset($tag_group[$tag_id]['children']) )
-                                                $tag_group = $tag_group[$tag_id]['children'];
-                                        }
-
-                                        // Store the full tag name
-                                        $datarecord_data[$df_id][] = $full_tag_name;
-                                    }
-                                }
+                        // ...might as well check for and store tag hierarchies for each datatype
+                        foreach ($dt_array as $dt_id => $dt) {
+                            if ( !isset($tag_hierarchy[$dt_id]) ) {
+                                // This only responds to top-level datatypes...but not worth it to
+                                //  filter out child datatypes here
+                                $tmp = $th_service->getTagHierarchy($dt_id);
+                                foreach ($tmp as $tag_dt_id => $value)
+                                    $tag_hierarchy[$tag_dt_id] = $tmp[$tag_dt_id];
                             }
                         }
                     }
+
+                    // Load tag selection data from the cached datarecord array
+                    self::getTagData($datarecord_data, $dt_array, $dr_array, $tag_hierarchy, $df_list, $tag_hierarchy_delimiter);
                 }
                 else {
-                    foreach ($df_list as $num => $df_id) {
-                        // Ensure the entry for this datafield exists first...
-                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                            $drf = $dr['dataRecordFields'][$df_id];
-
-                            $tc = lcfirst($typeclass);
-                            if ( isset($drf[$tc]) ) {
-                                foreach ($drf[$tc] as $num => $storage_entity) {
-                                    // Should only be one...
-                                    $value = $storage_entity['value'];
-
-                                    if ($typeclass === 'DatetimeValue')
-                                        $datarecord_data[$df_id] = $value->format('Y-m-d');
-                                    else
-                                        $datarecord_data[$df_id] = $value;
-                                }
-                            }
-                        }
-                    }
+                    // Load data for any other fieldtype from the cached datarecord array
+                    self::getOtherData($datarecord_data, $dr_array, $typeclass, $df_list);
                 }
             }
 
@@ -848,7 +831,7 @@ class CSVExportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5bd2c168;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -856,6 +839,244 @@ class CSVExportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Extracts file data for exporting from the given top-level $dr_array.
+     *
+     * @param array $datarecord_data
+     * @param array $dr_array @see DatarecordInfoService::getDatarecordArray()
+     * @param array $df_list An array of the ids of all file datafields being exported
+     */
+    private function getFileData(&$datarecord_data, $dr_array, $df_list)
+    {
+        // Going to need these to generate routes
+        $baseurl = $this->container->getParameter('site_baseurl');
+        $router = $this->container->get('router');
+
+        foreach ($df_list as $num => $df_id) {
+            // Need to locate the datarecord this datafield belongs to
+            $dr = null;
+            foreach ($dr_array as $dr_id => $dr_entry) {
+                if ( isset($dr_entry['dataRecordFields']) && isset($dr_entry['dataRecordFields'][$df_id]) ) {
+                    $dr = $dr_entry;
+                    break;
+                }
+            }
+
+            // Only continue if a datarecord has data for the datafield...
+            if ( !is_null($dr) ) {
+                $drf = $dr['dataRecordFields'][$df_id];
+                if ( isset($drf['file']) ) {
+                    foreach ($drf['file'] as $num => $file) {
+                        $file_id = $file['id'];
+                        $route = $baseurl.$router->generate('odr_file_download', array('file_id' => $file_id));
+
+                        $datarecord_data[$df_id][] = $route;
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Extracts image data for exporting from the given top-level $dr_array.
+     *
+     * @param array $datarecord_data
+     * @param array $dr_array @see DatarecordInfoService::getDatarecordArray()
+     * @param array $df_list An array of the ids of all image datafields being exported
+     */
+    private function getImageData(&$datarecord_data, $dr_array, $df_list)
+    {
+        // Going to need these to generate routes
+        $baseurl = $this->container->getParameter('site_baseurl');
+        $router = $this->container->get('router');
+
+        foreach ($df_list as $num => $df_id) {
+            // Need to locate the datarecord this datafield belongs to
+            $dr = null;
+            foreach ($dr_array as $dr_id => $dr_entry) {
+                if ( isset($dr_entry['dataRecordFields']) && isset($dr_entry['dataRecordFields'][$df_id]) ) {
+                    $dr = $dr_entry;
+                    break;
+                }
+            }
+
+            // Only continue if a datarecord has data for the datafield...
+            if ( !is_null($dr) ) {
+                $drf = $dr['dataRecordFields'][$df_id];
+                if ( isset($drf['image']) ) {
+                    foreach ($drf['image'] as $num => $image) {
+                        // First level in here will be the thumbnail...want the full-size image
+                        $parent_image_id = $image['parent']['id'];
+                        $route = $baseurl.$router->generate('odr_image_download', array('image_id' => $parent_image_id));
+
+                        $datarecord_data[$df_id][] = $route;
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Extracts radio selection data for exporting from the given top-level $dr_array.
+     *
+     * @param array $datarecord_data
+     * @param array $dr_array @see DatarecordInfoService::getDatarecordArray()
+     * @param array $df_list An array of the ids of all radio datafields being exported
+     */
+    private function getRadioData(&$datarecord_data, $dr_array, $df_list)
+    {
+        foreach ($df_list as $num => $df_id) {
+            // Need to locate the datarecord this datafield belongs to
+            $dr = null;
+            foreach ($dr_array as $dr_id => $dr_entry) {
+                if ( isset($dr_entry['dataRecordFields']) && isset($dr_entry['dataRecordFields'][$df_id]) ) {
+                    $dr = $dr_entry;
+                    break;
+                }
+            }
+
+            // Only continue if a datarecord has data for the datafield...
+            if ( !is_null($dr) ) {
+                $drf = $dr['dataRecordFields'][$df_id];
+                if ( isset($drf['radioSelection']) ) {
+                    foreach ($drf['radioSelection'] as $ro_id => $rs) {
+                        // Only save in the data array if it's selected
+                        if ($rs['selected'] === 1) {
+                            $option_name = $rs['radioOption']['optionName'];
+                            $datarecord_data[$df_id][] = $option_name;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Extracts tag selection data for exporting from the given top-level $dr_array.
+     *
+     * @param array $datarecord_data
+     * @param array $dr_array @see DatarecordInfoService::getDatarecordArray()
+     * @param array $dt_array @see DatatypeInfoService::getDatatypeArray()
+     * @param array $tag_hierarchy @see TagHelperService::getTagHierarchy()
+     * @param array $df_list An array of the ids of all tag datafields being exported
+     * @param string $tag_hierarchy_delimiter
+     */
+    private function getTagData(&$datarecord_data, $dt_array, $dr_array, $tag_hierarchy, $df_list, $tag_hierarchy_delimiter)
+    {
+        foreach ($df_list as $num => $df_id) {
+            // Need to locate the datarecord this datafield belongs to
+            $dr = null;
+            foreach ($dr_array as $dr_id => $dr_entry) {
+                if ( isset($dr_entry['dataRecordFields']) && isset($dr_entry['dataRecordFields'][$df_id]) ) {
+                    $dr = $dr_entry;
+                    break;
+                }
+            }
+
+            // Only continue if a datarecord has data for the datafield...
+            if ( !is_null($dr) ) {
+                // Get the tag tree for this datatype/datafield if it exists
+                $dt_id = $dr['dataType']['id'];
+
+                $tag_tree = array();
+                if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) ) {
+                    // Flip the tag hierarchy so it's easier to work with from child tags
+                    $tmp = $tag_hierarchy[$dt_id][$df_id];
+                    foreach ($tmp as $parent_tag_id => $child_tags) {
+                        foreach ($child_tags as $child_tag_id => $num)
+                            $tag_tree[$child_tag_id] = $parent_tag_id;
+                    }
+                }
+
+                $drf = $dr['dataRecordFields'][$df_id];
+                if ( isset($drf['tagSelection']) ) {
+                    foreach ($drf['tagSelection'] as $t_id => $ts) {
+                        // Only save in the data array if it's selected
+                        // The dri_service only marks leaf tags as selected
+                        if ($ts['selected'] === 1) {
+                            $current_tag_id = $ts['tag']['id'];
+                            $full_tag_name = null;
+
+                            // Need to locate every parent of this tag so all of the
+                            //  tag names can be concatenated together
+                            $parents = array();
+                            $parents[] = $current_tag_id;
+                            while ( isset($tag_tree[$current_tag_id]) ) {
+                                $current_tag_id = $tag_tree[$current_tag_id];
+                                $parents[] = $current_tag_id;
+                            }
+
+                            // Reverse the order so the datatype_array can be traversed
+                            //  from top-level to leaf-level
+                            $parents = array_reverse($parents);
+                            $tag_group = $dt_array[$dt_id]['dataFields'][$df_id]['tags'];
+                            foreach ($parents as $num => $tag_id) {
+                                // Store this part of the tag name
+                                $tag_name = $tag_group[$tag_id]['tagName'];
+                                if ( is_null($full_tag_name) )
+                                    $full_tag_name = $tag_name;
+                                else
+                                    $full_tag_name .= ' '.$tag_hierarchy_delimiter.' '.$tag_name;
+
+                                // Drop down to the next level if it exists
+                                if ( isset($tag_group[$tag_id]['children']) )
+                                    $tag_group = $tag_group[$tag_id]['children'];
+                            }
+
+                            // Store the full tag name
+                            $datarecord_data[$df_id][] = $full_tag_name;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Extracts text/number/boolean data for exporting from the given top-level $dr_array.
+     *
+     * @param array $datarecord_data
+     * @param array $dr_array @see DatarecordInfoService::getDatarecordArray()
+     * @param string $typeclass
+     * @param array $df_list An array of the ids of all $typeclass datafields being exported
+     */
+    private function getOtherData(&$datarecord_data, $dr_array, $typeclass, $df_list)
+    {
+        foreach ($df_list as $num => $df_id) {
+            // Need to locate the datarecord this datafield belongs to
+            $dr = null;
+            foreach ($dr_array as $dr_id => $dr_entry) {
+                if ( isset($dr_entry['dataRecordFields']) && isset($dr_entry['dataRecordFields'][$df_id]) ) {
+                    $dr = $dr_entry;
+                    break;
+                }
+            }
+
+            // Only continue if a datarecord has data for the datafield...
+            if ( !is_null($dr) ) {
+                $drf = $dr['dataRecordFields'][$df_id];
+
+                $tc = lcfirst($typeclass);
+                if ( isset($drf[$tc]) ) {
+                    foreach ($drf[$tc] as $num => $storage_entity) {
+                        // Should only be one...
+                        $value = $storage_entity['value'];
+
+                        if ($typeclass === 'DatetimeValue')
+                            $datarecord_data[$df_id] = $value->format('Y-m-d');
+                        else
+                            $datarecord_data[$df_id] = $value;
+                    }
+                }
+            }
+        }
     }
 
 
@@ -1004,8 +1225,6 @@ class CSVExportController extends ODRCustomController
                     $random_key_hash .= $result['random_key'];
                 }
                 $random_key_hash = md5($random_key_hash);
-//print $random_key_hash."\n";
-
 
                 // Attempt to insert this hash back into the database...
                 // NOTE: this uses the same random_key field as the previous INSERT WHERE NOT EXISTS query...the first time it had an 8 character string inserted into it, this time it's taking a 32 character string
@@ -1018,8 +1237,6 @@ class CSVExportController extends ODRCustomController
                 $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => 1);
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query, $params);
-
-//print 'rows affected: '.$rowsAffected."\n";
 
                 if ($rowsAffected == 1) {
                     // This is the first process to attempt to insert this key...it will be in charge of creating the information used to concatenate the temporary files together
@@ -1053,8 +1270,6 @@ class CSVExportController extends ODRCustomController
 
                 // Sort by datafield id so order of header columns matches order of data
                 ksort($header_line);
-
-//print_r($header_line);
 
                 // Make a "final" file for the export, and insert the header line
                 $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
@@ -1095,7 +1310,6 @@ class CSVExportController extends ODRCustomController
                     )
                 );
 
-//print_r($payload);
 
                 $delay = 1; // one second
                 $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
@@ -1106,7 +1320,7 @@ class CSVExportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc0abdfce;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1243,7 +1457,7 @@ class CSVExportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xa9285db8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1257,7 +1471,7 @@ class CSVExportController extends ODRCustomController
     /**
      * Sidesteps symfony to set up an CSV file download...
      *
-     * @param integer $user_id The user requesting the download
+     * @param integer $user_id The user requesting the download (Why????)
      * @param integer $tracked_job_id The tracked job that stored the progress of the csv export
      * @param Request $request
      *
@@ -1309,9 +1523,16 @@ class CSVExportController extends ODRCustomController
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to export from a master template');
 
+            // TODO Is there some reason user_id is passed rather than retrieved from the user object?
+            $user_id = $user->getId();
 
             $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
+
+
+            // Mark the job deleted
+            $em->remove($tracked_job);
+            $em->flush();
 
             $handle = fopen($csv_export_path.$filename, 'r');
             if ($handle !== false) {
@@ -1344,7 +1565,7 @@ class CSVExportController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x86a6eb3a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

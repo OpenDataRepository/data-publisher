@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -74,6 +75,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class EditController extends ODRCustomController
@@ -175,7 +178,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x2d4d92e6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -286,7 +289,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x3d2835d5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -492,7 +495,13 @@ class EditController extends ODRCustomController
             if ( !$is_top_level )
                 $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // Delete all cache entries that could reference the datarecords that were just deleted
+            // If this was a top-level datarecord that just got deleted...
+            if ( $is_top_level ) {
+                // ...then ensure no other datarecords think they're still linked to this
+                $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
+            }
+
+            // Delete all search cache entries that could reference the deleted datarecords
             $search_cache_service->onDatarecordDelete($datatype);
             // Force anything that linked to this datatype to rebuild link entries since at least
             //  one record got deleted
@@ -563,7 +572,7 @@ class EditController extends ODRCustomController
 
             $source = 0x82bb1bb6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -706,7 +715,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x08e2fe10;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -872,7 +881,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5201b0cd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1004,7 +1013,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf051d2f4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1123,7 +1132,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee8e8649;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1356,7 +1365,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4093b173;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1477,7 +1486,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8b01c7e4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1575,7 +1584,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x3df683c4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1733,7 +1742,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x01019cfb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1877,7 +1886,7 @@ class EditController extends ODRCustomController
                             // ...determine whether the new value is a duplicate of a value that already exists
                             $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
                             if ($found_existing_value)
-                                throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.');
+                                throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
                         }
 
                         // ----------------------------------------
@@ -1988,7 +1997,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x294a59c5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2086,15 +2095,243 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Given a child datatype id and a datarecord, re-render and return the html for that child datatype.
+     * Takes an array of datafields, their values, and associated tokens...and then creates a new
+     * datarecord with those values, assuming that they're all valid.
      *
-     * @param integer $child_datatype_id     The database id of the child DataType to re-render
-     * @param integer $parent_datarecord_id  The database id of the parent DataRecord
      * @param Request $request
      *
      * @return Response
      */
-    public function reloadchildAction($child_datatype_id, $parent_datarecord_id, Request $request)
+    public function saveasnewAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+            if ( !isset($post['datatype_id'])
+                || !isset($post['datarecord_id'])
+                || !isset($post['datafields'])
+                || !isset($post['tokens'])
+            ) {
+                throw new ODRBadRequestException();
+            }
+
+            // TODO - parent/grandparent datarecord ids so this works for child records?
+            $datatype_id = $post['datatype_id'];
+            $tmp_dr_id = $post['datarecord_id'];
+            $datafields = $post['datafields'];
+            $csrf_tokens = $post['tokens'];
+
+            if ( !is_numeric($datatype_id)
+                || !is_array($datafields)
+                || !is_array($csrf_tokens)
+            ) {
+                throw new ODRBadRequestException();
+            }
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canEditDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Verify that the datafields and tokens make sense
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+            $found_datafields = array();
+
+            // Easier on the database to get the cache entry
+            foreach ($datatype_array[$datatype->getId()]['dataFields'] as $df_id => $df) {
+                if ( isset($datafields[$df_id]) ) {
+                    $found_datafields[$df_id] = 1;
+
+                    // Verify that the token exists
+                    if ( !isset($csrf_tokens[$df_id]) )
+                        throw new ODRBadRequestException();
+
+                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                    $token_id = $typeclass . 'Form_' . $tmp_dr_id . '_' . $df_id;
+                    $value = $datafields[$df_id];
+
+                    // Verify that the typeclass and the value make sense
+                    switch ($typeclass) {
+                        // These are legitimate typeclasses
+                        case 'DecimalValue':
+                        case 'IntegerValue':
+                        case 'LongText':    // paragraph text
+                        case 'LongVarchar':
+                        case 'MediumVarchar':
+                        case 'ShortVarchar':
+                            if ( !self::isValidValue($typeclass, $value) )
+                                throw new ODRBadRequestException('Invalid value');
+                            break;
+
+                        // The rest of the typeclasses aren't
+                        case 'Boolean':
+                        case 'DatetimeValue':
+                        case 'File':
+                        case 'Image':
+                        case 'Radio':
+                        case 'Tag':
+                        case 'Markdown':
+                        default:
+                            throw new ODRBadRequestException('Invalid typeclass');
+                    }
+
+                    // Verify that the CSRF tokens provided in the post are valid
+                    $check_token = $token_manager->getToken($token_id)->getValue();
+                    if ( $csrf_tokens[$df_id] !== $check_token )
+                        throw new ODRBadRequestException('Invalid CSRF Token');
+                }
+            }
+
+            // Verify that all the listed datafields were found
+            foreach ($datafields as $df_id => $val) {
+                if ( !isset($found_datafields[$df_id]) )
+                    throw new ODRBadRequestException('Invalid Datafield');
+            }
+
+
+            // ----------------------------------------
+            // Load datafield entities to prepare for entity creation, and to perform final
+            //  permission checks
+            $df_mapping = array();
+            foreach($datafields as $df_id => $val) {
+                /** @var DataFields $df */
+                $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                if ($df == null)
+                    throw new ODRNotFoundException('Datafield');
+
+                $df_mapping[$df->getId()] = $df;
+            }
+            /** @var DataFields[] $df_mapping */
+
+            // Also ensure the user can edit all of these fields before continuing
+            foreach ($df_mapping as $df_id => $df) {
+                if ( !$pm_service->canEditDatafield($user, $df) )
+                    throw new ODRForbiddenException();
+            }
+
+
+            // ----------------------------------------
+            // Now that all the post data makes sense, time to create some entities
+            $new_datarecord = $ec_service->createDatarecord($user, $datatype);    // creation of storage entities makes delaying flush here pointless
+            $new_datarecord->setProvisioned(false);
+            foreach ($datafields as $df_id => $value) {
+                $df = $df_mapping[$df_id];
+                $ec_service->createStorageEntity($user, $new_datarecord, $df, $value);
+            }
+
+            // ----------------------------------------
+            // Delete the cached string containing the ordered list of datarecords for this datatype
+            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            // Delete all search results that can change
+            $search_cache_service->onDatarecordCreate($datatype);
+
+            // Everything created, return the id of the new datarecord
+            $return['d'] = array(
+                'new_datarecord_id' => $new_datarecord->getId()
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x709c2e94;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Returns whether the given value is valid for the given typeclass.  Meant to bypass having
+     * to build a pile of Symfony Form objects for saveasnewAction(), since all of the given values
+     * need to be valid prior to saving.
+     *
+     * @param string $typeclass
+     * @param string $value
+     *
+     * @return bool
+     */
+    private function isValidValue($typeclass, $value)
+    {
+        switch ($typeclass) {
+            // These are legitimate typeclasses
+            case 'IntegerValue':
+                return ValidUtility::isValidInteger($value);
+            case 'DecimalValue':
+                return ValidUtility::isValidDecimal($value);
+            case 'LongText':    // paragraph text, can accept any value
+                break;
+            case 'LongVarchar':
+                return ValidUtility::isValidLongVarchar($value);
+            case 'MediumVarchar':
+                return ValidUtility::isValidMediumVarchar($value);
+            case 'ShortVarchar':
+                return ValidUtility::isValidShortVarchar($value);
+
+            default:
+                return false;
+        }
+
+        // Otherwise, no problem
+        return true;
+    }
+
+
+    /**
+     * Given a child datatype id and a datarecord, re-render and return the html for that child datatype.
+     *
+     * @param int $theme_element_id        The theme element this child/linked datatype is in
+     * @param int $parent_datarecord_id    The parent datarecord of the child/linked datarecord
+     *                                       that is getting reloaded
+     * @param int $top_level_datarecord_id The datarecord currently being viewed in edit mode,
+     *                                       required incase the user tries to reload B or C in the
+     *                                       structure A => B => C => ...
+     * @param int $insert_fake_datarecord
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadchildAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, $insert_fake_datarecord, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2102,30 +2339,51 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Don't actually need these for a child reload, but the parameters are expected
-            $search_theme_id = '';
-            $search_key = '';
-
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
 
-            /** @var DataType $child_datatype */
-            $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($child_datatype_id);
-            if ($child_datatype == null)
-                throw new ODRNotFoundException('Datatype');
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                throw new ODRNotFoundException('ThemeElement');
+
+            // This is only valid if the theme element has a child/linked datatype
+            if ( $theme_element->getThemeDataType()->isEmpty() )
+                throw new ODRBadRequestException();
+
+            $theme = $theme_element->getTheme();
+            $parent_datatype = $theme->getDataType();
+            $top_level_datatype = $theme->getParentTheme()->getDataType();
+
 
             /** @var DataRecord $parent_datarecord */
             $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_datarecord_id);
             if ($parent_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
-            $parent_datatype = $parent_datarecord->getDataType();
-            if ($parent_datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Parent Datatype');
+            if ($parent_datarecord->getDataType()->getId() !== $parent_datatype->getId())
+                throw new ODRBadRequestException();
+
+
+            /** @var DataRecord $top_level_datarecord */
+            $top_level_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($top_level_datarecord_id);
+            if ($top_level_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            if ($top_level_datarecord->getDataType()->getId() !== $top_level_datatype->getId())
+                throw new ODRBadRequestException();
+
+
+            /** @var ThemeDataType $theme_datatype */
+            $theme_datatype = $theme_element->getThemeDataType()->first();
+            $child_datatype = $theme_datatype->getDataType();
 
 
             // --------------------
@@ -2135,17 +2393,29 @@ class EditController extends ODRCustomController
 
             if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+                throw new ODRForbiddenException();
             // --------------------
+
+            $insert_fake = false;
+            if ( $insert_fake_datarecord == 1 )
+                $insert_fake = true;
 
 
             $return['d'] = array(
-                'html' => self::GetDisplayData($search_theme_id, $search_key, $parent_datarecord_id, 'child', $child_datatype_id, $request),
+                'html' => $odr_render_service->reloadEditChildtype(
+                    $user,
+                    $theme_element,
+                    $parent_datarecord,
+                    $top_level_datarecord,
+                    $insert_fake
+                )
             );
         }
         catch (\Exception $e) {
             $source = 0xb61ecefa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2252,7 +2522,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc28be446;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2260,322 +2530,6 @@ class EditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Renders the HTML required to edit datafield values for a given record.
-     *
-     * @param integer $search_theme_id
-     * @param string $search_key
-     * @param integer $initial_datarecord_id  The datarecord that originally requested this Edit mode render
-     * @param string $template_name           One of 'default', 'child_datarecord', or 'datafield'
-     * @param integer $target_id              If 'default', then $target_id should be a...TODO
-     *                                        If 'child', then $target_id should be a child/linked datatype id
-     *                                        if 'datafield', then $target_id should be a datafield id
-     * @param Request $request
-     *
-     * @throws ODRException
-     *
-     * @return string
-     */
-    private function GetDisplayData($search_theme_id, $search_key, $initial_datarecord_id, $template_name, $target_id, Request $request)
-    {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var DatarecordInfoService $dri_service */
-        $dri_service = $this->container->get('odr.datarecord_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-
-        // Load all permissions for this user
-        /** @var ODRUser $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
-        $datafield_permissions = $user_permissions['datafields'];
-
-
-        // ----------------------------------------
-        // Load required objects based on parameters
-        $is_top_level = 1;
-
-        /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($initial_datarecord_id);
-        $grandparent_datarecord = $datarecord->getGrandparent();
-        $grandparent_datatype = $grandparent_datarecord->getDataType();
-
-        /** @var Theme $top_level_theme */
-        $top_level_theme_id = $theme_service->getPreferredTheme($user, $grandparent_datatype->getId(), 'master');
-        $top_level_theme = $repo_theme->find($top_level_theme_id);
-
-        /** @var DataType $datatype */
-        $datatype = null;
-        /** @var Theme $theme */
-        $theme = null;
-
-        /** @var DataFields|null $datafield */
-        $datafield = null;
-        $datafield_id = null;
-
-
-        // Don't allow a child reload request for a top-level datatype
-        if ($template_name == 'child' && $datarecord->getDataType()->getId() == $target_id)
-            $template_name = 'default';
-
-
-        if ($template_name == 'default') {
-            $datatype = $grandparent_datatype;
-            $theme = $top_level_theme;
-
-//            // TODO - May not necessarily be a render request for a top-level datarecord...
-//            $datatype = $datarecord->getDataType();
-//            if ( $grandparent_datarecord->getId() !== $datarecord->getId() )
-//                $is_top_level = 0;
-        }
-        else if ($template_name == 'child') {
-            $is_top_level = 0;
-
-            $datatype = $repo_datatype->find($target_id);
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
-
-            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
-        }
-        else if ($template_name == 'datafield') {
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
-            $datafield_id = $target_id;
-
-            $datatype = $datafield->getDataType();
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
-
-            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
-        }
-
-
-        // ----------------------------------------
-        // Grab all datarecords "associated" with the desired datarecord...
-        $include_links = true;
-        $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId(), $include_links);
-
-        // Grab all datatypes associated with the desired datarecord
-        $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
-
-        // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-        // Also need the theme array...
-        $theme_array = $theme_service->getThemeArray($top_level_theme->getId());
-
-
-        // ----------------------------------------
-        // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datarecord_array[ $datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $datarecord->getId());
-        $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-        $stacked_theme_array[ $theme->getId() ] = $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-        // ----------------------------------------
-        // Render the requested version of this page
-        $templating = $this->get('templating');
-
-        $html = '';
-        if ($template_name == 'default') {
-
-            // ----------------------------------------
-            // Need to determine ids and names of datatypes this datarecord can link to
-            $query = $em->createQuery(
-               'SELECT
-                  dt, dtm,
-                  ancestor, ancestor_meta,
-                  descendant, descendant_meta
-
-                FROM ODRAdminBundle:DataTree AS dt
-                JOIN dt.dataTreeMeta AS dtm
-
-                JOIN dt.ancestor AS ancestor
-                JOIN ancestor.dataTypeMeta AS ancestor_meta
-                JOIN dt.descendant AS descendant
-                JOIN descendant.dataTypeMeta AS descendant_meta
-
-                WHERE dtm.is_link = 1 AND (ancestor.id = :datatype_id OR descendant.id = :datatype_id)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND ancestor_meta.deletedAt IS NULL
-                AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-//exit( '<pre>'.print_r($results, true).'</pre>' );
-
-
-            // Organize the linked datatypes into arrays
-            $linked_datatype_ancestors = array();
-            $linked_datatype_descendants = array();
-            // Also store which datatype can't be linked to because they lack a search_results theme
-            $disabled_datatype_links = array();
-
-            foreach ($results as $num => $dt) {
-                $ancestor_id = $dt['ancestor']['id'];
-                $descendant_id = $dt['descendant']['id'];
-
-                if ($ancestor_id == $datatype->getId() ) {
-                    $descendant = $dt['descendant'];
-                    $descendant['dataTypeMeta'] = $dt['descendant']['dataTypeMeta'][0];
-
-                    // TODO Fix it so searches always work
-                    /*
-                    if ( $descendant['setup_step'] == DataType::STATE_OPERATIONAL )
-                        $linked_datatype_descendants[$descendant_id] = $descendant;
-                    else
-                        $disabled_datatype_links[$descendant_id] = $descendant;
-                    */
-
-                    $linked_datatype_descendants[$descendant_id] = $descendant;
-                }
-                else if ($descendant_id == $datatype->getId() ) {
-                    $ancestor = $dt['ancestor'];
-                    $ancestor['dataTypeMeta'] = $dt['ancestor']['dataTypeMeta'][0];
-
-                    /*
-                    if ( $ancestor['setup_step'] == DataType::STATE_OPERATIONAL )
-                        $linked_datatype_ancestors[$ancestor_id] = $ancestor;
-                    else
-                        $disabled_datatype_links[$ancestor_id] = $ancestor;
-                    */
-
-                    // TODO Fix it so searches always work
-                    $linked_datatype_ancestors[$ancestor_id] = $ancestor;
-                }
-            }
-
-            // ----------------------------------------
-            // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = $dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
-
-
-            // ----------------------------------------
-            // Determine whether the currently preferred theme needs to be synchronized with its source
-            //  and the user notified of it
-            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
-
-
-            // ----------------------------------------
-            $html = $templating->render(
-                'ODRAdminBundle:Edit:edit_ajax.html.twig',
-                array(
-                    'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
-
-                    'datatype_array' => $stacked_datatype_array,
-                    'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'initial_datatype_id' => $datatype->getId(),
-                    'initial_datarecord_id' => $datarecord->getId(),
-                    'initial_theme_id' => $theme->getId(),
-
-                    'datatype_permissions' => $datatype_permissions,
-                    'datafield_permissions' => $datafield_permissions,
-
-                    'linked_datatype_ancestors' => $linked_datatype_ancestors,
-                    'linked_datatype_descendants' => $linked_datatype_descendants,
-                    'disabled_datatype_links' => $disabled_datatype_links,
-
-                    'is_top_level' => $is_top_level,
-                    'token_list' => $token_list,
-
-                    'notify_of_sync' => $notify_of_sync,
-                )
-            );
-        }
-        else if ($template_name == 'child') {
-
-            // Find the ThemeDatatype entry that contains the child datatype getting reloaded
-            $theme_datatype = null;
-            foreach ($theme_array as $t_id => $t) {
-                foreach ($t['themeElements'] as $te_num => $te) {
-                    if ( isset($te['themeDataType']) ) {
-                        foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                            if ( $tdt['dataType']['id'] == $datatype->getId() && $tdt['childTheme']['id'] == $theme->getId() )
-                                $theme_datatype = $tdt;
-                        }
-                    }
-                }
-            }
-
-            if ($theme_datatype == null)
-                throw new ODRException('Unable to locate theme_datatype entry for child datatype '.$datatype->getId());
-
-            $is_link = $theme_datatype['is_link'];
-            $display_type = $theme_datatype['display_type'];
-            $multiple_allowed = $theme_datatype['multiple_allowed'];
-
-            // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = $dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
-
-            $html = $templating->render(
-                'ODRAdminBundle:Edit:edit_childtype_reload.html.twig',
-                array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'target_datatype_id' => $datatype->getId(),
-                    'parent_datarecord_id' => $datarecord->getId(),
-                    'target_theme_id' => $theme->getId(),
-
-                    'datatype_permissions' => $datatype_permissions,
-                    'datafield_permissions' => $datafield_permissions,
-
-                    'is_top_level' => 0,
-                    'is_link' => $is_link,
-                    'display_type' => $display_type,
-                    'multiple_allowed' => $multiple_allowed,
-
-                    'token_list' => $token_list,
-                )
-            );
-        }
-        else if ($template_name == 'datafield') {
-
-            // Extract all needed arrays from $datatype_array and $datarecord_array
-            $datatype = $datatype_array[ $datatype->getId() ];
-            $datarecord = $datarecord_array[ $initial_datarecord_id ];
-
-            $datafield = null;
-            if ( isset($datatype['dataFields'][$datafield_id]) )
-                $datafield = $datatype['dataFields'][$datafield_id];
-
-            if ( $datafield == null )
-                throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
-
-            // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = $dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
-
-            $html = $templating->render(
-                'ODRAdminBundle:Edit:edit_datafield.html.twig',
-                array(
-                    'datatype' => $datatype,
-                    'datarecord' => $datarecord,
-                    'datafield' => $datafield,
-
-                    'is_link' => $is_link,
-                    'force_image_reload' => true,
-
-                    'token_list' => $token_list,
-                )
-            );
-        }
-
-        return $html;
     }
 
 
@@ -2670,7 +2624,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe33cd134;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2957,7 +2911,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x409f64ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3157,7 +3111,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb2073584;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

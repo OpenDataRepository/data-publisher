@@ -173,7 +173,6 @@ class UpdateDataFieldsForm extends AbstractType
                 'required' => false
             )
         );
-
         $builder->add(
             'shorten_filename',
             CheckboxType::class,
@@ -182,7 +181,14 @@ class UpdateDataFieldsForm extends AbstractType
                 'required' => false
             )
         );
-
+        $builder->add(
+            'newFilesArePublic',
+            CheckboxType::class,
+            array(
+                'label'  => 'Uploaded Files default to Public',
+                'required' => false
+            )
+        );
 
         // Radio options and Tags have slightly different labels for these values
         $name_sort_label = 'Sort Options Alphabetically';

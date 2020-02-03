@@ -55,7 +55,7 @@
         {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
             {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
                 'header_label': 'Database Tools',
-                'pure_sizes': 'pure-u-md-1-4 pure-u-lg-1-5-24 pure-u-xl-5-24',
+                'pure_sizes': 'pure-u-md-1-4 pure-u-lg-5-24 pure-u-xl-5-24',
                 'icon': 0
             } %}
 
@@ -138,7 +138,7 @@
                 {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
                 {# metadata layout designer link #}
                 <div>
-                    {% if is_datatype_admin %}
+                    {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
                         {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
                             <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                                class="address"
@@ -162,7 +162,7 @@
 
                 {# Group management link for this datatype #}
                 <div>
-                    {% if is_datatype_admin %}
+                    {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
                         <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
                            class="address"
                            href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
@@ -172,17 +172,20 @@
                     {% endif %}
                 </div>
 
+            {% if is_datatype_admin %}
+                {# spacer div so deletion is harder to unintentionally click on #}
+                <div>&nbsp;</div>
+
                 {# deletion link for this datatype #}
                 <div>
-                    {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_delete"
-                           class="Pointer"
-                           onclick="deleteDataType({{ datatype.id }});"
-                        >
-                            <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
-                        </a>
-                    {% endif %}
+                    <a id="ODRDatatypeList_{{ datatype.id }}_delete"
+                       class="Pointer"
+                       onclick="deleteDataType({{ datatype.id }});"
+                    >
+                        <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
+                    </a>
                 </div>
+            {% endif %}
 
             </div>
             {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
@@ -193,7 +196,7 @@
         {# Template Group Instructions #}
         {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
             'header_label': 'Manage Your Database',
-            'pure_sizes': 'pure-u-md-1-4 pure-u-lg-19-24 pure-u-xl-19-24',
+            'pure_sizes': 'pure-u-md-3-4 pure-u-lg-19-24 pure-u-xl-19-24',
             'icon': 0
         } %}
         <p>The settings under the "Manage Database" heading allow you to modify and add records to your database.</p>
@@ -208,10 +211,11 @@
         {# Manage Related Databases #}
         {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
             'header_label': 'Related Databases',
-            'pure_sizes': 'pure-u-md-1-4 pure-u-lg-24-24 pure-u-xl-24-24',
+            'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
             'icon': 0
         } %}
         {% include 'ODRAdminBundle:Datatype:type_list_related_databases.html.twig' with {
+            'top_level_datatype': datatype,
             'datatypes': related_datatypes,
             'metadata': related_metadata,
             'datatype_permissions': datatype_permissions
@@ -220,32 +224,29 @@
         {# END Manage Related Databases #}
 
 
-        {# Histogram Demo for Download Stats #}
+        {# Recent Activity Graphs #}
         {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-            'header_label': 'Downloads per day',
-            'pure_sizes': 'pure-u-md-12-24 pure-u-lg-1-12-24 pure-u-xl-12-24',
+            'header_label': 'Recent Activity over the past 6 weeks',
+            'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
             'icon': 0
         } %}
-        <div id="histogram_demo">
+        <div id="ODRDashboardGraphs">
+        {% if dashboard_graphs|raw|length > 0 %}
+            {{ dashboard_graphs | raw }}
+        {% else %}
+            <div style="margin-left: 20px;">No changes made</div>
+        {% endif %}
         </div>
         {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {# END Histogram Demo for Download Stats #}
-
-        {# Scatter Plot Demo for Download Stats #}
-        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-            'header_label': 'Downloads per day',
-            'pure_sizes': 'pure-u-md-12-24 pure-u-lg-1-12-24 pure-u-xl-12-24',
-            'icon': 0
-        } %}
-        <div id="scatter_demo">
-        </div>
-        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {# END Scatter Plot Demo for Download Stats #}
+        {# END Recent Activity Graphs #}
     </div>
+
     <script>
         $(function () {
-            histogramExample();
-            scatterExample();
+            disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+            // Get the sparkline plugin to work on the smaller graphs
+            $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});
         });
 
         function addDataRecord(urlpath, datatype_id) {
@@ -312,8 +313,8 @@
                     url: url,
                     dataType: "json",
                     success: function (data, textStatus, jqXHR) {
-                        // Reload this area of the page
-                        window.location.reload(true);
+                        // ...the only safe place to reload is the datatype list
+                        window.location = '{{ path('odr_admin_homepage') }}';
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
@@ -335,107 +336,5 @@
             }
         }
 
-        function scatterExample() {
-            var trace1 = {
-                x: [52698, 43117],
-                y: [53, 31],
-                mode: 'markers',
-                name: 'North America',
-                text: ['United States', 'Canada'],
-                marker: {
-                    color: 'rgb(164, 194, 244)',
-                    size: 12,
-                    line: {
-                        color: 'white',
-                        width: 0.5
-                    }
-                },
-                type: 'scatter'
-            };
-
-            var trace2 = {
-                x: [39317, 37236, 35650, 30066, 29570, 27159, 23557, 21046, 18007],
-                y: [33, 20, 13, 19, 27, 19, 49, 44, 38],
-                mode: 'markers',
-                name: 'Europe',
-                text: ['Germany', 'Britain', 'France', 'Spain', 'Italy', 'Czech Rep.', 'Greece', 'Poland'],
-                marker: {
-                    color: 'rgb(255, 217, 102)',
-                    size: 12
-                },
-                type: 'scatter'
-            };
-
-            var trace3 = {
-                x: [42952, 37037, 33106, 17478, 9813, 5253, 4692, 3899],
-                y: [23, 42, 54, 89, 14, 99, 93, 70],
-                mode: 'markers',
-                name: 'Asia/Pacific',
-                text: ['Australia', 'Japan', 'South Korea', 'Malaysia', 'China', 'Indonesia', 'Philippines', 'India'],
-                marker: {
-                    color: 'rgb(234, 153, 153)',
-                    size: 12
-                },
-                type: 'scatter'
-            };
-
-            var trace4 = {
-                x: [19097, 18601, 15595, 13546, 12026, 7434, 5419],
-                y: [43, 47, 56, 80, 86, 93, 80],
-                mode: 'markers',
-                name: 'Latin America',
-                text: ['Chile', 'Argentina', 'Mexico', 'Venezuela', 'Venezuela', 'El Salvador', 'Bolivia'],
-                marker: {
-                    color: 'rgb(142, 124, 195)',
-                    size: 12
-                },
-                type: 'scatter'
-            };
-
-            var data = [trace1, trace2, trace3, trace4];
-
-            var layout = {
-                title: 'Quarter 1 Growth',
-                xaxis: {
-                    title: 'Total Downloads',
-                    showgrid: false,
-                    zeroline: false
-                },
-                yaxis: {
-                    title: 'Percent',
-                    showline: false
-                }
-            };
-            Plotly.newPlot("scatter_demo", data, layout);
-        }
-
-        function histogramExample() {
-            var x1 = [];
-            var x2 = [];
-            for (var i = 0; i < 500; i++) {
-                x1[i] = Math.random();
-                x2[i] = Math.random();
-            }
-
-            var trace1 = {
-                name: 'Page views',
-                x: x1,
-                marker: {
-                    color: 'rgb(164, 194, 244)'
-                },
-                type: "histogram",
-            };
-            var trace2 = {
-                name: 'Downloads',
-                x: x2,
-                marker: {
-                    color: 'rgb(255, 217, 102)'
-                },
-                type: "histogram",
-            };
-            var data = [trace1, trace2];
-            var layout = {barmode: "stack"};
-            Plotly.newPlot("histogram_demo", data, layout);
-        }
     </script>
 {% endspaceless %}

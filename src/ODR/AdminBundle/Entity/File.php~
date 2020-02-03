@@ -53,6 +53,11 @@ class File
     private $filesize;
 
     /**
+     * @var string|null
+     */
+    private $unique_id;
+
+    /**
      * @var boolean
      */
     private $provisioned;
@@ -240,6 +245,30 @@ class File
     public function getFilesize()
     {
         return $this->filesize;
+    }
+
+    /**
+     * Set uniqueId.
+     *
+     * @param string|null $uniqueId
+     *
+     * @return File
+     */
+    public function setUniqueId($uniqueId = null)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId.
+     *
+     * @return string|null
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
     }
 
     /**
@@ -722,34 +751,5 @@ class File
     public function getPublicDate()
     {
         return $this->getFileMeta()->getPublicDate();
-    }
-    /**
-     * @var string|null
-     */
-    private $unique_id;
-
-
-    /**
-     * Set uniqueId.
-     *
-     * @param string|null $uniqueId
-     *
-     * @return File
-     */
-    public function setUniqueId($uniqueId = null)
-    {
-        $this->unique_id = $uniqueId;
-
-        return $this;
-    }
-
-    /**
-     * Get uniqueId.
-     *
-     * @return string|null
-     */
-    public function getUniqueId()
-    {
-        return $this->unique_id;
     }
 }

@@ -26,7 +26,7 @@
     {% endif %}
 
     {# child datatypes #}
-    {% for child_datatype_id in datatype_list['child_datatypes'] %}
+    {% for child_datatype_id in datatype_relations['child_datatypes'] %}
 
         {% set child_datatype = datatype_array[child_datatype_id] %}
 

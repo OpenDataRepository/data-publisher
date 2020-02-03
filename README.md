@@ -13,7 +13,7 @@ to the project, this edition is viable for these purposes only.
 1) Installation
 ----------------------------------
 
-This project is based on Symfony 2.5 and installs by cloning this 
+This project is based on Symfony 3.4 and installs by cloning this 
 repository and then using cmposer to install the required Symfony 
 dependencies.
 
@@ -32,7 +32,7 @@ app/config/parameters.yml.dist
 app/config/security.yml
 
 Look for lines with double brackets.  These lines need values specific
-to your configuraiton (ie:  [[ my_database_naem ]]
+to your configuraiton (ie:  [[ my_database_name ]]
 
 Use Composer (*recommended*) to download and  update the Symfony2
 distribution and required dependencies.

@@ -1,31 +1,78 @@
 {# Twig doesn't have a decent spaceless tag for json #}
+
+
+{#{% set is_link = 0 %}#}
+{# using macro on purpose #}
+{#
+
 {% set is_top_level = 1 %}
-{% set is_link = 0 %}
 {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+
 {% if show_records == 1 %}
 {
 {% endif %}
 {% if record_search %}
 "records": [
 {% endif %}
+
 {% for initial_datarecord_id in sorted_datarecord_ids %}
     {% set data = lookup_array[initial_datarecord_id] %}
+
     {% set initial_datatype_id = data['datatype'] %}
+
     {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
+    {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
 
     {{ mychildform.input(
+        datatype_array_subset,
         datarecord_array_subset,
+        initial_datatype_id,
+        initial_datarecord_id,
         is_top_level,
         using_metadata,
         baseurl,
         version,
-        show_records
-    ) }}
-    {%  if not loop.last %},{% endif %}
+        show_records)
+    }}
+
 {% endfor %}
+
 {% if record_search %}
 ]
 {% endif %}
 {% if show_records == 1 %}
+}
+{% endif %}
+#}
+
+{# Twig doesn't have a decent spaceless tag for json #}
+{% set is_top_level = 1 %}
+{% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+{% if show_records == 1 %}
+{
+    {% endif %}
+    {% if record_search %}
+    "records": [
+        {% endif %}
+        {% for initial_datarecord_id in sorted_datarecord_ids %}
+        {% set data = lookup_array[initial_datarecord_id] %}
+        {% set initial_datatype_id = data['datatype'] %}
+        {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
+
+        {{ mychildform.input(
+            datarecord_array_subset,
+            datatype_array,
+            is_top_level,
+            using_metadata,
+            baseurl,
+            version,
+            show_records
+        ) }}
+        {% if not loop.last %},{% endif %}
+        {% endfor %}
+        {% if record_search %}
+    ]
+    {% endif %}
+    {% if show_records == 1 %}
 }
 {% endif %}

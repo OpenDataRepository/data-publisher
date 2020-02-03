@@ -635,18 +635,22 @@ class ThemeInfoService
                 t, tm, partial dt.{id},
                 partial t_cb.{id, username, email, firstName, lastName},
                 partial t_ub.{id, username, email, firstName, lastName},
+                partial pt.{id}, partial st.{id},
 
                 te, tem,
                 tdf, partial df.{id},
                 tdt, partial c_dt.{id}, partial c_t.{id}
-                
+
             FROM ODRAdminBundle:Theme AS t
             LEFT JOIN t.themeMeta AS tm
             LEFT JOIN t.createdBy AS t_cb
             LEFT JOIN t.updatedBy AS t_ub
-            
+
+            LEFT JOIN t.parentTheme AS pt
+            LEFT JOIN t.sourceTheme AS st
+
             LEFT JOIN t.dataType AS dt
-            
+
             LEFT JOIN t.themeElements AS te
             LEFT JOIN te.themeElementMeta AS tem
 
@@ -656,10 +660,10 @@ class ThemeInfoService
             LEFT JOIN te.themeDataType AS tdt
             LEFT JOIN tdt.dataType AS c_dt
             LEFT JOIN tdt.childTheme AS c_t
-            
+
             WHERE t.parentTheme = :parent_theme_id
             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
-            
+
             ORDER BY tem.displayOrder, te.id, tdf.displayOrder, df.id'
         )->setParameters( array('parent_theme_id' => $parent_theme_id) );
 

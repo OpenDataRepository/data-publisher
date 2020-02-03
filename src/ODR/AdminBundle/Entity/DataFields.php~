@@ -824,6 +824,16 @@ class DataFields
     }
 
     /**
+     * Get newFilesArePublic
+     *
+     * @return bool
+     */
+    public function getNewFilesArePublic()
+    {
+        return $this->getDataFieldMeta()->getNewFilesArePublic();
+    }
+
+    /**
      * Get children_per_row
      *
      * @return integer
