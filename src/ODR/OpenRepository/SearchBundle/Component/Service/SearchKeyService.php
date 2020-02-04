@@ -120,6 +120,25 @@ class SearchKeyService
         $search_params = array();
         foreach ($post as $key => $value) {
             // Ignore empty entries
+            if ($value === '')
+                continue;
+
+            // Don't care whether the contents of the POST are technically valid or not here
+            $search_params[$key] = $value;
+        }
+
+        // The important part is to sort by key, so different orderings result in the same search_key...
+        ksort($search_params);
+        $search_key = self::encodeSearchKey($search_params);
+
+        //
+        return $search_key;
+
+        // TODO Figure out why this change was breaking
+        /*
+        $search_params = array();
+        foreach ($post as $key => $value) {
+            // Ignore empty entries
             $value = trim($value);
             if ($value === '')
                 continue;
@@ -134,6 +153,7 @@ class SearchKeyService
 
         //
         return $search_key;
+        */
     }
 
 
