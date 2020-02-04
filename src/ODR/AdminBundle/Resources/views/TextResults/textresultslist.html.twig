@@ -25,25 +25,26 @@
         <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
     </div>
 
-    {# Page/View Options #}
+    {# Page/View Options - notitle is intentionally undefined #}
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
         'page_type': 'table',
         'search_key': search_key,
 
+        'has_datarecords': has_datarecords,
         'has_search_restriction': has_search_restriction,
         'editable_only': editable_only,
 
         'display_export_options': true,
         'intent': 'searching',
         'user_role': user_role,
-        'has_datarecords': has_datarecords,
+        'user_permissions': user_permissions,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
         <div class="ODRTableWrap">
-            <table id="TextResults" class="display"></table>
+            <table id="TextResults" class="display ODRDatatableInstance"></table>
         </div>
     </div><!-- end of #TextResults_wrapper -->
 </div><!-- End of .ODRFormWrap -->
@@ -59,7 +60,6 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         var table = $("#TextResults").dataTable({
-
             "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
             "order": [[1, 'asc']],
             "pageLength": {{ page_length }},
@@ -82,6 +82,9 @@
                </div>
             #}
             "dom": '<"FLeft"i><"FRight"l>rtip',
+
+            {# have  web/js/mylibs/jquery_datatables/datatables.input.js  handle pagination #}
+            "pagingType": "input",
 
             "responsive": true,
             "fixedHeader": {

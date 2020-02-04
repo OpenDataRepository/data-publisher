@@ -10,6 +10,13 @@
 {% endif %}
 
 
+{% for ancestor in linked_datatype_ancestors %}
+    {% if datatype_permissions[ ancestor.id ] is defined and datatype_permissions[ ancestor.id ][ 'dr_edit' ] is defined %}
+        <button type="button" class="pure-button" onclick="OpenLinkSearchPage({{ ancestor.id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor.dataTypeMeta.shortName }} Records.</button>
+    {% endif %}
+{% endfor %}
+
+
 {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
     'datatype': datatype,
     'theme': theme,
@@ -710,7 +717,7 @@ function initPage() {
 
                                     console.log('form_data: ', form_data);
 
-                                    var url  = '{{ path('odr_record_save_as_new') }}';
+                                    var url  = '{{ path('odr_save_fake_record') }}';
                                     $.ajax({
                                         cache: false,
                                         type: 'POST',
@@ -773,9 +780,9 @@ function initPage() {
                             if (item.record_id < 0) {
                                 var html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
 
-                                if ( item.can_add_datarecord )
+                                if ( item.record_id == -1 )    // user allowed to add record
                                     $(html).append('<span>No Results Found - Click to save record.</span>');
-                                else
+                                else    // user not allowed to add record
                                     $(html).append('<span>No Results Found.</span>');
 
                                 return $( "<li>" ).append(html).appendTo( ul );
@@ -1154,8 +1161,12 @@ function AddChildRecord(datatype_id, parent_id) {
             // Refresh child wrapper area
             var datatype_id = data.d.datatype_id;
             var parent_id = data.d.parent_id;
+            var new_datarecord_id = data.d.new_datarecord_id;
 
-            ReloadChild(datatype_id, parent_id);
+            var insert_fake_record = false;
+            ReloadChild(datatype_id, parent_id, insert_fake_record, function() {
+                selectRecordFieldArea(new_datarecord_id);
+            });
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error

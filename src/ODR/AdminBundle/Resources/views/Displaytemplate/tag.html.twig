@@ -7,7 +7,10 @@
 
 <li class="ODRTagItem">
 {% if has_children %}
-    <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
+    {#<span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>#}
+
+    {# Have the tag tree start out collapsed #}
+    <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
 {% else %}
     <span class="ODRTagSpacer"></span>
 {% endif %}
@@ -15,7 +18,7 @@
     <label class="ODRTagLabel">{{ tag.tagMeta.tagName }}</label>
 
 {% if has_children %}
-    <ul class="ODRTagGroup">
+    <ul class="ODRTagGroup" style="display: none;">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:Displaytemplate:tag.html.twig' with {
                 'tag': child_tag,

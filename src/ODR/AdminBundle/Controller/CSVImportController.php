@@ -56,6 +56,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
@@ -116,9 +117,12 @@ class CSVImportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -311,11 +315,16 @@ class CSVImportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $source_datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
             if ( $target_datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($source_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
+            if ( !is_null($target_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -1161,9 +1170,12 @@ class CSVImportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -2173,32 +2185,28 @@ class CSVImportController extends ODRCustomController
 
                     // TODO - make these use ValidUtility?
                     case "IntegerValue":
-                        if ($value !== '') {
+                        $value = trim($value);
+                        if ( !ValidUtility::isValidInteger($value) ) {
                             // Warn about invalid characters in an integer conversion
-                            $int_value = intval( $value );          // TODO - should this regexp out non-numeric characters first?  TODO - display warnings differently?
-                            if ( strval($int_value) != $value ) {
-                                $errors[] = array(
-                                    'level' => 'Warning',
-                                    'body' => array(
-                                        'line_num' => $line_num,
-                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the integer value "'.strval($int_value).'"'
-                                    )
-                                );
-                            }
+                            $errors[] = array(  // TODO - display warnings differently?
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper integer value, and will be converted to "'.intval($value).'"'
+                                )
+                            );
                         }
                         break;
                     case "DecimalValue":
-                        if ($value !== '') {
-                            $float_value = floatval( $value );      // TODO - floatval() is turning '-' into '0'?  shouldn't it be blank?  TODO - display warnings separately from errors?
-                            if ( strval($float_value) != $value )  {
-                                $errors[] = array(
-                                    'level' => 'Warning',
-                                    'body' => array(
-                                        'line_num' => $line_num,
-                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the floating-point value "'.strval($float_value).'"',
-                                    ),
-                                );
-                            }
+                        $value = trim($value);
+                        if ( !ValidUtility::isValidDecimal($value) ) {
+                            $errors[] = array(    // TODO - display warnings separately from errors?
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper decimal value, and will be converted to "'.floatval($value).'"'
+                                ),
+                            );
                         }
                         break;
 
@@ -2550,9 +2558,12 @@ class CSVImportController extends ODRCustomController
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -2902,9 +2913,12 @@ class CSVImportController extends ODRCustomController
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -3903,8 +3917,10 @@ exit();
                         /** @var IntegerValue $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using intval() here...self::csvvalidateAction() would've already warned if column data wasn't an integer
-                        // In addition, parent::ODR_copyStorageEntity() has to have values passed as strings, and will convert back to integer before saving
+                        // NOTE - intentionally not using intval() here...self::csvvalidateAction()
+                        //  would've already warned if column data wasn't an integer
+                        // In addition, updateStorageEntity() has to have values passed as strings,
+                        //  and will convert back to integer before saving
                         $value = $column_data;
 
                         // Ensure the value stored in the entity matches the value in the import file
@@ -3917,8 +3933,10 @@ exit();
                         /** @var DecimalValue $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction() would've already warned if column data wasn't a float
-                        // In addition, parent::ODR_copyStorageEntity() has to have values passed as strings...DecimalValue::setValue() will deal with any string received
+                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction()
+                        //  would've already warned if column data wasn't a float
+                        // In addition, updateStorageEntity() has to have values passed as strings,
+                        //  and DecimalValue::setValue() will deal with any string received
                         $value = $column_data;
 
                         // Ensure the value stored in the entity matches the value in the import file
@@ -4439,11 +4457,16 @@ exit();
             if ($parent_datatype == null)
                 throw new ODRException('Invalid Form...Parent Datatype is deleted');
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
             if ( $parent_datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
+            if ( !is_null($parent_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------

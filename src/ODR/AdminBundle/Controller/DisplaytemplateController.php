@@ -471,6 +471,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // Permissions are handled inside the deletion service
+
             /** @var EntityDeletionService $ed_service */
             $ed_service = $this->container->get('odr.entity_deletion_service');
             $ed_service->deleteDatatype($datatype, $user);
@@ -2372,8 +2374,24 @@ class DisplaytemplateController extends ODRCustomController
 
 //$datatype_form->addError( new FormError('do not save') );
 
-                // TODO - verify that the datafield provided as a (new) externalIdField can be unique
-                // TODO - verify that the datafields provided as a (new) nameField and sortField are allowed...according to UpdateDataTypeForm.php, they don't have to be unique...
+                // The external_id, name, sort, and background image fields technically need to be verified
+                if ( !is_null($submitted_data->getExternalIdField()) ) {
+                    if ( $submitted_data->getExternalIdField()->getFieldType()->getCanBeUnique() !== true )
+                        $datatype_form->addError( new FormError('Invalid external id field') );
+                }
+                if ( !is_null($submitted_data->getNameField()) ) {
+                    if ( $submitted_data->getNameField()->getFieldType()->getCanBeSortField() !== true )
+                        $datatype_form->addError( new FormError('Invalid name field') );
+                }
+                if ( !is_null($submitted_data->getSortField()) ) {
+                    if ( $submitted_data->getSortField()->getFieldType()->getCanBeSortField() !== true )
+                        $datatype_form->addError( new FormError('Invalid sort field') );
+                }
+                if ( !is_null($submitted_data->getBackgroundImageField()) ) {
+                    if ( $submitted_data->getBackgroundImageField()->getFieldType()->getTypeClass() !== "Image" )
+                        $datatype_form->addError( new FormError('Invalid background image field') );
+                }
+
 
                 if ($datatype_form->isValid()) {
 
@@ -2427,7 +2445,7 @@ class DisplaytemplateController extends ODRCustomController
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
-                        'externalIdField' => null,    // TODO - changing a field so it's no longer the external id field doesn't update the frontend to permit deletion
+                        'externalIdField' => null,
                         'nameField' => null,
                         'sortField' => null,
                         'backgroundImageField' => null,
@@ -3976,6 +3994,8 @@ if ($debug)
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -4014,6 +4034,9 @@ if ($debug)
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached datarecords or themes
+
+            // Do need to clear these other cache entries though
+            $search_cache_service->onDatatypePublicStatusChange($datatype);
         }
         catch (\Exception $e) {
             $source = 0xe2231afc;

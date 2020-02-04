@@ -538,6 +538,18 @@ class DatarecordInfoService
 
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;
+
+                    if ($name_datafield !== null && $name_datafield == $df_id && $rs['selected'] === 1) {
+                        // Should only be one selection since this is a name field...
+                        $datarecord_data[$dr_num]['nameField_value'] = $rs['radioOption']['optionName'];
+                    }
+                    if ($sort_datafield !== null && $sort_datafield == $df_id && $rs['selected'] === 1) {
+                        // Should only be one selection since this is a sort field...
+                        $datarecord_data[$dr_num]['sortField_value'] = $rs['radioOption']['optionName'];
+
+                        // Also store the typeclass...Integer/Decimal need to use SORT_NUMERIC instead of SORT_NATURAL...
+                        $datarecord_data[$dr_num]['sortField_typeclass'] = ucfirst($typeclass);
+                    }
                 }
                 $drf['radioSelection'] = $new_rs_array;
 
@@ -862,8 +874,8 @@ class DatarecordInfoService
         unset( $dt_entry[$target_datatype_id]['updatedBy'] );
 
 
-        // The new "fake" datarecord needs an id
-        // generateCSRFTokens() doesn't require it to be numeric
+        // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
+        // generateCSRFTokens() doesn't require it to be numeric, and the length doesn't matter
         $fake_id = UniqueUtility::uniqueIdReal();
         while ( is_numeric($fake_id) )
             $fake_id = UniqueUtility::uniqueIdReal();
@@ -877,8 +889,8 @@ class DatarecordInfoService
             'unique_id' => '',
 
             'dataRecordMeta' => array(
-                'id' => null,    // TODO - problem here?  drf_id should never be used...
-                'publicDate' => new \DateTime('2200-00-00 00:00:00'),
+                'id' => null,    // TODO - is this a problem?  it shouldn't be, since drf_id should never be used...
+                'publicDate' => new \DateTime('2200-01-01 00:00:00'),
             ),
 
             'parent' => array(

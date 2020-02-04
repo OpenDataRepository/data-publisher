@@ -1,0 +1,362 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[initial_datatype_id] %}
+{% set datarecord = datarecord_array[initial_datarecord_id] %}
+{% set theme = theme_array[initial_theme_id] %}
+
+{% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
+    'datatype_array': datatype_array,
+    'datarecord_array': datarecord_array,
+    'theme_array': theme_array,
+
+    'initial_datatype_id': initial_datatype_id,
+    'initial_datarecord': datarecord,
+    'initial_theme_id': initial_theme_id,
+
+    'datatype_permissions': datatype_permissions,
+    'datafield_permissions': datafield_permissions,
+
+    'is_top_level': is_top_level,
+    'token_list': token_list,
+} %}
+
+<script>
+
+$(function() {
+    // --------------------
+    // Only need to do this stuff once?
+
+    // Resize all elements dependent on window size
+    $(window).unbind('resize').resize(function() {
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
+        WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+    });
+
+    // Resize everything prior to divs being hidden
+    onWindowResize();
+
+    // Hide divs for accordion purposes
+    setupAccordions();
+    setupAccordionHighlights();
+
+    // Never want the search sidebar
+    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+    // --------------------
+    initPage();
+    $(".MenuDesignArea").remove();
+    window.scrollTo(0,0);
+
+    {% if notify_of_sync is defined and notify_of_sync == true %}
+    {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+        'datatype_id': datatype.id,
+        'theme_id': theme.id,
+        'search_key': search_key,
+    }%}
+    {% endif %}
+});
+
+var SaveTimeout = 1000;
+function initPage() {
+    // Shouldn't be needed, but shouldn't hurt
+    hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
+
+    // Attach click handlers to tags
+    setupTagTree();
+
+    $(".ODRFileDownloadProgress").hide();
+
+    $(".ODRDatePicker").datepicker({
+        dateFormat: 'yy-mm-dd',
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "1800:+10",
+        onClose: function() {
+            $(this).blur();
+        }
+    });
+
+    $(".ODRDatePicker_clear").unbind('click').click(function() {
+        $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
+    });
+
+    $(".ODRDataField").children("form").submit(function(event) {
+        event.preventDefault();
+    });
+
+    $(".ODRUniqueField").each(function(index, elem) {
+        var input_div = $(elem).find('div.ODRFieldWrapper');
+        var input_id = $(input_div).find('input').attr('id');
+
+        $(elem).addClass('ODRInputError');
+        var label = $("<label>", {
+            "id": input_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            "for": input_id,
+            "html": "This field must have a value"
+        });
+        $(input_div).append( $(label) );
+        // console.log('created warning for ' + $(elem).attr('id') );
+    });
+
+    console.log('Init page done.');
+}
+
+{# None of these should be accessible, but just incase... #}
+function AddChildRecord(child_datatype_id, fake_dr_id) {
+    alert('Record must be saved before child records can be created');
+}
+function AddLinkedRecord(parent_datatype_id, child_datatype_id, fake_dr_id) {
+    alert('Record must be saved before it can be linked to other records');
+}
+function OpenLinkSearchPage(child_datatype_id, fake_dr_id) {
+    alert('Record must be saved before it can be linked to other records');
+}
+
+function SaveRecordData(form_id, interval) {
+    // Clear the save timeout for this specific datafield
+    clearTimeout(interval);
+
+    // For FakeEdit, only want to actually execute this on unique datafields
+    if ( !$(form_id).hasClass('ODRUniqueField') )
+        return;
+
+    // Determine save type
+    var post_data = $(form_id).serialize();
+    var url = $(form_id).attr('action');
+
+    // console.log('Check Form: ', form_id);
+    $(form_id).find('.ODRSaveIndicator').fadeIn('50');
+
+    // May need these in case of errors
+    var input_div = $(form_id).find('div.ODRFieldWrapper');
+    var input = $(input_div).find('input');
+    var input_id = $(input).attr('id');
+
+    $.ajax({
+        type: 'POST',
+        url: url,
+        dataType: "json",
+        data: post_data,
+        success: function(data, textStatus, xhr) {
+            // Remove any warnings about uniqueness conflicts
+            $(form_id).removeClass('ODRInputError');
+            // Could potentially be a jquery validate error message in here too...since the save
+            //  finished successfully, remove all warning labels
+            $(input_div).children('label').remove();
+
+            // Ensure the field complains if it's empty
+            if ( $(input).val().trim() === '' ) {
+                // Add a new warning label to the field
+                $(form_id).addClass('ODRInputError');
+                var label = $("<label>", {
+                    "id": input_id + '-error',
+                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+                    "for": input_id,
+                    "html": "This field must have a value"
+                });
+                $(input_div).append( $(label) );
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            if ( jqXHR.status !== 409 ) {
+                // Shouldn't run into something other than a conflict error for this action
+                // Can't reload the datafield anyways
+            }
+            else {
+                // Otherwise, conflict error...don't want to reload the field because that tends to
+                //  completely disrupts users that are trying to enter correct values
+
+                // Remove any existing warning label in the field
+                $('#' + input_id + '-error').remove();
+
+                // Add a new warning label to the field
+                $(form_id).addClass('ODRInputError');
+                var label = $("<label>", {
+                    "id": input_id + '-error',
+                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+                    "for": input_id,
+                    "html": "This value is a duplicate in a field that requires unique values"
+                });
+                $(input_div).append( $(label) );
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+            $(form_id).find('.ODRSaveIndicator').fadeOut('350');
+        }
+    });
+}
+
+function SaveAsNew() {
+    // Only save if there are no input errors...
+    var has_errors = false;
+    $(".ODRInputError").each(function(index, elem) {
+        if ( $(elem).is(':visible') )
+            has_errors = true;
+    });
+    if ( has_errors ) {
+        alert('At least one field has a problem that must be fixed before saving.');
+        return;
+    }
+
+    // ...and the user wants to
+    // if ( !confirm('Are you sure you want to save this data as a new record?') )
+    //     return;
+
+    // Going to manually create a form from all fields...
+    var form_data = {};
+    form_data.datatype_id = {{ initial_datatype_id }};
+    form_data.datarecord_id = '{{ initial_datarecord_id }}';
+    form_data.datafields = {};
+    form_data.tokens = {};
+
+    // For each datafield on the page...
+    $(".ODRDataField").each(function(index, df) {
+        var df_id_data = $(df).attr('id').split(/_/);
+        var df_id = df_id_data[2];
+
+        // ...that has a form (markdown fields don't)...
+        $(df).children('form').each(function(index, form) {
+            // console.log( $(form).attr('id') );
+
+            var token = $(form).children("input[type=hidden]").val();
+            var fieldset = $(form).children('fieldset').first();    // should only be one
+
+            // ...determine what kind of field this is...
+            if ( $(fieldset).find("div.ODRRadioOptionsEdit").length > 0 ) {
+                // Single/Multiple Radio field, and Multiple Select
+                $(fieldset).find("input:checked").each(function(index, ro) {
+                    var ro_id_data = $(ro).attr('id').split(/_/);
+                    var ro_id = ro_id_data[3];
+
+                    if ( ro_id !== '0') {
+                        if (form_data.datafields[df_id] === undefined)
+                            form_data.datafields[df_id] = {};
+
+                        form_data.datafields[df_id][ro_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                });
+            }
+            else if ( $(fieldset).children("div.ODRTagWrapper").length > 0 ) {
+                // Tag field
+                $(fieldset).find("input:checked").each(function(index, tag) {
+                    var tag_id_data = $(tag).attr('id').split(/_/);
+                    var tag_id = tag_id_data[3];
+
+                    if ( tag_id !== '0') {
+                        if (form_data.datafields[df_id] === undefined)
+                            form_data.datafields[df_id] = {};
+
+                        form_data.datafields[df_id][tag_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                });
+            }
+            else if ( $(fieldset).find("select").length > 0 ) {
+                // Single Select
+                var selected = $(fieldset).find("select").children("option:selected");
+                if ( $(selected).length > 0 ) {
+                    var ro_id_data = $(selected).attr('id').split(/_/);
+                    var ro_id = ro_id_data[1];
+
+                    if ( ro_id !== '0' ) {
+                        form_data.datafields[df_id] = {};
+                        form_data.datafields[df_id][ro_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                }
+            }
+            else if ( $(fieldset).find("textarea").length > 0 ) {
+                // Paragraph text
+                var textarea = $(fieldset).find("textarea");
+                // console.log( $(textarea).attr('id') );
+
+                var val = $(textarea).val().trim();
+                if (val !== '') {
+                    form_data.datafields[df_id] = val;
+                    form_data.tokens[df_id] = token;
+                }
+            }
+            else if ( $(fieldset).find("input").length > 0 ) {
+                var input = $(fieldset).find("input");
+                // console.log( $(input).attr('id') );
+
+                if ( $(input).is(":checkbox") ) {
+                    // Boolean field
+                    if ( $(input).is(":checked") ) {
+                        form_data.datafields[df_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                }
+                else {
+                    // Text/number/datetime fields
+                    var val = $(input).val().trim();
+                    if (val !== '') {
+                        form_data.datafields[df_id] = val;
+                        form_data.tokens[df_id] = token;
+                    }
+                }
+            }
+            else {
+                // Image or File field, ignore
+            }
+        });
+    });
+    // console.log(form_data);
+
+    // Now that the form data has been built...
+    var url  = '{{ path('odr_save_fake_record') }}';
+    $.ajax({
+        cache: false,
+        type: 'POST',
+        data: form_data,
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            // Extract the new datarecord's id
+            var new_record_id = data.d.new_datarecord_id;
+
+            // Generate the correct URL to edit the new datarecord
+            var new_url = '{{ path('odr_record_edit', {'datarecord_id': 0}) }}';
+            new_url = new_url.substring(0, new_url.length-1);
+            new_url += new_record_id;
+
+            // Replace the "fake record" page with the correct edit page in the browser's history
+            history.replaceState({}, '', '#' + new_url);
+
+            // Redirect the user to the newly created datarecord
+            UpdateURL(new_url);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+</script>
+{% endspaceless %}

@@ -31,6 +31,24 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
 
 
     /**
+     * Overrides the parent function so that the empty string is still considered valid for
+     * transformation
+     *
+     * {@inheritDoc}
+     */
+    public function transform($value)
+    {
+        // The parent function throws an error when it receives the empty string, but apparently
+        //  will happily convert <null> values into the empty string...
+        $value = trim($value);
+        if ( $value === '' )
+            $value = null;
+
+        return parent::transform($value);
+    }
+
+
+    /**
      * Runs a validation regex on the given string value from the form before Symfony casts the it
      * to an integer as part of converting "view" data into "normalized" data.
      *

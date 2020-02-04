@@ -43,7 +43,6 @@ use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
 use ODR\AdminBundle\Form\DatetimeValueForm;
@@ -55,7 +54,6 @@ use ODR\AdminBundle\Form\MediumVarcharForm;
 use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -65,25 +63,23 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
-// Utility
-use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\AdminBundle\Component\Utility\ValidUtility;
-use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class EditController extends ODRCustomController
 {
 
     /**
-     * Creates a new top-level DataRecord.
+     * Creates a new top-level DataRecord in the database.
      *
      * @param integer $datatype_id The database id of the DataType this DataRecord will belong to.
      * @param Request $request
@@ -136,8 +132,8 @@ class EditController extends ODRCustomController
                 throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
 
 
-            // If this datatype is a "master template"...
-            if ($datatype->getIsMasterType()) {
+            // If this datatype is a "master template" or a "metadata datatype"...
+            if ( $datatype->getIsMasterType() || !is_null($datatype->getMetadataFor()) ) {
                 // ...then don't create another datarecord if the datatype already has one
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
@@ -147,8 +143,12 @@ class EditController extends ODRCustomController
                 )->setParameters( array('datatype_id' => $datatype->getId()) );
                 $results = $query->getArrayResult();
 
-                if ( count($results) !== 0 )
-                    throw new ODRBadRequestException('This Master Template already has a sample datarecord');
+                if ( count($results) !== 0 ) {
+                    if ( !is_null($datatype->getMetadataFor()) )
+                        throw new ODRBadRequestException('This Metadata Datatype already has a sample datarecord');
+                    else
+                        throw new ODRBadRequestException('This Master Template already has a sample datarecord');
+                }
             }
 
             // Create a new top-level datarecord
@@ -272,7 +272,7 @@ class EditController extends ODRCustomController
 
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
-                'new_datarecord_id' => $datarecord->getId(),    // TODO - this isn't used due to asynch call to reloadChild() in edit_ajax.html.twig
+                'new_datarecord_id' => $datarecord->getId(),
                 'datatype_id' => $datatype_id,
                 'parent_id' => $parent_datarecord->getId(),
             );
@@ -1221,14 +1221,22 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Image is going to be rotated, so its contents will change...clear the original
-            //  checksum for the original image and its thumbnails
+            // Since the image is going to be rotated, its contents will change...
             $image_path = $crypto_service->decryptImage($image_id);
             if ($replace_existing) {
+                // ...the rotated image is going to be saved under the same id in the database, so
+                //  the checksum needs to be cleared
                 $image->setOriginalChecksum('');    // checksum will be updated after rotation
                 $em->persist($image);
+
+                // Since the image itself doesn't have an updated value, mark the image_meta as
+                //  updated
+                $image_meta = $image->getImageMeta();
+                $image_meta->setUpdated(new \DateTime());
+                $em->persist($image_meta);
             }
 
+            // Load all of the saved alternate sizes for this image (typically thumbnails)
             /** @var Image[] $images */
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
@@ -1238,6 +1246,8 @@ class EditController extends ODRCustomController
                     unlink($local_filepath);
 
                 if ($replace_existing) {
+                    // ...the rotated thumbnail will be saved under its original id, so the
+                    //  checksum needs to be cleared
                     $img->setOriginalChecksum('');    // checksum will be replaced after rotation
                     $em->persist($img);
                 }
@@ -1248,13 +1258,11 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If not replacing existing image, have image rotation write back to the same file
+            // Locate where the rotated image will be saved
             $dest_path = $image_path;
             if (!$replace_existing) {
-                // ...otherwise, determine the path to the user's upload folder
-
-                // The image rotation function will save the rotated image there so it can be
-                //  "uploaded again"...this is the easiest way to ensure everything neccessary exists
+                // ...if the image isn't getting saved under its old database id, then the easiest
+                //  way to handle this request is to fake the user "uploading" the image again
                 $dest_path = $this->getParameter('odr_web_directory').'/uploads/files';
                 if ( !file_exists($dest_path) )
                     mkdir( $dest_path );
@@ -1658,6 +1666,9 @@ class EditController extends ODRCustomController
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
 
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to make selections on a Master Template');
+
 
             // --------------------
             // Determine user privileges
@@ -1882,10 +1893,9 @@ class EditController extends ODRCustomController
                     if ($old_value !== $new_value) {
 
                         // If the datafield is marked as unique...
-                        if ($datafield->getIsUnique() == true) {
+                        if ( $datafield->getIsUnique() ) {
                             // ...determine whether the new value is a duplicate of a value that already exists
-                            $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
-                            if ($found_existing_value)
+                            if ( self::valueAlreadyExists($datafield, $new_value) )
                                 throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
                         }
 
@@ -2009,310 +2019,30 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Returns whether the provided value would violate uniqueness constraints for the given datafield.
-     * TODO - convert to use searching service?
+     * Returns whether the given value already exists in the given datafield.
      *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param Datafields $datafield
-     * @param integer $parent_datarecord_id
-     * @param mixed $new_value
+     * Changes made here should also be made in FakeEditController::valueAlreadyExists()
      *
-     * @return bool
-     */
-    private function findExistingValue($em, $datafield, $parent_datarecord_id, $new_value)
-    {
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-
-        // Going to need these...
-        $datatype_id = $datafield->getDataType()->getId();
-        $typeclass = $datafield->getFieldType()->getTypeClass();
-
-        // Determine if this datafield belongs to a top-level datatype or not
-        $is_child_datatype = false;
-        $datatree_array = $dti_service->getDatatreeArray();
-        if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
-            $is_child_datatype = true;
-
-        // Mysql requires a different comparision if checking for duplicates of a null value...
-        $comparision = $parameters = null;
-        if ($new_value != null) {
-            $comparision = 'e.value = :value';
-            $parameters = array('datafield' => $datafield->getId(), 'value' => $new_value);
-        }
-        else {
-            $comparision = '(e.value IS NULL OR e.value = :value)';
-            $parameters = array('datafield' => $datafield->getId(), 'value' => '');
-        }
-
-        // Also search on parent datarecord id if it was passed in
-        if ($is_child_datatype)
-            $parameters['parent_datarecord_id'] = $parent_datarecord_id;
-
-        if (!$is_child_datatype) {
-            $query = $em->createQuery(
-               'SELECT e.value
-                FROM ODRAdminBundle:'.$typeclass.' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE e.dataField = :datafield AND '.$comparision.'
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters($parameters);
-            $results = $query->getArrayResult();
-
-            // See if the given value already exists in this datafield...mysql comparisions ignore
-            //  case, so have to do it this way
-            foreach ($results as $result) {
-                $value = $result['value'];
-                if ($value === $new_value)
-                    return true;
-            }
-        }
-        else {
-            $query = $em->createQuery(
-               'SELECT e.value
-                FROM ODRAdminBundle:'.$typeclass.' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-                WHERE e.dataField = :datafield AND '.$comparision.' AND parent.id = :parent_datarecord_id
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-            )->setParameters($parameters);
-            $results = $query->getArrayResult();
-
-            // See if the given value already exists in this datafield...mysql comparisions ignore
-            //  case, so have to do it this way
-            foreach ($results as $result) {
-                $value = $result['value'];
-                if ($value === $new_value)
-                    return true;
-            }
-        }
-
-        // The given value does not exist in this datafield
-        return false;
-    }
-
-
-    /**
-     * Takes an array of datafields, their values, and associated tokens...and then creates a new
-     * datarecord with those values, assuming that they're all valid.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function saveasnewAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            $post = $request->request->all();
-//print_r($post);  exit();
-
-            if ( !isset($post['datatype_id'])
-                || !isset($post['datarecord_id'])
-                || !isset($post['datafields'])
-                || !isset($post['tokens'])
-            ) {
-                throw new ODRBadRequestException();
-            }
-
-            // TODO - parent/grandparent datarecord ids so this works for child records?
-            $datatype_id = $post['datatype_id'];
-            $tmp_dr_id = $post['datarecord_id'];
-            $datafields = $post['datafields'];
-            $csrf_tokens = $post['tokens'];
-
-            if ( !is_numeric($datatype_id)
-                || !is_array($datafields)
-                || !is_array($csrf_tokens)
-            ) {
-                throw new ODRBadRequestException();
-            }
-
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
-
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if ( !$pm_service->canAddDatarecord($user, $datatype) )
-                throw new ODRForbiddenException();
-            if ( !$pm_service->canEditDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-            // Verify that the datafields and tokens make sense
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
-            $found_datafields = array();
-
-            // Easier on the database to get the cache entry
-            foreach ($datatype_array[$datatype->getId()]['dataFields'] as $df_id => $df) {
-                if ( isset($datafields[$df_id]) ) {
-                    $found_datafields[$df_id] = 1;
-
-                    // Verify that the token exists
-                    if ( !isset($csrf_tokens[$df_id]) )
-                        throw new ODRBadRequestException();
-
-                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                    $token_id = $typeclass . 'Form_' . $tmp_dr_id . '_' . $df_id;
-                    $value = $datafields[$df_id];
-
-                    // Verify that the typeclass and the value make sense
-                    switch ($typeclass) {
-                        // These are legitimate typeclasses
-                        case 'DecimalValue':
-                        case 'IntegerValue':
-                        case 'LongText':    // paragraph text
-                        case 'LongVarchar':
-                        case 'MediumVarchar':
-                        case 'ShortVarchar':
-                            if ( !self::isValidValue($typeclass, $value) )
-                                throw new ODRBadRequestException('Invalid value');
-                            break;
-
-                        // The rest of the typeclasses aren't
-                        case 'Boolean':
-                        case 'DatetimeValue':
-                        case 'File':
-                        case 'Image':
-                        case 'Radio':
-                        case 'Tag':
-                        case 'Markdown':
-                        default:
-                            throw new ODRBadRequestException('Invalid typeclass');
-                    }
-
-                    // Verify that the CSRF tokens provided in the post are valid
-                    $check_token = $token_manager->getToken($token_id)->getValue();
-                    if ( $csrf_tokens[$df_id] !== $check_token )
-                        throw new ODRBadRequestException('Invalid CSRF Token');
-                }
-            }
-
-            // Verify that all the listed datafields were found
-            foreach ($datafields as $df_id => $val) {
-                if ( !isset($found_datafields[$df_id]) )
-                    throw new ODRBadRequestException('Invalid Datafield');
-            }
-
-
-            // ----------------------------------------
-            // Load datafield entities to prepare for entity creation, and to perform final
-            //  permission checks
-            $df_mapping = array();
-            foreach($datafields as $df_id => $val) {
-                /** @var DataFields $df */
-                $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-                if ($df == null)
-                    throw new ODRNotFoundException('Datafield');
-
-                $df_mapping[$df->getId()] = $df;
-            }
-            /** @var DataFields[] $df_mapping */
-
-            // Also ensure the user can edit all of these fields before continuing
-            foreach ($df_mapping as $df_id => $df) {
-                if ( !$pm_service->canEditDatafield($user, $df) )
-                    throw new ODRForbiddenException();
-            }
-
-
-            // ----------------------------------------
-            // Now that all the post data makes sense, time to create some entities
-            $new_datarecord = $ec_service->createDatarecord($user, $datatype);    // creation of storage entities makes delaying flush here pointless
-            $new_datarecord->setProvisioned(false);
-            foreach ($datafields as $df_id => $value) {
-                $df = $df_mapping[$df_id];
-                $ec_service->createStorageEntity($user, $new_datarecord, $df, $value);
-            }
-
-            // ----------------------------------------
-            // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
-            // Delete all search results that can change
-            $search_cache_service->onDatarecordCreate($datatype);
-
-            // Everything created, return the id of the new datarecord
-            $return['d'] = array(
-                'new_datarecord_id' => $new_datarecord->getId()
-            );
-
-        }
-        catch (\Exception $e) {
-            $source = 0x709c2e94;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Returns whether the given value is valid for the given typeclass.  Meant to bypass having
-     * to build a pile of Symfony Form objects for saveasnewAction(), since all of the given values
-     * need to be valid prior to saving.
-     *
-     * @param string $typeclass
+     * @param DataFields $datafield
      * @param string $value
      *
      * @return bool
      */
-    private function isValidValue($typeclass, $value)
+    private function valueAlreadyExists($datafield, $value)
     {
-        switch ($typeclass) {
-            // These are legitimate typeclasses
-            case 'IntegerValue':
-                return ValidUtility::isValidInteger($value);
-            case 'DecimalValue':
-                return ValidUtility::isValidDecimal($value);
-            case 'LongText':    // paragraph text, can accept any value
-                break;
-            case 'LongVarchar':
-                return ValidUtility::isValidLongVarchar($value);
-            case 'MediumVarchar':
-                return ValidUtility::isValidMediumVarchar($value);
-            case 'ShortVarchar':
-                return ValidUtility::isValidShortVarchar($value);
+        // Want to perform an exact search for this value
+        // This is allowed because currently only text and number fields are allowed to be unique
+        $value = '"'.$value.'"';
 
-            default:
-                return false;
-        }
+        /** @var SearchService $search_service */
+        $search_service = $this->container->get('odr.search_service');
+        $search_results = $search_service->searchTextOrNumberDatafield($datafield, $value);
 
-        // Otherwise, no problem
-        return true;
+        // If the search returned anything, then the value already exists
+        if ( count($search_results['records']) > 0 )
+            return true;
+        else
+            return false;
     }
 
 
@@ -2670,6 +2400,8 @@ class EditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var ThemeInfoService $ti_service */
+            $ti_service = $this->container->get('odr.theme_info_service');
 
             $router = $this->get('router');
             $templating = $this->get('templating');
@@ -2692,14 +2424,9 @@ class EditController extends ODRCustomController
             $datatype_id = $datatype->getId();
 
 
-            // Grab the "master" theme for this datatype, going to use it to render the datarecord
+            // Ensure the datatype has a "master" theme...ODRRenderService will use it by default
             // TODO - alternate themes?
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-            /** @var Theme $theme */
-            $theme = $repo_theme->findBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
+            $ti_service->getDatatypeMasterTheme($datatype->getId());
 
             // If $search_theme_id is set...
             if ($search_theme_id != 0) {
@@ -2709,7 +2436,7 @@ class EditController extends ODRCustomController
 
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
-                $search_theme = $repo_theme->find($search_theme_id);
+                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
                 if ($search_theme == null)
                     throw new ODRNotFoundException('Search Theme');
 

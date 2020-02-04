@@ -71,10 +71,12 @@
 
     <form
         {% if is_link > 0 %} autocomplete="off"{% endif %}
-        {% if not datarecord_is_fake %}
+        {% if datarecord_is_fake %}
+            action="{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}"
+        {% else %}
             action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
         {% endif %}
-        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %}"
+        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %} {% if datafield_meta.is_unique %}ODRUniqueField{% endif %}"
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
@@ -94,7 +96,7 @@
                         {% if valuefield_value == 1 %}checked{% endif %}
                     />
                     &nbsp;{{ datafield_meta.fieldName }}
-                    {% if is_datatype_admin %}
+                    {% if is_datatype_admin and not datarecord_is_fake %}
                     &nbsp;&nbsp;<i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>
                     {% endif %}
                 </div>
@@ -153,7 +155,7 @@
                         </div>
                         <div class="pure-u-23-24">
                             <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
-                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}{% if force_image_reload %}?{{ date().timestamp }}{% endif %}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                             </a>
                         </div>
                     </div>
@@ -181,7 +183,7 @@
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin %}
+                {% if is_datatype_admin and not datarecord_is_fake %}
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
@@ -201,7 +203,7 @@
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin %}
+                {% if is_datatype_admin and not datarecord_is_fake %}
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
@@ -216,7 +218,11 @@
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
                 />
+                {% if datarecord_is_fake %}
+                <i class="fa fa-hourglass-2 ODRSaveIndicator"></i>
+                {% else %}
                 <i class="fa fa-save ODRSaveIndicator"></i>
+                {% endif %}
             </div>
         </fieldset>
 
@@ -336,7 +342,7 @@
         {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin %}
+                {% if is_datatype_admin and not datarecord_is_fake %}
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
@@ -392,14 +398,8 @@
     <script>
         var {{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
-        {% if not datarecord_is_fake %}
-            {# When record is not fake...validate on a delay #}
             clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
             {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
-        {% else %}
-            {# When record is fake...immediately validate, since it doesn't automatically save #}
-            $('#EditForm_{{ unique_id }}').submit();
-        {% endif %}
         });
 
         $("#EditForm_{{ unique_id }}").validate({
@@ -428,13 +428,12 @@
             },
         {% endif %}
             submitHandler: function(form) {
-            {# always want to validate, but don't commit if the record is fake #}
-            {% if not datarecord_is_fake %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }}
                 );
 
+                {% if not datarecord_is_fake %}
                 // Need to check if this is a datatype properties value
                 var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
                 switch(field_reference) {
@@ -459,7 +458,7 @@
                         break;
 
                 }
-            {% endif %}
+                {% endif %}
             }
             // focusInvalid: false
         });

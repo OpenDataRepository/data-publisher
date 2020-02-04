@@ -1673,16 +1673,13 @@ class SearchQueryService
     private function parseField($str, $is_filename, $can_be_null) {
         // ?
         $str = str_replace(array("\n", "\r"), '', $str);
-/*
-if ( isset($debug['search_string_parsing']) ) {
-    print "\n".'--------------------'."\n";
-    print $str."\n";
-}
-*/
+
         $pieces = array();
         $in_quotes = false;
         $tmp = '';
-        for ($i = 0; $i < strlen($str); $i++) {
+
+        $len = mb_strlen($str);
+        for ($i = 0; $i < $len; $i++) {
             // Need to use multibyte substr to be able to handle multibyte unicode sequences...
 //            $char = $str[$i];
             $char = mb_substr($str, $i, 1);
@@ -1775,10 +1772,7 @@ if ( isset($debug['search_string_parsing']) ) {
         // save any remaining piece
         if ($tmp !== '')
             $pieces[] = $tmp;
-/*
-if ( isset($debug['search_string_parsing']) )
-    print_r($pieces);
-*/
+
         // clean up the array as best as possible
         $pieces = array_values($pieces);
         $first = true;
@@ -1819,10 +1813,7 @@ if ( isset($debug['search_string_parsing']) )
         $num = count($pieces)-1;
         if ( self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num]) )
             unset( $pieces[$num] );
-/*
-if ( isset($debug['search_string_parsing']) )
-    print_r($pieces);
-*/
+
         $negate = false;
         $inequality = false;
         $searching_on_null = false;
@@ -1933,14 +1924,8 @@ if ( isset($debug['search_string_parsing']) )
                 }
             }
         }
+
         $str = trim($str);
-/*
-if ( isset($debug['search_string_parsing']) ) {
-    print $str."\n";
-    print_r($parameters);
-    print "\n".'--------------------'."\n";
-}
-*/
         return array('str' => $str, 'params' => $parameters);
     }
 

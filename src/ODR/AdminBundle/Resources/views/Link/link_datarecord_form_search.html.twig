@@ -11,7 +11,7 @@
 } %}
 
 <div class="ODRTableOuterWrap">
-    <table id="TextResults_search" class="display"></table>
+    <table id="TextResults_search" class="display ODRDatatableInstance"></table>
 </div>
 
 <script>
@@ -34,7 +34,7 @@
             "searching": false,
             "autoWidth": false,
 
-            "processing": true,   // only displays a little "processing..." blurb
+            // "processing": true,   // only displays a little "processing..." blurb
             "serverSide": true,
             "ajax": {
                 "url": "{{ path('odr_datatables_row_request') }}",
@@ -46,6 +46,15 @@
                     // Don't want anything done to this table to be saved, so don't send the tab id
                 }
             },
+
+            "responsive": true,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+
+            {# have  web/js/mylibs/jquery_datatables/datatables.input.js  handle pagination #}
+            "pagingType": "input",
+
             "language": {
                 "emptyTable": "No Datarecords found"
             },

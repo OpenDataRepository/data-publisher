@@ -27,7 +27,8 @@
                     ODRLogin();
                     break;
 
-                default:    {# 400, 403, 404, 405, 500, etc #}
+                default:    /* 400, 403, 404, 405, 500, etc */
+                    console.log( jqxhr.responseText );
                     var response = $.parseJSON( jqxhr.responseText );
                     createJGrowlError(response);
                     break;
@@ -108,6 +109,9 @@
             UpdateURL(url);
         });
 
+        $("#ODRSearchSidebar").on("click", ".ODRSearchToggle", function() {
+            searchToggle();
+        });
     });
 
     function createJGrowlError(response) {
@@ -257,34 +261,14 @@
     }
 
     function enableSearchSidebar(search_key, force_visible, intent) {
-        var sidebar = $("#ODRSearchSidebar");
-        var content = $("#ODRSearchContent");
-
-        $(sidebar).removeClass("ODRHidden");
-
-        if (force_visible === undefined || force_visible === null)
-            force_visible = false;
-
-        if ( !force_visible ) {
-            if ($(sidebar).hasClass("ODRSearchVisible"))
-                $(content).removeClass("ODRSearchResultsWide");
-            else
-                $(content).addClass("ODRSearchResultsWide");
-        }
-        else {
-            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-            $(".ODRSearchToggle").children(".fa-arrow-circle-left").removeClass('hidden');
-            $(".ODRSearchToggle").children(".fa-arrow-circle-right").addClass('hidden');
-            $(content).removeClass("ODRSearchResultsWide");
-        }
-
+        // Ensure the sidebar is up to date first...
         if (intent === undefined || intent === null)
             intent = 'searching';
 
-        updateSearchSidebar(search_key, intent);
+        updateSearchSidebar(search_key, force_visible, intent);
     }
 
-    function updateSearchSidebar(search_key, intent) {
+    function updateSearchSidebar(search_key, force_visible, intent) {
         var force_rebuild = false;
         if ( $("#ODRSidebarSearchKey").val() !== search_key || $("#ODRSearchSidebar").html() === '' )
             force_rebuild = true;
@@ -328,34 +312,85 @@
                             changeSearch();
                         }
                     }
+
+                    // Need to this to execute after the sidebar gets initialized
+                    setSidebarToggle(force_visible);
                 }
             });
         }
+        else {
+            // Don't need to initialize the sidebar, so execute this instead
+            setSidebarToggle(force_visible);
+        }
     }
 
-    $("#ODRSearchSidebar").on("click", ".ODRSearchToggle", function() {
-        searchToggle();
-    });
-
-    function searchToggle() {
-        var search = $(".ODRContentWrapper");
+    function setSidebarToggle(force_visible) {
+        var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
+        var searchContent = $("#ODRSearchContent");
 
-        if (search.hasClass("ODRSearchVisible")) {
-            search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+        $(sidebar).removeClass("ODRHidden");
 
-            searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
-            searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
 
-            $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+        if ( !force_visible ) {
+            if ($(sidebar).hasClass("ODRSearchVisible"))
+                $(searchContent).removeClass("ODRSearchResultsWide");
+            else
+                $(searchContent).addClass("ODRSearchResultsWide");
         }
         else {
-            search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
+            $(searchContent).removeClass("ODRSearchResultsWide");
+        }
 
-            searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
-            searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
+        // Since the sidebar may have changed between visible or not-visible, execute this to be safe
+        recalcDatatablesWidths();
+    }
 
-            $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
+    function searchToggle() {
+        var sidebar = $("#ODRSearchSidebar");
+        var searchToggle = $(".ODRSearchToggle");
+        var searchContent = $("#ODRSearchContent");
+
+        if ( $(sidebar).hasClass("ODRSearchVisible") ) {
+            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+
+            $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
+
+            $(searchContent).addClass("ODRSearchResultsWide");
+        }
+        else {
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+
+            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
+
+            $(searchContent).removeClass("ODRSearchResultsWide");
+        }
+
+        // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
+        // Have to wait for that to finish before recalculating the width of datatables objects
+        setTimeout("recalcDatatablesWidths()", 300);
+    }
+
+    function recalcDatatablesWidths() {
+        // Force the datatables.js FixedHeader and Responsive plugins to redraw if they exist
+        var datatables_instances = $(".ODRDatatableInstance");
+        if ( datatables_instances.length > 0 ) {
+            // Could be more than one table on screen...
+            $.each(datatables_instances, function(index, elem) {
+                // The table also may not be initialized yet...
+                if ( $.fn.DataTable.isDataTable(elem) ) {
+                    // ...but if it is, redo the Responsive and FixedHeader calculations
+                    $(elem).DataTable().responsive.recalc();
+                    $(elem).DataTable().fixedHeader.adjust();
+                }
+            });
         }
     }
 
@@ -422,52 +457,65 @@
 
         // Setup Tabs
         $(".ODRTabAccordion").each(function() {
-            // Locate and attach tab accordion handlers to the buttons
-            $(this).children(".ODRTabButtonHeader").each(function() {
-                $(this).children(".ODRTabButton").each(function() {
-                    $(this).unbind('click').click(function() {
-                        // Hide all tabbed content divs
-                        $(this).parent().parent().find(".accordion-content").hide();
-                        // Attach another (styling?) class to more clearly indicated the selected tab?
-                        $(this).parent().children().each(function() {
-                            $(this).removeClass('pure-button-active');
-                        });
-                        $(this).addClass('pure-button-active');
+            // Hide all content divs except the first
+            var wrapper_div = $(this);
+            $(wrapper_div).children(".accordion-content").each(function() {
+                $(this).hide();
+            });
+            $(wrapper_div).children(".accordion-content").first().show();
 
-                        // Show the div that's linked to the clicked button
-                        var id = $(this).attr('rel');
-                        $("#FieldArea_" + id).fadeIn();
-                        {#ODR_scrollIntoView( $("#FieldArea_" + id) )#}
+            // For each button that could be clicked...
+            var tab_div = $(wrapper_div).children(".ODRTabButtonHeader").first();  // should only be one tab div here
 
-                        setupAccordionHighlights();
-                        // Resize any elements that were revealed
-                        onWindowResize();
+            // Ensure the first button is marked as "active"
+            $(tab_div).children(".ODRTabButton").first().addClass('pure-button-active');
+
+            // Attach click handlers to all the buttons in this tab div
+            $(tab_div).children(".ODRTabButton").each(function() {
+                $(this).unbind('click').click(function() {
+                    // Ensure this button is marked as "active", while all the others are not
+                    $(tab_div).children(".ODRTabButton").removeClass('pure-button-active');
+                    $(this).addClass('pure-button-active');
+
+                    // Store which content div should be selected
+                    var selected_dr = "FieldArea_" + $(this).attr('rel');
+
+                    // Hide all the content divs except the one that was selected
+                    $(wrapper_div).children(".accordion-content").each(function() {
+                        if ( $(this).attr('id') !== selected_dr )
+                            $(this).hide();
+                        else
+                            $(this).show();
                     });
-                });
 
-                // Trigger a click event on the first tab
-                $(this).children(".ODRTabButton:first").trigger('click');
+                    // Resize any elements that were revealed
+                    setupAccordionHighlights();
+                    onWindowResize();
+                });
             });
         });
 
         // Setup Dropdown
-        $(".ODRDropdownAccordion").find("select.accordion").each(function() {
-            $(this).children("option").not(":selected").each(function() {
-                var value = $(this).val();
-                $("#FieldArea_" + value).hide();
+        $(".ODRDropdownAccordion").each(function() {
+            // Hide all content divs except the first
+            var wrapper_div = $(this);
+            $(wrapper_div).children(".accordion-content").each(function() {
+                $(this).hide();
             });
+            $(wrapper_div).children(".accordion-content").first().show();
 
-            $(this).unbind('change').change(function() {
-                $(this).children("option").not(":selected").each(function() {
-                    var value = $(this).val();
-                    $("#FieldArea_" + value).hide();
-                });
+            // Attach the click handler to this dropdown
+            var select = $(wrapper_div).children('h3').children("span.AccordionSelect").children('select');
+            $(select).unbind('change').change(function() {
+                // Store which content div should be selected
+                var selected_dr = "FieldArea_" + $(this).val();
 
-                $(this).children(":selected").each(function() {
-                    // Should only fire once
-                    var value = $(this).val();
-                    $("#FieldArea_" + value).fadeIn();
-                    {#ODR_scrollIntoView( $("#FieldArea_" + value) );#}
+                // Hide all the content divs except the one that was selected
+                $(wrapper_div).children(".accordion-content").each(function() {
+                    if ( $(this).attr('id') !== selected_dr )
+                        $(this).hide();
+                    else
+                        $(this).show();
                 });
 
                 // Resize any elements that were revealed
