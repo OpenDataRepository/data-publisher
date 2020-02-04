@@ -102,7 +102,7 @@
                   "id": {{ file.id }},
                   "file_uuid": "{{ file.unique_id }}",
                   "file_size": "{{ file.filesize }}",
-                  "href": "{{ path('odr_file_download', {'file_id': file.id}) }}",
+                  "href": "{{ url('odr_file_download', {'file_id': file.id}) }}",
                   {% set file_meta = file.fileMeta %}
                   "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
                   {#
@@ -122,57 +122,58 @@
         ]   {# end of files #}
 
     {% elseif field_typename == "Image" %}
-
         "files": [
-        {% for image in valuefield %}
+            {% set oimage = "" %}
+            {% for image in valuefield %}
             {% set oimage = image.parent %}
+            {% set image_ext = oimage.ext %}
+
             {% set oimage_meta = oimage.imageMeta %}
+            {% set image_caption = oimage_meta.caption %}
+            {% set image_filename = oimage_meta.originalFileName %}
 
             {
-                {# thumbnail image #}
                 {% if using_metadata == true %}
                 "_file_metadata": {
                     "_external_id": "{{ oimage_meta.external_id }}",
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
                     "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
-                    "_display_order": {{ oimage_meta.displayorder}}
+                    "_display_order": "{{ oimage_meta.displayorder}}"
                 },
                 {% endif %}
-
                 "id": {{ image.id }},
                 "file_uuid": "{{ image.unique_id }}",
-                "original_name": "{% if image_filename is defined and image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ image.id }}{% endif %}",
-                "href": "{{ path('odr_image_download', {'image_id': image.id}) }}",
-                {% if image_caption is defined %}
-                    "caption": "{{ image_caption|raw }}",
-                {% endif %}
+                "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ image.id }}{% endif %}",
+                "href": "{{ url('odr_image_download', {'image_id': image.id}) }}",
+                "caption": "{{ image_caption|raw }}",
                 "width": "{{ image.imageWidth }}",
                 "height": "{{ image.imageHeight }}"
             },
+            {% endfor %}
+            {% if not oimage == "" %}
+            {% set oimage_meta = oimage.imageMeta %}
+            {% set image_caption = oimage_meta.caption %}
+            {% set image_filename = oimage_meta.originalFileName %}
             {
-                {# original image #}
                 {% if using_metadata == true %}
                 "_file_metadata": {
                     "_external_id": "{{ oimage_meta.external_id }}",
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
                     "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
-                    "_display_order": {{ oimage_meta.displayorder}}
+                    "_display_order": "{{ oimage_meta.displayorder}}"
                 },
                 {% endif %}
-
                 "id": {{ oimage.id }},
                 "file_uuid": "{{ oimage.unique_id }}",
-                "original_name": "{% if image_filename is defined and image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ image.id }}{% endif %}",
-                "href": "{{ path('odr_image_download', {'image_id': oimage.id}) }}",
-                {% if image_caption is defined %}
-                    "caption": "{{ image_caption|raw }}",
-                {% endif %}
+                "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
+                "href": "{{ url('odr_image_download', {'image_id': oimage.id}) }}",
+                "caption": "{{ image_caption|raw }}",
                 "width": "{{ oimage.imageWidth }}",
                 "height": "{{ oimage.imageHeight }}"
             }
-        {% endfor %}
+            {% endif %}
         ]   {# end of images #}
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
@@ -194,7 +195,7 @@
     {% elseif field_typename == "Tags" %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
             'datafield': datafield,
-            'drf': datafield,
+            'drf': datarecordfield,
         } %}
 {#
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {

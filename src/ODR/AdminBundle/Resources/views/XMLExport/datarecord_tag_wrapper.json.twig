@@ -8,16 +8,31 @@
     {% set child_tag_selections = drf.child_tagSelections %}
 {% endif %}
 
+{# TODO This no longer nests output for tag children need to be version based for nesting #}
 "value": [
 {% if datafield.tags is defined %}
+    {% set field_block %}
     {% for tag in datafield.tags %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
             'tag_selections': tag_selections,
             'child_tag_selections': child_tag_selections,
             'tag': tag,
-
-            'parent_tags_prefix': ''
         } %}
+    {% endfor %}
+    {% endset %}
+    {{ field_block|comma|raw }}
+{% elseif datafield.tagSelection is defined %}
+    {# TODO This is probably not used. #}
+    {% for tag in datafield.tagSelection %}
+        {
+            "using_tagSelection": "true",
+            "name": "{{ tag.tag.tagName }}",
+            "id": {{ tag.tag.id }},
+            "selected": "1",
+            "template_tag_uuid": {{ tag.tag.tagUuid|json_encode|raw }},
+            "updated_at": "{{ tag.updated|date('Y-m-d H:i:s') }}",
+            "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}"
+        }{% if not loop.last %},{% endif %}
     {% endfor %}
 {% endif %}
 ]
