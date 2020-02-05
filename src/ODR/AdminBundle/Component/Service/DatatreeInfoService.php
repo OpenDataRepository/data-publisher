@@ -132,6 +132,7 @@ class DatatreeInfoService
      */
     public function getAssociatedDatatypes($top_level_datatype_id)
     {
+
         // Need to locate all linked datatypes for the provided datatype
         $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
         if ($associated_datatypes == false) {
@@ -339,6 +340,8 @@ class DatatreeInfoService
      */
     public function getAssociatedDatarecords($top_level_datarecord_id)
     {
+        $this->logger->debug('DatatreeInfoService: getAssociatedDatarecords: ' . $top_level_datarecord_id);
+
         // Need to locate all linked datarecords for the provided datarecord
         $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$top_level_datarecord_id);
         if ($associated_datarecords == false) {

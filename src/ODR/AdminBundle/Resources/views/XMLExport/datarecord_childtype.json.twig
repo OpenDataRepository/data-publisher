@@ -25,8 +25,6 @@
         ) }}
     {% else %}
         {
-            "output_block": "1",
-            {#"database_name": {{ datatype.dataTypeMeta.shortName|json_encode|raw }}, #}
             "database_uuid": "{{ datarecord.dataType.unique_id }}",
             "internal_id": {{ datarecord.id }},
             "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}

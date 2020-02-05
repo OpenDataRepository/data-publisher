@@ -19,11 +19,15 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Entity\Boolean;
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\ImageMeta;
@@ -37,14 +41,9 @@ use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\TagSelection;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\UserGroup;
-use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Image;
@@ -57,15 +56,17 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
@@ -124,7 +125,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0xfd346a45;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -295,7 +296,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x5dc89429;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -431,7 +432,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x43dd4818;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -622,7 +623,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0xd12ec6ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -660,9 +661,6 @@ class APIController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
-
 
             /** @var DataType $template_datatype */
             $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -778,7 +776,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x1c7b55d0;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -791,6 +789,7 @@ class APIController extends ODRCustomController
      *
      * @param $version
      * @param Request $request
+     *
      * @return \Symfony\Component\HttpFoundation\RedirectResponse
      */
     public function createdatasetAction($version, Request $request)
@@ -814,7 +813,7 @@ class APIController extends ODRCustomController
             // Check if user exists & throw user not found error
             // Save which user started this creation process
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -904,9 +903,7 @@ class APIController extends ODRCustomController
 
 
                 // Now get the json record and update it with the correct user_id ant date times
-                $json_metadata_record = $cache_service
-                    ->get('json_record_' . $metadata_record->getUniqueId());
-
+                $json_metadata_record = $cache_service->get('json_record_' . $metadata_record->getUniqueId());
 
                 if (!$json_metadata_record) {
                     // Need to pull record using getExport...
@@ -928,7 +925,9 @@ class APIController extends ODRCustomController
                 // parse through and fix metadata
                 $json_metadata_record = self::checkRecord($json_metadata_record, $user, $date_value);
 
-                $cache_service->set('json_record_' . $metadata_record->getUniqueId(),  json_encode($json_metadata_record));
+                // TODO - can't cache data after it gets run through permissions...doing so means that
+                // TODO - the first user to access a record dictates what every subsequent user can see...
+//                $cache_service->set('json_record_' . $metadata_record->getUniqueId(),  json_encode($json_metadata_record));
 
                 // set the "datatype" to the metadata datatype
                 $datatype = $metadata_datatype;
@@ -970,6 +969,12 @@ class APIController extends ODRCustomController
                 // TODO Naming is a little weird here
                 $metadata_record->setProvisioned(false);
                 $em->flush();
+
+                // Not 100% certain this is needed since this is a metadata datatype, but better to
+                //  safe than sorry...
+                /** @var SearchCacheService $search_cache_service */
+                $search_cache_service = $this->container->get('odr.search_cache_service');
+                $search_cache_service->onDatarecordCreate($datatype);
             }
 
             // Retrieve first (and only) record ...
@@ -992,6 +997,12 @@ class APIController extends ODRCustomController
                     // TODO Naming is a little weird here
                     $actual_data_record->setProvisioned(false);
                     $em->flush();
+
+                    // Not 100% certain this is needed since this is a metadata datatype, but better to
+                    //  safe than sorry...
+                    /** @var SearchCacheService $search_cache_service */
+                    $search_cache_service = $this->container->get('odr.search_cache_service');
+                    $search_cache_service->onDatarecordCreate($datatype->getMetadataFor());
                 }
 
             }
@@ -1057,21 +1068,22 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x89adf33e;
+            $source = 0xbb9d0e55;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
     }
 
+
     /**
-     * @param $record
-     * @param User $user
+     * @param array $record
+     * @param ODRUser $user
      * @param \DateTime $datetime_value
      *
-     * @return JSON record
+     * @return array $record
      */
     private function checkRecord(&$record, $user, $datetime_value) {
         if(isset($record['_record_metadata'])) {
@@ -1086,6 +1098,7 @@ class APIController extends ODRCustomController
         $record['records'] = $output_records;
         return $record;
     }
+
 
     /**
      * @param $str
@@ -1102,6 +1115,7 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
      * Creates a mysql compatible date string
      * @param $str
@@ -1117,6 +1131,7 @@ class APIController extends ODRCustomController
             throw new \Exception("Error executing Date Now filter");
         }
     }
+
 
     /**
      * Generates a unique id
@@ -1135,6 +1150,11 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    /**
+     * @param array $tag_tree
+     * @param array $selected_tags
+     */
     private function selectedTags($tag_tree, &$selected_tags = array())
     {
 
@@ -1149,11 +1169,12 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
-     * @param $dataset
-     * @param $orig_dataset
-     * @param $user
-     * @param $changed
+     * @param array $dataset
+     * @param array $orig_dataset
+     * @param ODRUser $user
+     * @param boolean $changed
      * @return mixed
      * @throws \Exception
      */
@@ -1172,11 +1193,8 @@ class APIController extends ODRCustomController
 
         // Check if fields are added or updated
         try {
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1257,6 +1275,9 @@ class APIController extends ODRCustomController
                         $em->persist($new_field);
 
                         $changed = true;
+
+                        // New boolean value, delete cached search results for this datafield
+                        $search_cache_service->onDatafieldModify($data_field);
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
@@ -1264,6 +1285,8 @@ class APIController extends ODRCustomController
 
                             case '18':
                                 // Tag field - need to difference hierarchy
+                                $tags_changed = false;
+
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -1316,11 +1339,11 @@ class APIController extends ODRCustomController
                                 /** @var DataRecordFields $drf */
                                 $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')
                                     ->findOneBy(
-                                        array(
-                                            'dataRecord' => $dataset['internal_id'],
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
+                                    array(
+                                        'dataRecord' => $dataset['internal_id'],
+                                        'dataField' => $data_field->getId()
+                                    )
+                                );
 
                                 // Delete deleted tags
                                 foreach ($deleted_tags as $tag_uuid) {
@@ -1334,15 +1357,16 @@ class APIController extends ODRCustomController
                                     /** @var TagSelection $tag_selection */
                                     $tag_selection = $em->getRepository('ODRAdminBundle:TagSelection')
                                         ->findOneBy(
-                                            array(
-                                                'tag' => $tag->getId(),
-                                                'dataRecordFields' => $drf->getId()
-                                            )
-                                        );
+                                        array(
+                                            'tag' => $tag->getId(),
+                                            'dataRecordFields' => $drf->getId()
+                                        )
+                                    );
 
                                     if ($tag_selection) {
                                         $em->remove($tag_selection);
                                         $changed = true;
+                                        $tags_changed = true;
                                     }
                                 }
 
@@ -1442,6 +1466,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $tags_changed = true;
 
 
                                     // Trying to do everything realtime - no waiting forever stuff
@@ -1477,10 +1502,16 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                 }
 
+                                if ($tags_changed) {
+                                    // Tags were created and/or deleted...clear cached search results
+                                    //  for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+                                }
                                 break;
 
                             case '8':
                                 // Single Radio
+                                $radio_changed = false;
 
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
@@ -1560,6 +1591,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -1629,6 +1661,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -1662,8 +1695,6 @@ class APIController extends ODRCustomController
                                     // Assign the updated field back to the dataset.
                                     $dataset['fields'][$i] = $field;
                                 }
-
-                                break;
 
                             case '12':
                                 // Checkbox
@@ -1853,6 +1884,8 @@ class APIController extends ODRCustomController
 
                             case '13':
                                 // Multiple Radio
+                                $radio_changed = false;
+
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1933,6 +1966,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -2002,6 +2036,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2034,11 +2069,19 @@ class APIController extends ODRCustomController
                                     }
                                     // Assign the updated field back to the dataset.
                                     $dataset['fields'][$i] = $field;
+                                }
+
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
                                 }
                                 break;
 
                             case '14':
                                 // Single Select
+                                $radio_changed = false;
+
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2119,6 +2162,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -2188,6 +2232,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2221,10 +2266,18 @@ class APIController extends ODRCustomController
                                     // Assign the updated field back to the dataset.
                                     $dataset['fields'][$i] = $field;
                                 }
+
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+                                }
                                 break;
 
                             case '15':
                                 // Multiple Select
+                                $radio_changed = false;
+
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2309,6 +2362,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -2380,6 +2434,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2412,6 +2467,12 @@ class APIController extends ODRCustomController
                                     }
                                     // Assign the updated field back to the dataset.test
                                     $dataset['fields'][$i] = $field;
+                                }
+
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
                                 }
                                 break;
                         }
@@ -2518,6 +2579,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // IntegerValue was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2552,6 +2617,10 @@ class APIController extends ODRCustomController
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
                                     $em->refresh($new_field);
+
+                                    // ParagraphText was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
 
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
@@ -2589,6 +2658,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // LongVarchar was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2623,6 +2696,10 @@ class APIController extends ODRCustomController
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
                                     $em->refresh($new_field);
+
+                                    // MediumVarchar was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
 
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
@@ -2659,6 +2736,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // ShortVarchar was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2694,6 +2775,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // DecimalValue was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2724,6 +2809,7 @@ class APIController extends ODRCustomController
 
 
             // Remove deleted records
+            $deleted_records = array();
             if ($orig_dataset && isset($orig_dataset['records'])) {
                 // Check if old record exists and delete if necessary...
                 for ($i = 0; $i < count($orig_dataset['records']); $i++) {
@@ -2745,7 +2831,7 @@ class APIController extends ODRCustomController
 
                     if (!$record_found) {
                         // Use delete record
-                        /** @var DataType $master_data_type */
+                        /** @var DataRecord $del_record */
                         $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                             array(
                                 'unique_id' => $o_record['record_uuid']
@@ -2753,6 +2839,9 @@ class APIController extends ODRCustomController
                         );
 
                         if ($del_record) {
+                            // Store which datatype had a record deleted
+                            $deleted_records[ $del_record->getDataType()->getId() ] = $del_record->getDataType();
+
                             $em->remove($del_record);
                             $em->flush();
                             $changed = true;
@@ -2760,6 +2849,12 @@ class APIController extends ODRCustomController
 
                     }
                 }
+            }
+
+            if ( !empty($deleted_records) ) {
+                // Datarecords were deleted...clear cached search results for each affected datatype
+                foreach ($deleted_records as $dt_id => $dt)
+                $search_cache_service->onDatarecordDelete($dt);
             }
 
             // Need to check for child & linked records
@@ -2855,13 +2950,16 @@ class APIController extends ODRCustomController
                         $new_record_meta->setUpdated(new \DateTime());
                         $new_record_meta->setCreated(new \DateTime());
                         $new_record_meta->setDataRecord($new_record);
-                        $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
+                        $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));    // TODO - user specified public status
 
                         // Need to persist and flush
                         $em->persist($new_record);
                         $em->persist($new_record_meta);
                         $em->flush();
                         $em->refresh($new_record);
+
+                        // A datarecord got created, delete relevant search cache entries
+                        $search_cache_service->onDatarecordCreate($record_data_type);
 
                         if ($is_link) {
                             /** @var EntityCreationService $ec_service */
@@ -2914,6 +3012,7 @@ class APIController extends ODRCustomController
     /**
      * @param $version
      * @param Request $request
+     *
      * @return \Symfony\Component\HttpFoundation\Response
      */
     public function updatedatasetAction($version, Request $request)
@@ -2948,8 +3047,7 @@ class APIController extends ODRCustomController
 
                 /** @var CacheService $cache_service */
                 $cache_service = $this->container->get('odr.cache_service');
-                $metadata_record = $cache_service
-                    ->get('json_record_' . $record_uuid);
+                $metadata_record = $cache_service->get('json_record_' . $record_uuid);
 
 
                 if (!$metadata_record) {
@@ -2992,7 +3090,10 @@ class APIController extends ODRCustomController
                 // Anon metadata records will always be public...
                 // Also need a filter to filter by permissions.  Really easy
                 // if the JSON had public/not-public as a field in all datapoints.
-                $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
+
+                // TODO - can't cache data after it gets run through permissions...doing so means that
+                // TODO - the first user to access a record dictates what every subsequent user can see...
+//                $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
 
                 /*
                 if ($changed) {
@@ -3034,13 +3135,21 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x89adf33e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
     }
 
+
+    /**
+     * @param $version
+     * @param $dataset_uuid
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function getRecordByDatasetUUIDAction($version, $dataset_uuid, Request $request)
     {
 
@@ -3059,7 +3168,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('User');
 
             // Find datatype for Dataset UUID
-            /** @var DataRecord $data_record */
+            /** @var DataType $data_type */
             $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                 array(
                     'unique_id' => $dataset_uuid
@@ -3089,15 +3198,14 @@ class APIController extends ODRCustomController
 
 
         } catch (\Exception $e) {
-            $source = 0x722347a6;
+            $source = 0x530bdf46;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
     }
-
 
     public function datasetQuotaByUUIDAction($version, $dataset_uuid, Request $request)
     {
@@ -3145,7 +3253,7 @@ class APIController extends ODRCustomController
                     join dr.dataType as dt
                     where dt.id = :datatype_id ")
                     ->setParameter("datatype_id", $datatype->getId()
-                    );
+                );
 
                 $total = $query->getScalarResult();
 
@@ -3177,6 +3285,7 @@ class APIController extends ODRCustomController
      * @param $version
      * @param $dataset_uuid
      * @param Request $request
+     *
      * @return Response
      */
     public function deleteDatasetByUUIDAction($version, $dataset_uuid, Request $request)
@@ -3189,6 +3298,7 @@ class APIController extends ODRCustomController
             $content = $request->getContent();
             if (!empty($content)) {
                 $data = json_decode($content, true); // 2nd param to get as array
+
                 // user
                 /** @var UserManager $user_manager */
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -3219,8 +3329,11 @@ class APIController extends ODRCustomController
                 // --------------------
 
                 /** @var DatatypeInfoService $dti_service */
-                $dti_service = $this->container->get('odr.datatype_info_service');
-                $dti_service->deleteDatatype($datatype, $user);
+                // $dti_service = $this->container->get('odr.datatype_info_service');
+                // $dti_service->deleteDatatype($datatype, $user);
+                /** @var EntityDeletionService $ed_service */
+                $ed_service = $this->container->get('odr.entity_deletion_service');
+                $ed_service->deleteDatatype($datatype, $user);
 
                 // Delete datatype
                 $response = new Response('Deleted', 200);
@@ -3237,6 +3350,14 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    /**
+     * @param $version
+     * @param $file_uuid
+     * @param Request $request
+     *
+     * @return RedirectResponse
+     */
     public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {
         try {
             // ----------------------------------------
@@ -3253,11 +3374,12 @@ class APIController extends ODRCustomController
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             // TODO fix this to use API Credential
             // $user = $user_manager->findUserBy(array('email' => $data['user_email']));
             // if (is_null($user))
-            throw new ODRNotFoundException('User');
+                throw new ODRNotFoundException('User');
 
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
@@ -3306,15 +3428,21 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x8a83ef88;
+            $source = 0x238ad264;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
 
+    /**
+     * @param $version
+     * @param Request $request
+     *
+     * @return RedirectResponse
+     */
     public function publishAction($version, Request $request) {
 
         try {
@@ -3323,9 +3451,6 @@ class APIController extends ODRCustomController
 
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
@@ -3437,6 +3562,8 @@ class APIController extends ODRCustomController
             $em->flush();
 
 
+            // TODO - why are these calls doubled?  only the last one has any effect...
+
             // Flush Caches
             /** @var ODRUser $api_user */  // Anon when nobody is logged in.
             $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -3458,11 +3585,6 @@ class APIController extends ODRCustomController
                 // $dti_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
             }
 
-            // Clear the AssociatedDatarecordArray so it will rebuild...
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('associated_datarecords_for_'.$actual_data_record->getId());
-
 
             // Search cache service - reset due to public record
             $search_cache_service->onDatarecordCreate($data_type);
@@ -3477,9 +3599,9 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x722347a6;
+            $source = 0x759720a3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3488,6 +3610,7 @@ class APIController extends ODRCustomController
     /**
      * @param $version
      * @param Request $request
+     *
      * @return Response
      */
     public function addfileAction($version, Request $request)
@@ -3498,17 +3621,16 @@ class APIController extends ODRCustomController
             // Get data from POST/Request
             $data = $request->request->all();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             // TODO fix this to use API Credential
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $data['user_email']));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -3539,7 +3661,7 @@ class APIController extends ODRCustomController
                     join dr.dataType as dt
                     where dt.id = :datatype_id ")
                 ->setParameter("datatype_id", $data_type->getId()
-                );
+            );
 
             $result = $query->getScalarResult();
 
@@ -3707,7 +3829,7 @@ class APIController extends ODRCustomController
                             // set file public status to match field public status
                             /** @var FileMeta $file_meta */
                             $file_meta = $file_obj->getFileMeta();
-                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());    // TODO - user specified public status
                             $em->persist($file_meta);
 
                             break;
@@ -3753,7 +3875,7 @@ class APIController extends ODRCustomController
 
                             /** @var ImageMeta $file_meta */
                             $file_meta = $file_obj->getImageMeta();
-                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());    // TODO - user specified public status
                             $em->persist($file_meta);
 
                             break;
@@ -3775,12 +3897,6 @@ class APIController extends ODRCustomController
             // Actual User
             $dri_service->updateDatarecordCacheEntry($data_record, $user);
 
-            // Clear the AssociatedDatarecordArray so it will rebuild...
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('associated_datarecords_for_'.$data_record->getId());
-
-
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(
                 'version' => $version,
@@ -3793,7 +3909,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x8a83ef88;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3804,6 +3920,8 @@ class APIController extends ODRCustomController
      * @param $version
      * @param $datarecord_uuid
      * @param Request $request
+     *
+     * @return Response
      */
     public function getRecordAction($version, $datarecord_uuid, Request $request)
     {
@@ -3816,6 +3934,7 @@ class APIController extends ODRCustomController
             // $user_manager = $this->container->get('fos_user.user_manager');
             // $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
 
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -3829,14 +3948,15 @@ class APIController extends ODRCustomController
 
 
         } catch (\Exception $e) {
-            $source = 0x722347a6;
+            $source = 0x4c04b1f8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
     }
+
 
     /**
      * @param $version
@@ -3902,10 +4022,8 @@ class APIController extends ODRCustomController
         // TODO - system needs to delete these keys when record is updated elsewhere
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
-        $data = $cache_service
-            ->get('json_record_' . $datarecord_uuid);
+        $data = $cache_service->get('json_record_' . $datarecord_uuid);
 
-        // $flush = true;
         if (!$data || $flush) {
             // Render the requested datarecord
             $data = $dre_service->getData(
@@ -3922,14 +4040,15 @@ class APIController extends ODRCustomController
             // TODO work out how to expire this data...
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->set(
-                'json_record_' . $datarecord_uuid,
-                $data
-            );
+
+            // TODO - can't cache data after it gets run through permissions...doing so means that
+            // TODO - the first user to access a record dictates what every subsequent user can see...
+//            $cache_service->set('json_record_' . $datarecord_uuid, $data);
         }
 
         return $data;
     }
+
 
     /**
      * Renders and returns the json/XML version of the given DataRecord.
@@ -3938,6 +4057,7 @@ class APIController extends ODRCustomController
      * @param $datarecord_uuid
      * @param Request $request
      * @param null $user
+     *
      * @return Response
      */
     public function getDatarecordExportAction($version, $datarecord_uuid, Request $request, $user = null)
@@ -3983,7 +4103,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x722347a6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3998,6 +4118,8 @@ class APIController extends ODRCustomController
      * @param $template_uuid
      * @param $template_field_uuid
      * @param Request $request
+     *
+     * @return Response
      */
     public function getfieldstatsAction(
         $version,
@@ -4059,7 +4181,6 @@ class APIController extends ODRCustomController
             /** @var ODRUser $user */
             // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
             // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
 
             // TODO this is currently used by public searches only.  Need to improve call to allow private.
             $user = 'anon.';
@@ -4146,14 +4267,22 @@ class APIController extends ODRCustomController
             $response->setContent($data);
             return $response;
         } catch (\Exception $e) {
-            $source = 0x883def33;
+            $source = 0x17ebd9fe;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+
+    /**
+     * @param $version
+     * @param $file_uuid
+     * @param Request $request
+     *
+     * @return Response|StreamedResponse
+     */
     public function fileDownloadByUUIDAction($version, $file_uuid, Request $request)
     {
         try {
@@ -4167,7 +4296,7 @@ class APIController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-            /** @var File $file */
+            /** @var File|Image $file */
             $file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
                 array(
                     'unique_id' => $file_uuid
@@ -4339,9 +4468,9 @@ class APIController extends ODRCustomController
             // Returning an error...do it in json
             $request->setRequestFormat('json');
 
-            $source = 0xbbaafae5;
+            $source = 0xdbcbc39d;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4453,11 +4582,12 @@ class APIController extends ODRCustomController
 
             $source = 0xbbaafae5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
+
 
     /**
      * Retrieve user info and list of created databases (that have metadata).
@@ -4465,6 +4595,8 @@ class APIController extends ODRCustomController
      *
      * @param $version
      * @param Request $request
+     *
+     * @return Response
      */
     public function userAction($version, Request $request)
     {
@@ -4476,6 +4608,7 @@ class APIController extends ODRCustomController
             $first_name = $_POST['first_name'];
             $last_name = $_POST['last_name'];
 
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var FOSUser $user */
@@ -4569,9 +4702,9 @@ class APIController extends ODRCustomController
             // Returning an error...do it in json
             $request->setRequestFormat('json');
 
-            $source = 0x8a8b2309;
+            $source = 0x1bdf1b99;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4584,7 +4717,7 @@ class APIController extends ODRCustomController
      * @param integer $image_id
      * @param Request $request
      *
-     * @return JsonResponse|StreamedResponse
+     * @return JsonResponse|StreamedResponse|RedirectResponse
      */
     public function imagedownloadAction($version, $image_id, Request $request)
     {
@@ -4696,7 +4829,6 @@ class APIController extends ODRCustomController
                 if (!$image->isPublic())
                     unlink($image_path);
 
-
                 return $response;
             }
             else {
@@ -4709,18 +4841,18 @@ class APIController extends ODRCustomController
 
             $source = 0x8a8b2309;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
 
-
     /**
      * @param $template_uuid
      * @param $template_field_uuid
      * @param Request $request
+     *
      * @return Response
      */
     public function search_field_statsAction($template_uuid, $template_field_uuid, Request $request)
@@ -4813,7 +4945,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x883def33;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

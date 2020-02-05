@@ -118,7 +118,7 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                 // $em->detach($master_datatype);
 
                 // Maintain 10 of current revision
-                if (count($datatypes) < 10) {
+                if (count($datatypes) < 2) {
 
                     $user_manager = $container->get('fos_user.user_manager');
 

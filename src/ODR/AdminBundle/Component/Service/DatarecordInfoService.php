@@ -146,6 +146,8 @@ class DatarecordInfoService
      */
     public function getAssociatedDatarecords($grandparent_datarecord_ids)
     {
+        $this->logger->debug('DatarecordInfoService: getAssociatedDatarecords: ' . $grandparent_datarecord_ids[0]);
+
         // Locate all datarecords that are children of the datarecords listed in $grandparent_datarecord_ids
         $query = $this->em->createQuery(
            'SELECT dr.id AS id
@@ -167,6 +169,7 @@ class DatarecordInfoService
         // Don't want any duplicate datarecord ids...
         $associated_datarecord_ids = array_unique( array_merge($grandparent_datarecord_ids, $linked_datarecord_ids) );
 
+        $this->logger->debug('DatarecordInfoService: getAssociatedDatarecords: ' . var_export($associated_datarecord_ids, 1));
         return $associated_datarecord_ids;
     }
 
@@ -716,8 +719,21 @@ class DatarecordInfoService
             $dr->setUpdated(new \DateTime());
             $this->em->persist($dr);
 
+            /*
+            // Child datarecords don't have their own cached entries, it's all contained within the
+            //  cache entry for their top-level datarecord
+            $this->cache_service->delete('cached_datarecord_'.$dr->getId());
+
+            // Delete the filtered list of data meant specifically for table themes
+            $this->cache_service->delete('cached_table_data_'.$dr->getId());
+
+            // Clear json caches used in API
+            $this->cache_service->delete('json_record_' . $dr->getUniqueId());
+            */
+
             // Continue locating parent datarecords...
             $dr = $dr->getParent();
+
         }
 
         // $dr is now the grandparent of $datarecord
@@ -727,7 +743,6 @@ class DatarecordInfoService
 
         // Save all changes made
         $this->em->flush();
-
 
         // Child datarecords don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datarecord
