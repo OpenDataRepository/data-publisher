@@ -386,7 +386,7 @@ class FacadeController extends Controller
         return $response;
     }
 
-    public function searchTemplatePostTestAction($version, $limit, $offset, Request $request) {
+    public function searchTemplatePostOptimizedAction($version, $limit, $offset, Request $request) {
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();

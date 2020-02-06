@@ -694,6 +694,7 @@ class SearchAPIServiceNoConflict
         $data = $this->cache_service
             ->get('json_record_' . $datarecord_uuid);
 
+        $flush = true;
         if (!$data || $flush) {
             // Render the requested datarecord
             $data = $this->dre_service->getData(

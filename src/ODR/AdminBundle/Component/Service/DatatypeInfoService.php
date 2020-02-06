@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
@@ -1157,6 +1158,13 @@ class DatatypeInfoService
         // Child datatypes don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datatype
         $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+
+        // Need to clear cached records related to this type for the API...
+        $records = $this->em->getRepository('ODRAdminBundle:DataRecord')->findBy(array('dataType' => $datatype->getId()));
+        /** @var DataRecord $record */
+        foreach($records as $record) {
+            $this->cache_service->delete('json_record_'.$record->getUniqueId());
+        }
     }
 
 

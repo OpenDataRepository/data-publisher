@@ -10,7 +10,11 @@
 
 {# all lists of datarecords are wrapped in an array structure #}
 {% for dr_id, datarecord in datarecord_array %}
-    {% if not datarecord.id is defined and dr_id is not null %}
+
+    {% set skip_comma = false %}
+    {% if datarecord is null or datarecord is empty %}
+        {% set skip_comma = true %}
+    {% elseif not datarecord.id is defined and dr_id is not null %}
         {# Check for Children #}
         {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
         {% set show_records = 1 %}
@@ -124,7 +128,7 @@
             ]
         }
     {% endif %}
-    {% if not loop.last %},{% endif %}
+    {% if not loop.last and not skip_comma %},{% endif %}
 {% endfor %}
 {% endmacro %}
 

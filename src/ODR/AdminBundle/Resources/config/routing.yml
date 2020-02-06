@@ -1669,7 +1669,7 @@ odr_search_api_general_search:
 #odr_search_api_template_post_test:
 odr_search_api_template_post:
     path: /api/{version}/search/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostTest, limit: 0, offset: 0, _format: 'json', version: 'v1'}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostOptimized, limit: 0, offset: 0, _format: 'json', version: 'v1'}
     methods: [ POST ]
     requirements:
         version: 'v\d+'
