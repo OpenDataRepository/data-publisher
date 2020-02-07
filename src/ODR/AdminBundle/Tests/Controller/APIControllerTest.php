@@ -698,8 +698,8 @@ class APIControllerTest extends WebTestCase
 
 
         // initialise the curl request
-        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
-        $request = curl_init(self::$base_url . '/file');
+        $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        // $request = curl_init(self::$base_url . '/file');
 
         // send a file
         curl_setopt($request, CURLOPT_POST, true);

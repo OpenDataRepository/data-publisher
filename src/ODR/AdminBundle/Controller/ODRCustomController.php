@@ -1005,7 +1005,6 @@ class ODRCustomController extends Controller
             $em->flush();
             $em->refresh($my_obj);
 
-
             // ----------------------------------------
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files
             $pheanstalk = $this->get('pheanstalk');
@@ -1015,9 +1014,6 @@ class ODRCustomController extends Controller
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
             // Generate the url for cURL to use
-
-            // $url = $this->container->getParameter('site_baseurl');
-            // $url .= $router->generate('odr_crypto_request');
             $url = $router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Insert the new job into the queue
