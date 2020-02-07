@@ -1272,6 +1272,7 @@ class APIController extends ODRCustomController
                                 self::selectedTags($field['value'], $selected_tags);
 
                                 $orig_selected_tags = array();
+                                $orig_tag_field = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
@@ -1279,6 +1280,7 @@ class APIController extends ODRCustomController
                                             isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
+                                            $orig_tag_field = $o_field['value'];
                                             self::selectedTags($o_field['value'], $orig_selected_tags);
                                         }
                                     }
@@ -1459,6 +1461,7 @@ class APIController extends ODRCustomController
                                             )
                                         ) {
                                             // replace this block
+                                            $field['value'][$j]['test'] = 1;
                                             $field['value'][$j]['template_tag_uuid'] = $tag->getTagUuid();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
@@ -1470,6 +1473,14 @@ class APIController extends ODRCustomController
                                             }
                                             else {
                                                 $field['value'][$j]['name'] = $tag->getTagName();
+                                            }
+                                        }
+                                    }
+                                    // Get full definitions for fields from original dataset
+                                    for($j=0;$j<$orig_tag_field;$j++) {
+                                        for($k=0;$k<$field['value'];$k++) {
+                                            if($field['value'][$k]['template_tag_uuid'] == $orig_tag_field[$j]['template_tag_uuid']) {
+                                                $field['value'][$k] = $orig_tag_field[$j];
                                             }
                                         }
                                     }
