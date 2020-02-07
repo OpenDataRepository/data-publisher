@@ -9,6 +9,7 @@
     ) %}
 
 {# all lists of datarecords are wrapped in an array structure #}
+{% set output_block %}
 {% for dr_id, datarecord in datarecord_array %}
 
     {% set skip_comma = false %}
@@ -130,5 +131,8 @@
     {% endif %}
     {% if not loop.last and not skip_comma %},{% endif %}
 {% endfor %}
+{% endset %}
+{{ output_block|comma|raw }}
+
 {% endmacro %}
 
