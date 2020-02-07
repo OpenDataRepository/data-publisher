@@ -1476,17 +1476,19 @@ class APIController extends ODRCustomController
                                             }
                                         }
                                     }
-                                    // Get full definitions for fields from original dataset
-                                    for($j=0;$j<$orig_tag_field;$j++) {
-                                        for($k=0;$k<$field['value'];$k++) {
-                                            if($field['value'][$k]['template_tag_uuid'] == $orig_tag_field[$j]['template_tag_uuid']) {
-                                                $field['value'][$k] = $orig_tag_field[$j];
-                                            }
+                                }
+
+                                // Get full definitions for fields from original dataset
+                                for($j=0;$j<count($orig_tag_field);$j++) {
+                                    for($k=0;$k<count($field['value']);$k++) {
+                                        if($field['value'][$k]['template_tag_uuid'] == $orig_tag_field[$j]['template_tag_uuid']) {
+                                            $field['value'][$k] = $orig_tag_field[$j];
+                                            break;
                                         }
                                     }
-                                    // Assign the updated field back to the dataset.
-                                    $dataset['fields'][$i] = $field;
                                 }
+                                // Assign the updated field back to the dataset.
+                                $dataset['fields'][$i] = $field;
 
                                 break;
 
