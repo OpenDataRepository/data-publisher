@@ -4002,6 +4002,237 @@ class APIController extends ODRCustomController
         }
     }
 
+    public function getfieldstatsbydatasetAction(
+        $version,
+        $template_uuid,
+        $template_field_uuid,
+        Request $request
+    ) {
+        try {
+            // ----------------------------------------
+
+            // Default to returning the data straight to the browser...
+            $download_response = false;
+            if ($request->query->has('download') && $request->query->get('download') == 'file')
+                // ...but return the data as a download on request
+                $download_response = true;
+
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+            /** @var DataType $template_datatype */
+            $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $template_uuid,
+                    'is_master_type' => 1    // require master template
+                )
+            );
+            if ($template_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataFields $template_datafield */
+            $template_datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                array(
+                    'dataType' => $template_datatype->getId(),
+                    'fieldUuid' => $template_field_uuid
+                )
+            );
+            if ($template_datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $typeclass = $template_datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio' && $typeclass !== 'Tag')
+                throw new ODRBadRequestException('Getting field stats only makes sense for Radio or Tag fields');
+
+            $item_label = 'template_radio_option_uuid';
+            if ($typeclass === 'Tag')
+                $item_label = 'template_tag_uuid';
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
+            // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+
+            // TODO this is currently used by public searches only.  Need to improve call to allow private.
+            $user = 'anon.';
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+            // TODO - should permissions get involved on the template side?
+            /*
+                        // If either the datatype or the datarecord is not public, and the user doesn't have
+                        //  the correct permissions...then don't allow them to view the datarecord
+                        if ( !$pm_service->canViewDatatype($user, $datatype) )
+                            throw new ODRForbiddenException();
+
+                        if ( !$pm_service->canViewDatarecord($user, $datarecord) )
+                            throw new ODRForbiddenException();
+            */
+
+            // ----------------------------------------
+            // Craft a search key specifically for this API call
+            $params = array(
+                "template_uuid" => $template_uuid,
+                "field_stats" => $template_field_uuid,
+            );
+            $search_key = $search_key_service->encodeSearchKey($params);
+
+            // Don't need to validate the search key...don't want people to be able to run this
+            //  type of search without going through this action anyways
+
+            $result = $search_api_service->performTemplateSearch($search_key, $user_permissions);
+
+            $labels = $result['labels'];
+            $records = $result['records'];
+
+
+            /** @var DatatypeExportService $dte_service */
+            $dte_service = $this->container->get('odr.datatype_export_service');
+
+            // Render the requested datatype
+            $template_data = $dte_service->getData(
+                $version,
+                $template_datatype->getId(),
+                $request->getRequestFormat(),
+                false,
+                $user,
+                $this->container->getParameter('site_baseurl')
+            );
+
+            $template = json_decode($template_data, true);
+
+            // get the field in question
+            $field = array();
+            for($i=0;$i<count($template['fields']);$i++) {
+                if($template['fields'][$i]['template_field_uuid'] == $template_field_uuid) {
+                    $field = $template['fields'][$i];
+                    break;
+                }
+            }
+
+            // Translate the two provided arrays into a a slightly different format
+            $data = array();
+            foreach ($records as $dt_id => $df_list) {
+                foreach ($df_list as $df_id => $dr_list) {
+                    foreach ($dr_list as $dr_id => $item_list) {
+                        foreach ($item_list as $num => $item_uuid) {
+                            $item_name = $labels[$item_uuid];
+                            if (!isset($data[$item_name])) {
+                                $data[$item_name] = array(
+                                    $item_label => $item_uuid
+                                );
+                            }
+                            $data[$item_name]['records'][] = $dr_id;
+                        }
+                    }
+                }
+            }
+
+            // print_r($field);exit();
+            // print_r($data);exit();
+            for($i=0;$i<count($field['value']);$i++) {
+                // First level
+                $level = $field['value'][$i];
+                $level_array = [];
+                foreach ($data as $name => $item_record) {
+                    if ($level['template_tag_uuid'] == $item_record['template_tag_uuid']) {
+                        // add records to parent array
+                        array_merge($level_array, $item_record['records']);
+                    }
+                }
+
+                // Get array of matching records
+                // Merge with array of records matching child terms
+                $sub_level_array = [];
+                if(isset($level['children'])) {
+                    $sub_level_array = self::check_children($level['children'], $data);
+                }
+                $level_array = array_merge($level_array, $sub_level_array);
+                $level['count'] = count(array_unique($level_array));
+                $field['value'][$i] = $level;
+            }
+
+            print(json_encode($field));exit();
+
+            // Sort the options in descending order by number of datarecords where they're selected
+            /*
+            uasort($data, function ($a, $b) {
+                if ($a['count'] < $b['count'])
+                    return 1;
+                else if ($a['count'] == $b['count'])
+                    return 0;
+                else
+                    return -1;
+            });
+            */
+
+
+            // ----------------------------------------
+            // Render the data in the requested format
+            $format = $request->getRequestFormat();
+            $templating = $this->get('templating');
+            $data = $templating->render(
+                'ODRAdminBundle:API:field_stats.' . $format . '.twig',
+                array(
+                    'field_stats' => $data
+                )
+            );
+
+            // Set up a response to send the datatype back
+            $response = new Response();
+
+            if ($download_response) {
+                $response->setPrivate();
+                //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+                $response->headers->set('Content-Disposition', 'attachment; filename="Datafield_' . $template_field_uuid . '.' . $request->getRequestFormat() . '";');
+            }
+
+            $response->setContent($data);
+            return $response;
+        } catch (\Exception $e) {
+            $source = 0x883def33;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+    function check_children(&$selection_array, $data) {
+
+        $my_level_array = [];
+        for($i=0;$i<count($selection_array);$i++) {
+            $level = $selection_array[$i];
+
+            $sub_level_array = [];
+            foreach ($data as $name => $item_record) {
+                if ($level['template_tag_uuid'] == $item_record['template_tag_uuid']) {
+                    // add records to parent array
+                    $sub_level_array = array_merge($sub_level_array, $item_record['records']);
+                }
+            }
+
+            $children_array = [];
+            if(isset($level['children'])) {
+                $children_array = self::check_children($level['children'], $data);
+            }
+            $sub_level_array = array_merge($sub_level_array, $children_array);
+            $level['count'] = count(array_unique($sub_level_array));
+            $selection_array[$i] = $level;
+
+            $my_level_array = array_merge($my_level_array, $sub_level_array);
+        }
+        return $my_level_array;
+    }
 
     /**
      * Returns a list of radio options in the given template field, and a count of how many

@@ -1559,6 +1559,16 @@ odr_api_get_field_stats:
         template_field_uuid: '^[a-z0-9]+$'
         format: '|xml|json'
 
+odr_api_get_field_stats_by_dataset:
+    path:  /api/{version}/search/field/statsbydataset/{template_uuid}/{template_field_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getfieldstatsbydataset, _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        template_uuid: '^[a-z0-9]+$'
+        template_field_uuid: '^[a-z0-9]+$'
+        format: '|xml|json'
+
 odr_api_get_field_legacystats:
     path:  /api/{version}/search/field/legacystats/{template_uuid}/{template_field_uuid}.{_format}
     defaults: { _controller: ODRAdminBundle:API:search_field_stats, _format: json }
