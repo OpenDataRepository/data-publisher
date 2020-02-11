@@ -64,6 +64,7 @@ use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 // CSV Reader
 use Ddeboer\DataImport\Reader\CsvReader;
 // ForceUTF8
@@ -1096,9 +1097,7 @@ class CSVImportController extends ODRCustomController
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
-            $router = $this->get('router');
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_csv_import_validate');
+            $url = $this->generateUrl('odr_csv_import_validate', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -3024,14 +3023,9 @@ class CSVImportController extends ODRCustomController
 
 
             // For readability, linking datarecords with csv importing uses a different controller action
-            $router = $this->get('router');
-            $url = $this->container->getParameter('site_baseurl');
-
-
+            $url = $this->generateUrl('odr_csv_import_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
             if ($import_as_linked_datatype)
-                $url .= $router->generate('odr_csv_link_worker');
-            else
-                $url .= $router->generate('odr_csv_import_worker');
+                $url = $this->generateUrl('odr_csv_link_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
 
             // ----------------------------------------

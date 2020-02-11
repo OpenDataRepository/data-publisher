@@ -42,6 +42,7 @@ use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 // CSV Reader
 use Ddeboer\DataImport\Writer\CsvWriter;
 
@@ -268,8 +269,7 @@ class CSVExportController extends ODRCustomController
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $this->container->get('router')->generate('odr_csv_export_construct');
+            $url = $this->generateUrl('odr_csv_export_construct', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
 
             // --------------------
@@ -627,8 +627,7 @@ class CSVExportController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
 
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $this->container->get('router')->generate('odr_csv_export_worker');
+            $url = $this->generateUrl('odr_csv_export_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -852,10 +851,6 @@ class CSVExportController extends ODRCustomController
      */
     private function getFileData(&$datarecord_data, $dr_array, $df_list)
     {
-        // Going to need these to generate routes
-        $baseurl = $this->container->getParameter('site_baseurl');
-        $router = $this->container->get('router');
-
         foreach ($df_list as $num => $df_id) {
             // Need to locate the datarecord this datafield belongs to
             $dr = null;
@@ -872,7 +867,7 @@ class CSVExportController extends ODRCustomController
                 if ( isset($drf['file']) ) {
                     foreach ($drf['file'] as $num => $file) {
                         $file_id = $file['id'];
-                        $route = $baseurl.$router->generate('odr_file_download', array('file_id' => $file_id));
+                        $route = $this->generateUrl('odr_file_download', array('file_id' => $file_id), UrlGeneratorInterface::ABSOLUTE_URL);
 
                         $datarecord_data[$df_id][] = $route;
                     }
@@ -891,10 +886,6 @@ class CSVExportController extends ODRCustomController
      */
     private function getImageData(&$datarecord_data, $dr_array, $df_list)
     {
-        // Going to need these to generate routes
-        $baseurl = $this->container->getParameter('site_baseurl');
-        $router = $this->container->get('router');
-
         foreach ($df_list as $num => $df_id) {
             // Need to locate the datarecord this datafield belongs to
             $dr = null;
@@ -912,7 +903,7 @@ class CSVExportController extends ODRCustomController
                     foreach ($drf['image'] as $num => $image) {
                         // First level in here will be the thumbnail...want the full-size image
                         $parent_image_id = $image['parent']['id'];
-                        $route = $baseurl.$router->generate('odr_image_download', array('image_id' => $parent_image_id));
+                        $route = $this->generateUrl('odr_image_download', array('image_id' => $parent_image_id), UrlGeneratorInterface::ABSOLUTE_URL);
 
                         $datarecord_data[$df_id][] = $route;
                     }
@@ -1292,8 +1283,7 @@ class CSVExportController extends ODRCustomController
 
                 // ----------------------------------------
                 // Now that the "final" file exists, need to splice the temporary files together into it
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
+                $url = $this->generateUrl('odr_csv_export_finalize', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 //
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
@@ -1420,8 +1410,7 @@ class CSVExportController extends ODRCustomController
 
             if ( count($random_keys) >= 1 ) {
                 // Create another beanstalk job to get another file fragment appended to the final file
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
+                $url = $this->generateUrl('odr_csv_export_finalize', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 //
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only

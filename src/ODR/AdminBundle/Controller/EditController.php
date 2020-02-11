@@ -73,6 +73,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class EditController extends ODRCustomController
@@ -821,9 +822,7 @@ class EditController extends ODRCustomController
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
 
                 $pheanstalk = $this->get('pheanstalk');
-                $router = $this->container->get('router');
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $router->generate('odr_crypto_request');
+                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $api_key = $this->container->getParameter('beanstalk_api_key');
                 $file_decryptions = $cache_service->get('file_decryptions');

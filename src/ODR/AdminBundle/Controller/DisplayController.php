@@ -53,6 +53,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class DisplayController extends ODRCustomController
@@ -445,9 +446,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Generate the url for cURL to use
             $pheanstalk = $this->get('pheanstalk');
-            $router = $this->container->get('router');
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_crypto_request');
+            $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -1349,9 +1348,7 @@ exit();
             else {
                 // Generate the url for cURL to use
                 $pheanstalk = $this->get('pheanstalk');
-                $router = $this->container->get('router');
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $router->generate('odr_crypto_request');
+                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $api_key = $this->container->getParameter('beanstalk_api_key');
 

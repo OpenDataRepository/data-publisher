@@ -66,6 +66,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class DisplaytemplateController extends ODRCustomController
@@ -3542,8 +3543,7 @@ class DisplaytemplateController extends ODRCustomController
         $api_key = $this->container->getParameter('beanstalk_api_key');
         $pheanstalk = $this->get('pheanstalk');
 
-        $url = $this->container->getParameter('site_baseurl');
-        $url .= $this->container->get('router')->generate('odr_migrate_field');
+        $url = $this->generateUrl('odr_migrate_field', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
 
         // ----------------------------------------
@@ -4396,8 +4396,7 @@ if ($debug)
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $this->container->get('router')->generate('odr_sync_with_template_worker');
+            $url = $this->generateUrl('odr_sync_with_template_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Create a job and insert into beanstalk's queue
 //            $priority = 1024;   // should be roughly default priority

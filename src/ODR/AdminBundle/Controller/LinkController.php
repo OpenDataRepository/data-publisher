@@ -47,6 +47,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class LinkController extends ODRCustomController
@@ -706,8 +707,7 @@ class LinkController extends ODRCustomController
             $priority = 1024;   // should be roughly default priority
 
             // Get the URL for Linking
-            $router = $this->get('router');
-            $url = $this->container->getParameter('site_baseurl'). $router->generate('odr_design_link_datatype');
+            $url = $this->generateUrl('odr_design_link_datatype', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             $payload = json_encode(
                 array(
