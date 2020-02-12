@@ -3329,6 +3329,12 @@ class APIController extends ODRCustomController
 
 
     public function publishAction($version, Request $request) {
+/*
+                $response = new Response('Updated', 200);
+                $response->headers->set('Content-Type', 'application/json');
+                $response->setContent(json_encode(array('true' => 'yes')));
+                return $response;
+*/
 
         try {
             // Get data from POST/Request
