@@ -1717,7 +1717,7 @@ odr_api_record_public:
         version: 'v\d+'
         _format: '|json|xml'
 
-odr_api_get_datset_single_no_format:
+odr_api_get_dataset_single_no_format:
     path:  /api/{version}/dataset/{dataset_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]

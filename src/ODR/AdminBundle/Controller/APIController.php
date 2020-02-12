@@ -2868,7 +2868,10 @@ class APIController extends ODRCustomController
                         $new_record_meta->setUpdated(new \DateTime());
                         $new_record_meta->setCreated(new \DateTime());
                         $new_record_meta->setDataRecord($new_record);
+                        // If new records are non-public, we need to switch linked when making public
                         $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
+                        // All API Data defaults to Public (parent record is private)?
+                        // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
 
                         // Need to persist and flush
                         $em->persist($new_record);
@@ -3487,9 +3490,18 @@ class APIController extends ODRCustomController
             $search_cache_service->onDatarecordCreate($data_type);
 
             $response = new Response('Created', 201);
+
+            // going to search URL is not returning data due to non-public linked records
+            /*
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(
                 'version' => $version,
                 'datarecord_uuid' => $data_record->getUniqueId()
+            ), false);
+            */
+            // Switching to get datarecord which uses user's permissions to build array
+            $url = $this->generateUrl('odr_api_get_dataset_single_no_format', array(
+                'version' => $version,
+                'dataset_uuid' => $data_record->getDataType()->getUniqueId()
             ), false);
             $response->headers->set('Location', $url);
 
