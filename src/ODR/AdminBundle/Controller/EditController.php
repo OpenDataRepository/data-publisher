@@ -62,6 +62,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -106,6 +107,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataType $datatype */
@@ -168,8 +171,8 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            // Since a record got created, the sort order for this datatype's records will have changed
+            $sort_service->resetDatatypeSortOrder($datatype);
             // Delete all search results that can change
             $search_cache_service->onDatarecordCreate($datatype);
 
@@ -220,6 +223,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             // Grab needed Entities from the repository
@@ -280,8 +285,8 @@ class EditController extends ODRCustomController
             // Delete all search results that can change
             $search_cache_service->onDatarecordCreate($datatype);
 
-            // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            // Since a record got created, the sort order for this datatype's records will have changed
+            $sort_service->resetDatatypeSortOrder($datatype);
 
             // Refresh the cache entries for the new datarecord's parent
             $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
@@ -367,6 +372,11 @@ class EditController extends ODRCustomController
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+
+            // Don't delete the top-level datarecord of a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to delete the top-level record for a metadata datatype');
 
 
             // ----------------------------------------
@@ -651,15 +661,15 @@ class EditController extends ODRCustomController
             if ( file_exists($absolute_path) )
                 unlink($absolute_path);
 
-            // Save who deleted the file
-            $file->setDeletedBy($user);
-            $em->persist($file);
-            $em->flush($file);
-
             // Delete the file and its current metadata entry
             $file_meta = $file->getFileMeta();
-            $em->remove($file);
-            $em->remove($file_meta);
+            $file_meta->setDeletedAt(new \DateTime());
+            $em->persist($file_meta);
+
+            $file->setDeletedBy($user);
+            $file->setDeletedAt(new \DateTime());
+            $em->persist($file);
+
             $em->flush();
 
 
@@ -1097,7 +1107,9 @@ class EditController extends ODRCustomController
                     unlink($local_filepath);
 
                 // Delete the alternate sized image from the database
-                $em->remove($img);
+                $img->setDeletedBy($user);
+                $img->setDeletedAt(new \DateTime());
+                $em->persist($img);
             }
 
             // Ensure no decrypted version of the original image exists on the server
@@ -1105,15 +1117,16 @@ class EditController extends ODRCustomController
             if ( file_exists($local_filepath) )
                 unlink($local_filepath);
 
-            // Save who deleted the image
-            $image->setDeletedBy($user);
-            $em->persist($image);
-            $em->flush($image);
-
-            // Delete the original image and its associated meta entry as well
+            // Delete the image's meta entry
             $image_meta = $image->getImageMeta();
-            $em->remove($image);
-            $em->remove($image_meta);
+            $image_meta->setDeletedAt(new \DateTime());
+            $em->persist($image_meta);
+
+            // Delete the image
+            $image->setDeletedBy($user);
+            $image->setDeletedAt(new \DateTime());
+            $em->persist($image);
+
             $em->flush();
 
 
@@ -1356,12 +1369,19 @@ class EditController extends ODRCustomController
                     unlink($local_filepath);
 
                 // Delete the original image and its metadata entry
-                $em->remove($image);
-                $em->remove($old_image_meta);
+                $old_image_meta->setDeletedAt(new \DateTime());
+                $em->persist($old_image_meta);
+
+                $image->setDeletedBy($user);
+                $image->setDeletedAt(new \DateTime());
+                $em->persist($image);
 
                 // Delete any thumbnails of the original image
-                foreach ($images as $img)
-                    $em->remove($img);
+                foreach ($images as $img) {
+                    $img->setDeletedBy($user);
+                    $img->setDeletedAt(new \DateTime());
+                    $em->persist($img);
+                }
 
                 $em->flush();
             }
@@ -1556,6 +1576,13 @@ class EditController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+
+            // Users aren't allowed to change the public status of the single top-level datarecord
+            //  of a metadata datatype...it needs to stay in sync with the public status of the
+            //  metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to directly change public status of a metadata record');
 
 
             // Toggle the public status of the datarecord
@@ -1822,8 +1849,6 @@ class EditController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1834,6 +1859,8 @@ class EditController extends ODRCustomController
             $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
 
@@ -1944,7 +1971,7 @@ class EditController extends ODRCustomController
                         }
 
                         // ----------------------------------------
-                        // If saving to a datetime field, ensure it's a datetime object?
+                        // If saving to a datetime field, ensure it's a datetime object
                         if ($typeclass == 'DatetimeValue') {
                             if ($new_value == '')
                                 $new_value = new \DateTime('9999-12-31 00:00:00');
@@ -1967,75 +1994,67 @@ class EditController extends ODRCustomController
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
 
 
-                        // TODO Create mirror function for datatypes that have metadata
+                        // ----------------------------------------
+                        // If this field belongs to a metadata datatype...
+                        if ( !is_null($datatype->getMetadataFor()) ) {
+                            // ...then check whether the field that got modified is the name or desc
+                            //  field for the metadata datatype
 
+                            // Neither of these fields should be null
+                            if ( is_null($datatype->getMetadataNameField()) || is_null($datatype->getMetadataDescField()) )
+                                throw new ODRException('The metadata datatype '.$datatype->getId().' is malformed');
+                            $name_df = $datatype->getMetadataNameField();
+                            $desc_df = $datatype->getMetadataDescField();
+                            $change_made = false;
 
-                        // Update related records/datatypes depending on internal reference name
-                        $flush_required = false;
-                        switch($storage_entity->getDataField()->getDataFieldMeta()->getInternalReferenceName()) {
-                            // Update parent datatype name automatically
-                            case 'datatype_name':
-                                // Check if this is a metadata_for datatype
-                                $ancestor_datatype = $storage_entity->getDataRecord()->getDataType()->getGrandparent();
+                            if ( $name_df->getId() === $datafield->getId() ) {
+                                // This was a change to the metadata name field
+                                $change_made = true;
 
-                                if($related_datatype = $ancestor_datatype->getMetadataFor()) {
-                                    // TODO - coerce value to string.  Possibly needed
-                                    // clone datatypemeta
-                                    $datatype_meta = $related_datatype->getDataTypeMeta();
+                                // Update the "actual" datatype's name
+                                $properties = array(
+                                    'shortName' => $new_value,
+                                    'longName' => $new_value,
+                                );
+                                $emm_service->updateDatatypeMeta($user, $datatype->getMetadataFor(), $properties, true);    // delay flush
 
-                                    $new_meta = clone $datatype_meta;
-                                    $new_meta->setLongName($storage_entity->getValue());
-                                    $new_meta->setShortName($storage_entity->getValue());
-                                    $new_meta->setCreatedBy($user);
-                                    $new_meta->setUpdatedBy($user);
+                                // Update the metadata datatype's name
+                                $properties = array(
+                                    'shortName' => $new_value.' Properties',    // TODO - is this correct?
+                                    'longName' => $new_value.' Properties',
+                                );
+                                $emm_service->updateDatatypeMeta($user, $datatype, $properties, true);    // delay flush
+                            }
+                            else if ( $desc_df->getId() === $datafield->getId() ) {
+                                // This was a change to the metadata description field
+                                $change_made = true;
 
-                                    $em->persist($new_meta);
-                                    $em->remove($datatype_meta);
+                                // Update the "actual" datatype's description
+                                $properties = array(
+                                    'description' => $new_value
+                                );
+                                $emm_service->updateDatatypeMeta($user, $datatype->getMetadataFor(), $properties, true);    // delay flush
+                            }
 
-                                    $flush_required = true;
-                                }
+                            if ( $change_made ) {
+                                // Need to flush changes
+                                $em->flush();
 
-
-                                break;
-
-                            // Update parent datatype description
-                            case 'datatype_description':
-                                $ancestor_datatype = $storage_entity->getDataRecord()->getDataType()->getGrandparent();
-
-                                if($related_datatype = $ancestor_datatype->getMetadataFor()) {
-                                    // TODO - coerce value to string.  Possibly needed
-                                    // clone datatypemeta
-                                    $datatype_meta = $related_datatype->getDataTypeMeta();
-
-                                    $new_meta = clone $datatype_meta;
-                                    $new_meta->setDescription($storage_entity->getValue());
-                                    $new_meta->setCreatedBy($user);
-                                    $new_meta->setUpdatedBy($user);
-
-                                    $em->persist($new_meta);
-                                    $em->remove($datatype_meta);
-
-                                    $flush_required = true;
-                                }
-                                break;
-
-                            default:
-                                break;
+                                // Force an update of the cached datatype array for the metadata
+                                $cache_service->delete('cached_datatype_'.$datatype->getId());
+                                // Force an update of the cached datatype array for the "actual" datatype
+                                $cache_service->delete('cached_datatype_'.$datatype->getMetadataFor()->getId());
+                            }
                         }
 
-                        if($flush_required && isset($related_datatype)) {
-                            $em->flush();
-                            // Need to flush datatype cache
-                            $cache_service->delete('cached_datatype_'.$related_datatype->getId());
-                        }
 
                         // ----------------------------------------
                         // Mark this datarecord as updated
                         $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
                         // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
-                        if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $dti_service->resetDatatypeSortOrder($datatype->getId());
+                        if ( !is_null($datatype->getSortField()) && $datatype->getSortField()->getId() == $datafield->getId() )
+                            $sort_service->resetDatatypeSortOrder($datatype);
 
                         // Delete any cached search results involving this datafield
                         $search_cache_service->onDatafieldModify($datafield);

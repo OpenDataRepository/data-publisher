@@ -71,6 +71,11 @@ class FakeRecordService
     private $search_cache_service;
 
     /**
+     * @var SortService
+     */
+    private $sort_service;
+
+    /**
      * @var CsrfTokenManager
      */
     private $token_manager;
@@ -90,6 +95,7 @@ class FakeRecordService
      * @param PermissionsManagementService $permissions_service
      * @param SearchService $search_service
      * @param SearchCacheService $search_cache_service
+     * @param SortService $sort_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
@@ -101,6 +107,7 @@ class FakeRecordService
         SearchService $search_service,
         SearchCacheService $search_cache_service,
         CsrfTokenManager $token_manager,
+        SortService $sort_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -109,6 +116,7 @@ class FakeRecordService
         $this->pm_service = $permissions_service;
         $this->search_service = $search_service;
         $this->search_cache_service = $search_cache_service;
+        $this->sort_service = $sort_service;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
@@ -157,6 +165,10 @@ class FakeRecordService
             foreach ($datatype_array[$datatype->getId()]['dataFields'] as $df_id => $df) {
                 $df_name = $df['dataFieldMeta']['fieldName'];
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+
+                // Don't check markdown-type fields
+                if ( $typeclass === 'Markdown' )
+                    continue;
 
                 // Verify that a field marked as 'unique' or 'required' has a value
                 if ($df['dataFieldMeta']['is_unique'] === true || $df['dataFieldMeta']['required'] === true) {
@@ -401,8 +413,8 @@ class FakeRecordService
             // ----------------------------------------
             // Since the datarecord is brand new, don't need to delete its cache entry
 
-            // Delete the cached string containing the ordered list of datarecords for this datatype
-            $this->dti_service->resetDatatypeSortOrder($datatype->getId());
+            // Since a record got created, the sort order for this datatype's records will have changed
+            $this->sort_service->resetDatatypeSortOrder($datatype);
             // Delete all search results that can change
             $this->search_cache_service->onDatarecordCreate($datatype);
 

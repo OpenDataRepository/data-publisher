@@ -48,6 +48,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -94,8 +95,8 @@ class CSVImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -3826,14 +3827,11 @@ exit();
                                     else
                                         $emm_service->updateImageMeta($user, $new_obj, $properties);
 
-                                    // Save who replaced the file/image
-                                    $old_obj->setDeletedBy($user);
-                                    $em->persist($old_obj);
-                                    $em->flush($old_obj);
-
                                     // Delete the old object and its metadata entry
-                                    $em->remove($old_obj);
-                                    $em->remove($old_obj_meta);
+                                    $old_obj->setDeletedBy($user);
+                                    $old_obj->setDeletedAt(new \DateTime());
+                                    $em->persist($old_obj);
+
                                     $em->flush();
                                 }
                             }
@@ -3870,15 +3868,15 @@ exit();
                                         if ( file_exists($absolute_path) )
                                             unlink($absolute_path);
 
-                                        // Save who deleted the file
-                                        $file->setDeletedBy($user);
-                                        $em->persist($file);
-                                        $em->flush($file);
-
                                         // Delete the file entity and its associated metadata entry
                                         $file_meta = $file->getFileMeta();
-                                        $em->remove($file);
-                                        $em->remove($file_meta);
+                                        $file_meta->setDeletedAt(new \DateTime());
+                                        $em->persist($file_meta);
+
+                                        $file->setDeletedBy($user);
+                                        $file->setDeletedAt(new \DateTime());
+                                        $em->persist($file);
+
                                         $need_flush = true;
                                     }
                                     else if ($typeclass == 'Image') {
@@ -3888,7 +3886,8 @@ exit();
 
                                             // Delete the image's associated metadata entry
                                             $image_meta = $file->getImageMeta();
-                                            $em->remove($image_meta);
+                                            $image_meta->setDeletedAt(new \DateTime());
+                                            $em->persist($image_meta);
                                         }
 
                                         // Ensure no decrypted version of the image (or thumbnails) exists on the server
@@ -3898,11 +3897,9 @@ exit();
 
                                         // Save who deleted the image
                                         $file->setDeletedBy($user);
+                                        $file->setDeletedAt(new \DateTime());
                                         $em->persist($file);
-                                        $em->flush($file);
 
-                                        // Delete the image (thumbnails are deleted by this as well)
-                                        $em->remove($file);
                                         $need_flush = true;
                                     }
                                 }
@@ -4271,8 +4268,9 @@ exit();
 
 
             // ----------------------------------------
-            // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            // Rebuild the list of sorted datarecords, since the value used to determine the sort
+            //  order may have changed
+            $sort_service->resetDatatypeSortOrder($datatype);
 
             // Mark this datarecord as updated...
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);

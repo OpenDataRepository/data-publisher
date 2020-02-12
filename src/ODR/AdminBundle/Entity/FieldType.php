@@ -42,24 +42,29 @@ class FieldType
     private $description;
 
     /**
-     * @var boolean
+     * @var bool
      */
-    private $allowMultiple;
+    private $canBeRequired;
 
     /**
-     * @var boolean
-     */
-    private $insertOnCreate;
-
-    /**
-     * @var boolean
+     * @var bool
      */
     private $canBeUnique;
 
     /**
-     * @var boolean
+     * @var bool
      */
     private $canBeSortField;
+
+    /**
+     * @var bool
+     */
+    private $canBeMetadataNameField;
+
+    /**
+     * @var bool
+     */
+    private $canBeMetadataDescField;
 
     /**
      * @var \DateTime
@@ -157,49 +162,27 @@ class FieldType
     }
 
     /**
-     * Set allowMultiple
+     * Set canBeRequired.
      *
-     * @param boolean $allowMultiple
+     * @param bool $canBeRequired
+     *
      * @return FieldType
      */
-    public function setAllowMultiple($allowMultiple)
+    public function setCanBeRequired($canBeRequired)
     {
-        $this->allowMultiple = $allowMultiple;
+        $this->canBeRequired = $canBeRequired;
 
         return $this;
     }
 
     /**
-     * Get allowMultiple
+     * Get canBeRequired.
      *
-     * @return boolean 
+     * @return bool
      */
-    public function getAllowMultiple()
+    public function getCanBeRequired()
     {
-        return $this->allowMultiple;
-    }
-
-    /**
-     * Set insertOnCreate
-     *
-     * @param boolean $insertOnCreate
-     * @return FieldType
-     */
-    public function setInsertOnCreate($insertOnCreate)
-    {
-        $this->insertOnCreate = $insertOnCreate;
-
-        return $this;
-    }
-
-    /**
-     * Get insertOnCreate
-     *
-     * @return boolean 
-     */
-    public function getInsertOnCreate()
-    {
-        return $this->insertOnCreate;
+        return $this->canBeRequired;
     }
 
     /**
@@ -246,6 +229,54 @@ class FieldType
     public function getCanBeSortField()
     {
         return $this->canBeSortField;
+    }
+
+    /**
+     * Set canBeMetadataNameField.
+     *
+     * @param bool $canBeMetadataNameField
+     *
+     * @return FieldType
+     */
+    public function setCanBeMetadataNameField($canBeMetadataNameField)
+    {
+        $this->canBeMetadataNameField = $canBeMetadataNameField;
+
+        return $this;
+    }
+
+    /**
+     * Get canBeMetadataNameField.
+     *
+     * @return bool
+     */
+    public function getCanBeMetadataNameField()
+    {
+        return $this->canBeMetadataNameField;
+    }
+
+    /**
+     * Set canBeMetadataDescField.
+     *
+     * @param bool $canBeMetadataDescField
+     *
+     * @return FieldType
+     */
+    public function setCanBeMetadataDescField($canBeMetadataDescField)
+    {
+        $this->canBeMetadataDescField = $canBeMetadataDescField;
+
+        return $this;
+    }
+
+    /**
+     * Get canBeMetadataDescField.
+     *
+     * @return bool
+     */
+    public function getCanBeMetadataDescField()
+    {
+        return $this->canBeMetadataDescField;
     }
 
     /**

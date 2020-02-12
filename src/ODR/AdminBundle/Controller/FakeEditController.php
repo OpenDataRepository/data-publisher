@@ -86,6 +86,11 @@ class FakeEditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Metadata datatypes should already have their top-level datarecord from elsewhere
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to create a fake record for a metadata datatype');
+
+
             // Grab the tab's id, if it exists
             $params = $request->query->all();
             $odr_tab_id = '';
@@ -198,6 +203,10 @@ class FakeEditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Metadata datatypes should already have their top-level datarecord from elsewhere
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to save to a metadata datatype');
+
 
             // Validate the fake record's data, if possible
             $fake_record_service->verifyFakeRecord($post, $datatype, $user);
@@ -291,6 +300,10 @@ class FakeEditController extends ODRCustomController
             if ( !$pm_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Metadata datatypes should already have their top-level datarecord from elsewhere
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to save to a metadata datatype');
 
 
             // Datafield needs to be unique for this to make sense

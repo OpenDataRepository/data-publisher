@@ -42,114 +42,146 @@ class UpdateDataTypeForm extends AbstractType
         $datatype_id = $options['datatype_id'];
         $is_top_level = $options['is_top_level'];
         $is_link = $options['is_link'];
+        $is_metadata = $options['is_metadata'];
+        $is_metadata_template = $options['is_metadata_template'];
         $sortfield_datatypes = $options['sortfield_datatypes'];
 
         // None of these should be changable if viewing the properties of a linked datatype...
         if ($is_link == true)
             return;
 
-        $builder->add(
-            'short_name',
-            HiddenType::class,
-            array(
-                'required' => true,
-                'label' => 'Short Name',
-            )
-        );
+        if ( !$is_metadata ) {
+            // Metadata datatypes shouldn't allow their name or description to be changed directly
+            // Top-level/child datatypes and templates need to be able to though
+            $builder->add(
+                'short_name',
+                TextType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Dataset Name',
+                )
+            );
 
-        $builder->add(
-            'long_name',
-            TextType::class,
-            array(
-                'required' => true,
-                'label' => 'Dataset Name',
-            )
-        );
+            // This isn't displayed, but still needs to be synched with short_name...
+            $builder->add(
+                'long_name',
+                HiddenType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Dataset Name',
+                )
+            );
 
-        $builder->add(
-            'description',
-            TextareaType::class,
-            array(
-                'required' => true,
-                'label' => 'Description',
-            )
-        );
+            $builder->add(
+                'description',
+                TextareaType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Description',
+                )
+            );
+        }
 
-        $builder->add(
-            'externalIdField',
-            EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
-                    return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                                ->where('dfm.is_unique = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype_id);
-                },
+        if ( !$is_metadata && !$is_metadata_template ) {
+            // Metadata datatypes don't allow additional top-level records to be created
+            // As such, metadata templates also have no use for this property
+            $builder->add(
+                'newRecordsArePublic',
+                CheckboxType::class,
+                array(
+                    'label' => 'Created Records default to public',
+                    'required' => false
+                )
+            );
+        }
 
-                'label' => 'External ID Field',
-                'choice_label' => 'field_name',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => 'NONE',
-            )
-        );
+        if ( !$is_metadata && !$is_metadata_template ) {
+            // Metadata datatypes only have one record, so an external_id field is useless
+            // As such, metadata templates also have no use for this field
+            $builder->add(
+                'externalIdField',
+                EntityType::class,
+                array(
+                    'class' => 'ODR\AdminBundle\Entity\DataFields',
+                    'query_builder' => function (EntityRepository $er) use ($datatype_id) {
+                        return $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->where('dfm.is_unique = 1 AND df.dataType = ?1')
+                            ->setParameter(1, $datatype_id);
+                    },
 
-        $builder->add(
-            'nameField',
-            EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
-                    return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                                ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype_id);
-                },
+                    'label' => 'External ID Field',
+                    'choice_label' => 'field_name',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => 'NONE',
+                )
+            );
+        }
 
-                'label' => 'Name Field',
-                'choice_label' => 'field_name',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => 'NONE',
-            )
-        );
+        if ( !$is_metadata && !$is_metadata_template ) {
+            // Metadata datatypes only have one record, so a name field is useless
+            // As such, metadata templates also have no use for this field
+            $builder->add(
+                'nameField',
+                EntityType::class,
+                array(
+                    'class' => 'ODR\AdminBundle\Entity\DataFields',
+                    'query_builder' => function (EntityRepository $er) use ($datatype_id) {
+                        return $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
+                            ->setParameter(1, $datatype_id);
+                    },
 
-        $builder->add(
-            'sortField',
-            EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($sortfield_datatypes) {
-                    return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                                ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
-                                ->setParameter(1, $sortfield_datatypes);
-                },
+                    'label' => 'Name Field',
+                    'choice_label' => 'field_name',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => 'NONE',
+                )
+            );
+        }
 
-                'group_by' => function($df, $key, $value) use ($datatype_id) {
-                    /** @var DataFields $df */
-                    return $df->getDataType()->getShortName();
-                },
+        if ( !$is_metadata && !$is_metadata_template ) {
+            // Metadata datatypes only have one record, so a sort field is useless
+            // As such, metadata templates also have no use for this field
+            $builder->add(
+                'sortField',
+                EntityType::class,
+                array(
+                    'class' => 'ODR\AdminBundle\Entity\DataFields',
+                    'query_builder' => function (EntityRepository $er) use ($sortfield_datatypes) {
+                        return $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
+                            ->setParameter(1, $sortfield_datatypes);
+                    },
 
-                'label' => 'Sort Field',
-                'choice_label' => 'field_name',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => 'NONE',
-            )
-        );
+                    'group_by' => function ($df, $key, $value) use ($datatype_id) {
+                        /** @var DataFields $df */
+                        return $df->getDataType()->getShortName();
+                    },
 
-        if ($is_top_level) {
-            // Only provide options to change these properties if datatype is top-level...
+                    'label' => 'Sort Field',
+                    'choice_label' => 'field_name',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => 'NONE',
+                )
+            );
+        }
+
+        if ( !$is_metadata && !$is_metadata_template && $is_top_level ) {
+            // backgroundImage fields only make sense on non-metadata top-level datatypes
             $builder->add(
                 'backgroundImageField',
                 EntityType::class,
                 array(
                     'class' => 'ODR\AdminBundle\Entity\DataFields',
-                    'query_builder' => function(EntityRepository $er) use ($datatype_id) {
+                    'query_builder' => function (EntityRepository $er) use ($datatype_id) {
                         return $er->createQueryBuilder('df')
                             ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                             ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
@@ -165,7 +197,67 @@ class UpdateDataTypeForm extends AbstractType
                     'placeholder' => 'NONE',
                 )
             );
+        }
 
+        if ( $is_metadata || $is_metadata_template ) {
+            // metadata name field only makes sense for a metadata datatype, though it's only
+            //  allowed to be changed on a metadata template
+            $builder->add(
+                'metadataNameField',
+                EntityType::class,
+                array(
+                    'class' => 'ODR\AdminBundle\Entity\DataFields',
+                    'query_builder' => function (EntityRepository $er) use ($datatype_id) {
+                        return $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->where('ft.canBeMetadataNameField = 1 AND df.dataType = ?1')
+                            ->setParameter(1, $datatype_id);
+                    },
+
+                    'label' => 'Metadata Name Field',
+                    'choice_label' => 'field_name',
+                    'expanded' => false,
+                    'multiple' => false,
+
+                    // This field can't be blank for a metadata datatype
+                    'required' => true,
+//                    'placeholder' => 'NONE',
+                )
+            );
+        }
+
+        if ( $is_metadata || $is_metadata_template ) {
+            // metadata description field only makes sense for a metadata datatype, though it's
+            //  only allowed to be changed on a metadata template
+            $builder->add(
+                'metadataDescField',
+                EntityType::class,
+                array(
+                    'class' => 'ODR\AdminBundle\Entity\DataFields',
+                    'query_builder' => function (EntityRepository $er) use ($datatype_id) {
+                        return $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->where('ft.canBeMetadataDescField = 1 AND df.dataType = ?1')
+                            ->setParameter(1, $datatype_id);
+                    },
+
+                    'label' => 'Metadata Description Field',
+                    'choice_label' => 'field_name',
+                    'expanded' => false,
+                    'multiple' => false,
+
+                    // This field can't be blank for a metadata datatype
+                    'required' => true,
+//                    'placeholder' => 'NONE',
+                )
+            );
+        }
+
+
+        if ( !$is_metadata && !$is_metadata_template && $is_top_level ) {
+            // search slugs only make sense on non-metadata top-level datatypes
             $builder->add(
                 'searchSlug',
                 TextType::class,
@@ -174,15 +266,6 @@ class UpdateDataTypeForm extends AbstractType
                 )
             );
         }
-
-        $builder->add(
-            'newRecordsArePublic',
-            CheckboxType::class,
-            array(
-                'label'  => 'Created Records default to public',
-                'required' => false
-            )
-        );
     }
 
 
@@ -225,6 +308,8 @@ class UpdateDataTypeForm extends AbstractType
         $resolver->setRequired('datatype_id');
         $resolver->setRequired('is_top_level');
         $resolver->setRequired('is_link');
+        $resolver->setRequired('is_metadata');
+        $resolver->setRequired('is_metadata_template');
 
         $resolver->setRequired('sortfield_datatypes');
     }

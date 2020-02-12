@@ -47,6 +47,11 @@ class ODRRenderService
     private $cache_service;
 
     /**
+     * @var DatafieldInfoService
+     */
+    private $dfi_service;
+
+    /**
      * @var DatarecordInfoService
      */
     private $dri_service;
@@ -97,19 +102,21 @@ class ODRRenderService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatarecordInfoService $dri_service
-     * @param DatatypeInfoService $dti_service
-     * @param PermissionsManagementService $pm_service
-     * @param ThemeInfoService $theme_service
-     * @param CloneThemeService $cloneThemeService
-     * @param CloneTemplateService $cloneTemplateService
-     * @param EntityMetaModifyService $emm_service
+     * @param DatafieldInfoService $datafield_info_service
+     * @param DatarecordInfoService $datarecord_info_service
+     * @param DatatypeInfoService $datatype_info_service
+     * @param PermissionsManagementService $permissions_service
+     * @param ThemeInfoService $theme_info_service
+     * @param CloneThemeService $clone_theme_service
+     * @param CloneTemplateService $clone_template_service
+     * @param EntityMetaModifyService $entity_meta_modify_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatypeInfoService $datatype_info_service,
         PermissionsManagementService $permissions_service,
@@ -122,6 +129,7 @@ class ODRRenderService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatype_info_service;
         $this->pm_service = $permissions_service;
@@ -173,6 +181,8 @@ class ODRRenderService
 
             'sync_with_template' => false,
             'sync_metadata_with_template' => false,
+
+            'datafield_properties' => array(),
         );
 
         $datarecord = null;
@@ -586,6 +596,10 @@ class ODRRenderService
             // If rendering for Edit mode, the token list requires filtering to be done first...
             if ( isset($extra_parameters['token_list']) )
                 $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+
+            // If rendering for Master Design, datafield properties requires filtering to be done first...
+            if ( isset($extra_parameters['datafield_properties']) )
+                $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array);
         }
         else {
             // If displaying HTML for viewing/modifying a group, then the permission arrays need
@@ -982,7 +996,9 @@ class ODRRenderService
 
         $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
-            'is_datatype_admin' => $is_datatype_admin
+            'is_datatype_admin' => $is_datatype_admin,
+
+            'datafield_properties' => array(),
         );
 
         // Ensure all relevant themes are in sync before rendering the end result
@@ -1053,7 +1069,7 @@ class ODRRenderService
 
         // ...only get the datarecord arrays if a datarecord was specified
 //        $initial_datarecord_id = null;
-//        $datarecord_array = array();
+        $datarecord_array = array();
 //        if ( !is_null($datarecord) ) {
 //            $initial_datarecord_id = $datarecord->getId();
 //            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
@@ -1073,36 +1089,14 @@ class ODRRenderService
         // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
         //  they shouldn't...the theme array intentionally isn't filtered
         $user_permissions = $this->pm_service->getUserPermissionsArray($user);
-//        if ( isset($extra_parameters['target_user']) ) {
-//            // If rendering for "view_as_user" mode, then use the target user's permissions instead
-//            $user_permissions = $this->pm_service->getUserPermissionsArray( $extra_parameters['target_user'] );
-//        }
 
         $datatype_permissions = $user_permissions['datatypes'];
 //        $datafield_permissions = $user_permissions['datafields'];
 
-//        if ( !isset($extra_parameters['group']) ) {
-//            $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//
-//            // If rendering for Edit mode, the token list requires filtering to be done first...
-//            if (isset($extra_parameters['token_list']))
-//                $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
-//        }
-//        else {
-//            // If displaying HTML for viewing/modifying a group, then the permission arrays need
-//            //  to be based off the group instead of the user
-//            /** @var Group $group */
-//            $group = $extra_parameters['group'];
-//
-//            $permissions = $this->cache_service->get('group_'.$group->getId().'_permissions');
-//            if ($permissions == false) {
-//                $permissions = $this->pm_service->rebuildGroupPermissionsArray($group->getId());
-//                $this->cache_service->set('group_'.$group->getId().'_permissions', $permissions);
-//            }
-//
-//            $datatype_permissions = $permissions['datatypes'];
-//            $datafield_permissions = $permissions['datafields'];
-//        }
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        if ( isset($extra_parameters['datafield_properties']) )
+            $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array);
 
 
         // ----------------------------------------
@@ -1179,42 +1173,11 @@ class ODRRenderService
      */
     public function reloadMasterDesignDatafield($user, $source_datatype, $theme_element, $datafield)
     {
-        $datatype = $datafield->getDataType();
-        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
-
-        // Store whether this datafield is the datatype's external id field
-        $is_external_id_field = false;
-        if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() == $datafield->getId() )
-            $is_external_id_field = true;
-
-        // Store whether this datafield is derived from some master template
-        $is_master_template_field = false;
-        if ( !is_null($datafield->getMasterDataField()) )
-            $is_master_template_field = true;
-
-        // Store whether this datafield is being used by the datatype's render plugin or not
-        $is_datatype_render_plugin_field = false;
-        if ( $datatype->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
-            // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
-            $query = $this->em->createQuery(
-               'SELECT rpf.fieldName
-                FROM ODRAdminBundle:RenderPluginInstance AS rpi
-                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
-                WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id AND rpf.active = 1
-                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId(), 'datafield_id' => $datafield->getId()) );
-            $results = $query->getArrayResult();
-
-            if ( count($results) > 0 )
-                $is_datatype_render_plugin_field = true;
-        }
+        if ( $datafield->getDataType()->getId() !== $source_datatype->getId() )
+            throw new ODRBadRequestException();
 
         $extra_parameters = array(
-            'is_datatype_admin' => $is_datatype_admin,
-            'is_external_id_field' => $is_external_id_field,
-            'is_master_template_field' => $is_master_template_field,
-            'is_datatype_render_plugin_field' => $is_datatype_render_plugin_field,
+            'datafield_properties' => array(),
         );
 
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
@@ -1270,7 +1233,7 @@ class ODRRenderService
     private function reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord = null)
     {
         // ----------------------------------------
-        // Make the assumption that linked datatypes are available here
+        // Assume that the reload request could be for a datafield in a linked datatype
         $include_links = true;
 
         // All templates need the datatype and theme arrays...
@@ -1300,6 +1263,10 @@ class ODRRenderService
         // If rendering for Edit mode, the token list requires filtering to be done first...
         if ( isset($extra_parameters['token_list']) )
             $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+
+        // If rendering for Master Design, datafield properties requires filtering to be done first...
+        if ( isset($extra_parameters['datafield_properties']) )
+            $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array, $datafield_id);
 
 
         // ----------------------------------------

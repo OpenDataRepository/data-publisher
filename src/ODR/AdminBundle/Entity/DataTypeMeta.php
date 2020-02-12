@@ -123,6 +123,16 @@ class DataTypeMeta
     private $backgroundImageField;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $metadataNameField;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $metadataDescField;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
@@ -272,6 +282,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Set longName
      *
      * @param string $longName
@@ -285,6 +296,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Get longName
      *
      * @return string 
@@ -594,6 +606,54 @@ class DataTypeMeta
     public function getBackgroundImageField()
     {
         return $this->backgroundImageField;
+    }
+
+    /**
+     * Set metadataNameField.
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields|null $metadataNameField
+     *
+     * @return DataTypeMeta
+     */
+    public function setMetadataNameField(\ODR\AdminBundle\Entity\DataFields $metadataNameField = null)
+    {
+        $this->metadataNameField = $metadataNameField;
+
+        return $this;
+    }
+
+    /**
+     * Get metadataNameField.
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields|null
+     */
+    public function getMetadataNameField()
+    {
+        return $this->metadataNameField;
+    }
+
+    /**
+     * Set metadataDescField.
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields|null $metadataDescField
+     *
+     * @return DataTypeMeta
+     */
+    public function setMetadataDescField(\ODR\AdminBundle\Entity\DataFields $metadataDescField = null)
+    {
+        $this->metadataDescField = $metadataDescField;
+
+        return $this;
+    }
+
+    /**
+     * Get metadataDescField.
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields|null
+     */
+    public function getMetadataDescField()
+    {
+        return $this->metadataDescField;
     }
 
     /**

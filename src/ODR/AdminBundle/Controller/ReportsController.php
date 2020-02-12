@@ -30,10 +30,13 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
@@ -44,7 +47,7 @@ class ReportsController extends ODRCustomController
 {
 
     /**
-     * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
+     * Returns a list of all datarecords that have identical values in the given datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -63,8 +66,8 @@ class ReportsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -140,6 +143,7 @@ class ReportsController extends ODRCustomController
 
     /**
      * Builds an array of duplicated values for a datafield belonging to a top-level datatype.
+     *
      * In this version, duplicate values are not allowed in this datafield.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -207,7 +211,9 @@ print_r($grandparent_list);
 
     /**
      * Builds an array of duplicated values for a datafield belonging to a child datatype.
-     * In this version, duplicate values are allowed in this datafield...provided they don't occur within the same parent datarecord.
+     *
+     * In this version, duplicate values are allowed in this datafield...provided they don't occur
+     * within the same parent datarecord.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Datafields $datafield
@@ -291,7 +297,8 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a Datafield, build a list of Datarecords (if any) that have multiple files/images uploaded in that Datafield.
+     * Returns a list of all datarecords that have multiple files/images uploaded to the given
+     * datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -419,7 +426,9 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a Datatree, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     * For a specific datatree relationship (e.g. parent datatype -> child datatype, OR ancestor
+     * datatype -> remote datatype), returns a list of parent/ancestor datarecords that have
+     * multiple children/remote datarecords.
      *
      * @param integer $datatree_id
      * @param Request $request
@@ -533,7 +542,8 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a Datatype, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     * Returns a list of local datarecords that are linked to the datarecords of the remote datatype,
+     * as well as which remote records are linked to.
      *
      * @param integer $local_datatype_id
      * @param integer $remote_datatype_id
@@ -637,7 +647,7 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a datafield, build a list of all values stored in that datafield
+     * Returns a list of all values stored in the given datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -774,7 +784,7 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a datafield, build a list of all values stored in that datafield
+     * Returns a list of all records that have selected radio options in the given datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -879,6 +889,160 @@ print_r($grandparent_list);
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Returns a list of all records that have no values or selections in the given datafield.
+     *
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function analyzerequiredfieldAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // No sense running this if the fieldtype can't be set to required
+            if ( $datafield->getFieldType()->getCanBeRequired() === false )
+                throw new ODRBadRequestException();
+
+            // Going to run a search to locate all records where this field is empty...
+            $results = array();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            switch ( $typeclass ) {
+                case 'ShortVarchar':
+                case 'MediumVarchar':
+                case 'LongVarchar':
+                case 'LongText':
+                case 'IntegerValue':
+                case 'DecimalValue':
+                    // Search for the empty string
+                    $results = $search_service->searchTextOrNumberDatafield($datafield, '""');
+                    break;
+
+                case 'Radio':
+                    // Need an array of all possible options for this field
+                    $options = self::getOptionsOrTags($datafield);
+                    // Search for records where all of these options are unselected
+                    $results = $search_service->searchRadioDatafield($datafield, $options, false);    // never merge_using_OR
+                    break;
+
+                case 'Tag':
+                    // Need an array of all possible options for this field
+                    $options = self::getOptionsOrTags($datafield);
+                    // Search for records where all of these options are unselected
+                    $results = $search_service->searchTagDatafield($datafield, $options, false);    // never merge_using_OR
+                    break;
+
+                case 'DatetimeValue':
+                    // TODO - provide the option to search for fields without dates?
+                default:
+                    throw new ODRNotImplementedException();
+            }
+
+
+            // ----------------------------------------
+            // Render and return a page detailing which datarecords have multiple selected Radio Options...
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:required_field_report.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'datatype' => $datatype,
+                        'datarecords' => $results['records'],
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0xc481e438;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Returns an array of options/tags in the datafield, specifically for searching for all records
+     * that have no selections in this field.
+     *
+     * @param DataFields $datafield
+     *
+     * @return array
+     */
+    private function getOptionsOrTags($datafield)
+    {
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Radio' && $typeclass !== 'Tag' )
+            throw new ODRBadRequestException();
+
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+
+        $datatype = $datafield->getDataType();
+        $grandparent_datatype = $datatype->getGrandparent();
+        $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+        $df = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
+
+        $selections = array();
+        if ( $typeclass === 'Radio' ) {
+            foreach ($df['radioOptions'] as $num => $ro) {
+                $ro_id = $ro['id'];
+                $selections[$ro_id] = 0;
+            }
+        }
+        else if ( $typeclass === 'Tag' ) {
+            foreach ($df['tags'] as $tag_id => $tag) {
+                // This only gets top-level tags, but SearchService can deal with that
+                $selections[$tag_id] = 0;
+            }
+        }
+
+        return $selections;
     }
 
 

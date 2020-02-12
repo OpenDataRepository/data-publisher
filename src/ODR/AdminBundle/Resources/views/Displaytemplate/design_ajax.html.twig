@@ -132,6 +132,7 @@
             {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
 
                 'initial_datatype_id': initial_datatype_id,
                 'initial_theme_id': initial_theme_id,
@@ -1127,10 +1128,14 @@
                     tools.pub_stat.attr('title', 'Only logged in users may view this field.');
                 }
 
-                // Attach click handlers
-                tools.pub_stat.unbind('click').click(function () {
-                    togglePublic(id, 'datafield');
-                });
+                if (props.can_change_public_status) {
+                    tools.pub_stat.unbind('click').click(function () {
+                        togglePublic(id, 'datafield');
+                    });
+                }
+                else {
+                    tools.pub_stat.addClass('faded');
+                }
 
 
                 // Copy Datafield
@@ -2330,8 +2335,8 @@
         if (SaveDataTypeInterval[datatype_id] !== undefined)
             SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
 
-        // Set Short Name equal to Long Name for Datatype Properties
-        $('#UpdateDataTypeForm_short_name').val($('#UpdateDataTypeForm_long_name').val());
+        // Set Long Name equal to Short Name for Datatype Properties
+        $('#UpdateDataTypeForm_long_name').val($('#UpdateDataTypeForm_short_name').val());
 
         var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -2344,19 +2349,11 @@
             data: form_data,
             dataType: "json",
             success: function(data) {
-                // May need to update the datafield properties array if the external id field got
-                //  changed
-                if ( data.d.old_field_deletion_message.prevent_deletion !== undefined ) {
-                    var old_field_id = data.d.old_external_id_field;
-                    datafield_properties[old_field_id].can_delete = !data.d.old_field_deletion_message.prevent_deletion;
-                    datafield_properties[old_field_id].delete_message = data.d.old_field_deletion_message.prevent_deletion_message;
-                }
-
-                if ( data.d.new_field_deletion_message.prevent_deletion !== undefined ) {
-                    var new_field_id = data.d.new_external_id_field;
-                    datafield_properties[new_field_id].can_delete = !data.d.new_field_deletion_message.prevent_deletion;
-                    datafield_properties[new_field_id].delete_message = data.d.new_field_deletion_message.prevent_deletion_message;
-                }
+                // Changing several datatype properties (like external id field) can completely
+                //  change whether a datafield is deleteable or not
+                var tmp = data.d.datafield_properties;
+                datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                console.log(datafield_properties);
 
                 notifySaved();
             },

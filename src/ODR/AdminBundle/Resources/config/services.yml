@@ -78,6 +78,7 @@ services:
             $cache_service: "@odr.cache_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $search_service: "@odr.search_service"
+            $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
 
@@ -116,6 +117,7 @@ services:
             $entity_creation_service: "@odr.entity_creation_service"
             $lock_service: "@odr.lock_service"
             $permissions_service: "@odr.permissions_management_service"
+            $sort_service: "@odr.sort_service"
             $theme_info_service: "@odr.theme_info_service"
             $uuid_service: "@odr.uuid_service"
             $logger: "@monolog.logger.clone_template"
@@ -158,6 +160,7 @@ services:
             $permissions_service: "@odr.permissions_management_service"
             $search_service: "@odr.search_service"
             $search_cache_service: "@odr.search_cache_service"
+            $sort_service: "@odr.sort_service"
             $token_manager: "@security.csrf.token_manager"
             $logger: "@logger"
 
@@ -185,7 +188,12 @@ services:
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
-            $odr_web_dir: "%odr_web_directory%"
+            $logger: "@logger"
+
+    odr.datafield_info_service:
+        class: ODR\AdminBundle\Component\Service\DatafieldInfoService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
             $logger: "@logger"
 
     odr.theme_info_service:
@@ -239,12 +247,14 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $datafield_info_service: "@odr.datafield_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
             $datatype_info_service: "@odr.datatype_info_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $permissions_management_service: "@odr.permissions_management_service"
             $search_cache_service: "@odr.search_cache_service"
             $search_service: "@odr.search_service"
+            $sort_service: "@odr.sort_service"
             $theme_info_service: "@odr.theme_info_service"
             $logger: "@logger"
 
@@ -253,6 +263,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $datafield_info_service: "@odr.datafield_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
             $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"

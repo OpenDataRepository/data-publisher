@@ -25,6 +25,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
@@ -34,6 +35,7 @@ use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -43,6 +45,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
@@ -2010,9 +2013,9 @@ $ret .= '  Set current to '.$count."\n";
             $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
 
             $use_shortname = array(
-                29, 108, 220, 225, 253,
-                308, 342, 384, 391, 392,
-                397
+//                29, 108, 220, 225, 253,
+//                308, 342, 384, 391, 392,
+//                397
             );
 
             print '<table border="1">';
@@ -2117,6 +2120,7 @@ $ret .= '  Set current to '.$count."\n";
 
                 $dtm = $dt->getDataTypeMeta();
                 $dtm->setDescription('Default Metadata Description');
+                $dtm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
                 $em->persist($dtm);
 
                 $master_theme = $ec_service->createTheme($user, $dt, true);
@@ -2137,14 +2141,14 @@ $ret .= '  Set current to '.$count."\n";
                 $cache_service->delete('top_level_themes');
 
 
-                /** @var \ODR\AdminBundle\Entity\FieldType $long_varchar */
-                $long_varchar = $em->getRepository('ODRAdminBundle:FieldType')->find(6);
+                /** @var \ODR\AdminBundle\Entity\FieldType $medium_varchar */
+                $medium_varchar = $em->getRepository('ODRAdminBundle:FieldType')->find(7);
                 /** @var \ODR\AdminBundle\Entity\FieldType $paragraph_text */
                 $paragraph_text = $em->getRepository('ODRAdminBundle:FieldType')->find(5);
                 /** @var RenderPlugin $render_plugin */
                 $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
 
-                $name_df = $ec_service->createDatafield($user, $dt, $long_varchar, $render_plugin, true);
+                $name_df = $ec_service->createDatafield($user, $dt, $medium_varchar, $render_plugin, true);
                 $name_df->setIsMasterField(true);
                 $em->persist($name_df);
 
@@ -2153,6 +2157,7 @@ $ret .= '  Set current to '.$count."\n";
                 $name_dfm->setRequired(true);
 //                $name_dfm->setIsUnique(true);
                 $name_dfm->setSearchable(2);
+                $name_dfm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
                 $em->persist($name_dfm);
 
                 $desc_df = $ec_service->createDatafield($user, $dt, $paragraph_text, $render_plugin, true);
@@ -2164,10 +2169,15 @@ $ret .= '  Set current to '.$count."\n";
                 $desc_dfm->setRequired(true);
 //                $desc_dfm->setIsUnique(true);
                 $desc_dfm->setSearchable(2);
+                $desc_dfm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
                 $em->persist($desc_dfm);
 
                 $name_tdf = $ec_service->createThemeDatafield($user, $theme_element, $name_df, true);
                 $desc_tdf = $ec_service->createThemeDatafield($user, $theme_element, $desc_df, true);
+
+                $dtm->setMetadataNameField($name_df);
+                $dtm->setMetadataDescField($desc_df);
+                $em->persist($dtm);
 
                 // These aren't needed
 //                $em->refresh($dt);
@@ -2265,6 +2275,514 @@ $ret .= '  Set current to '.$count."\n";
         }
         catch (\Exception $e) {
             $source = 0xf56ac6d6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixexistingmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $baseurl = $this->getParameter('site_baseurl');
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType[] $metadata_templates */
+            $metadata_templates = $em->getRepository('ODRAdminBundle:DataType')->findBy(
+                array(
+                    'is_metadata_template' => 1,
+                )
+            );
+            if ( $metadata_templates == null )
+                throw new ODRNotFoundException('no metadata templates exist', true);
+
+            // ----------------------------------------
+            // Find datatypes/templates that already have a metadata datatype
+            $query = $em->createQuery(
+               'SELECT dt, mdt
+                FROM ODRAdminBundle:DataType dt
+                LEFT JOIN dt.metadata_datatype mdt
+                WHERE dt = dt.grandparent AND dt.metadata_for IS NULL AND dt.is_metadata_template = 0
+                AND dt.deletedAt IS NULL AND mdt.deletedAt IS NULL'
+            );
+            $results = $query->getResult();
+
+            print '<table border="1">';
+            print '<tr>';
+            print '<th>ID</th><th>Name</th><th>Is template?</th><th>Metadata ID</th><th>Metadata Template ID</th><th>COUNT(dr)</th><th>metadata is empty?</th>';
+            foreach ($metadata_templates as $mdt)
+                print '<th>Use "'.$mdt->getShortName().'" ('.$mdt->getId().') template</th>';
+            print '</tr>';
+
+            foreach ($results as $dt) {
+                /** @var DataType $dt */
+                print '<tr>';
+
+                $url = $this->generateUrl(
+                    'odr_design_master_theme',
+                    array(
+                        'datatype_id' => $dt->getId(),
+                    )
+                );
+                print '<td><a target="_blank" href="'.$baseurl.'/app_dev.php/admin#'.$url.'">'.$dt->getId().'</a></td>';
+
+                print '<td>'.$dt->getShortName().'</td>';
+                print '<td>'.$dt->getIsMasterType().'</td>';
+
+                if ( is_null($dt->getMetadataDatatype()) ) {
+                    print '<td></td>';    // no metadata ID...
+                    print '<td></td>';    // ...so no metadata template ID...
+                    print '<td></td>';    // ...so no metadata records...
+                    print '<td></td>';  // ...so metadata is empty by definition
+
+                    foreach ($metadata_templates as $mdt) {
+                        $url = $this->generateUrl(
+                            'odr_refactor_existing_metadata',
+                            array(
+                                'original_datatype_id' => $dt->getId(),
+                                'metadata_template_id' => $mdt->getId(),
+                            )
+                        );
+
+                        print '<td><a href="'.$url.'">Create</a></td>';
+                    }
+                }
+                else {
+                    $metadata_datatype = $dt->getMetadataDatatype();
+                    $url = $this->generateUrl(
+                        'odr_design_master_theme',
+                        array(
+                            'datatype_id' => $metadata_datatype->getId(),
+                        )
+                    );
+                    print '<td><a target="_blank" href="'.$baseurl.'/app_dev.php/admin#'.$url.'">'.$metadata_datatype->getId().'</a></td>';
+                    if ( !is_null($metadata_datatype->getMasterDataType()) ) {
+                        $mdt_id = $metadata_datatype->getMasterDataType()->getId();
+                        $url = $this->generateUrl(
+                            'odr_design_master_theme',
+                            array(
+                                'datatype_id' => $mdt_id,
+                            )
+                        );
+                        print '<td><a target="_blank" href="'.$baseurl.'/app_dev.php/admin#'.$url.'">'.$mdt_id.'</a></td>';
+                    }
+                    else {
+                        // no metadata template
+                        print '<td></td>';
+                    }
+
+                    $sub_query = $em->createQuery(
+                       'SELECT COUNT(dr)
+                        FROM ODRAdminBundle:DataRecord dr
+                        WHERE dr.dataType = :datatype_id
+                        AND dr.deletedAt IS NULL'
+                    )->setParameters(array('datatype_id' => $metadata_datatype->getId()));
+                    $sub_results = $sub_query->getArrayResult();
+                    $count = intval($sub_results[0][1]);
+
+                    print '<td>'.$count.'</td>';
+
+
+                    $sub_query = $em->createQuery(
+                       'SELECT COUNT(tdf)
+                        FROM ODRAdminBundle:Theme t
+                        JOIN ODRAdminBundle:ThemeElement te WITH te.theme = t
+                        JOIN ODRAdminBundle:ThemeDataField tdf WITH tdf.themeElement = te
+                        WHERE t.dataType = :datatype_id
+                        AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+                    )->setParameters(array('datatype_id' => $metadata_datatype->getId()));
+                    $sub_results = $sub_query->getArrayResult();
+                    $count = intval($sub_results[0][1]);
+
+                    if ($count == 0) {
+                        print '<td>Yes</td>';
+                        foreach ($metadata_templates as $mdt) {
+                            $url = $this->generateUrl(
+                                'odr_refactor_existing_metadata',
+                                array(
+                                    'original_datatype_id' => $dt->getId(),
+                                    'metadata_template_id' => $mdt->getId(),
+                                )
+                            );
+
+                            print '<td><a href="'.$url.'">Refactor</a></td>';
+                        }
+                    }
+                    else {
+                        print '<td></td>';
+                        foreach ($metadata_templates as $mdt)
+                            print '<td></td>';
+                    }
+                }
+
+                print '</tr>';
+            }
+
+            print '</table>';
+        }
+        catch (\Exception $e) {
+            $source = 0x53871c3f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param int $metadata_datatype_id
+     * @param int $metadata_template_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function refactorexistingmetadataAction($original_datatype_id, $metadata_template_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var CloneMasterDatatypeService $clone_datatype_service */
+            $clone_datatype_service = $this->container->get('odr.clone_master_datatype_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType $original_datatype */
+            $original_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($original_datatype_id);
+            if ( is_null($original_datatype) )
+                throw new ODRNotFoundException('Original Datatype');
+
+            /** @var DataType $metadata_template */
+            $metadata_template = $em->getRepository('ODRAdminBundle:DataType')->find($metadata_template_id);
+            if ( is_null($metadata_template) )
+                throw new ODRNotFoundException('Metadata Template');
+
+
+            // Ensure the parameters are correct
+            if ( !is_null($original_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException($original_datatype_id.' is a metadata datatype');
+
+            if ( $metadata_template->getIsMasterType() == false )
+                throw new ODRBadRequestException($metadata_template_id.' is not a metadata template');
+            if ( $metadata_template->getIsDefaultTemplate() == false )
+                throw new ODRBadRequestException($metadata_template_id.' is not a default template');
+
+
+            // ----------------------------------------
+            // Ensure the metadata datatype exists first...
+            $metadata_datatype = null;
+            if ( !is_null($original_datatype->getMetadataDatatype()) ) {
+                // This datatype already has a metadata datatype...
+                $metadata_datatype = $original_datatype->getMetadataDatatype();
+            }
+            else {
+                // This datatype does not have a metadata datatype...create an empty one
+                $metadata_datatype = $ec_service->createDatatype($user, $original_datatype->getShortName().' properties');
+
+                // Intentionally don't create groups, themes, or change it to DataType::STATE_OPERATIONAL
+                // Do need to set it as a metadata datatype though
+                $metadata_datatype->setMetadataFor($original_datatype);
+                $original_datatype->setMetadataDatatype($metadata_datatype);
+                $em->persist($metadata_datatype);
+                $em->persist($original_datatype);
+            }
+
+            // Ensure the new metadata datatype has the same public status as its "actual" datatype
+            $metadata_dtm = $metadata_datatype->getDataTypeMeta();
+            $metadata_dtm->setPublicDate($original_datatype->getPublicDate());
+            $em->persist($metadata_dtm);
+
+
+            // Ensure the metadata datatype is effectively empty...
+            $sub_query = $em->createQuery(
+               'SELECT COUNT(tdf)
+                FROM ODRAdminBundle:Theme t
+                JOIN ODRAdminBundle:ThemeElement te WITH te.theme = t
+                JOIN ODRAdminBundle:ThemeDataField tdf WITH tdf.themeElement = te
+                WHERE t.dataType = :datatype_id
+                AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $metadata_datatype->getId()) );
+            $sub_results = $sub_query->getArrayResult();
+            $count = intval($sub_results[0][1]);
+
+            if ( $count !== 0 )
+                throw new ODRBadRequestException('metadata datatype is not empty');
+
+
+            // ----------------------------------------
+            // Don't need to delete anything datarecord-related for the metadata datatype...it
+            //  doesn't have any drf or storage entities since it doesn't have any tdf entries
+            // However, do need to load the existing datarecord (or create it if it doesn't exist)
+            $query = $em->createQuery(
+               'SELECT dr
+                FROM ODRAdminBundle:DataRecord dr
+                WHERE dr.dataType = :datatype_id
+                AND dr.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $metadata_datatype->getId()) );
+            $results = $query->getResult();
+
+            $metadata_dr = null;
+            $has_dr = false;
+            foreach ($results as $dr) {
+                /** @var DataRecord $dr */
+                if ( !$has_dr ) {
+                    // Since no tdf entries, just use the first datarecord for the official metadata datarecord
+                    $metadata_dr = $dr;
+                    $has_dr = true;
+                }
+                else {
+                    // If more than one datarecord for this metadata datatype, delete all but the
+                    //  first one
+                    $drm = $dr->getDataRecordMeta();
+                    $drm->setDeletedAt(new \DateTime());
+                    $em->persist($drm);
+
+                    $dr->setDeletedBy($user);
+                    $dr->setDeletedAt(new \DateTime());
+                    $em->persist($dr);
+                }
+            }
+
+            // If the metadata datatype doesn't have a datarecord, create one
+            if ( !$has_dr ) {
+                $metadata_dr = $ec_service->createDatarecord($user, $metadata_datatype, true);    // delay flush
+                $metadata_dr->setProvisioned(false);
+                $em->persist($metadata_dr);
+            }
+
+            // Ensure the metadata datarecord has the same public date as its datatype
+            $metadata_drm = $metadata_dr->getDataRecordMeta();
+            $metadata_drm->setPublicDate($original_datatype->getPublicDate());
+            $em->persist($metadata_drm);
+
+            // Flushing happens just before cloning
+
+
+            // ----------------------------------------
+            // Need to delete existing Group entities for the metadata datatype, otherwise the
+            //  cloner will duplicate them
+            $query = $em->createQuery(
+               'SELECT g
+                FROM ODRAdminBundle:Group g
+                WHERE g.dataType = :datatype_id
+                AND g.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $metadata_datatype->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $g) {
+                /** @var \ODR\AdminBundle\Entity\Group $g */
+                // There will be no GroupDatafieldPermission entries
+                // Delete the GroupDatatypePermission entries
+                foreach ($g->getGroupDatatypePermissions() as $gdtp) {
+                    /** @var \ODR\AdminBundle\Entity\GroupDatatypePermissions $gdtp */
+                    $gdtp->setDeletedAt(new \DateTime());
+                    $em->persist($gdtp);
+                }
+
+                // Delete the UserGroup entries...a function will re-sync with the actual datatype
+                //  later on
+                foreach ($g->getUserGroups() as $ug) {
+                    /** @var \ODR\AdminBundle\Entity\UserGroup $ug */
+                    $ug->setDeletedBy($user);
+                    $ug->setDeletedAt(new \DateTime());
+                    $em->persist($ug);
+                }
+
+                // Delete the group and its groupMeta entry
+                $gm = $g->getGroupMeta();
+                $gm->setDeletedAt(new \DateTime());
+                $em->persist($gm);
+
+                $g->setDeletedBy($user);
+                $g->setDeletedAt(new \DateTime());
+                $em->persist($g);
+            }
+
+            // Flushing happens just before cloning
+
+
+            // ----------------------------------------
+            // Need to also delete everything theme-related for the metadata datatype so the cloner
+            //  doesn't duplicate it
+            $query = $em->createQuery(
+               'SELECT t
+                FROM ODRAdminBundle:Theme t
+                WHERE t.dataType = :datatype_id
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $metadata_datatype->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $t) {
+                /** @var \ODR\AdminBundle\Entity\Theme $t */
+                // There won't be any ThemeDatafield or ThemeDatatype entries
+                // Delete the ThemeElements
+                foreach ($t->getThemeElements() as $te) {
+                    /** @var \ODR\AdminBundle\Entity\ThemeElement $te */
+                    // Delete the themeElement and its meta entry
+                    $tem = $te->getThemeElementMeta();
+                    $tem->setDeletedAt(new \DateTime());
+                    $em->persist($tem);
+
+                    $te->setDeletedBy($user);
+                    $te->setDeletedAt(new \DateTime());
+                    $em->persist($te);
+                }
+
+                // Delete the theme and its meta entry
+                $tm = $t->getThemeMeta();
+                $tm->setDeletedAt(new \DateTime());
+                $em->persist($tm);
+
+                $t->setDeletedBy($user);
+                $t->setDeletedAt(new \DateTime());
+                $em->persist($t);
+            }
+
+            // Flushing happens just before cloning
+
+
+            // ----------------------------------------
+            // Reset the metadata datatype so that the CloneMasterDatatypeService can work with it
+            $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
+            $metadata_datatype->setMasterDataType($metadata_template);
+            // TODO - others?
+            $em->persist($metadata_datatype);
+
+            $em->flush();
+
+            // Clone the selected metadata template into the metadata datatype
+            $template_group = $original_datatype->getTemplateGroup();
+            $clone_datatype_service->createDatatypeFromMaster($metadata_datatype->getId(), $user->getId(), $template_group);    // do preserve uuids
+
+
+            // ----------------------------------------
+            // Now that the datatype is cloned, find the name/desc datafield
+            $em->refresh($metadata_datatype);
+            $name_df = $metadata_datatype->getMetadataNameField();
+            $desc_df = $metadata_datatype->getMetadataDescField();
+
+            // Ensure the metadata datatype has the correct entires for the name
+            $dtm = $metadata_datatype->getDataTypeMeta();
+            $dtm->setShortName($original_datatype->getShortName().' Properties');
+            $dtm->setLongName($original_datatype->getShortName().' Properties');
+            $em->persist($dtm);    // will get flushed in createStorageEntity()
+
+            // Ensure the metadata record has the correct entries for the name/desc
+            $ec_service->createStorageEntity($user, $metadata_dr, $name_df, $original_datatype->getShortName());
+            $ec_service->createStorageEntity($user, $metadata_dr, $desc_df, $original_datatype->getDescription());
+
+
+            // ----------------------------------------
+            // Users in the "admin" group of the "actual" datatype should become admins of the new
+            //  metadata datatype...users in any other group should be added to the "view only"
+            //  group to ensure they can still view the metadata datatype even if it's not public
+
+            // Save the "view only" and the "admin" groups of the metadata datatype
+            /** @var Group $admin_group */
+            $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy(
+                array(
+                    'dataType' => $metadata_datatype->getId(),
+                    'purpose' => 'admin'
+                )
+            );
+            if ( is_null($admin_group) )
+                throw new ODRException('Cloning for metadata datatype '.$metadata_datatype->getId().' did not create groups properly');
+
+            /** @var Group $view_group */
+            $view_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy(
+                array(
+                    'dataType' => $metadata_datatype->getId(),
+                    'purpose' => 'view_only'
+                )
+            );
+            if ( is_null($view_group) )
+                throw new ODRException('Cloning for metadata datatype '.$metadata_datatype->getId().' did not create groups properly');
+
+
+            foreach ($original_datatype->getGroups() as $og) {
+                /** @var Group $og */
+                foreach ($og->getUserGroups() as $oug) {
+                    /** @var UserGroup $oug */
+                    if ( $og->getPurpose() === 'admin' ) {
+                        // This user is in the "admin" group of the original datatype
+                        // Ensure they're also in the "admin" group of the metadata datatype
+                        $ec_service->createUserGroup($oug->getUser(), $admin_group, $user, true);    // delay flush
+                    }
+                    else {
+                        // This user is in some group for the original datatype
+                        // Ensure they're in the "view_only" group of the metadata datatype
+                        $ec_service->createUserGroup($oug->getUser(), $view_group, $user, true);    // delay flush
+                    }
+                }
+            }
+            // Flush once everything is done
+            $em->flush();
+
+
+            // ----------------------------------------
+            // Delete the cached version of the datatree array and the list of top-level datatypes
+            $cache_service->delete('cached_datatree_array');
+            $cache_service->delete('top_level_datatypes');
+            $cache_service->delete('top_level_themes');
+
+
+            $url = $this->generateUrl(
+                'odr_datatype_landing',
+                array(
+                    'datatype_id' => $original_datatype->getId(),
+                )
+            );
+            $baseurl = $this->container->getParameter('site_baseurl');
+            print '<a target="_blank" href="'.$baseurl.'/app_dev.php/admin#'.$url.'">'.$original_datatype->getId().'</a></br>';
+        }
+        catch (\Exception $e) {
+            $source = 0x95df7b26;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

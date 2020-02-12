@@ -492,6 +492,8 @@ class EntityCreationService
         $datatype_meta->setNameField(null);
         $datatype_meta->setSortField(null);
         $datatype_meta->setBackgroundImageField(null);
+        $datatype_meta->setMetadataNameField(null);
+        $datatype_meta->setMetadataDescField(null);
 
         /** @var RenderPlugin $default_render_plugin */
         $default_render_plugin = $this->em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy(

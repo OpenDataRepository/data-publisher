@@ -48,6 +48,11 @@ class EntityDeletionService
     private $cache_service;
 
     /**
+     * @var DatafieldInfoService
+     */
+    private $dfi_service;
+
+    /**
      * @var DatarecordInfoService
      */
     private $dri_service;
@@ -78,6 +83,11 @@ class EntityDeletionService
     private $search_service;
 
     /**
+     * @var SortService
+     */
+    private $sort_service;
+
+    /**
      * @var ThemeInfoService
      */
     private $ti_service;
@@ -93,35 +103,41 @@ class EntityDeletionService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatypeInfoService $datatype_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
      * @param SearchCacheService $search_cache_service
      * @param SearchService $search_service
+     * @param SortService $sort_service
      * @param ThemeInfoService $theme_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatypeInfoService $datatype_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
         SearchCacheService $search_cache_service,
         SearchService $search_service,
+        SortService $sort_service,
         ThemeInfoService $theme_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatype_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_service = $search_service;
+        $this->sort_service = $sort_service;
         $this->ti_service = $theme_info_service;
         $this->logger = $logger;
     }
@@ -149,6 +165,31 @@ class EntityDeletionService
             if (!$this->pm_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Check that the datafield isn't being used for something else before deleting it
+            $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $props = $this->dfi_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
+            if ( !$props['can_delete'] )
+                throw new ODRBadRequestException( $props['delete_message'] );
+
+
+            // Also prevent a datafield from being deleted if a migration is in progress
+            $query = $this->em->createQuery(
+               'SELECT tj.id
+                FROM ODRAdminBundle:TrackedJob tj
+                WHERE tj.job_type = :job_type AND tj.target_entity = :target_entity
+                AND tj.completed IS NULL
+                AND tj.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'job_type' => 'migrate',
+                    'target_entity' => 'datafield_'.$datafield->getId()
+                )
+            );
+            $result = $query->getArrayResult();
+
+            if ( !empty($result) )
+                throw new ODRBadRequestException("This Datafield can't be deleted because it's currently being migrated to another Fieldtype.");
 
 
             // ----------------------------------------
@@ -270,11 +311,11 @@ class EntityDeletionService
             $properties = array();
 
             // ...external id field
-            if ( !is_null($datatype->getExternalIdField())
-                && $datatype->getExternalIdField()->getId() === $datafield->getId()
-            ) {
-                $properties['externalIdField'] = null;
-            }
+//            if ( !is_null($datatype->getExternalIdField())
+//                && $datatype->getExternalIdField()->getId() === $datafield->getId()
+//            ) {
+//                $properties['externalIdField'] = null;
+//            }
 
             // ...name field
             if ( !is_null($datatype->getNameField())
@@ -296,9 +337,10 @@ class EntityDeletionService
             ) {
                 $properties['sortField'] = null;
 
-                // TODO - shouldn't this technically be in SortService?
-                // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $this->dti_service->resetDatatypeSortOrder($datatype->getId());
+                // Delete the sort order for the datatype too, so it doesn't attempt to sort on a
+                //  non-existent datafield...although the sort field is changing, don't clear the
+                //  cached records right this moment
+                $this->sort_service->resetDatatypeSortOrder($datatype);
             }
 
             // Save any required changes
@@ -423,8 +465,8 @@ class EntityDeletionService
 
 
     /**
-     * TODO - test this
      * TODO - EditController only needs to delete one at a time, but MassEditController needs multiple?
+     * Deletes a datarecord.
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
@@ -438,7 +480,6 @@ class EntityDeletionService
         $conn = null;
 
         try {
-
             // Going to need these...
             $datatype = $datarecord->getDataType();
             $parent_datarecord = $datarecord->getParent();
@@ -447,6 +488,18 @@ class EntityDeletionService
             $is_top_level = true;
             if ($datatype->getId() !== $parent_datarecord->getDataType()->getId())
                 $is_top_level = false;
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            if ( !$this->pm_service->canEditDatarecord($user, $parent_datarecord) )
+                throw new ODRForbiddenException();
+            if ( !$this->pm_service->canDeleteDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            // Don't delete the only top-level datarecord of a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to delete a metadata record');
 
 
             // ----------------------------------------
@@ -650,10 +703,12 @@ class EntityDeletionService
             $tmp = array($datatype->getId() => 0);
             $datatypes_to_delete = array(0 => $datatype->getId());
 
-            // If datatype has metadata, delete metadata
-            if ($metadata_datatype = $datatype->getMetadataDatatype()) {
-                array_push($datatypes_to_delete, $metadata_datatype->getId());
+            // If this datatype has a metadata datatype (it should)...
+            if ( !is_null($datatype->getMetadataDatatype()) ) {
+                // ...then ensure it gets deleted as well
+                array_push($datatypes_to_delete, $datatype->getMetadataDatatype()->getId());
             }
+
 
             while (count($tmp) > 0) {
                 $new_tmp = array();

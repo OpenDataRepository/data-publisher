@@ -1347,6 +1347,13 @@ odr_design_analyze_radio_selections:
     requirements:
         datafield_id: \d+
 
+odr_design_analyze_required_field:
+    path:  /edit/record/analyze_required_field/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzerequiredfield }
+    requirements:
+        datafield_id: \d+
+
+
 odr_get_file_decrypt_progress:
     path:  /view/decrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfiledecryptprogress }
@@ -1465,9 +1472,14 @@ odr_fix_missing_datafield_template_uuids:
     path:  /admin/fix_missing_datafield_template_uuids
     defaults: { _controller: ODRAdminBundle:Validation:fixmissingdatafielduuids }
 
+odr_check_fieldtype_table:
+    path:  /admin/check_fieldtype_table
+    defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+
 odr_update_datatype_names:
     path:  /admin/update_datatype_names
     defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }
+
 
 #-----------------------------------------
 
@@ -1839,3 +1851,14 @@ odr_create_default_metadata:
 odr_no_unique_fields_for_metadata:
     path:  /admin/metadata/no_unique_fields
     defaults: { _controller:  ODRAdminBundle:Worker:noUniqueFieldsForMetadata }
+
+odr_fix_existing_metadata:
+    path:  /admin/metadata/fix_existing
+    defaults: { _controller:  ODRAdminBundle:Worker:fixexistingmetadata }
+
+odr_refactor_existing_metadata:
+    path:  /admin/metadata/refactor/{original_datatype_id}/{metadata_template_id}
+    defaults: { _controller:  ODRAdminBundle:Worker:refactorexistingmetadata }
+    requirements:
+        original_datatype_id: \d+
+        metadata_template_id: \d+

@@ -14,6 +14,8 @@
 
 namespace ODR\AdminBundle\Form;
 
+// Entities
+use ODR\AdminBundle\Entity\DataFields;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -37,7 +39,37 @@ class UpdateDataFieldsForm extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $allowed_fieldtypes = array_values($options['allowed_fieldtypes']);
-        $current_typename = $options['current_typename'];
+        $current_typeclass = $options['current_typeclass'];
+
+        $builder->add(
+            'field_name',
+            TextType::class,
+            array(
+                'required' => true,
+                'label'  => 'Field Name',
+            )
+        );
+
+        $builder->add(
+            'description',
+            TextareaType::class,
+            array(
+                'required' => true,
+                'label'  => 'Description',
+            )
+        );
+
+        if ( $current_typeclass === 'Markdown' ) {
+            // This property only makes sense for a Markdown field
+            $builder->add(
+                'markdown_text',
+                TextareaType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Markdown Text',
+                )
+            );
+        }
 
         $builder->add(
             'field_type',
@@ -59,6 +91,7 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 /*
+        // This property isn't changed through this form
         $builder->add(
             'render_plugin',
             'entity',
@@ -76,6 +109,7 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 */
+/*
         $builder->add(
             'internal_reference_name',
             TextType::class,
@@ -84,33 +118,7 @@ class UpdateDataFieldsForm extends AbstractType
                 'label'  => 'Internal Reference Name',
             )
         );
-
-        $builder->add(
-            'field_name',
-            TextType::class,
-            array(
-                'required' => true,
-                'label'  => 'Field Name',
-            )
-        );
-
-        $builder->add(
-            'description', 
-            TextareaType::class,
-            array(
-                'required' => true,
-                'label'  => 'Description',
-            )
-        );
-
-        $builder->add(
-            'markdown_text',
-            TextareaType::class,
-            array(
-                'required' => true,
-                'label' => 'Markdown Text',
-            )
-        );
+*/
 /*
         $builder->add(
             'regex_validator', 
@@ -147,73 +155,82 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 
-        $builder->add(
-            'searchable', 
-            ChoiceType::class,
-            array(
-                'choices' => array(
-                    'No' => 0,
-                    'General Only' => 1,
-                    'Advanced' => 2,
-                    'Advanced Only' => 3,
-                ),
-                'choices_as_values' => true,
-                'label'  => 'Searchable',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => false
-            )
-        );
+        if ( $current_typeclass !== 'Markdown' ) {
+            // All fields except markdown are searchable
+            $builder->add(
+                'searchable',
+                ChoiceType::class,
+                array(
+                    'choices' => array(
+                        'No' => DataFields::NOT_SEARCHED,
+                        'General Only' => DataFields::GENERAL_SEARCH,
+                        'Advanced' => DataFields::ADVANCED_SEARCH,
+                        'Advanced Only' => DataFields::ADVANCED_SEARCH_ONLY,
+                    ),
+                    'choices_as_values' => true,
+                    'label' => 'Searchable',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => false
+                )
+            );
+        }
 
-        $builder->add(
-            'allow_multiple_uploads',
-            CheckboxType::class,
-            array(
-                'label'  => 'Allow Multiple Uploads',
-                'required' => false
-            )
-        );
-        $builder->add(
-            'shorten_filename',
-            CheckboxType::class,
-            array(
-                'label'  => 'Shorten Displayed Filename',
-                'required' => false
-            )
-        );
-        $builder->add(
-            'newFilesArePublic',
-            CheckboxType::class,
-            array(
-                'label'  => 'Uploaded Files default to Public',
-                'required' => false
-            )
-        );
+        if ( $current_typeclass === 'File' || $current_typeclass === 'Image' ) {
+            // These three properties only make sense for File or Image fields
+            $builder->add(
+                'allow_multiple_uploads',
+                CheckboxType::class,
+                array(
+                    'label' => 'Allow Multiple Uploads',
+                    'required' => false
+                )
+            );
+            $builder->add(
+                'shorten_filename',
+                CheckboxType::class,
+                array(
+                    'label' => 'Shorten Displayed Filename',
+                    'required' => false
+                )
+            );
+            $builder->add(
+                'newFilesArePublic',
+                CheckboxType::class,
+                array(
+                    'label' => 'Uploaded Files default to Public',
+                    'required' => false
+                )
+            );
+        }
 
         // Radio options and Tags have slightly different labels for these values
         $name_sort_label = 'Sort Options Alphabetically';
         $display_unselected_label = 'Display Unselected Options';
-        if ($current_typename === 'Tags') {
+        if ($current_typeclass === 'Tag') {
             $name_sort_label = 'Sort Tags Alphabetically';
             $display_unselected_label = 'Display Unselected Tags';
         }
 
-        $builder->add(
-            'radio_option_name_sort',
-            CheckboxType::class,
-            array(
-                'label'  => $name_sort_label,
-                'required' => false
-            )
-        );
-        $builder->add(
-            'radio_option_display_unselected',
-            CheckboxType::class,
-            array(
-                'label'  => $display_unselected_label,
-                'required' => false
-            )
-        );
+        if ( $current_typeclass === 'Radio' || $current_typeclass === 'Tag' ) {
+            // These two properties only make sense for Radio or Tag fields
+            $builder->add(
+                'radio_option_name_sort',
+                CheckboxType::class,
+                array(
+                    'label' => $name_sort_label,
+                    'required' => false
+                )
+            );
+            $builder->add(
+                'radio_option_display_unselected',
+                CheckboxType::class,
+                array(
+                    'label' => $display_unselected_label,
+                    'required' => false
+                )
+            );
+        }
 
         $builder->add(
             'children_per_row',
@@ -236,22 +253,25 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 
-        $builder->add(
-            'tags_allow_multiple_levels',
-            CheckboxType::class,
-            array(
-                'label'  => 'Allow multiple levels of tags',
-                'required' => false
-            )
-        );
-        $builder->add(
-            'tags_allow_non_admin_edit',
-            CheckboxType::class,
-            array(
-                'label'  => 'Non-admins can add/move/delete tags',
-                'required' => false
-            )
-        );
+        if ( $current_typeclass === 'Tag' ) {
+            // These properties only make sense for tag fields
+            $builder->add(
+                'tags_allow_multiple_levels',
+                CheckboxType::class,
+                array(
+                    'label' => 'Allow multiple levels of tags',
+                    'required' => false
+                )
+            );
+            $builder->add(
+                'tags_allow_non_admin_edit',
+                CheckboxType::class,
+                array(
+                    'label' => 'Non-admins can add/move/delete tags',
+                    'required' => false
+                )
+            );
+        }
     }
 
 
@@ -287,9 +307,10 @@ class UpdateDataFieldsForm extends AbstractType
         $resolver->setDefaults(array(
             'data_class' => 'ODR\AdminBundle\Entity\DataFieldsMeta',
             'allowed_fieldtypes' => null,
-            'current_typename' => null,
+            'current_typeclass' => null,
         ));
 
         $resolver->setRequired('allowed_fieldtypes');
+        $resolver->setRequired('current_typeclass');
     }
 }

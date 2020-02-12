@@ -1074,6 +1074,7 @@ class DataType
     }
 
     /**
+     * @deprecated
      * Get longName
      *
      * @return string
@@ -1181,6 +1182,26 @@ class DataType
     public function getBackgroundImageField()
     {
         return $this->getDataTypeMeta()->getBackgroundImageField();
+    }
+
+    /**
+     * Get metadataNameField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getMetadataNameField()
+    {
+        return $this->getDataTypeMeta()->getMetadataNameField();
+    }
+
+    /**
+     * Get metadataDescField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getMetadataDescField()
+    {
+        return $this->getDataTypeMeta()->getMetadataDescField();
     }
 
     /**

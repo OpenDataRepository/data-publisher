@@ -34,6 +34,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -320,8 +321,8 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1545,8 +1546,8 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TableThemeHelperService $tth_service */
@@ -2018,18 +2019,19 @@ class LinkController extends ODRCustomController
                         // Setup for figuring out which cache entries need deleted
                         $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                        // Have to save who deleted this linked_datatree entry first...
+                        // Delete the linked_datatree entry
                         $ldt->setDeletedBy($user);
+                        $ldt->setDeletedAt(new \DateTime());
                         $em->persist($ldt);
-                        $em->flush($ldt);
-                        // ...then mark the linked_datatree entry as deleted...can't do both at once
-                        $em->remove($ldt);
                     } else {
                         // Otherwise, a datarecord was linked and still is linked...
                         unset($datarecords[$remote_datarecord->getId()]);
                         // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
                     }
                 }
+
+                // Flush once everything is deleted
+                $em->flush();
             }
 
 
@@ -2285,15 +2287,14 @@ class LinkController extends ODRCustomController
                     // Setup for figuring out which cache entries need deleted
                     $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                    // Have to save who deleted this linked_datatree entry first...
+                    // Delete the linked_datatree entry
                     $ldt->setDeletedBy($user);
+                    $ldt->setDeletedAt(new \DateTime());
                     $em->persist($ldt);
-                    $em->flush($ldt);
-                    // ...then mark the linked_datatree entry as deleted...can't do both at once
-                    $em->remove($ldt);
                 }
             }
 
+            // Flush once everything is deleted
             $em->flush();
 
 

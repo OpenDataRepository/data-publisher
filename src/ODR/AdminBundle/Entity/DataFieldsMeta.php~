@@ -258,6 +258,7 @@ class DataFieldsMeta
     }
 
     /**
+     * @deprecated
      * Set internalReferenceName
      *
      * @param string $internalReferenceName
@@ -272,6 +273,7 @@ class DataFieldsMeta
     }
 
     /**
+     * @deprecated
      * Get internalReferenceName
      *
      * @return string

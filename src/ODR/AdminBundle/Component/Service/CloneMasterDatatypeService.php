@@ -723,6 +723,20 @@ class CloneMasterDatatypeService
                 $new_meta->setBackgroundImageField($new_df);
             }
 
+            if ( !is_null($template_meta->getMetadataNameField())
+                && $parent_df->getId() == $template_meta->getMetadataNameField()->getId()
+            ) {
+                // This is the new metadata_name field
+                $new_meta->setMetadataNameField($new_df);
+            }
+
+            if ( !is_null($template_meta->getMetadataDescField())
+                && $parent_df->getId() == $template_meta->getMetadataDescField()->getId()
+            ) {
+                // This is the new metadata_desc field
+                $new_meta->setMetadataDescField($new_df);
+            }
+
 
             // Process Meta Records
             $parent_df_meta = $parent_df->getDataFieldMeta();

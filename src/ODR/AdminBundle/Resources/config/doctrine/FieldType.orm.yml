@@ -30,17 +30,24 @@ ODR\AdminBundle\Entity\FieldType:
             type: text
             nullable: true
 
-        allowMultiple:
+# Neither of these seem to be used
+# allowMulitple had no 'true' values in it
+# insertOnCreate had boolean, integer, decimal, short/medium/long varchar, and paragraph text
+#        allowMultiple:
+#            type: boolean
+#            nullable: false
+#            column: allow_multiple
+#        insertOnCreate:
+#            type: boolean
+#            nullable: false
+#            column: insert_on_create
+#            default: 1
+
+        canBeRequired:
             type: boolean
             nullable: false
-            column: allow_multiple
-
-        insertOnCreate:
-            type: boolean
-            nullable: false
-            column: insert_on_create
-            default: 1
-
+            column: can_be_required
+            default: false
         canBeUnique:
             type: boolean
             nullable: false
@@ -50,6 +57,17 @@ ODR\AdminBundle\Entity\FieldType:
             type: boolean
             nullable: false
             column: can_be_sort_field
+            default: false
+
+        canBeMetadataNameField:
+            type: boolean
+            nullable: false
+            column: can_be_metadata_name_field
+            default: false
+        canBeMetadataDescField:
+            type: boolean
+            nullable: false
+            column: can_be_metadata_desc_field
             default: false
 
         created:

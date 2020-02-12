@@ -56,6 +56,11 @@ class SortService
     private $search_service;
 
     /**
+     * @var string
+     */
+    private $odr_web_dir;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -68,6 +73,7 @@ class SortService
      * @param CacheService $cacheService
      * @param EntityMetaModifyService $entityMetaModifyService
      * @param SearchService $searchService
+     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -75,12 +81,14 @@ class SortService
         CacheService $cache_service,
         EntityMetaModifyService $entity_meta_modify_service,
         SearchService $search_service,
+        $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->search_service = $search_service;
+        $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
 
@@ -963,5 +971,48 @@ class SortService
     private function tagSort_name($a, $b)
     {
         return strnatcasecmp($a, $b);
+    }
+
+
+    /**
+     * Should be called whenever the value in a sortfield changes.  The second parameter should be
+     * true only if a user changed the sortfield for a datatype (e.g. to null or to some other field)
+     *
+     * @param DataType $datatype
+     * @param bool $sort_field_changed
+     */
+    public function resetDatatypeSortOrder($datatype, $sort_field_changed = false)
+    {
+        // Delete the sorted cached list of the datarecords for this datatype
+        $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+
+
+        if ( $sort_field_changed ) {
+            // If the sort field got changed (e.g. DisplaytemplateController::datatypepropertiesAction())
+            // Then the cached entries of datarecords for this datatype also need to be rebuilt,
+            //  since the sortfield_value is cached inside them...
+            $grandparent_datatype = $datatype->getGrandparent();
+            $dr_list = $this->search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
+            foreach ($dr_list as $dr_id => $parent_dr_id) {
+                $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                $this->cache_service->delete('cached_table_data_'.$dr_id);
+            }
+        }
+
+
+        // TODO - this doesn't feel like it belongs here...but putting it in the GraphPluginInterface also doesn't quite make sense...
+        // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
+        //  the legend order matching the new datarecord order
+        $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype->getId().'/';
+        if ( file_exists($graph_filepath) ) {
+            $files = scandir($graph_filepath);
+            foreach ($files as $filename) {
+                // TODO - assumes linux?
+                if ($filename === '.' || $filename === '..')
+                    continue;
+
+                unlink($graph_filepath.'/'.$filename);
+            }
+        }
     }
 }

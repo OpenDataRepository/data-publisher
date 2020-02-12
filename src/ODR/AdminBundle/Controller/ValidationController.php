@@ -2332,4 +2332,234 @@ class ValidationController extends ODRCustomController
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    /**
+     * Checks whether the odr_field_type table is up to date
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function checkFieldtypeTableAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Define what the fieldtype table should have...arrays is [typeclass] => typename
+            $config = array(
+                'Boolean' => 'Boolean',
+                'File' => 'File',
+                'Image' => 'Image',
+                'Integer' => 'IntegerValue',
+                'Decimal' => 'DecimalValue',
+                'Paragraph Text' => 'LongText',
+                'Long Text' => 'LongVarchar',
+                'Medium Text' => 'MediumVarchar',
+                'Short Text' => 'ShortVarchar',
+                'Single Radio' => 'Radio',
+                'Single Select' => 'Radio',
+                'Multiple Radio' => 'Radio',
+                'Multiple Select' => 'Radio',
+                'DateTime' => 'DatetimeValue',
+                'Markdown' => 'Markdown',
+                'Tags' => 'Tag'
+            );
+
+            $can_be_required = array(
+//                'Boolean' => 'Boolean',
+//                'File' => 'File',
+//                'Image' => 'Image',
+                'Integer' => 'IntegerValue',
+                'Decimal' => 'DecimalValue',
+                'Paragraph Text' => 'LongText',
+                'Long Text' => 'LongVarchar',
+                'Medium Text' => 'MediumVarchar',
+                'Short Text' => 'ShortVarchar',
+                'Single Radio' => 'Radio',
+                'Single Select' => 'Radio',
+                'Multiple Radio' => 'Radio',
+                'Multiple Select' => 'Radio',
+//                'DateTime' => 'DatetimeValue',    // TODO - provide the option to search for fields without dates?
+//                'Markdown' => 'Markdown',
+                'Tags' => 'Tag'
+            );
+            $can_be_unique = array(
+//                'Boolean' => 'Boolean',
+//                'File' => 'File',
+//                'Image' => 'Image',
+                'Integer' => 'IntegerValue',
+                'Decimal' => 'DecimalValue',
+//                'Paragraph Text' => 'LongText',
+                'Long Text' => 'LongVarchar',
+                'Medium Text' => 'MediumVarchar',
+                'Short Text' => 'ShortVarchar',
+//                'Single Radio' => 'Radio',
+//                'Single Select' => 'Radio',
+//                'Multiple Radio' => 'Radio',
+//                'Multiple Select' => 'Radio',
+//                'DateTime' => 'DatetimeValue',
+//                'Markdown' => 'Markdown',
+//                'Tags' => 'Tag'
+            );
+            $can_be_sort_field = array(
+//                'Boolean' => 'Boolean',
+//                'File' => 'File',
+//                'Image' => 'Image',
+                'Integer' => 'IntegerValue',
+                'Decimal' => 'DecimalValue',
+//                'Paragraph Text' => 'LongText',
+                'Long Text' => 'LongVarchar',
+                'Medium Text' => 'MediumVarchar',
+                'Short Text' => 'ShortVarchar',
+                'Single Radio' => 'Radio',
+                'Single Select' => 'Radio',
+//                'Multiple Radio' => 'Radio',
+//                'Multiple Select' => 'Radio',
+                'DateTime' => 'DatetimeValue',
+//                'Markdown' => 'Markdown',
+//                'Tags' => 'Tag'
+            );
+            $can_be_metadata_name_field = array(
+//                'Boolean' => 'Boolean',
+//                'File' => 'File',
+//                'Image' => 'Image',
+//                'Integer' => 'IntegerValue',
+//                'Decimal' => 'DecimalValue',
+//                'Paragraph Text' => 'LongText',
+                'Long Text' => 'LongVarchar',
+                'Medium Text' => 'MediumVarchar',
+                'Short Text' => 'ShortVarchar',
+//                'Single Radio' => 'Radio',
+//                'Single Select' => 'Radio',
+//                'Multiple Radio' => 'Radio',
+//                'Multiple Select' => 'Radio',
+//                'DateTime' => 'DatetimeValue',
+//                'Markdown' => 'Markdown',
+//                'Tags' => 'Tag'
+            );
+            $can_be_metadata_desc_field = array(
+//                'Boolean' => 'Boolean',
+//                'File' => 'File',
+//                'Image' => 'Image',
+//                'Integer' => 'IntegerValue',
+//                'Decimal' => 'DecimalValue',
+                'Paragraph Text' => 'LongText',
+                'Long Text' => 'LongVarchar',
+                'Medium Text' => 'MediumVarchar',
+                'Short Text' => 'ShortVarchar',
+//                'Single Radio' => 'Radio',
+//                'Single Select' => 'Radio',
+//                'Multiple Radio' => 'Radio',
+//                'Multiple Select' => 'Radio',
+//                'DateTime' => 'DatetimeValue',
+//                'Markdown' => 'Markdown',
+//                'Tags' => 'Tag'
+            );
+
+            // Get the same set of data from the database...
+            $query = $em->createQuery(
+               'SELECT ft.id, ft.typeName, ft.typeClass, ft.canBeRequired, ft.canBeUnique,
+                       ft.canBeSortField, ft.canBeMetadataNameField, ft.canBeMetadataDescField
+                FROM ODRAdminBundle:FieldType AS ft
+                WHERE ft.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            // Check whether the two arrays are the same
+            $changes = array();
+            print '<pre>';
+            foreach ($results as $ft) {
+                $id = $ft['id'];
+                $typename = $ft['typeName'];
+                $typeclass = $ft['typeClass'];
+                $canBeRequired = $ft['canBeRequired'];
+                $canBeUnique = $ft['canBeUnique'];
+                $canBeSortField = $ft['canBeSortField'];
+                $canBeMetadataNameField = $ft['canBeMetadataNameField'];
+                $canBeMetadataDescField = $ft['canBeMetadataDescField'];
+
+                if ( !isset($config[$typename]) ) {
+                    print "Unrecognized fieldtype \"".$typename."\"\n";
+                    continue;
+                }
+                if ( $config[$typename] !== $typeclass ) {
+                    print "The fieldtype \"".$typename."\" expects the typeclass \"".$config[$typename]."\", but got \"".$typeclass."\"\n";
+                    $changes[] = 'UPDATE odr_field_type SET type_class = "'.$config[$typename].'" WHERE id = '.$id.';';
+                }
+
+                // can_be_required...
+                if ( isset($can_be_required[$typename]) && $canBeRequired == 0 ) {
+                    print "The fieldtype \"".$typename."\" should be allowed to be required, but isn't currently\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_required = 1 WHERE id = '.$id.';';
+                }
+                if ( !isset($can_be_required[$typename]) && $canBeRequired == 1 ) {
+                    print "The fieldtype \"".$typename."\" isn't allowed to be required, but currently is\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_required = 0 WHERE id = '.$id.';';
+                }
+
+                // can_be_unique...
+                if ( isset($can_be_unique[$typename]) && $canBeUnique == 0 ) {
+                    print "The fieldtype \"".$typename."\" should be allowed to be unique, but isn't currently\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_unique = 1 WHERE id = '.$id.';';
+                }
+                if ( !isset($can_be_unique[$typename]) && $canBeUnique == 1 ) {
+                    print "The fieldtype \"".$typename."\" isn't allowed to be unique, but currently is\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_unique = 0 WHERE id = '.$id.';';
+                }
+
+                // can_be_sort_field...
+                if ( isset($can_be_sort_field[$typename]) && $canBeSortField == 0 ) {
+                    print "The fieldtype \"".$typename."\" should be allowed to be a sortfield, but isn't currently\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_sort_field = 1 WHERE id = '.$id.';';
+                }
+                if ( !isset($can_be_sort_field[$typename]) && $canBeSortField == 1 ) {
+                    print "The fieldtype \"".$typename."\" is not allowed to be a sortfield, but currently is\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_sort_field = 0 WHERE id = '.$id.';';
+                }
+
+                // can_be_metadata_name_field...
+                if ( isset($can_be_metadata_name_field[$typename]) && $canBeMetadataNameField == 0 ) {
+                    print "The fieldtype \"".$typename."\" should be allowed to be a metadata_name_field, but isn't currently\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_metadata_name_field = 1 WHERE id = '.$id.';';
+                }
+                if ( !isset($can_be_metadata_name_field[$typename]) && $canBeMetadataNameField == 1 ) {
+                    print "The fieldtype \"".$typename."\" is not allowed to be a metadata_name_field, but currently is\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_metadata_name_field = 0 WHERE id = '.$id.';';
+                }
+
+                // can_be_metadata_desc_field...
+                if ( isset($can_be_metadata_desc_field[$typename]) && $canBeMetadataDescField == 0 ) {
+                    print "The fieldtype \"".$typename."\" should be allowed to be a metadata_desc_field, but isn't currently\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_metadata_desc_field = 1 WHERE id = '.$id.';';
+                }
+                if ( !isset($can_be_metadata_desc_field[$typename]) && $canBeMetadataDescField == 1 ) {
+                    print "The fieldtype \"".$typename."\" is not allowed to be a metadata_desc_field, but currently is\n";
+                    $changes[] = 'UPDATE odr_field_type SET can_be_metadata_desc_field = 0 WHERE id = '.$id.';';
+                }
+            }
+            print '</pre>';
+
+            print '<pre>';
+            foreach ($changes as $change)
+                print $change."\n";
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x4394c297;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }

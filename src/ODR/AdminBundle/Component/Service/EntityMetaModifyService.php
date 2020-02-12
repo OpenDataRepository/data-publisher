@@ -465,6 +465,8 @@ class EntityMetaModifyService
      * Compares the given properties array against the given Datatype's meta entry, and either updates
      * the existing DatatypeMeta entry or clones a new one if needed.
      *
+     * Side-effects of changing the metadata name/desc fields need to be handled by the caller.
+     *
      * @param ODRUser $user
      * @param DataType $datatype
      * @param array $properties
@@ -516,6 +518,11 @@ class EntityMetaModifyService
         if ( $old_meta_entry->getBackgroundImageField() !== null )
             $existing_values['backgroundImageField'] = $old_meta_entry->getBackgroundImageField()->getId();
 
+        if ( $old_meta_entry->getMetadataNameField() !== null )
+            $existing_values['metadataNameField'] = $old_meta_entry->getMetadataNameField()->getId();
+        if ( $old_meta_entry->getMetadataDescField() !== null )
+            $existing_values['metadataDescField'] = $old_meta_entry->getMetadataDescField()->getId();
+
 
         foreach ($existing_values as $key => $value) {
             // array_key_exists() is used because the datafield entries could legitimately be null
@@ -533,6 +540,11 @@ class EntityMetaModifyService
         if ( !isset($existing_values['sortField']) && isset($properties['sortField']) )
             $changes_made = true;
         if ( !isset($existing_values['backgroundImageField']) && isset($properties['backgroundImageField']) )
+            $changes_made = true;
+
+        if ( !isset($existing_values['metadataNameField']) && isset($properties['metadataNameField']) )
+            $changes_made = true;
+        if ( !isset($existing_values['metadataDescField']) && isset($properties['metadataDescField']) )
             $changes_made = true;
 
         if (!$changes_made)
@@ -589,6 +601,19 @@ class EntityMetaModifyService
                 $new_datatype_meta->setBackgroundImageField(null);
             else
                 $new_datatype_meta->setBackgroundImageField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
+        }
+
+        if ( array_key_exists('metadataNameField', $properties) ) {
+            if ( is_null($properties['metadataNameField']) )
+                $new_datatype_meta->setMetadataNameField(null);
+            else
+                $new_datatype_meta->setMetadataNameField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['metadataNameField']) );
+        }
+        if ( array_key_exists('metadataDescField', $properties) ) {
+            if ( is_null($properties['metadataDescField']) )
+                $new_datatype_meta->setMetadataDescField(null);
+            else
+                $new_datatype_meta->setMetadataDescField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['metadataDescField']) );
         }
 
         if ( isset($properties['searchSlug']) )

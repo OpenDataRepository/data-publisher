@@ -132,7 +132,7 @@ class SearchCacheService
             JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
             WHERE dt.id IN (:datatype_ids)
             AND dt.deletedAt IS NULL AND mdt.deletedAt IS NULL'
-        ) ->setParameters(
+        )->setParameters(
             array(
                 'datatype_ids' => $related_datatypes
             )

@@ -2217,6 +2217,7 @@ class DatatypeController extends ODRCustomController
                 throw new ODRNotFoundException('No Default Metadata Template found', true);
 
             // Since this is creating a template, only the default metadata template is allowed here
+            // It doesn't make sense for a new template to have more than name/description
 
 
             // ----------------------------------------
@@ -2305,7 +2306,7 @@ class DatatypeController extends ODRCustomController
                     unset( $all_metadata_templates[$num] );
             }
 
-            // There should always be at least the default metadata template  TODO - ...need to make something for super-admins to create one after initial install of ODR
+            // There should always be at least the default metadata template
             if ( count($all_metadata_templates) == 0 )
                 throw new ODRNotFoundException('No Metadata Templates found', true);
 
@@ -2326,6 +2327,7 @@ class DatatypeController extends ODRCustomController
                 throw new ODRNotFoundException('No Default Metadata Template found', true);
 
             // Since this is creating a template, only the default metadata template is allowed here
+            // It doesn't make sense for a new template to have more than name/description
 
 
             // ----------------------------------------
@@ -2464,15 +2466,17 @@ class DatatypeController extends ODRCustomController
                     $preserve_template_uuids = false;
                     $default_metadata_required = false;
                     break;
-                case DatatypeController::CREATE_TEMPLATE:    // TODO - test this
+                case DatatypeController::CREATE_TEMPLATE:
                     $cloning_from_template = true;
                     $preserve_template_uuids = false;
                     $default_metadata_required = true;
                     break;
-                case DatatypeController::CREATE_METADATA_TEMPLATE:    // TODO - test this
+                case DatatypeController::CREATE_METADATA_TEMPLATE:
                     $cloning_from_template = true;
                     $preserve_template_uuids = false;
-                    $default_metadata_required = true;    // TODO - ...weren't metadata templates supposed to not have metadata themselves?
+                    // metadata templates need to be based off another metadata template to ensure
+                    //  they have a name/description field set
+                    $default_metadata_required = true;
                     break;
 
                 default:
@@ -2648,15 +2652,17 @@ class DatatypeController extends ODRCustomController
                     $preserve_template_uuids = false;
                     $default_metadata_required = false;
                     break;
-                case DatatypeController::CREATE_TEMPLATE:    // TODO - test this
+                case DatatypeController::CREATE_TEMPLATE:
                     $cloning_from_template = true;
                     $preserve_template_uuids = false;
                     $default_metadata_required = true;
                     break;
-                case DatatypeController::CREATE_METADATA_TEMPLATE:    // TODO - test this
+                case DatatypeController::CREATE_METADATA_TEMPLATE:
                     $cloning_from_template = true;
                     $preserve_template_uuids = false;
-                    $default_metadata_required = true;    // TODO - ...weren't metadata templates supposed to not have metadata themselves?
+                    // metadata templates need to be based off another metadata template to ensure
+                    //  they have a name/description field set
+                    $default_metadata_required = true;
                     break;
 
                 default:
@@ -2726,11 +2732,12 @@ class DatatypeController extends ODRCustomController
             // Verify that the metadata form got filled out properly
             $fake_record_service->verifyFakeRecord($post, $metadata_template, $user);
 
-//            throw new ODRNotImplementedException();
+            // Extract the user-defined name/desc for the new database, for later use
+            $template_name_df = $metadata_template->getMetadataNameField();
+            $template_desc_df = $metadata_template->getMetadataDescField();
 
-            // TODO - ...I have no memory of how the dataset name/description was going to be identified/protected...
-            $new_datatype_name = $post['datafields'][243];
-            $new_datatype_desc = $post['datafields'][244];
+            $new_datatype_name = $post['datafields'][$template_name_df->getId()];
+            $new_datatype_desc = $post['datafields'][$template_desc_df->getId()];
 
 
             // ----------------------------------------
@@ -2750,55 +2757,76 @@ class DatatypeController extends ODRCustomController
             }
             $em->persist($new_database);
 
-            // TODO - ...I have no memory of how the dataset name/description was going to be identified/protected...
+            // The new database already has the correct name due to createDatatype()...ensure it
+            //  also has the correct description
             $new_database_meta = $new_database->getDataTypeMeta();
             $new_database_meta->setDescription($new_datatype_desc);
             $em->persist($new_database_meta);
 
 
-            // Create the skeleton of the metadata datatype
-            $new_metadata_datatype = $ec_service->createDatatype($user, $new_datatype_name.' Properties', true);    // don't flush immediately
-            $new_metadata_datatype->setMasterDataType($metadata_template);
-            $em->persist($new_metadata_datatype);
+            // ...don't really want the default metadata template to effectively depend on itself,
+            //  so it kind of makes sense to prevent metadata templates from having metadata
+            //  themselves...this shouldn't be too difficult to change later if needed
+            // TODO - also, there seems to be an exception in CloneMasterTemplateThemeService.php
+            // TODO -  during the creation of the metadata datatype when it's a metadata template...
+            if ( $type !== DatatypeController::CREATE_METADATA_TEMPLATE ) {
+                // Create the skeleton of the metadata datatype
+                // TODO - is this how metadata datatypes are going to be named?
+                $new_metadata_datatype = $ec_service->createDatatype($user, $new_datatype_name.' Properties', true);    // don't flush immediately
+                $new_metadata_datatype->setMasterDataType($metadata_template);
+                $em->persist($new_metadata_datatype);
 
+                // Connect the new database and its metadata datatype
+                $new_database->setMetadataDatatype($new_metadata_datatype);
+                $new_metadata_datatype->setMetadataFor($new_database);
+                $em->persist($new_database);
+                $em->persist($new_metadata_datatype);
+            }
 
-            // Connect the datatype and its metadata
-            $new_database->setMetadataDatatype($new_metadata_datatype);
-            $new_metadata_datatype->setMetadataFor($new_database);
-            $em->persist($new_database);
-            $em->persist($new_metadata_datatype);
-
-            // Flush now before any cloner runs
+            // Flush now before any cloning happens
             $em->flush();
 
 
             // ----------------------------------------
-            // Trigger an immediate clone of the metadata datatype from whatever template
-            $ret = $clone_datatype_service->createDatatypeFromMaster($new_metadata_datatype->getId(), $user->getId(), $new_database->getUniqueId(), true);
-            if ( $ret !== 'complete' )
-                throw new ODRException($ret);
+            // Since metadata templates don't have metadata datatypes themselves (see above), it
+            //  makes no sense to create one
+            if ( $type !== DatatypeController::CREATE_METADATA_TEMPLATE ) {
+                // Trigger an immediate clone of the metadata datatype from whatever template
+                $ret = $clone_datatype_service->createDatatypeFromMaster(
+                    $new_metadata_datatype->getId(),
+                    $user->getId(),
+                    $new_database->getUniqueId(),
+                    true
+                );
+                if ($ret !== 'complete')
+                    throw new ODRException($ret);
 
-            // Convert the post data so the datafield values point to the fields in the new metadata
-            //  datatype, not the fields from the template
-            $new_data = array();
-            foreach ($new_metadata_datatype->getDataFields() as $df) {
-                /** @var DataFields $df */
-                $template_df_id = $df->getMasterDataField()->getId();
+                // Convert the originally submitted post data so the datafield values point to the
+                //  correct fields in the new metadata datatype, instead of fields from the template
+                $new_data = array();
+                foreach ($new_metadata_datatype->getDataFields() as $df) {
+                    /** @var DataFields $df */
+                    $template_df_id = $df->getMasterDataField()->getId();
 
-                // Transfer the data submitted under the metadata template's datafield to the newly
-                //  cloned metadata datatype's field
-                $new_data[ $df->getId() ] = $post['datafields'][$template_df_id];
+                    // Transfer the data submitted under the metadata template's datafield to the
+                    //  newly cloned metadata datatype's field
+                    $new_data[$df->getId()] = $post['datafields'][$template_df_id];
+                }
+                $post['datafields'] = $new_data;
+
+                // commitFakeRecord() doesn't check the tokens for that datafields, it assumes that
+                //  any problems would've been caught by verifyFakeRecord()
+
+                // Now that the metadata datatype is cloned and the post data has been tweaked,
+                //  create the new metadata record
+                $fake_record_service->commitFakeRecord($post, $new_metadata_datatype, $user);
             }
-            $post['datafields'] = $new_data;
-
-            // Now that the metadata datatype is cloned and the post data has been tweaked, create
-            //  the new metadata record
-            $new_metadata_record = $fake_record_service->commitFakeRecord($post, $new_metadata_datatype, $user);
 
 
             // ----------------------------------------
-            // Trigger a background clone for the full datatype if needed
+            // Trigger a background clone for the full datatype if possible
             if ( $template_source_id !== 0 ) {
+                // TODO - re-enable this
 //                $pheanstalk = $this->get('pheanstalk');
 //                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 //                $api_key = $this->container->getParameter('beanstalk_api_key');
@@ -2820,7 +2848,12 @@ class DatatypeController extends ODRCustomController
 //                $delay = 0;
 //                $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
 
-                $ret = $clone_datatype_service->createDatatypeFromMaster($new_database->getId(), $user->getId(), $new_database->getUniqueId(), $preserve_template_uuids);
+                $ret = $clone_datatype_service->createDatatypeFromMaster(
+                    $new_database->getId(),
+                    $user->getId(),
+                    $new_database->getUniqueId(),
+                    $preserve_template_uuids
+                );
                 if ( $ret !== 'complete' )
                     throw new ODRException($ret);
             }

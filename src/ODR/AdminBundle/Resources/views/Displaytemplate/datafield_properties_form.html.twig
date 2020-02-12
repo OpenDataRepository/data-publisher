@@ -35,6 +35,19 @@
             {{ form_errors(datafield_form.description) }}
             {{ form_widget(datafield_form.description, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
+
+{#
+ # Render plugin for a datafield isn't set through this form
+        <div class="">
+            <label for="render_plugin_id">
+                Render Plugin
+            </label>
+            <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-23-24"/>
+            <span class="pure-u-1">
+                <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
+            </span>
+        </div>
+#}
 {#
         <div class="">
             <label for="{{ datafield_form.regex_validator.vars.id }}">
@@ -120,26 +133,42 @@
         </div>
         {% endif %}
 
-{#
-        <div class="">
-            <label for="render_plugin_id">
-                Render Plugin
-            </label>
-            <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-23-24"/>
-            <span class="pure-u-1">
-                <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
-            </span>
-        </div>
-#}
-
-        {% if typename != "Markdown" and typename != "Boolean" and typename != "File" and typename != "Image" %}
+        {% if fieldtype.getcanberequired == 1 %}
         {# Markdown fields don't have data...Files/Images fields are nightmarish to enforce "required" on #}
         {# Boolean fields can't distinguish between "no value" (illegal for "required") and "unselected" (which would be legal) #}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.required) }}
-            {{ form_widget(datafield_form.required, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
-            <label for="{{ datafield_form.required.vars.id }}">
+            {% if must_be_required %}
+                {{
+                    form_widget(datafield_form.required, {
+                        'attr':
+                        {
+                            'style': 'width:auto',
+                            'class': 'ODRFloatingCheckbox',
+                            'disabled': 'disabled',
+                            'title': 'This datafield is currently being used as a special Metadata field, and must remain required.'
+                        }
+                    })
+                }}
+            {% else %}
+                {{
+                    form_widget(datafield_form.required, {
+                        'attr': {
+                            'style': 'width:auto',
+                            'class': 'ODRFloatingCheckbox'
+                        }
+                    })
+                }}
+            {% endif %}
+            <label for="{{ datafield_form.required.vars.id }}" {% if must_be_required %}title="This datafield is currently being used as a special Metadata field, and must remain required."{% endif %}>
                 {{ datafield_form.required.vars.label }}
+                <span>
+                    <a target="_blank"
+                       class="ODRDataInspector"
+                       href="#{{ path( 'odr_design_analyze_required_field', {'datafield_id': datafield.id }) }}"
+                       title="Show Datarecords with no values for this Datafield..."
+                    ><i class="fa fa-list fa-lg"></i></a>
+                </span>
             </label>
         </div>
         {% endif %}
@@ -147,7 +176,7 @@
         {% if fieldtype.getcanbeunique == 1 and (datatype.getismetadatatemplate == false or datatype.getmetadatafor != null) %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.is_unique) }}
-            {% if is_external_id_field == true %}
+            {% if must_be_unique %}
                 {{
                     form_widget(datafield_form.is_unique, {
                         'attr':
@@ -169,7 +198,7 @@
                     })
                 }}
             {% endif %}
-            <label for="{{ datafield_form.is_unique.vars.id }}">
+            <label for="{{ datafield_form.is_unique.vars.id }}" {% if must_be_unique %}title="This datafield is currently being used as the Datatype\'s External ID field, and must remain unique."{% endif %}>
                 {{ datafield_form.is_unique.vars.label }}
                 <span>
                     <a target="_blank"
@@ -221,12 +250,12 @@
                 {{ form_errors(datafield_form.tags_allow_multiple_levels) }}
 
                 <span
-                {% if has_multiple_levels == 1 %}
+                {% if has_tag_hierarchy %}
                     title="This option can't be changed because the tag structure already has multiple levels"
                 {% endif %}
                 >
 
-                {% if has_multiple_levels == 1 %}
+                {% if has_tag_hierarchy %}
                     {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'style': 'width:auto'} }) }}
                 {% else %}
                     {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
@@ -276,18 +305,19 @@
                 {{ datafield_form.allow_multiple_uploads.vars.label }}
             </label>
             <span
-            {% if has_multiple_uploads == 1 %}
+            {% if has_multiple_uploads %}
                 title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
             {% endif %}
             >
 
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
-            {% if has_multiple_uploads == 1 %}
+            {% if has_multiple_uploads %}
                 <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
+            {# TODO - warn when changing this would end up changing table layouts?
             {% elseif used_by_table_theme == true %}
-                {# TODO - warn when changing this would end up changing table layouts? #}
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
+            #}
             {% else %}
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
             {% endif %}
@@ -324,6 +354,8 @@
         </div>
         {% endif %}
 
+{#
+ # Deprecated
         <div class="">
             <label for="{{ datafield_form.internal_reference_name.vars.id }}">
                 {{ datafield_form.internal_reference_name.vars.label }}
@@ -331,6 +363,7 @@
             {{ form_errors(datafield_form.internal_reference_name) }}
             {{ form_widget(datafield_form.internal_reference_name, { 'attr': {'class': 'ODRInternalReferenceName pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
+#}
 
         <div style="display: none">
         {{ form_rest(datafield_form) }}

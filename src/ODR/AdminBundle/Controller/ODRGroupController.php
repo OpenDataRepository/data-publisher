@@ -15,7 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\EntityCreationService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -37,6 +36,7 @@ use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -79,14 +79,17 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
             // Groups should only be attached to top-level datatypes...child datatypes inherit groups
             //  from their parent
             if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
+                throw new ODRBadRequestException('Unable to modify groups for a child datatype.');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -152,9 +155,17 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child datatype.');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -241,9 +252,17 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child datatype.');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -313,9 +332,16 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to delete, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -371,14 +397,15 @@ class ODRGroupController extends ODRCustomController
             $rows = $query->execute();
 
 
-            // Save who deleted the Group
-            $group->setDeletedBy($user);
-            $em->persist($group);
-            $em->flush();
-
             // Delete the Group and its meta entry
-            $em->remove($group->getGroupMeta());
-            $em->remove($group);
+            $group_meta = $group->getGroupMeta();
+            $group_meta->setDeletedAt(new \DateTime());
+            $em->persist($group_meta);
+
+            $group->setDeletedBy($user);
+            $group->setDeletedAt(new \DateTime());
+            $em->persist($group);
+
             $em->flush();
 
 
@@ -438,9 +465,16 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to delete, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -553,9 +587,14 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
+            // May need to view group membership of metadata datatypes...
+//            if ( !is_null($datatype->getMetadataFor()) )
+//                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -643,9 +682,14 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
+            // May need to view group membership of metadata datatypes...
+//            if ( !is_null($datatype->getMetadataFor()) )
+//                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -725,7 +769,8 @@ class ODRGroupController extends ODRCustomController
 
 
     /**
-     * Lists all groups the user belongs to, filtered by what the calling user is allowed to view.
+     * Lists all groups the user belongs to, filtered by which datatypes the calling user is allowed
+     * to view.
      *
      * @param integer $user_id
      * @param Request $request
@@ -788,10 +833,17 @@ class ODRGroupController extends ODRCustomController
                 JOIN dt.createdBy AS dt_cb
                 JOIN g.createdBy AS g_cb
                 JOIN g.groupMeta AS gm
-                WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps) AND dt.is_master_type = 0
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
+                WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps)
+                AND dt.is_master_type = 0 AND dt.metadata_for IS NULL
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
-            )->setParameters( array('datatype_ids' => $top_level_datatypes, 'setup_steps' => DataType::STATE_VIEWABLE) );
+            )->setParameters(
+                array(
+                    'datatype_ids' => $top_level_datatypes,
+                    'setup_steps' => DataType::STATE_VIEWABLE
+                )
+            );
             $results = $query->getArrayResult();
 
             // Only save datatypes that the admin user has the 'dt_admin' permission for
@@ -912,9 +964,17 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() !== null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to change membership for, but make sure
+            //  nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -956,14 +1016,17 @@ class ODRGroupController extends ODRCustomController
                     //  database got messed up somehow...
                     $changes_made = false;
                     foreach ($results as $ug) {
-                        // Can't just call $em->remove($ug)...that won't set deletedBy
-
                         /** @var UserGroup $ug */
-                        $ug->setDeletedBy($admin_user);
-                        $ug->setDeletedAt(new \DateTime());
-                        $em->persist($ug);
 
-                        $changes_made = true;
+                        // Don't remove the user from the group that they're supposed to be added to
+                        if ( $ug->getGroup()->getId() !== $group->getId() ) {
+                            // Can't just call $em->remove($ug)...that won't set deletedBy
+                            $ug->setDeletedBy($admin_user);
+                            $ug->setDeletedAt(new \DateTime());
+                            $em->persist($ug);
+
+                            $changes_made = true;
+                        }
                     }
 
                     // Flush now that all the updates have been made
@@ -986,21 +1049,26 @@ class ODRGroupController extends ODRCustomController
                         'group' => $group->getId()
                     )
                 );
-                if ($user_group == null) {
+                if ( is_null($user_group) ) {
                     /* user already doesn't belong to this group, do nothing */
                 }
                 else {
                     // Delete the UserGroup entity so the user is no longer linked to the group
+                    // Can't just call $em->remove($ug)...that won't set deletedBy
                     $user_group->setDeletedBy($admin_user);
                     $user_group->setDeletedAt(new \DateTime());
                     $em->persist($user_group);
-//                    $em->remove($user_group);
+
                     $em->flush();
 
                     // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
                     $em->detach($user_group);
                 }
             }
+
+            // May need to also modify the user's group membership for the metadata datatype
+            self::updateMetadataDatatypeGroups($user, $group, $admin_user);
+
 
             // ----------------------------------------
             // Notify the AJAX handler whether the user is still in a group for this datatype or not
@@ -1043,6 +1111,144 @@ class ODRGroupController extends ODRCustomController
 
 
     /**
+     * In order to maintain proper visibility, changes to group membership of an "actual" datatype
+     * need to be somewhat synchronized to its metadata datatype.
+     *
+     * At the moment, only admins of the "actual" datatype are allowed to edit the metadata datatype
+     * in any way...membership in any other group results in being added to the "view_only" group
+     * of the metadata datatype to ensure they can always see it.
+     *
+     * @param ODRUser $user
+     * @param Group $group
+     * @param ODRUser $admin_user
+     */
+    private function updateMetadataDatatypeGroups($user, $group, $admin_user)
+    {
+        // Ensure there's a metadata datatype to update...
+        $datatype = $group->getDataType();
+        if ( is_null($datatype->getMetadataDatatype()) )
+            return;
+
+        $metadata_datatype = $datatype->getMetadataDatatype();
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+        /** @var EntityCreationService $ec_service */
+        $ec_service = $this->container->get('odr.entity_creation_service');
+
+
+        // Currently, requirements for group membership in the metadata datatype is most easily
+        //  explained by the following three conditions...
+        // 1) If user is a member of the "actual" datatype's admin group, then they should also be
+        //      a member of the metadata datatype's admin group
+        // 2) Otherwise, if user is a member of any other group for the "actual" datatype, then they
+        //      should be a member of the metadata datatype's view_only group
+        // 3) Otherwise, the user is not a member of any group for the "actual" datatype...so they
+        //      shouldn't be a member of any group of the metadata datatype
+
+
+        // ----------------------------------------
+        // Load the "view_only" and "admin" groups for the metadata datatype, and also load whether
+        //  the user is a member of either of them
+        $query = $em->createQuery(
+           'SELECT g, ug
+            FROM ODRAdminBundle:Group g
+            LEFT JOIN ODRAdminBundle:UserGroup ug WITH (ug.group = g AND ug.user = :user_id AND ug.deletedAt IS NULL)
+            WHERE g.dataType = :datatype_id AND g.purpose IN (:allowed_groups)
+            AND g.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_id' => $metadata_datatype->getId(),
+                'user_id' => $user->getId(),
+                'allowed_groups' => array('admin', 'view_only')
+            )
+        );
+        $results = $query->getResult();
+
+        // The query will return four results...two Group entries, and two UserGroup (or null) entries
+        $metadata_groups = array();
+        $metadata_user_group = null;
+        foreach ($results as $result) {
+            if ( $result instanceof Group ) {
+                /** @var Group $result */
+                $metadata_groups[ $result->getPurpose() ] = $result;
+            }
+            else {
+                // $result instanceof UserGroup
+                /** @var UserGroup $result */
+                if ( !is_null($result) )
+                    $metadata_user_group = $result;
+            }
+        }
+        /** @var Group[] $metadata_groups */
+        /** @var UserGroup|null $metadata_user_group */
+
+
+        // ----------------------------------------
+        // Determine which groups the user is a part of for the "actual" datatype
+        $query = $em->createQuery(
+           'SELECT g
+            FROM ODRAdminBundle:DataType dt
+            JOIN ODRAdminBundle:Group g WITH g.dataType = dt
+            JOIN ODRAdminBundle:UserGroup ug WITH ug.group = g
+            WHERE dt = :datatype_id AND ug.user = :user_id
+            AND dt.deletedAt IS NULL AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_id' => $datatype->getId(),
+                'user_id' => $user->getId(),
+            )
+        );
+        // Don't need hydrated results, not making any changes to the "actual" datatype
+        $results = $query->getArrayResult();
+
+        $in_admin_group = false;
+        $in_other_group = false;
+        foreach ($results as $g) {
+            if ( $g['purpose'] === 'admin' )
+                $in_admin_group = true;
+            else
+                $in_other_group = true;
+        }
+
+
+        // ----------------------------------------
+        if ( $in_admin_group ) {
+            // User needs to not be a member of the "view_only" group of the metadata datatype
+            if ( !is_null($metadata_user_group) && $metadata_user_group->getGroup()->getPurpose() === 'view_only' ) {
+                $metadata_user_group->setDeletedAt(new \DateTime());
+                $metadata_user_group->setDeletedBy($admin_user);
+                $em->persist($metadata_user_group);
+            }
+
+            // User needs to be a member of the "admin" group of the metadata datatype
+            $ec_service->createUserGroup($user, $metadata_groups['admin'], $admin_user);
+        }
+        else if ( $in_other_group ) {
+            // User needs to not be a member of the "admin" group of the metadata datatype
+            if ( !is_null($metadata_user_group) && $metadata_user_group->getGroup()->getPurpose() === 'admin' ) {
+                $metadata_user_group->setDeletedAt(new \DateTime());
+                $metadata_user_group->setDeletedBy($admin_user);
+                $em->persist($metadata_user_group);
+            }
+
+            // User needs to be a member of the "view_only" group of the metadata datatype
+            $ec_service->createUserGroup($user, $metadata_groups['view_only'], $admin_user);
+        }
+        else {
+            // User needs to not be a member of either the "view_only" or "admin" groups of the
+            //  metadata datatype
+            if ( !is_null($metadata_user_group) ) {
+                $metadata_user_group->setDeletedAt(new \DateTime());
+                $metadata_user_group->setDeletedBy($admin_user);
+                $em->persist($metadata_user_group);
+                $em->flush();
+            }
+        }
+    }
+
+
+    /**
      * Renders and returns an interface for modifying permissions for a given Group.
      *
      * @param integer $group_id The database id of the Group being modified
@@ -1078,9 +1284,17 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child datatype.');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -1169,9 +1383,17 @@ class ODRGroupController extends ODRCustomController
             if ($gdtp == null)
                 throw new ODRNotFoundException('Permissions Entity');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child datatype.');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------
@@ -1402,9 +1624,17 @@ class ODRGroupController extends ODRCustomController
             if ($gdfp == null)
                 throw new ODRNotFoundException('Permissions Entity');
 
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child datatype.');
+
+            // Metadata datatypes need to have groups so anything permission-related works, but
+            //  they need to be kind of synchronized with their "actual" datatype to prevent several
+            //  weird edge cases
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to modify groups for a metadata datatype');
 
 
             // --------------------

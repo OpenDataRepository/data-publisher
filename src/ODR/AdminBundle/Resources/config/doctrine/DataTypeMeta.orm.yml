@@ -138,6 +138,27 @@ ODR\AdminBundle\Entity\DataTypeMeta:
                     referencedColumnName: id
             orphanRemoval: false
 
+        metadataNameField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                metadata_name_datafield_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+        metadataDescField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                metadata_desc_datafield_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+
         dataType:
             targetEntity: DataType
             cascade: {  }

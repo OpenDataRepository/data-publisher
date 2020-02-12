@@ -82,6 +82,11 @@ class CloneTemplateService
     private $pm_service;
 
     /**
+     * @var SortService
+     */
+    private $sort_service;
+
+    /**
      * @var ThemeInfoService
      */
     private $ti_service;
@@ -159,6 +164,7 @@ class CloneTemplateService
      * @param EntityCreationService $entity_creation_service
      * @param LockService $lock_service
      * @param PermissionsManagementService $permissions_service
+     * @param SortService $sort_service
      * @param ThemeInfoService $theme_info_service
      * @param UUIDService $uuid_service
      * @param Logger $logger
@@ -173,6 +179,7 @@ class CloneTemplateService
         EntityCreationService $entity_creation_service,
         LockService $lock_service,
         PermissionsManagementService $permissions_service,
+        SortService $sort_service,
         ThemeInfoService $theme_info_service,
         UUIDService $uuid_service,
         Logger $logger
@@ -186,6 +193,7 @@ class CloneTemplateService
         $this->ec_service = $entity_creation_service;
         $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
+        $this->sort_service = $sort_service;
         $this->ti_service = $theme_info_service;
         $this->uuid_service = $uuid_service;
         $this->logger = $logger;
@@ -362,6 +370,10 @@ class CloneTemplateService
 
             'copy_theme_structure' => 1,
         );
+
+        // NOTE - derived datatypes don't really have much of a reason to change external_id/name/sort
+        //  fields (assuming the template is properly designed), but actually enforcing this is both
+        //  difficult and doesn't really make sense either
 
         foreach ($datatype as $dt_id => $dt) {
             // This flag controls whether the template's theme_elements/theme_datafield entries are
@@ -2062,8 +2074,10 @@ class CloneTemplateService
         if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
             $properties['sortField'] = null;
 
-            // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-            $this->dti_service->resetDatatypeSortOrder($derived_dt->getId());
+            // Delete the sort order for the datatype too, so it doesn't attempt to sort on a
+            //  non-existent datafield...although the sort field is changing, don't clear the
+            //  cached records right this moment
+            $this->sort_service->resetDatatypeSortOrder($derived_dt);
         }
         else
             unset( $properties['sortField'] );

@@ -8,174 +8,250 @@
         }
     }) }}
 
-    {% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
+{% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
 
-        <fieldset>
-            {% if show_name %}
-                {# TODO Make long name the default and auto-populate short name with the same value #}
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.long_name.vars.id }}">
-                        {{ datatype_form.long_name.vars.label }}
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        {{ form_errors(datatype_form.long_name) }}
-                        {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'pure-u-1 required ODRDatasetName', 'data-error-type': 'inline' } }) }}
-                    </div>
-                </div>
-            {% else  %}
-                <div class="pure-control-group">
-                    <label class="ODRFieldLabel" for="{{ datatype_form.long_name.vars.id }}">
-                        {{ datatype_form.long_name.vars.label }}
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        <span class="ODRPropertiesWarning">See Dataset Properties Page</span>
-                    </div>
-                </div>
-            {% endif %}
-            {% if show_description %}
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.description.vars.id }}">
-                        {{ datatype_form.description.vars.label }}
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        {{ form_errors(datatype_form.description) }}
-                        {{ form_widget(datatype_form.description, { 'attr': {'rows': '3', 'class': 'pure-u-1 required', 'data-error-type': 'inline' } }) }}
-                    </div>
-                </div>
-            {% else %}
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.description.vars.id }}">
-                        {{ datatype_form.description.vars.label }}
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        <span class="ODRPropertiesWarning">See Dataset Properties Page</span>
-                    </div>
-                </div>
-            {% endif %}
-
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.newRecordsArePublic.vars.id }}">
-                    {{ datatype_form.newRecordsArePublic.vars.label }}
-                </label>
-                {{ form_errors(datatype_form.newRecordsArePublic) }}
-                {{ form_widget(datatype_form.newRecordsArePublic, { 'attr': {'style': 'width:auto'} }) }}
+    <fieldset>
+    {% if not is_metadata %}
+        {# Metadata datatypes don't show name #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.short_name.vars.id }}">
+                {{ datatype_form.short_name.vars.label }}
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.short_name) }}
+                {{ form_widget(datatype_form.short_name, { 'attr': {'class': 'pure-u-1 required ODRDatasetName', 'data-error-type': 'inline' } }) }}
             </div>
-
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.externalIdField.vars.id }}">
-                    {{ datatype_form.externalIdField.vars.label }}
-                    <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                             title="The contents of the selected Datafield will be used to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
-                </label>
-                <div class="ODRFieldWrapper">
-                    {{ form_errors(datatype_form.externalIdField) }}
-                    <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.externalIdField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
-                </span>
-                </div>
-            </div>
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.nameField.vars.id }}">
-                    {{ datatype_form.nameField.vars.label }}
-                    <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                             title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.{#  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use.#}"></i></span>
-                </label>
-                <div class="ODRFieldWrapper">
-                    {{ form_errors(datatype_form.nameField) }}
-                    <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.nameField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
-                </span>
-                </div>
-            </div>
-
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.sortField.vars.id }}">
-                    {{ datatype_form.sortField.vars.label }}
-                    <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                             title="The contents of the selected Datafield will determine the sorting order of the Datarecords of this Datatype."></i></span>
-                </label>
-                <div class="ODRFieldWrapper">
-                    {{ form_errors(datatype_form.sortField) }}
-                    <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.sortField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
-                </span>
-                </div>
-            </div>
-
-            {% if is_top_level == true %}
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.backgroundImageField.vars.id }}">
-                        {{ datatype_form.backgroundImageField.vars.label }}
-                        <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                                 title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield."></i></span>
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        {{ form_errors(datatype_form.backgroundImageField) }}
-                        <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.backgroundImageField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
-                </span>
-                    </div>
-                </div>
-
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.searchSlug.vars.id }}">
-                        {{ datatype_form.searchSlug.vars.label }}
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        {{ form_errors(datatype_form.searchSlug) }}
-                        <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/' }}</span>
-                        <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'class': '','style': 'width:auto;', 'maxlength': '32'} }) }}</span>
-                    </div>
-                </div>
-            {% endif %}
-
-            {% if is_top_level == true and can_view_permissions == true %}
-                <div class="pure-control-group">
-                    <label>
-                        Datatype Permissions
-                    </label>
-                    <span>
-                &nbsp;<a target="_blank" class="address"
-                         href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;"
-                         title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i></a>
-            </span>
-                </div>
-            {% endif %}
-
-            {# render all hidden fields, and anything else that's necessary #}
-            <div style="display: none">
-                {{ form_rest(datatype_form) }}
-            </div>
-
-        </fieldset>
+        </div>
     {% endif %}
+    {% if not is_metadata %}
+        {# Metadata datatypes don't show description #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.description.vars.id }}">
+                {{ datatype_form.description.vars.label }}
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.description) }}
+                {{ form_widget(datatype_form.description, { 'attr': {'rows': '3', 'class': 'pure-u-1 required', 'data-error-type': 'inline' } }) }}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not is_metadata and not is_metadata_template %}
+        {# Metadata datatypes don't allow additional records to be created #}
+        {# As such, metadata templates also have no use for this property #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.newRecordsArePublic.vars.id }}">
+                {{ datatype_form.newRecordsArePublic.vars.label }}
+            </label>
+            {{ form_errors(datatype_form.newRecordsArePublic) }}
+            {{ form_widget(datatype_form.newRecordsArePublic, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+    {% endif %}
+
+    {% if not is_metadata and not is_metadata_template %}
+        {# Metadata datatypes only have one record, so an external_id field is useless #}
+        {# As such, metadata templates also have no use for this property #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.externalIdField.vars.id }}">
+                {{ datatype_form.externalIdField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The contents of the selected Datafield will be used to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use.">
+                    </i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.externalIdField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.externalIdField, { 'attr': {'class': 'pure-u-1 ODRSelect', 'data-error-type': 'inline'} }) }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+    {% if not is_metadata and not is_metadata_template %}
+        {# Metadata datatypes only have one record, so a name field is useless #}
+        {# As such, metadata templates also have no use for this property #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.nameField.vars.id }}">
+                {{ datatype_form.nameField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.">
+                    </i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.nameField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.nameField, { 'attr': { 'class': 'pure-u-1 ODRSelect', 'data-error-type': 'inline' } }) }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+    {% if not is_metadata and not is_metadata_template %}
+        {# Metadata datatypes only have one record, so a sort field is useless #}
+        {# As such, metadata templates also have no use for this property #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.sortField.vars.id }}">
+                {{ datatype_form.sortField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The contents of the selected Datafield will determine the sorting order of the Datarecords of this Datatype.">
+                    </i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.sortField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.sortField, { 'attr': { 'class': 'pure-u-1 ODRSelect', 'data-error-type': 'inline' } }) }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not is_metadata and not is_metadata_template and is_top_level %}
+        {# Background image field only makes sense on non-metadata top-level datatypes #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.backgroundImageField.vars.id }}">
+                {{ datatype_form.backgroundImageField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield.">
+                    </i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.backgroundImageField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.backgroundImageField, { 'attr': { 'class': 'pure-u-1 ODRSelect', 'data-error-type': 'inline' } }) }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if is_metadata or is_metadata_template %}
+        {# Metadata_name field only makes sense in a metadata datatype/template #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.metadataNameField.vars.id }}">
+                {{ datatype_form.metadataNameField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The value in this field defines the name of the associated Datatype.">
+                    </i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.metadataNameField) }}
+                <span class="ODRSelectWrap">
+                {% if is_metadata %}
+                    {#
+                      Since all metadata is derived from a template, the original field can't be
+                      deleted, and any alternate field would still have to follow the same fieldtype
+                      requirements as the original field.  As such, there is literally no point to
+                      allowing the user to change this field for a regular metadata datatype.
+                    #}
+                    {{ form_widget(
+                        datatype_form.metadataNameField, {
+                            'attr': {
+                                'class': 'pure-u-1 ODRSelect',
+                                'data-error-type': 'inline',
+                                'disabled': 'disabled',
+                                'title': "This field is derived from a template, and can't be changed",
+                            }
+                        })
+                    }}
+                {% else %}
+                    {{ form_widget(datatype_form.metadataNameField, { 'attr': { 'class': 'pure-u-1 ODRSelect', 'data-error-type': 'inline' } }) }}
+                {% endif %}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+    {% if is_metadata or is_metadata_template %}
+        {# Metadata_desc field only makes sense in a metadata datatype #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.metadataDescField.vars.id }}">
+                {{ datatype_form.metadataDescField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The value in this field defines the description of the associated Datatype.">
+                    </i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.metadataDescField) }}
+                <span class="ODRSelectWrap">
+                {% if is_metadata %}
+                    {#
+                      Since all metadata is derived from a template, the original field can't be
+                      deleted, and any alternate field would still have to follow the same fieldtype
+                      requirements as the original field.  As such, there is literally no point to
+                      allowing the user to change this field for a regular metadata datatype.
+                    #}
+                    {{ form_widget(
+                        datatype_form.metadataDescField, {
+                            'attr': {
+                                'class': 'pure-u-1 ODRSelect',
+                                'data-error-type': 'inline',
+                                'disabled': 'disabled',
+                                'title': "This field is derived from a template, and can't be changed",
+                            }
+                        })
+                    }}
+                {% else %}
+                    {{ form_widget(datatype_form.metadataDescField, { 'attr': { 'class': 'pure-u-1 ODRSelect', 'data-error-type': 'inline' } }) }}
+                {% endif %}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not is_metadata and not is_metadata_template and is_top_level %}
+        {# search slugs only make sense on non-metadata top-level datatypes #}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.searchSlug.vars.id }}">
+                {{ datatype_form.searchSlug.vars.label }}
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.searchSlug) }}
+                <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/' }}</span>
+                <span>
+                    {{ form_widget(datatype_form.searchSlug, { 'attr': {'class': '','style': 'width:auto;', 'maxlength': '32'} }) }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not is_metadata and not is_metadata_template and is_top_level %}
+        {# not allowed to change permissions for metadata or child datatypes #}
+        {# since only datatype admins can get this far, the user always can view permissions #}
+        <div class="pure-control-group">
+            <label>
+                Datatype Permissions
+            </label>
+            <span>
+                &nbsp;<a target="_blank" class="address" style="color:black;"
+                    href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}"
+                    title="Manage Group permissions for this Datatype..."
+                >
+                    <i class="fa fa-cog fa-lg"></i>
+                </a>
+            </span>
+        </div>
+    {% endif %}
+
+        {# render all hidden fields, and anything else that's necessary #}
+        <div class="ODRHidden">
+            {{ form_rest(datatype_form) }}
+        </div>
+
+    </fieldset>
+{% endif %}    {# end {% if datatree == null or datatree.getislink == false %} #}
+
     {{ form_end(datatype_form) }}
 
-    {% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
+    {% if not is_top_level and datatree != null %}
+        {# display datatree properties if not a top-level datatype #}
         {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with
             {
                 'datatree': datatree,
@@ -186,7 +262,8 @@
         %}
     {% endif %}
 
-    {% if is_top_level == false and theme_datatype != null %}   {# display theme_datatype properties if not a top-level datatype #}
+    {% if not is_top_level and theme_datatype != null %}
+        {# display theme_datatype properties if not a top-level datatype #}
         {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with
             {
                 'theme_datatype': theme_datatype,
