@@ -566,6 +566,19 @@ class DataRecord
             return true;
     }
 
+    public function setPublicDate($user, $date, $em) {
+        // Always create new meta record when setting public
+        $new_meta = clone $this->getDataRecordMeta();
+        $new_meta->setCreatedBy($user);
+        $new_meta->setUpdatedBy($user);
+        $new_meta->setPublicDate($date);
+        $new_meta->setUpdated(new \DateTime());
+        $new_meta->setCreated(new \DateTime());
+        $em->persist($new_meta);
+        $em->remove($this->getDataRecordMeta());
+
+        return $new_meta;
+    }
 
     /**
      * Get publicDate

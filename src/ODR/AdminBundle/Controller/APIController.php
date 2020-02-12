@@ -2868,10 +2868,7 @@ class APIController extends ODRCustomController
                         $new_record_meta->setUpdated(new \DateTime());
                         $new_record_meta->setCreated(new \DateTime());
                         $new_record_meta->setDataRecord($new_record);
-                        // If new records are non-public, we need to switch linked when making public
                         $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
-                        // All API Data defaults to Public (parent record is private)?
-                        // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
 
                         // Need to persist and flush
                         $em->persist($new_record);
@@ -3375,6 +3372,14 @@ class APIController extends ODRCustomController
             if (is_null($data_type))
                 throw new ODRNotFoundException('DataType');
 
+            // Calculate the Public Date
+            if(isset($data['public_date'])) {
+                $public_date = new \DateTime($data['public_date']);
+            }
+            else {
+                $public_date = new \DateTime();
+            }
+
             /** @var DataRecord $data_record */
             $data_record = null;
             if(isset($data['record_uuid'])) {
@@ -3397,26 +3402,32 @@ class APIController extends ODRCustomController
             // Ensure Datatype is public
             /** @var DataTypeMeta $data_type_meta */
             $data_type_meta = $data_type->getDataTypeMeta();
-            if(isset($data['public_date'])) {
-                $data_type_meta->setPublicDate(new \DateTime($data['public_date']));
-            }
-            else {
-                $data_type_meta->setPublicDate(new \DateTime());
-            }
+            $data_type_meta->setPublicDate($public_date);
             $data_type_meta->setUpdatedBy($user);
             $em->persist($data_type_meta);
 
             // Ensure record is public
             /** @var DataRecordMeta $data_record_meta */
             $data_record_meta = $data_record->getDataRecordMeta();
-            if(isset($data['public_date'])) {
-                $data_record_meta->setPublicDate(new \DateTime($data['public_date']));
-            }
-            else {
-                $data_record_meta->setPublicDate(new \DateTime());
+            $data_record_meta->setPublicDate($public_date);
+            $data_record_meta->setUpdatedBy($user);
+
+            // Change permissions for all related datarecords
+            $json_data = self::getRecordData(
+                $version,
+                $data_record->getUniqueId(),
+                'json',
+                1,
+                $user
+            );
+
+            $json_record_data = json_decode($json_data, true);
+            foreach($json_record_data['records'] as $json_record) {
+                // Make record public
+                // Check for children
+                self::makeDatarecordPublic($json_record, $public_date, $user);
             }
 
-            $data_record_meta->setUpdatedBy($user);
             $em->persist($data_record_meta);
 
 
@@ -3425,12 +3436,7 @@ class APIController extends ODRCustomController
             if($actual_data_type) {
                 /** @var DataTypeMeta $data_type_meta */
                 $actual_data_type_meta = $actual_data_type->getDataTypeMeta();
-                if(isset($data['public_date'])) {
-                    $actual_data_type_meta->setPublicDate(new \DateTime($data['public_date']));
-                }
-                else {
-                    $actual_data_type_meta->setPublicDate(new \DateTime());
-                }
+                $actual_data_type_meta->setPublicDate($public_date);
 
                 $actual_data_type_meta->setUpdatedBy($user);
                 $em->persist($actual_data_type_meta);
@@ -3445,14 +3451,25 @@ class APIController extends ODRCustomController
                 // Ensure record is public
                 /** @var DataRecordMeta $data_record_meta */
                 $actual_data_record_meta = $actual_data_record->getDataRecordMeta();
-                if(isset($data['public_date'])) {
-                    $actual_data_record_meta->setPublicDate(new \DateTime($data['public_date']));
-                }
-                else {
-                    $actual_data_record_meta->setPublicDate(new \DateTime());
+                $actual_data_record_meta->setPublicDate($public_date);
+                $actual_data_record_meta->setUpdatedBy($user);
+
+                // Change permissions for all related datarecords
+                $json_data = self::getRecordData(
+                    $version,
+                    $actual_data_record->getUniqueId(),
+                    'json',
+                    1,
+                    $user
+                );
+
+                $json_record_data = json_decode($json_data, true);
+                foreach($json_record_data['records'] as $json_record) {
+                    // Make record public
+                    // Check for children
+                    self::makeDatarecordPublic($json_record, $public_date, $user);
                 }
 
-                $actual_data_record_meta->setUpdatedBy($user);
                 $em->persist($actual_data_record_meta);
             }
 
@@ -3463,8 +3480,7 @@ class APIController extends ODRCustomController
             /** @var ODRUser $api_user */  // Anon when nobody is logged in.
             $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-            // Actual User
-            $dri_service->updateDatarecordCacheEntry($data_record, $user);
+            $dri_service->updateDatarecordCacheEntry($data_record, $user); // Actual User
             $dti_service->updateDatatypeCacheEntry($data_type, $api_user);
             $dti_service->updateDatatypeCacheEntry($data_type, $user);
 
@@ -3492,17 +3508,19 @@ class APIController extends ODRCustomController
             $response = new Response('Created', 201);
 
             // going to search URL is not returning data due to non-public linked records
-            /*
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(
                 'version' => $version,
                 'datarecord_uuid' => $data_record->getUniqueId()
             ), false);
-            */
+
+            /*
             // Switching to get datarecord which uses user's permissions to build array
             $url = $this->generateUrl('odr_api_get_dataset_single_no_format', array(
                 'version' => $version,
                 'dataset_uuid' => $data_record->getDataType()->getUniqueId()
             ), false);
+            */
+
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
@@ -3514,6 +3532,47 @@ class APIController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+    }
+
+    public function makeDatarecordPublic($record_data, $pubilc_date, $user) {
+        /** @var EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        // Probably should check if user owns record here?
+
+        /** @var DataRecord $data_record */
+        $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+            array(
+                'unique_id' => $record_data['record_uuid']
+            )
+        );
+
+        if($data_record) {
+            // Set public using utility
+            $data_record->setPublicDate($user, $pubilc_date, $em);
+
+            // Flush Datarecord Caches
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
+            //  cache entry for their top-level datarecord
+            $cache_service->delete('cached_datarecord_'.$data_record->getId());
+
+            // Delete the filtered list of data meant specifically for table themes
+            $cache_service->delete('cached_table_data_'.$data_record->getId());
+
+            // Clear json caches used in API
+            $cache_service->delete('json_record_' . $data_record->getUniqueId());
+        }
+
+        if(isset($record_data['records'])) {
+            foreach($record_data['records'] as $record) {
+                self::makeDatarecordPublic($record, $pubilc_date, $user);
+            }
+        }
+
+        // All flushes done at end
+
     }
 
     /**
