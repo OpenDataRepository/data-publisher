@@ -3508,18 +3508,19 @@ class APIController extends ODRCustomController
             $response = new Response('Created', 201);
 
             // going to search URL is not returning data due to non-public linked records
+            /*
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(
                 'version' => $version,
                 'datarecord_uuid' => $data_record->getUniqueId()
             ), false);
+            */
 
-            /*
             // Switching to get datarecord which uses user's permissions to build array
+            // This is required because the user can turn databases non-public.
             $url = $this->generateUrl('odr_api_get_dataset_single_no_format', array(
                 'version' => $version,
                 'dataset_uuid' => $data_record->getDataType()->getUniqueId()
             ), false);
-            */
 
             $response->headers->set('Location', $url);
 
