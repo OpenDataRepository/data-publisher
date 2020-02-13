@@ -2932,6 +2932,28 @@ class APIController extends ODRCustomController
     public function updatedatasetAction($version, Request $request)
     {
 
+        $content = $request->getContent();
+        if (!empty($content)) {
+            // $dataset_data = json_decode($content, true); // 2nd param to get as array
+            //$dataset = $dataset_data['dataset'];
+            $logger = $this->get('logger');
+            $logger->info('DATA FROM UPDATEDATASET: ' . $content);
+        }
+
+        /*
+
+        $record_uuid = $dataset['record_uuid'];
+        $cache_service = $this->container->get('odr.cache_service');
+        $metadata_record = $cache_service
+            ->get('json_record_' . $record_uuid);
+
+
+        $response->headers->set('Content-Type', 'application/json');
+        $response->setContent($metadata_record);
+        return $response;
+        */
+
+
         try {
             $content = $request->getContent();
             if (!empty($content)) {
@@ -3335,6 +3357,11 @@ class APIController extends ODRCustomController
                 $response->setContent(json_encode(array('true' => 'yes')));
                 return $response;
 */
+        $content = $request->request->all();
+        if (!empty($content)) {
+            $logger = $this->get('logger');
+            $logger->info('DATA FROM PUBLISH: ' . var_export($content,true));
+        }
 
         try {
             // Get data from POST/Request
