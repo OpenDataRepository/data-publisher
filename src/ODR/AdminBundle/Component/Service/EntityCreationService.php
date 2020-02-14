@@ -696,26 +696,17 @@ class EntityCreationService
 
 
         // ----------------------------------------
-        // Automatically add super-admin users to new default "admin" groups
         if ($initial_purpose == 'admin') {
+            // Need to locate all super_admins since they're going to need permissions cleared
             $query = $this->em->createQuery(
-               'SELECT u
+               'SELECT u.id AS user_id
                 FROM ODROpenRepositoryUserBundle:User AS u
-                WHERE u.enabled = 1'
-            );
-            $user_list = $query->getResult();
-            /** @var ODRUser[] $user_list */
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $results = $query->getArrayResult();
 
-            // Locate those with super-admin permissions...
-            foreach ($user_list as $u) {
-                if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
-                    // ...add the super admin to this new admin group
-                    self::createUserGroup($u, $group, $user, true);    // don't flush immediately...
-
-                    // ...delete the cached list of permissions for each super-admin belongs to
-                    $this->cache_service->delete('user_'.$u->getId().'_permissions');
-                }
-            }
+            foreach ($results as $result)
+                $this->cache_service->delete('user_'.$result['user_id'].'_permissions');
         }
 
         // Flush here unless otherwise required
@@ -811,7 +802,21 @@ class EntityCreationService
 
             $user_list = array();
             foreach ($results as $result)
-                $user_list[] = $result['user_id'];
+                $user_list[ $result['user_id'] ] = 1;
+
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result)
+                $user_list[ $result['user_id'] ] = 1;
+
+            $user_list = array_keys($user_list);
 
 
             // ----------------------------------------
@@ -919,7 +924,21 @@ class EntityCreationService
 
         $user_list = array();
         foreach ($results as $result)
-            $user_list[] = $result['user_id'];
+            $user_list[ $result['user_id'] ] = 1;
+
+        // Need to separately locate all super_admins, since they're going to need permissions
+        //  cleared too
+        $query = $this->em->createQuery(
+           'SELECT u.id AS user_id
+            FROM ODROpenRepositoryUserBundle:User AS u
+            WHERE u.roles LIKE :role'
+        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result)
+            $user_list[ $result['user_id'] ] = 1;
+
+        $user_list = array_keys($user_list);
 
 
         // ----------------------------------------

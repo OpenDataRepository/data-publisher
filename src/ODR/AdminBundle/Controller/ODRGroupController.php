@@ -357,9 +357,9 @@ class ODRGroupController extends ODRCustomController
             if ($group->getPurpose() !== '')
                 throw new ODRBadRequestException('Not allowed to delete a default group');
 
-            // Get all users that are going to be affected by this
+            // Get all users that are members of this group
             $query = $em->createQuery(
-               'SELECT DISTINCT(u.id) AS user_id
+               'SELECT u.id AS user_id
                 FROM ODROpenRepositoryUserBundle:User AS u
                 JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
                 WHERE ug.group = :group_id
@@ -369,7 +369,21 @@ class ODRGroupController extends ODRCustomController
 
             $user_list = array();
             foreach ($results as $result)
-                $user_list[] = $result['user_id'];
+                $user_list[ $result['user_id'] ] = 1;
+
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result)
+                $user_list[ $result['user_id'] ] = 1;
+
+            $user_list = array_keys($user_list);
 
 
             // Delete all UserGroup entities
@@ -608,7 +622,8 @@ class ODRGroupController extends ODRCustomController
             // --------------------
 
 
-            // Get all non-super admin users who are members of this group
+            // Get all users who are members of this group...super admins won't be in the results,
+            //  but the twig files will print a blurb about them if needed
             $query = $em->createQuery(
                'SELECT u
                 FROM ODROpenRepositoryUserBundle:User AS u
@@ -621,13 +636,9 @@ class ODRGroupController extends ODRCustomController
             $user_list = array();
             foreach ($results as $result) {
                 $user_id = $result['id'];
-                $roles = $result['roles'];
 
-                // Never display a super-admin as a member of the group...it's effectively assumed they belong to all groups
-                if ( !in_array('ROLE_SUPER_ADMIN', $roles) ) {
-                    $user_data = UserUtility::cleanUserData($result);
-                    $user_list[$user_id] = $user_data;
-                }
+                $user_data = UserUtility::cleanUserData($result);
+                $user_list[$user_id] = $user_data;
             }
 
 
@@ -732,6 +743,8 @@ class ODRGroupController extends ODRCustomController
                         foreach ($g['userGroups'] as $num => $ug) {
                             $user_id = $ug['user']['id'];
 
+                            // Filter the list down to enabled non-super-admin users...the templating
+                            //  will display a blurb about super-admins when needed
                             if ( $ug['user']['enabled'] == 1 && !in_array('ROLE_SUPER_ADMIN', $ug['user']['roles']) ) {
                                 $user = UserUtility::cleanUserData($ug['user']);
                                 $group_list[$group_id]['users'][$user_id] = $user;
@@ -1545,6 +1558,7 @@ class ODRGroupController extends ODRCustomController
             )->setParameters( array('group_id' => $group->getId()) );
             $results = $query->getArrayResult();
 
+            // The above query won't find super_admins, but changes made here won't ever affect them
             $user_list = array();
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
@@ -1701,6 +1715,7 @@ class ODRGroupController extends ODRCustomController
             )->setParameters( array('group_id' => $group->getId()) );
             $results = $query->getArrayResult();
 
+            // The above query won't find super_admins, but changes made here won't ever affect them
             $user_list = array();
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];

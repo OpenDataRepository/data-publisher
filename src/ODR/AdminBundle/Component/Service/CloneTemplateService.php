@@ -1017,6 +1017,21 @@ class CloneTemplateService
                 $affected_users[$user_id] = 1;
         }
 
+        // Need to separately locate all super_admins, since they're going to need permissions
+        //  cleared too
+        $query = $this->em->createQuery(
+           'SELECT u.id AS user_id
+            FROM ODROpenRepositoryUserBundle:User AS u
+            WHERE u.roles LIKE :role'
+        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $user_id = $result['user_id'];
+
+            $affected_users[$user_id] = 1;
+        }
+
         // Delete all of the cached entries for the affected entities
         foreach ($affected_groups as $group_id => $num)
             $this->cache_service->delete('group_'.$group_id.'_permissions');

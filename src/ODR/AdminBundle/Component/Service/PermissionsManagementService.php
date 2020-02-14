@@ -706,129 +706,163 @@ class PermissionsManagementService
             // If this point is reached, the user's permissions arrays need to be rebuilt
             $user_permissions = array('datatypes' => array(), 'datafields' => array());
 
-            // To make things easier on Doctrine's hydrator, load the GroupDatatypePermission
-            //  entries separately from the GroupDatafieldPermission entries
-            $query = $this->em->createQuery(
-               'SELECT dt.id AS dt_id, gdtp AS dt_permissions
-                FROM ODRAdminBundle:UserGroup ug
-                JOIN ODRAdminBundle:Group g WITH ug.group = g
-                LEFT JOIN ODRAdminBundle:GroupDatatypePermissions gdtp WITH gdtp.group = g
-                LEFT JOIN ODRAdminBundle:DataType dt WITH gdtp.dataType = dt
-                WHERE ug.user = :user_id
-                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
-                AND gdtp.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user_id) );
-            $results = $query->getArrayResult();
+            if ( $user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // Super admins have permissions for all undeleted datatypes and datafields by default
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, df.id AS df_id
+                    FROM ODRAdminBundle:DataType dt
+                    LEFT JOIN ODRAdminBundle:DataFields df WITH df.dataType = dt
+                    WHERE (df.id IS NULL OR df.deletedAt IS NULL)
+                    AND dt.deletedAt IS NULL'
+                );
+                $results = $query->getArrayResult();
 
-            foreach ($results as $result) {
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $df_id = $result['df_id'];
 
-                $dt_id = $result['dt_id'];
-                $gdtp = $result['dt_permissions'];
+                    if ( !isset($user_permissions['datatypes'][$dt_id]) ) {
+                        $user_permissions['datatypes'][$dt_id]['dt_view'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
+//                        $user_permissions['datatypes'][$dt_id]['dt_design'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    }
 
-                // Don't store permissions for deleted datatypes
-                if ( is_null($dt_id) )
-                    continue;
+                    // $df_id will be null when a datatype has no datafields
+                    if ( !is_null($df_id) ) {
+                        $user_permissions['datafields'][$df_id]['view'] = 1;
+                        $user_permissions['datafields'][$df_id]['edit'] = 1;
+                    }
+                }
+            }
+            else {
+                // To make things easier on Doctrine's hydrator, load the GroupDatatypePermission
+                //  entries separately from the GroupDatafieldPermission entries
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, gdtp AS dt_permissions
+                    FROM ODRAdminBundle:UserGroup ug
+                    JOIN ODRAdminBundle:Group g WITH ug.group = g
+                    LEFT JOIN ODRAdminBundle:GroupDatatypePermissions gdtp WITH gdtp.group = g
+                    LEFT JOIN ODRAdminBundle:DataType dt WITH gdtp.dataType = dt
+                    WHERE ug.user = :user_id
+                    AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
+                    AND gdtp.deletedAt IS NULL AND dt.deletedAt IS NULL'
+                )->setParameters(array('user_id' => $user_id));
+                $results = $query->getArrayResult();
 
-                if ($gdtp['can_view_datatype'])
-                    $user_permissions['datatypes'][$dt_id]['dt_view'] = 1;
-                if ($gdtp['can_view_datarecord'])
-                    $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
-                if ($gdtp['can_add_datarecord'])
-                    $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
-                if ($gdtp['can_delete_datarecord'])
-                    $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
+                foreach ($results as $result) {
+
+                    $dt_id = $result['dt_id'];
+                    $gdtp = $result['dt_permissions'];
+
+                    // Don't store permissions for deleted datatypes
+                    if (is_null($dt_id))
+                        continue;
+
+                    if ($gdtp['can_view_datatype'])
+                        $user_permissions['datatypes'][$dt_id]['dt_view'] = 1;
+                    if ($gdtp['can_view_datarecord'])
+                        $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
+                    if ($gdtp['can_add_datarecord'])
+                        $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
+                    if ($gdtp['can_delete_datarecord'])
+                        $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
 //                if ($gdtp['can_design_datatype'])
 //                    $user_permissions['datatypes'][$dt_id]['dt_design'] = 1;
-                if ($gdtp['is_datatype_admin']) {
-                    $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
+                    if ($gdtp['is_datatype_admin']) {
+                        $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
 
-                    // Always able to view the record's edit page, even if no datafields exist
-                    $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                        // Always able to view the record's edit page, even if no datafields exist
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    }
                 }
-            }
 
 
-            // Ensure that datarecord_restrictions get stored
-            $query = $this->em->createQuery(
-               'SELECT dt.id AS dt_id, gm.datarecord_restriction
-                FROM ODRAdminBundle:UserGroup ug
-                JOIN ODRAdminBundle:Group g WITH ug.group = g
-                LEFT JOIN ODRAdminBundle:GroupMeta gm WITH gm.group = g
-                LEFT JOIN ODRAdminBundle:DataType dt WITH g.dataType = dt
-                WHERE ug.user = :user_id AND gm.datarecord_restriction IS NOT NULL
-                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
-                AND dt.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user_id) );
-            $results = $query->getArrayResult();
+                // Ensure that datarecord_restrictions get stored
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, gm.datarecord_restriction
+                    FROM ODRAdminBundle:UserGroup ug
+                    JOIN ODRAdminBundle:Group g WITH ug.group = g
+                    LEFT JOIN ODRAdminBundle:GroupMeta gm WITH gm.group = g
+                    LEFT JOIN ODRAdminBundle:DataType dt WITH g.dataType = dt
+                    WHERE ug.user = :user_id AND gm.datarecord_restriction IS NOT NULL
+                    AND ug.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
+                    AND dt.deletedAt IS NULL'
+                )->setParameters(array('user_id' => $user_id));
+                $results = $query->getArrayResult();
 
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $restriction = $result['datarecord_restriction'];
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $restriction = $result['datarecord_restriction'];
 
-                // Don't store permissions for deleted datatypes
-                if ( is_null($dt_id) )
-                    continue;
+                    // Don't store permissions for deleted datatypes
+                    if (is_null($dt_id))
+                        continue;
 
-                $user_permissions['datatypes'][$dt_id]['datarecord_restriction'] = $restriction;
-            }
-
-
-            // To make things easier on Doctrine's hydrator, load the GroupDatafieldPermission
-            //  entries separately from the GroupDatatypePermission entries
-            $query = $this->em->createQuery(
-               'SELECT dt.id AS dt_id, df.id AS df_id, gdfp AS df_permissions
-                FROM ODRAdminBundle:UserGroup ug
-                JOIN ODRAdminBundle:Group g WITH ug.group = g
-                LEFT JOIN ODRAdminBundle:GroupDatafieldPermissions gdfp WITH gdfp.group = g
-                LEFT JOIN ODRAdminBundle:DataFields df WITH gdfp.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
-                WHERE ug.user = :user_id
-                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
-                AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user_id) );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-
-                $df_id = $result['df_id'];
-                $dt_id = $result['dt_id'];
-                $gdfp = $result['df_permissions'];
-
-                // Don't store permissions for deleted datafields/datatypes
-                if ( is_null($df_id) || is_null($dt_id) )
-                    continue;
-
-                if ( $gdfp['can_view_datafield'] )
-                    $user_permissions['datafields'][$df_id]['view'] = 1;
-
-                if ( $gdfp['can_edit_datafield'] ) {
-                    $user_permissions['datafields'][$df_id]['edit'] = 1;
-
-                    // If the user is able to edit a datafield, ensure they can view the record's
-                    //  edit page
-                    $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    $user_permissions['datatypes'][$dt_id]['datarecord_restriction'] = $restriction;
                 }
-            }
 
-            // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-            $datatree_array = $this->dti_service->getDatatreeArray();
 
-            foreach ($user_permissions['datatypes'] as $dt_id => $gdtp) {
-                // For each child datatype the user has permissions for...
-                if ( isset($datatree_array['descendant_of'][$dt_id])
-                    && $datatree_array['descendant_of'][$dt_id] !== ''
-                ) {
-                    // ...if the user can edit the child datatype...
-                    if ( isset($gdtp['dr_edit']) ) {
-                        // ...then ensure the user can also view the edit page for each of the
-                        //  child's ancestor datatypes
-                        $parent_dt_id = $dt_id;
-                        while (
-                            isset($datatree_array['descendant_of'][$parent_dt_id])
-                            && $datatree_array['descendant_of'][$parent_dt_id] !== ''
-                        ) {
-                            $parent_dt_id = $datatree_array['descendant_of'][$parent_dt_id];
-                            $user_permissions['datatypes'][$parent_dt_id]['dr_edit'] = 1;
+                // To make things easier on Doctrine's hydrator, load the GroupDatafieldPermission
+                //  entries separately from the GroupDatatypePermission entries
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, df.id AS df_id, gdfp AS df_permissions
+                    FROM ODRAdminBundle:UserGroup ug
+                    JOIN ODRAdminBundle:Group g WITH ug.group = g
+                    LEFT JOIN ODRAdminBundle:GroupDatafieldPermissions gdfp WITH gdfp.group = g
+                    LEFT JOIN ODRAdminBundle:DataFields df WITH gdfp.dataField = df
+                    LEFT JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
+                    WHERE ug.user = :user_id
+                    AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
+                    AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+                )->setParameters(array('user_id' => $user_id));
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+
+                    $df_id = $result['df_id'];
+                    $dt_id = $result['dt_id'];
+                    $gdfp = $result['df_permissions'];
+
+                    // Don't store permissions for deleted datafields/datatypes
+                    if (is_null($df_id) || is_null($dt_id))
+                        continue;
+
+                    if ($gdfp['can_view_datafield'])
+                        $user_permissions['datafields'][$df_id]['view'] = 1;
+
+                    if ($gdfp['can_edit_datafield']) {
+                        $user_permissions['datafields'][$df_id]['edit'] = 1;
+
+                        // If the user is able to edit a datafield, ensure they can view the record's
+                        //  edit page
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    }
+                }
+
+                // If child datatypes have the "dr_edit" permission, ensure their parents do as well
+                $datatree_array = $this->dti_service->getDatatreeArray();
+
+                foreach ($user_permissions['datatypes'] as $dt_id => $gdtp) {
+                    // For each child datatype the user has permissions for...
+                    if (isset($datatree_array['descendant_of'][$dt_id])
+                        && $datatree_array['descendant_of'][$dt_id] !== ''
+                    ) {
+                        // ...if the user can edit the child datatype...
+                        if (isset($gdtp['dr_edit'])) {
+                            // ...then ensure the user can also view the edit page for each of the
+                            //  child's ancestor datatypes
+                            $parent_dt_id = $dt_id;
+                            while (
+                                isset($datatree_array['descendant_of'][$parent_dt_id])
+                                && $datatree_array['descendant_of'][$parent_dt_id] !== ''
+                            ) {
+                                $parent_dt_id = $datatree_array['descendant_of'][$parent_dt_id];
+                                $user_permissions['datatypes'][$parent_dt_id]['dr_edit'] = 1;
+                            }
                         }
                     }
                 }

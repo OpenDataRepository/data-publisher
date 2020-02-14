@@ -229,6 +229,18 @@ class EntityDeletionService
             $all_affected_users = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $all_super_admins = $query->getArrayResult();
+
+            // Merge the two lists together
+            $all_affected_users = array_merge($all_affected_users, $all_super_admins);
+
 
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
@@ -750,9 +762,24 @@ class EntityDeletionService
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
             )->setParameters(array('groups' => $groups_to_delete));
-            $all_affected_users = $query->getArrayResult();
+            $group_members = $query->getArrayResult();
 
-            //print '<pre>'.print_r($all_affected_users, true).'</pre>';  exit();
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $all_super_admins = $query->getArrayResult();
+
+            // Merge the two lists together
+            $all_affected_users = array();
+            foreach ($group_members as $num => $u)
+                $all_affected_users[ $u['user_id'] ] = 1;
+            foreach ($all_super_admins as $num => $u)
+                $all_affected_users[ $u['user_id'] ] = 1;
+            $all_affected_users = array_keys($all_affected_users);
 
             // Locate all cached theme entries that need to be rebuilt...
             $query = $this->em->createQuery(
@@ -1068,10 +1095,9 @@ class EntityDeletionService
             foreach ($groups_to_delete as $num => $group_id)
                 $this->cache_service->delete('group_'.$group_id.'_permissions');
 
-            foreach ($all_affected_users as $user) {
-                $user_id = $user['user_id'];
+            foreach ($all_affected_users as $user_id)
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
-            }
+
 
             // ...cached searches
             $this->search_cache_service->onDatatypeDelete($datatype);

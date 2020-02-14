@@ -22,7 +22,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // ODR
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
@@ -1189,36 +1188,18 @@ class ODRUserController extends ODRCustomController
                 $user->addRole('ROLE_SUPER_ADMIN');
 
                 // ----------------------------------------
-                // Remove the user from all the non-admin groups they're currently a member of...
+                // Remove the user from all the groups they're currently a member of
                 // NOTE - doing it this way because doctrine doesn't support multi-table updates
                 $query_str = '
                     UPDATE odr_user_group AS ug, odr_group AS g
                     SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
                     WHERE ug.group_id = g.id
-                    AND ug.user_id = :user_id AND g.purpose IN ("", "edit_all", "view_all", "view_only")
+                    AND ug.user_id = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
                 $parameters = array('admin_user_id' => $admin_user->getId(), 'user_id' => $user->getId());
 
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters);
-
-                // ...so they can be added to all existing "admin" default groups instead
-                /** @var Group[] $admin_groups */
-                $admin_groups = $em->getRepository('ODRAdminBundle:Group')->findBy( array('purpose' => 'admin') );
-                if ( count($admin_groups) > 0 ) {
-                    // Build a single INSERT INTO query to add this user to all existing "admin" default groups
-                    // A unique constraint placed upon (user_id, group_id) in the database will prevent duplicate entries
-                    $query_str = '
-                        INSERT IGNORE INTO odr_user_group (user_id, group_id, created, createdBy)
-                        VALUES ';
-
-                    foreach ($admin_groups as $admin_group)
-                        $query_str .= '("'.$user->getId().'", "'.$admin_group->getId().'", NOW(), "'.$admin_user->getId().'"),'."\n";
-                    $query_str = substr($query_str, 0, -2).';';
-
-                    $conn = $em->getConnection();
-                    $rowsAffected = $conn->executeUpdate($query_str);
-                }
 
 
                 // ----------------------------------------
