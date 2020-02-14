@@ -2934,19 +2934,25 @@ class APIController extends ODRCustomController
 
         $content = $request->getContent();
         if (!empty($content)) {
-            // $dataset_data = json_decode($content, true); // 2nd param to get as array
-            //$dataset = $dataset_data['dataset'];
+            $dataset_data = json_decode($content, true); // 2nd param to get as array
+            $dataset = $dataset_data['dataset'];
             $logger = $this->get('logger');
-            $logger->info('DATA FROM UPDATEDATASET: ' . $content);
+            $logger->info('DATA FROM UPDATEDATASET: ' . json_encode($dataset));
+
+/*
+            $response = new Response('Updated', 200);
+            $response->headers->set('Content-Type', 'application/json');
+            $response->setContent(json_encode($dataset));
+            return $response;
+*/
         }
+        // exit();
 
         /*
-
         $record_uuid = $dataset['record_uuid'];
         $cache_service = $this->container->get('odr.cache_service');
         $metadata_record = $cache_service
             ->get('json_record_' . $record_uuid);
-
 
         $response->headers->set('Content-Type', 'application/json');
         $response->setContent($metadata_record);
