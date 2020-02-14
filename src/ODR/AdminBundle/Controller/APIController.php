@@ -2932,6 +2932,7 @@ class APIController extends ODRCustomController
     public function updatedatasetAction($version, Request $request)
     {
 
+        /*
         $content = $request->getContent();
         if (!empty($content)) {
             $dataset_data = json_decode($content, true); // 2nd param to get as array
@@ -2939,14 +2940,13 @@ class APIController extends ODRCustomController
             $logger = $this->get('logger');
             $logger->info('DATA FROM UPDATEDATASET: ' . json_encode($dataset));
 
-/*
             $response = new Response('Updated', 200);
             $response->headers->set('Content-Type', 'application/json');
             $response->setContent(json_encode($dataset));
             return $response;
-*/
         }
         // exit();
+        */
 
         /*
         $record_uuid = $dataset['record_uuid'];
