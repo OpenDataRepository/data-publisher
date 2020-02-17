@@ -612,7 +612,7 @@ class SearchAPIServiceNoConflict
             if(isset($record['fields'])) {
                 foreach($record['fields'] as $field) {
                     if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
-                        $sort_array[$field['value']] = $record;
+                        $sort_array[strtolower($field['value'])] = $record;
                     }
                 }
             }

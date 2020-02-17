@@ -782,6 +782,7 @@ class DatatypeController extends ODRCustomController
                 AND (
                         dt.preload_status IS NULL 
                         OR dt.preload_status LIKE \'issued\'
+                        OR dt.preload_status LIKE \'\'
                     )
                 ';
 
