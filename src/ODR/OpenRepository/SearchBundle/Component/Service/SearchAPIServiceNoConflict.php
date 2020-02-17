@@ -479,21 +479,25 @@ class SearchAPIServiceNoConflict
 
         // Add General Search
         if(isset($params['general'])) {
-            $qs .= ' AND (e_lt.value LIKE :general';
-            $qs .= ' OR e_lvc.value LIKE :general';
-            $qs .= ' OR e_mvc.value LIKE :general';
-            $qs .= ' OR e_svc.value LIKE :general';
-            $qs .= ' OR e_im.caption LIKE :general';
-            $qs .= ' OR e_im.originalFileName LIKE :general';
-            $qs .= ' OR e_ipm.caption LIKE :general';
-            $qs .= ' OR e_ipm.originalFileName LIKE :general';
-            $qs .= ' OR e_fm.description LIKE :general';
-            $qs .= ' OR e_fm.originalFileName LIKE :general';
-            $qs .= ' OR rom.optionName LIKE :general';
-            $qs .= ' OR tm.tagName LIKE :general';
-            $qs .= ')';
-
-            $parameters['general'] = '%' . $params['general'] . '%';
+            if(preg_match('/\|\|/', $params['general'])) {
+                // We need to split and generate a general_terms array
+                $terms = preg_split('/\|\|/', $params['general']);
+                $qs .= ' AND ( ';
+                for($i = 0; $i < count($terms); $i++) {
+                    $term = $terms[$i];
+                    self::addGeneralParameters($qs, $parameters, trim($term), $i);
+                    if($i < count($terms) - 1) {
+                        $qs .= ' OR ';
+                    }
+                    else {
+                        $qs .= ' ) ';
+                    }
+                }
+            }
+            else {
+                $qs .= ' AND ';
+                self::addGeneralParameters($qs, $parameters, $params['general'], 0);
+            }
         }
 
         $parameters['datatype_id_array'] = $datatype_id_array;
@@ -623,6 +627,26 @@ class SearchAPIServiceNoConflict
         $records = array_values($sort_array);
 
         return $records;
+    }
+
+    function addGeneralParameters(&$qs, &$parameters, $term, $index) {
+
+        // Add General Search
+        $qs .= ' (e_lt.value LIKE :general_' . $index;
+        $qs .= ' OR e_lvc.value LIKE :general_' . $index;
+        $qs .= ' OR e_mvc.value LIKE :general_' . $index;
+        $qs .= ' OR e_svc.value LIKE :general_' . $index;
+        $qs .= ' OR e_im.caption LIKE :general_' . $index;
+        $qs .= ' OR e_im.originalFileName LIKE :general_' . $index;
+        $qs .= ' OR e_ipm.caption LIKE :general_' . $index;
+        $qs .= ' OR e_ipm.originalFileName LIKE :general_' . $index;
+        $qs .= ' OR e_fm.description LIKE :general_' . $index;
+        $qs .= ' OR e_fm.originalFileName LIKE :general_' . $index;
+        $qs .= ' OR rom.optionName LIKE :general_' . $index;
+        $qs .= ' OR tm.tagName LIKE :general_' . $index;
+        $qs .= ')';
+
+        $parameters['general_' . $index] = '%' . $term . '%';
     }
 
     /**
