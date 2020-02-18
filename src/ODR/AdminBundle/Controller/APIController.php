@@ -3532,6 +3532,7 @@ class APIController extends ODRCustomController
             // Clear the AssociatedDatarecordArray so it will rebuild...
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            $cache_service->delete('associated_datarecords_for_'.$data_record->getId());
             $cache_service->delete('associated_datarecords_for_'.$actual_data_record->getId());
 
 
@@ -3539,14 +3540,6 @@ class APIController extends ODRCustomController
             $search_cache_service->onDatarecordCreate($data_type);
 
             $response = new Response('Created', 201);
-
-            // going to search URL is not returning data due to non-public linked records
-            /*
-            $url = $this->generateUrl('odr_api_get_datarecord_single', array(
-                'version' => $version,
-                'datarecord_uuid' => $data_record->getUniqueId()
-            ), false);
-            */
 
             // Switching to get datarecord which uses user's permissions to build array
             // This is required because the user can turn databases non-public.
