@@ -64,8 +64,9 @@
                             {% endif %}
                         </label>
                         <input id="textbox_general" class="pure-u-1" type="text" name="gen"
-                           {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
-                           {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %}
+                            {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
+                            {% if search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+                            {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %}
                         />
                         <input type="hidden" id="search_type" value="basic" />
                     </div>

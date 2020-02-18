@@ -2351,6 +2351,8 @@ class ValidationController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // TODO - needs to be able to define existing fieldtypes?
+
             // Define what the fieldtype table should have...arrays is [typeclass] => typename
             $config = array(
                 'Boolean' => 'Boolean',
@@ -2542,7 +2544,14 @@ class ValidationController extends ODRCustomController
                     print "The fieldtype \"".$typename."\" is not allowed to be a metadata_desc_field, but currently is\n";
                     $changes[] = 'UPDATE odr_field_type SET can_be_metadata_desc_field = 0 WHERE id = '.$id.';';
                 }
+
+                // Found the info for this fieldtype in the database...unset so we can track missing fieldtypes
+                unset( $config[$typename] );
             }
+
+            foreach ($config as $typename => $typeclass)
+                print "The fieldtype \"".$typename."\" (\"".$typeclass."\") is not defined in the database\n";
+
             print '</pre>';
 
             print '<pre>';
