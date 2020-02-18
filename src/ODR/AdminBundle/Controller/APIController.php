@@ -4255,7 +4255,7 @@ class APIController extends ODRCustomController
                 $level = $field['value'][$i];
                 $level_array = [];
                 foreach ($data as $name => $item_record) {
-                    if ($level['template_tag_uuid'] == $item_record['template_tag_uuid']) {
+                    if ($level[$item_label] == $item_record[$item_label]) {
                         // add records to parent array
                         array_merge($level_array, $item_record['records']);
                     }
@@ -4265,49 +4265,18 @@ class APIController extends ODRCustomController
                 // Merge with array of records matching child terms
                 $sub_level_array = [];
                 if(isset($level['children'])) {
-                    $sub_level_array = self::check_children($level['children'], $data);
+                    $sub_level_array = self::check_children($level['children'], $data, $item_label);
                 }
                 $level_array = array_merge($level_array, $sub_level_array);
                 $level['count'] = count(array_unique($level_array));
                 $field['value'][$i] = $level;
             }
 
-            print(json_encode($field));exit();
-
-            // Sort the options in descending order by number of datarecords where they're selected
-            /*
-            uasort($data, function ($a, $b) {
-                if ($a['count'] < $b['count'])
-                    return 1;
-                else if ($a['count'] == $b['count'])
-                    return 0;
-                else
-                    return -1;
-            });
-            */
-
-
-            // ----------------------------------------
-            // Render the data in the requested format
-            $format = $request->getRequestFormat();
-            $templating = $this->get('templating');
-            $data = $templating->render(
-                'ODRAdminBundle:API:field_stats.' . $format . '.twig',
-                array(
-                    'field_stats' => $data
-                )
-            );
+            // print(json_encode($field));exit();
 
             // Set up a response to send the datatype back
             $response = new Response();
-
-            if ($download_response) {
-                $response->setPrivate();
-                //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
-                $response->headers->set('Content-Disposition', 'attachment; filename="Datafield_' . $template_field_uuid . '.' . $request->getRequestFormat() . '";');
-            }
-
-            $response->setContent($data);
+            $response->setContent(json_encode($field));
             return $response;
         } catch (\Exception $e) {
             $source = 0x883def33;
@@ -4318,7 +4287,7 @@ class APIController extends ODRCustomController
         }
     }
 
-    function check_children(&$selection_array, $data) {
+    function check_children(&$selection_array, $data, $item_label) {
 
         $my_level_array = [];
         for($i=0;$i<count($selection_array);$i++) {
@@ -4326,7 +4295,7 @@ class APIController extends ODRCustomController
 
             $sub_level_array = [];
             foreach ($data as $name => $item_record) {
-                if ($level['template_tag_uuid'] == $item_record['template_tag_uuid']) {
+                if ($level[$item_label] == $item_record[$item_label]) {
                     // add records to parent array
                     $sub_level_array = array_merge($sub_level_array, $item_record['records']);
                 }
@@ -4334,7 +4303,7 @@ class APIController extends ODRCustomController
 
             $children_array = [];
             if(isset($level['children'])) {
-                $children_array = self::check_children($level['children'], $data);
+                $children_array = self::check_children($level['children'], $data, $item_label);
             }
             $sub_level_array = array_merge($sub_level_array, $children_array);
             $level['count'] = count(array_unique($sub_level_array));
