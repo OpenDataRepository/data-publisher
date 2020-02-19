@@ -4157,8 +4157,11 @@ class APIController extends ODRCustomController
                 throw new ODRBadRequestException('Getting field stats only makes sense for Radio or Tag fields');
 
             $item_label = 'template_radio_option_uuid';
-            if ($typeclass === 'Tag')
+            $array_label = 'radio_options';
+            if ($typeclass === 'Tag') {
                 $item_label = 'template_tag_uuid';
+                $array_label = 'value';
+            }
 
             // ----------------------------------------
             // Determine user privileges
@@ -4223,6 +4226,7 @@ class APIController extends ODRCustomController
                 }
             }
 
+            // print var_export($records, true);exit();
             // Translate the two provided arrays into a a slightly different format
             $data = array();
             foreach ($records as $dt_id => $df_list) {
@@ -4241,16 +4245,14 @@ class APIController extends ODRCustomController
                 }
             }
 
-            // print_r($field);exit();
-            // print_r($data);exit();
-            for($i=0;$i<count($field['value']);$i++) {
+            for($i=0;$i<count($field[$array_label]);$i++) {
                 // First level
-                $level = $field['value'][$i];
+                $level = $field[$array_label][$i];
                 $level_array = [];
                 foreach ($data as $name => $item_record) {
                     if ($level[$item_label] == $item_record[$item_label]) {
                         // add records to parent array
-                        array_merge($level_array, $item_record['records']);
+                        $level_array = array_merge($level_array, $item_record['records']);
                     }
                 }
 
@@ -4262,7 +4264,7 @@ class APIController extends ODRCustomController
                 }
                 $level_array = array_merge($level_array, $sub_level_array);
                 $level['count'] = count(array_unique($level_array));
-                $field['value'][$i] = $level;
+                $field[$array_label][$i] = $level;
             }
 
             // print(json_encode($field));exit();
