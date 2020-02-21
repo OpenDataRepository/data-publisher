@@ -471,11 +471,13 @@ class SearchAPIServiceNoConflict
         $parameters = array();
         if(count($tag_uuids) > 0) {
             $qs .= ' AND t.tagUuid IN (:selected_tag_uuids)';
+            $qs .= ' AND ts.selected = 1';
             $parameters['selected_tag_uuids'] = $tag_uuids;
         }
 
         if(count($radio_uuids) > 0) {
             $qs .= ' AND ro.radioOptionUuid IN (:selected_radio_option_uuids)';
+            $qs .= ' AND rs.selected = 1';
             $parameters['selected_radio_option_uuids'] = $radio_uuids;
         }
 
