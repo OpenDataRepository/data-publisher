@@ -333,6 +333,9 @@ class SearchAPIServiceNoConflict
         foreach($datatype_result as $datatype_info) {
             $associated_datatypes = $this->dti_service->getAssociatedDatatypes($datatype_info['id']);
             $datatype_associations[$datatype_info['unique_id']] = "||" . join('||', $associated_datatypes) . "||";
+            if($datatype_info['id'] == 5910) {
+                // print var_export($associated_datatypes, true);exit();
+            }
             array_push($datatype_id_array, $datatype_info['id']);
             $datatype_id_array = array_merge($datatype_id_array, $associated_datatypes);
         }
@@ -506,6 +509,8 @@ class SearchAPIServiceNoConflict
 
         $parameters['datatype_id_array'] = $datatype_id_array;
         $parameters['now'] = new \DateTime();
+        // print var_export($parameters, true);
+        // print $qs; exit();
 
         $query = $this->em->createQuery($qs);
         $query->setParameters($parameters);
