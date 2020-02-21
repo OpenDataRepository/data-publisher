@@ -462,6 +462,8 @@ class SearchAPIServiceNoConflict
 
             WHERE
                 dt.id IN (:datatype_id_array)
+                AND ts.deletedAt IS NULL
+                AND rs.deletedAt IS NULL
                 AND drm.publicDate <= :now
         ';
 
