@@ -67,6 +67,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class DisplaytemplateController extends ODRCustomController
@@ -2502,6 +2503,9 @@ class DisplaytemplateController extends ODRCustomController
 
 
                 // ----------------------------------------
+                // May need to change the URL in the browser...
+                $new_search_slug = null;
+
                 if ($datatype_form->isValid()) {
                     // Track whether the datatype's name or desc changed
                     $old_datatype_name = $datatype->getShortName();
@@ -2560,6 +2564,9 @@ class DisplaytemplateController extends ODRCustomController
                     // It doesn't matter whether the background image field changes or not
                     /** @var int|null $new_metadata_namefield */
                     /** @var int|null $new_metadata_descfield */
+
+                    if ( !is_null($submitted_data->getSearchSlug()) && $datatype->getSearchSlug() !== $submitted_data->getSearchSlug() )
+                        $new_search_slug = $submitted_data->getSearchSlug();
 
 
                     // ----------------------------------------
@@ -2747,6 +2754,28 @@ class DisplaytemplateController extends ODRCustomController
                     $return['d'] = array(
                         'datafield_properties' => $datafield_properties
                     );
+
+                    // Any change to the search slug needs to be reflected in the URL, otherwise
+                    //  any subsequent attempt to search or view dashboard will immediately throw errors
+                    if ( !is_null($new_search_slug) ) {
+                        $baseurl = $this->generateUrl(
+                            'odr_search',
+                            array(
+                                'search_slug' => $new_search_slug
+                            ),
+                            UrlGeneratorInterface::ABSOLUTE_URL
+                        );
+                        // ...and need to redirect after that to the new database's master layout design page
+                        $url = $this->generateUrl(
+                            'odr_design_master_theme',
+                            array(
+                                'datatype_id' => $datatype->getId(),
+                            )
+                        );
+
+                        // TODO - ...would be nice to not have to reload, but it seems unavoidable
+                        $return['d']['new_url'] = $baseurl.'#'.$url;
+                    }
                 }
                 else {
                     // Form validation failed

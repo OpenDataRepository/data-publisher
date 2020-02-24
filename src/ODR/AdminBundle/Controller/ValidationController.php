@@ -2387,7 +2387,7 @@ class ValidationController extends ODRCustomController
                 'Single Select' => 'Radio',
                 'Multiple Radio' => 'Radio',
                 'Multiple Select' => 'Radio',
-//                'DateTime' => 'DatetimeValue',    // TODO - provide the option to search for fields without dates?
+//                'DateTime' => 'DatetimeValue',
 //                'Markdown' => 'Markdown',
                 'Tags' => 'Tag'
             );

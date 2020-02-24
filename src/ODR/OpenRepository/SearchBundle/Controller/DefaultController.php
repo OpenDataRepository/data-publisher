@@ -123,25 +123,24 @@ class DefaultController extends Controller
 
             // Now that a search slug is guaranteed to exist, locate the desired datatype
             /** @var DataTypeMeta $meta_entry */
-            $meta_entry = $em
-                ->getRepository('ODRAdminBundle:DataTypeMeta')
-                ->findOneBy(
-                    array(
-                        'searchSlug' => $search_slug
-                    )
-                );
-            if ($meta_entry == null)	
+            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+                array(
+                    'searchSlug' => $search_slug
+                )
+            );
+            if ( is_null($meta_entry) )
                 throw new ODRNotFoundException('Datatype');
 
-            // Check if this is a database properties database
-            if($meta_entry->getDataType()->getMetadataFor() != null) {
-                $target_datatype = $meta_entry->getDataType()->getMetadataFor();
-            }
-            else {
-                $target_datatype = $meta_entry->getDataType();
-            }
+            // TODO - does this need to also find datatypes by uuid?
 
-            if ($target_datatype == null)
+            // This is most likely a regular datatype...
+            $target_datatype = $meta_entry->getDataType();
+
+            // ...but it could be a metadata datatype
+            if ( !is_null($meta_entry->getDataType()->getMetadataFor()) )
+                $target_datatype = $meta_entry->getDataType()->getMetadataFor();
+
+            if ( !is_null($target_datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Datatype');
 
 

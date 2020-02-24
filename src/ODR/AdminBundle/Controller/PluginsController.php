@@ -897,7 +897,7 @@ class PluginsController extends ODRCustomController
                     throw new ODRNotFoundException('Datafield');
 
                 $datatype = $datafield->getDataType();
-                if ( $datatype->getDeletedAt() != null )    // TODO - apparently this doesn't actually work in detecting whether the datafield's datatype is deleted...throws an error inside doctrine
+                if ( $datatype->getDeletedAt() != null )
                     throw new ODRNotFoundException('Datatype');
             }
 

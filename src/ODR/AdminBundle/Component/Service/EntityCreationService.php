@@ -474,7 +474,7 @@ class EntityCreationService
         $datatype_meta->setDescription('');
         $datatype_meta->setXmlShortName('');
 
-        $datatype_meta->setSearchSlug(null);
+        $datatype_meta->setSearchSlug($unique_id);
         $datatype_meta->setSearchNotesUpper(null);
         $datatype_meta->setSearchNotesLower(null);
 

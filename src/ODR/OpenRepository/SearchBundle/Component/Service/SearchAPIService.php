@@ -429,6 +429,7 @@ class SearchAPIService
                         $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term['filename'], $search_term['has_files']);
                     }
                     else if ($typeclass === 'DatetimeValue') {
+                        // TODO - allow searching of empty datetime fields?
                         // DatetimeValue needs to worry about before/after...
                         $results = $this->search_service->searchDatetimeTemplateDatafield($entity, $search_term['before'], $search_term['after']);
                     }

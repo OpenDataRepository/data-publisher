@@ -29,7 +29,7 @@ use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Exceptions
@@ -552,6 +552,8 @@ class TagsController extends ODRCustomController
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TagHelperService $th_service */
             $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
 
 
             /** @var DataFields $datafield */
@@ -630,20 +632,6 @@ class TagsController extends ODRCustomController
             /** @var Tags[] $hydrated_tag_array */
 
 
-            // ...and a list of all tag uuids to prevent duplicates during the creation of all
-            //  these new tags...
-            $query = $em->createQuery(
-               'SELECT t.tagUuid
-                FROM ODRAdminBundle:Tags AS t
-                WHERE t.deletedAt IS NULL'
-            );
-            $results = $query->getArrayResult();
-
-            $all_tag_uuids = array();
-            foreach ($results as $tag)
-                $all_tag_uuids[ $tag['tagUuid'] ] = 1;
-
-
             // ----------------------------------------
             // Going to need a stacked array version of the tags to combine with the posted data
             $dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
@@ -654,12 +642,12 @@ class TagsController extends ODRCustomController
             // Flushing is delayed until the updateDatafieldMeta() call
             foreach ($posted_tags as $num => $new_tags) {
                 $stacked_tag_array = self::createTagsForListImport(
-                    $em,         // Needed to persist new tag uuids and tag tree entries
-                    $ec_service, // Needed to create new tags
-                    $user,       // Needed to create new tags
-                    $datafield,  // Needed to create new tags
+                    $em,           // Needed to persist new tag uuids and tag tree entries
+                    $ec_service,   // Needed to create new tags
+                    $uuid_service, // Needed to create new tags
+                    $user,         // Needed to create new tags
+                    $datafield,    // Needed to create new tags
                     $hydrated_tag_array,
-                    $all_tag_uuids,
                     $stacked_tag_array,
                     $new_tags,
                     null    // This initial call is for top-level tags...they don't have a parent
@@ -712,11 +700,11 @@ class TagsController extends ODRCustomController
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param EntityCreationService $ec_service
+     * @param UUIDService $uuid_service
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param Tags[] $hydrated_tag_array A flat array of all tags for this datafield, organized by
      *                                   their uuids
-     * @param array $all_tag_uuids
      * @param array $stacked_tag_array @see self::convertTagsForListImport()
      * @param array $posted_tags A flat array of the tag(s) that may end up being inserted into the
      *                           datafield...top level tag at index 0, its child at 1, etc
@@ -724,7 +712,7 @@ class TagsController extends ODRCustomController
      *
      * @return array
      */
-    private function createTagsForListImport($em, $ec_service, $user, $datafield, &$hydrated_tag_array, &$all_tag_uuids, &$stacked_tag_array, $posted_tags, $parent_tag)
+    private function createTagsForListImport($em, $ec_service, $uuid_service, $user, $datafield, &$hydrated_tag_array, &$stacked_tag_array, $posted_tags, $parent_tag)
     {
         $current_tag = null;
         $tag_name = $posted_tags[0];
@@ -740,15 +728,12 @@ class TagsController extends ODRCustomController
             $current_tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
 
             // Generate a new uuid for this tag...
-            $new_tag_uuid = UniqueUtility::uniqueIdReal();
-            while ( isset($all_tag_uuids[$new_tag_uuid]) )
-                $new_tag_uuid = UniqueUtility::uniqueIdReal();
+            $new_tag_uuid = $uuid_service->generateTagUniqueId();
             $current_tag->setTagUuid($new_tag_uuid);
             $em->persist($current_tag);
 
             // Need to store the new stuff for later reference...
             $hydrated_tag_array[$new_tag_uuid] = $current_tag;
-            $all_tag_uuids[$new_tag_uuid] = 1;
 
             $stacked_tag_array[$tag_name] = array(
                 'id' => $new_tag_uuid,    // Don't really care what the ID is...only used for rendering
@@ -785,12 +770,12 @@ class TagsController extends ODRCustomController
             // This level has been processed, move on to its children
             $new_tags = array_slice($posted_tags, 1);
             $stacked_tag_array[$tag_name]['children'] = self::createTagsForListImport(
-                $em,         // Needed to persist new tag uuids and tag tree entries
-                $ec_service, // Needed to create new tags
-                $user,       // Needed to create new tags
-                $datafield,  // Needed to create new tags
+                $em,           // Needed to persist new tag uuids and tag tree entries
+                $ec_service,   // Needed to create new tags
+                $uuid_service, // Needed to create new tags
+                $user,         // Needed to create new tags
+                $datafield,    // Needed to create new tags
                 $hydrated_tag_array,
-                $all_tag_uuids,
                 $existing_child_tags,
                 $new_tags,
                 $current_tag

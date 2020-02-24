@@ -867,6 +867,7 @@ class DatarecordInfoService
 
         // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
         // self::generateCSRFTokens() doesn't require numeric ids, and the length doesn't matter
+        // Don't need to use UUIDService::generateDatarecordUniqueId(), $fake_id will be discarded
         $fake_id = UniqueUtility::uniqueIdReal();
         while ( is_numeric($fake_id) )
             $fake_id = UniqueUtility::uniqueIdReal();

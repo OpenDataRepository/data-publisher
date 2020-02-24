@@ -436,8 +436,8 @@ function SaveAsNew() {
         success: function(data, textStatus, jqXHR) {
         {% if creating_new_datatype == true %}
             // Redirect the user to the new database's master layout design page
-            var url = data.d.url;
-            UpdateURL(url);
+            // Can't use UpdateURL() because the new datatype's search slug needs to be in the URL
+            window.location.href = data.d.url;
         {% else %}
             // Extract the new datarecord's id
             var new_record_id = data.d.new_datarecord_id;

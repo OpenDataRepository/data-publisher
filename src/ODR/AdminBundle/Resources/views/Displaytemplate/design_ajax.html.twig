@@ -2355,6 +2355,10 @@
                 datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
                 console.log(datafield_properties);
 
+                // TODO - ...would be nice to not have to reload, but it seems unavoidable
+                if ( data.d.new_url !== undefined )
+                    window.location.href = data.d.new_url;
+
                 notifySaved();
             },
             error: function() {

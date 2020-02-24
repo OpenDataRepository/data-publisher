@@ -53,6 +53,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -380,6 +381,10 @@ class DatatypeController extends ODRCustomController
                     /** @var DataTypeMeta $datatype_meta */
                     $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')
                         ->findOneBy(array('searchSlug' => $datatype_unique_id));
+                    if ( is_null($datatype_meta) )
+                        throw new ODRNotFoundException('Datatype');
+
+                    // TODO - does this need to also find datatypes by uuid?
 
                     $use_search_slug = true;
                     $datatype = $datatype_meta->getDataType();
@@ -2739,6 +2744,8 @@ class DatatypeController extends ODRCustomController
             $new_datatype_name = $post['datafields'][$template_name_df->getId()];
             $new_datatype_desc = $post['datafields'][$template_desc_df->getId()];
 
+            // TODO - need to prevent duplication of datatype names...
+
 
             // ----------------------------------------
             // Create the skeleton of the datatype that is going to be copied into
@@ -2886,14 +2893,24 @@ class DatatypeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Attempt to redirect to the new database's master layout design page
-            $return['d'] = array(
-                'url' => $this->generateUrl(
-                    'odr_design_master_theme',
-                    array(
-                        'datatype_id' => $new_database->getId(),
-                    )
+            // Need to reset the URL in the browser to have the correct search slug...
+            $baseurl = $this->generateUrl(
+                'odr_search',
+                array(
+                    'search_slug' => $new_database->getSearchSlug()
+                ),
+                UrlGeneratorInterface::ABSOLUTE_URL
+            );
+            // ...and need to redirect after that to the new database's master layout design page
+            $url = $this->generateUrl(
+                'odr_design_master_theme',
+                array(
+                    'datatype_id' => $new_database->getId(),
                 )
+            );
+
+            $return['d'] = array(
+                'url' => $baseurl.'#'.$url
             );
         }
         catch (\Exception $e) {
