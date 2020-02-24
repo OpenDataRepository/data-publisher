@@ -327,17 +327,21 @@ class SearchAPIServiceNoConflict
             LEFT JOIN dt.dataTypeMeta AS dtm
         */
         $datatype_result = $dt_query->getArrayResult();
+        // print var_export($datatype_result, true);exit();
 
         $datatype_id_array = array();
-        $datatype_associations = array();
+        // $datatype_associations = array();
         foreach($datatype_result as $datatype_info) {
             $associated_datatypes = $this->dti_service->getAssociatedDatatypes($datatype_info['id']);
-            $datatype_associations[$datatype_info['unique_id']] = "||" . join('||', $associated_datatypes) . "||";
-            if($datatype_info['id'] == 5910) {
-                // print var_export($associated_datatypes, true);exit();
-            }
+            // $datatype_associations[$datatype_info['unique_id']] = "||" . join('||', $associated_datatypes) . "||";
             array_push($datatype_id_array, $datatype_info['id']);
             $datatype_id_array = array_merge($datatype_id_array, $associated_datatypes);
+
+            $more_associated_datatypes = $this->dti_service->getChildDescendants($associated_datatypes);
+            if(count($more_associated_datatypes) > 0) {
+                // $datatype_associations[$datatype_info['unique_id']] .= join('||', $more_associated_datatypes) . "||";
+                $datatype_id_array = array_merge($datatype_id_array, $more_associated_datatypes);
+            }
         }
 
         /*
@@ -399,30 +403,14 @@ class SearchAPIServiceNoConflict
             }
         }
 
-        // Test of selecting a keyword tag 'template_tag_uuid' => daefe83
-        /*
-        $sub_query = $this->em->createQuery(
-            'SELECT
-            distinct t.id 
-            FROM ODRAdminBundle:Tags AS t
-            WHERE t.tagUuid IN (:tag_uuids)'
-        )
-        ->setParameter('tag_uuids', $tag_uuids);
-
-        $sub_result = $sub_query->getArrayResult();
-
-        $sub_keys = array();
-        foreach($sub_result as $sub) {
-            array_push($sub_keys, $sub['id']);
-        }
-        */
-
         // Get dr.unique_id
         $qs = 'SELECT
-            distinct dr.unique_id, dr.id 
+            distinct dr.unique_id, dr.id, par.id as parent_id, gp.id as grandparent_id
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
+            LEFT JOIN dr.parent AS par
+            LEFT JOIN dr.grandparent AS gp
             
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
@@ -465,8 +453,6 @@ class SearchAPIServiceNoConflict
 
             WHERE
                 dt.id IN (:datatype_id_array)
-                AND ts.deletedAt IS NULL
-                AND rs.deletedAt IS NULL
                 AND drm.publicDate <= :now
         ';
 
@@ -474,12 +460,14 @@ class SearchAPIServiceNoConflict
         $parameters = array();
         if(count($tag_uuids) > 0) {
             $qs .= ' AND t.tagUuid IN (:selected_tag_uuids)';
+            $qs .= ' AND ts.deletedAt IS NULL';
             $qs .= ' AND ts.selected = 1';
             $parameters['selected_tag_uuids'] = $tag_uuids;
         }
 
         if(count($radio_uuids) > 0) {
             $qs .= ' AND ro.radioOptionUuid IN (:selected_radio_option_uuids)';
+            $qs .= ' AND rs.deletedAt IS NULL';
             $qs .= ' AND rs.selected = 1';
             $parameters['selected_radio_option_uuids'] = $radio_uuids;
         }
@@ -507,7 +495,7 @@ class SearchAPIServiceNoConflict
             }
         }
 
-        $parameters['datatype_id_array'] = $datatype_id_array;
+        $parameters['datatype_id_array'] = array_unique($datatype_id_array);
         $parameters['now'] = new \DateTime();
         // print var_export($parameters, true);
         // print $qs; exit();
@@ -540,7 +528,12 @@ class SearchAPIServiceNoConflict
         $found_record_ids = array();
         foreach($result as $record) {
             array_push($found_record_ids,  $record['id']);
+            // gets grandparent for child records
+            array_push($found_record_ids,  $record['parent_id']);
+            array_push($found_record_ids,  $record['grandparent_id']);
         }
+        // print var_export($found_record_ids, true);exit();
+        // print $sql; exit();
         $conn = $this->em->getConnection();
         $stmt = $conn->executeQuery(
             $sql,
@@ -559,8 +552,8 @@ class SearchAPIServiceNoConflict
             if($record['e'] !== null) array_push($possible_records, $record['e']);
             if($record['orig'] !== null) array_push($possible_records, $record['orig']);
         }
-        // var_dump(array_unique($possible_records));exit();
         $possible_records = array_merge($found_record_ids, $possible_records);
+        // var_dump(array_unique($possible_records));exit();
 
         // Get only the records that are top level
         $qs = 'SELECT
