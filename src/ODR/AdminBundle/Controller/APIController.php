@@ -1436,6 +1436,7 @@ class APIController extends ODRCustomController
                                     $new_field = new TagSelection();
                                     $new_field->setTag($tag);
                                     $new_field->setDataRecordFields($drf);
+                                    $new_field->setDataRecord($data_record);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
                                     $new_field->setCreated(new \DateTime());
@@ -1633,6 +1634,7 @@ class APIController extends ODRCustomController
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
+                                    $new_field->setDataRecord($data_record);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -1820,6 +1822,7 @@ class APIController extends ODRCustomController
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
+                                    $new_field->setDataRecord($data_record);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -2006,6 +2009,7 @@ class APIController extends ODRCustomController
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
+                                    $new_field->setDataRecord($data_record);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -2192,6 +2196,7 @@ class APIController extends ODRCustomController
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
+                                    $new_field->setDataRecord($data_record);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -2384,6 +2389,7 @@ class APIController extends ODRCustomController
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
+                                    $new_field->setDataRecord($data_record);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);

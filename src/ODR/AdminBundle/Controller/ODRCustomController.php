@@ -74,7 +74,7 @@ class ODRCustomController extends Controller
      *
      * @param Request $request
      *
-     * @return stringsh/
+     * @return string
      */
     public function renderList($datarecords, $datatype, $theme, $user, $path_str, $intent, $search_key, $offset, Request $request)
     {

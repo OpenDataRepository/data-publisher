@@ -388,21 +388,6 @@ class SearchAPIServiceNoConflict
 }
          */
 
-        // Get list of fields
-        // template radio option uuid
-        // template tag uuid
-
-        $tag_uuids = array();
-        $radio_uuids = array();
-        foreach($params['fields'] as $field) {
-            if(isset($field['selected_tags'])) {
-               $tag_uuids = array_merge($tag_uuids, $field['selected_tags']);
-            }
-            if(isset($field['selected_options'])) {
-                $radio_uuids = array_merge($radio_uuids, $field['selected_options']);
-            }
-        }
-
         // Get dr.unique_id
         $qs = 'SELECT
             distinct dr.unique_id, dr.id, par.id as parent_id, gp.id as grandparent_id
@@ -447,29 +432,50 @@ class SearchAPIServiceNoConflict
             LEFT JOIN ts.tag AS t
             LEFT JOIN t.tagMeta AS tm
 
-            LEFT JOIN drf.dataField AS df
-            LEFT JOIN df.dataFieldMeta AS dfm
-            LEFT JOIN dfm.fieldType AS ft
 
             WHERE
                 dt.id IN (:datatype_id_array)
                 AND drm.publicDate <= :now
         ';
+        /*
+         * For some reason, this is slowing things down dramatically
+         * Leaving out may affect fields that have been deleted...
+         *
+        LEFT JOIN drf.dataField AS df
+            LEFT JOIN df.dataFieldMeta AS dfm
+            LEFT JOIN dfm.fieldType AS ft
+        */
 
         // Parameters array
         $parameters = array();
-        if(count($tag_uuids) > 0) {
-            $qs .= ' AND t.tagUuid IN (:selected_tag_uuids)';
-            $qs .= ' AND ts.deletedAt IS NULL';
-            $qs .= ' AND ts.selected = 1';
-            $parameters['selected_tag_uuids'] = $tag_uuids;
-        }
 
-        if(count($radio_uuids) > 0) {
-            $qs .= ' AND ro.radioOptionUuid IN (:selected_radio_option_uuids)';
-            $qs .= ' AND rs.deletedAt IS NULL';
-            $qs .= ' AND rs.selected = 1';
-            $parameters['selected_radio_option_uuids'] = $radio_uuids;
+        // Get list of fields
+        // template radio option uuid
+        // template tag uuid
+
+        $tag_uuids = array();
+        $radio_uuids = array();
+        foreach($params['fields'] as $field) {
+            if(isset($field['selected_tags'])) {
+                $tag_uuids = $field['selected_tags'];
+                // $tag_uuids = array_merge($tag_uuids, $field['selected_tags']);
+                if(count($tag_uuids) > 0) {
+                    $qs .= ' AND t.tagUuid IN (:selected_tag_uuids)';
+                    $qs .= ' AND ts.deletedAt IS NULL';
+                    $qs .= ' AND ts.selected = 1';
+                    $parameters['selected_tag_uuids'] = $tag_uuids;
+                }
+            }
+            if(isset($field['selected_options'])) {
+                $radio_uuids = $field['selected_options'];
+                // $radio_uuids = array_merge($radio_uuids, $field['selected_options']);
+                if(count($radio_uuids) > 0) {
+                    $qs .= ' AND ro.radioOptionUuid IN (:selected_radio_option_uuids)';
+                    $qs .= ' AND rs.deletedAt IS NULL';
+                    $qs .= ' AND rs.selected = 1';
+                    $parameters['selected_radio_option_uuids'] = $radio_uuids;
+                }
+            }
         }
 
         // Add General Search

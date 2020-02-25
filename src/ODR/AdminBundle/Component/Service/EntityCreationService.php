@@ -1201,6 +1201,7 @@ class EntityCreationService
                 // Got the lock, create the radio selection
                 $radio_selection = new RadioSelection();
                 $radio_selection->setRadioOption($radio_option);
+                $radio_selection->setDataRecord($drf->getDataRecord());
                 $radio_selection->setDataRecordFields($drf);
 
                 $radio_selection->setSelected(0);    // defaults to not selected
@@ -1676,6 +1677,8 @@ class EntityCreationService
                 // Got the lock, create the tag selection
                 $tag_selection = new TagSelection();
                 $tag_selection->setTag($tag);
+
+                $tag_selection->setDataRecord($drf->getDataRecord());
                 $tag_selection->setDataRecordFields($drf);
 
                 $tag_selection->setSelected(0);    // defaults to not selected
