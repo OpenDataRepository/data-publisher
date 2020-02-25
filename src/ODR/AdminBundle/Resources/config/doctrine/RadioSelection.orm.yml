@@ -53,6 +53,7 @@ ODR\AdminBundle\Entity\RadioSelection:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -60,6 +61,16 @@ ODR\AdminBundle\Entity\RadioSelection:
             inversedBy: null
             joinColumns:
                 updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: radioSelection
+            joinColumns:
+                data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
 

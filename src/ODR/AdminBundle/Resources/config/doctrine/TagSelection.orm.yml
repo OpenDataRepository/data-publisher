@@ -54,6 +54,7 @@ ODR\AdminBundle\Entity\TagSelection:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -61,6 +62,16 @@ ODR\AdminBundle\Entity\TagSelection:
             inversedBy: null
             joinColumns:
                 updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: tagSelection
+            joinColumns:
+                data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
 

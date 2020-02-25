@@ -692,6 +692,7 @@ class APIControllerTest extends WebTestCase
     /**
      * Post Image File with CURL
      */
+    /*
     public function testDatasetImagePost()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
@@ -743,6 +744,10 @@ class APIControllerTest extends WebTestCase
 
     }
 
+    /*
+       Publish Record
+    */
+    /*
     public function testPublish()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
@@ -775,6 +780,7 @@ class APIControllerTest extends WebTestCase
     }
 
     // Search (all)
+    /*
     public function testGeneralSearch()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
@@ -801,6 +807,7 @@ class APIControllerTest extends WebTestCase
         // Should have the user_email at least
         $this->assertTrue(count($results) > 0);
     }
+    */
 
 }
 

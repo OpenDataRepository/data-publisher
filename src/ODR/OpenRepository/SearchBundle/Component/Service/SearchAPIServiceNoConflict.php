@@ -423,27 +423,27 @@ class SearchAPIServiceNoConflict
 
             LEFT JOIN dr.dataRecordFields AS drf
             
-            LEFT JOIN drf.file AS e_f
+            LEFT JOIN dr.file AS e_f
             LEFT JOIN e_f.fileMeta AS e_fm
 
-            LEFT JOIN drf.image AS e_i
+            LEFT JOIN dr.image AS e_i
             LEFT JOIN e_i.imageMeta AS e_im
             LEFT JOIN e_i.parent AS e_ip
             LEFT JOIN e_ip.imageMeta AS e_ipm
             LEFT JOIN e_i.imageSize AS e_is
 
-            LEFT JOIN drf.boolean AS e_b
-            LEFT JOIN drf.integerValue AS e_iv
-            LEFT JOIN drf.decimalValue AS e_dv
-            LEFT JOIN drf.longText AS e_lt
-            LEFT JOIN drf.longVarchar AS e_lvc
-            LEFT JOIN drf.mediumVarchar AS e_mvc
-            LEFT JOIN drf.shortVarchar AS e_svc
-            LEFT JOIN drf.datetimeValue AS e_dtv
-            LEFT JOIN drf.radioSelection AS rs
+            LEFT JOIN dr.boolean AS e_b
+            LEFT JOIN dr.integerValue AS e_iv
+            LEFT JOIN dr.decimalValue AS e_dv
+            LEFT JOIN dr.longText AS e_lt
+            LEFT JOIN dr.longVarchar AS e_lvc
+            LEFT JOIN dr.mediumVarchar AS e_mvc
+            LEFT JOIN dr.shortVarchar AS e_svc
+            LEFT JOIN dr.datetimeValue AS e_dtv
+            LEFT JOIN dr.radioSelection AS rs
             LEFT JOIN rs.radioOption AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
-            LEFT JOIN drf.tagSelection AS ts
+            LEFT JOIN dr.tagSelection AS ts
             LEFT JOIN ts.tag AS t
             LEFT JOIN t.tagMeta AS tm
 
@@ -503,6 +503,7 @@ class SearchAPIServiceNoConflict
         $query = $this->em->createQuery($qs);
         $query->setParameters($parameters);
 
+        // print $query->getSQL(); exit();
         $result = $query->getArrayResult();
         // var_dump($result);exit();
 

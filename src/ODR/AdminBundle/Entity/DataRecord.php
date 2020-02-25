@@ -589,4 +589,496 @@ class DataRecord
     {
         return $this->getDataRecordMeta()->getPublicDate();
     }
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $boolean;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $integerValue;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $decimalValue;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $longText;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $longVarchar;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $mediumVarchar;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $shortVarchar;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $datetimeValue;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $image;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $file;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $radioSelection;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $tagSelection;
+
+
+    /**
+     * Add boolean.
+     *
+     * @param \ODR\AdminBundle\Entity\Boolean $boolean
+     *
+     * @return DataRecord
+     */
+    public function addBoolean(\ODR\AdminBundle\Entity\Boolean $boolean)
+    {
+        $this->boolean[] = $boolean;
+
+        return $this;
+    }
+
+    /**
+     * Remove boolean.
+     *
+     * @param \ODR\AdminBundle\Entity\Boolean $boolean
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeBoolean(\ODR\AdminBundle\Entity\Boolean $boolean)
+    {
+        return $this->boolean->removeElement($boolean);
+    }
+
+    /**
+     * Get boolean.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getBoolean()
+    {
+        return $this->boolean;
+    }
+
+    /**
+     * Add integerValue.
+     *
+     * @param \ODR\AdminBundle\Entity\IntegerValue $integerValue
+     *
+     * @return DataRecord
+     */
+    public function addIntegerValue(\ODR\AdminBundle\Entity\IntegerValue $integerValue)
+    {
+        $this->integerValue[] = $integerValue;
+
+        return $this;
+    }
+
+    /**
+     * Remove integerValue.
+     *
+     * @param \ODR\AdminBundle\Entity\IntegerValue $integerValue
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeIntegerValue(\ODR\AdminBundle\Entity\IntegerValue $integerValue)
+    {
+        return $this->integerValue->removeElement($integerValue);
+    }
+
+    /**
+     * Get integerValue.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getIntegerValue()
+    {
+        return $this->integerValue;
+    }
+
+    /**
+     * Add decimalValue.
+     *
+     * @param \ODR\AdminBundle\Entity\DecimalValue $decimalValue
+     *
+     * @return DataRecord
+     */
+    public function addDecimalValue(\ODR\AdminBundle\Entity\DecimalValue $decimalValue)
+    {
+        $this->decimalValue[] = $decimalValue;
+
+        return $this;
+    }
+
+    /**
+     * Remove decimalValue.
+     *
+     * @param \ODR\AdminBundle\Entity\DecimalValue $decimalValue
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeDecimalValue(\ODR\AdminBundle\Entity\DecimalValue $decimalValue)
+    {
+        return $this->decimalValue->removeElement($decimalValue);
+    }
+
+    /**
+     * Get decimalValue.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDecimalValue()
+    {
+        return $this->decimalValue;
+    }
+
+    /**
+     * Add longText.
+     *
+     * @param \ODR\AdminBundle\Entity\LongText $longText
+     *
+     * @return DataRecord
+     */
+    public function addLongText(\ODR\AdminBundle\Entity\LongText $longText)
+    {
+        $this->longText[] = $longText;
+
+        return $this;
+    }
+
+    /**
+     * Remove longText.
+     *
+     * @param \ODR\AdminBundle\Entity\LongText $longText
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeLongText(\ODR\AdminBundle\Entity\LongText $longText)
+    {
+        return $this->longText->removeElement($longText);
+    }
+
+    /**
+     * Get longText.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getLongText()
+    {
+        return $this->longText;
+    }
+
+    /**
+     * Add longVarchar.
+     *
+     * @param \ODR\AdminBundle\Entity\LongVarchar $longVarchar
+     *
+     * @return DataRecord
+     */
+    public function addLongVarchar(\ODR\AdminBundle\Entity\LongVarchar $longVarchar)
+    {
+        $this->longVarchar[] = $longVarchar;
+
+        return $this;
+    }
+
+    /**
+     * Remove longVarchar.
+     *
+     * @param \ODR\AdminBundle\Entity\LongVarchar $longVarchar
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeLongVarchar(\ODR\AdminBundle\Entity\LongVarchar $longVarchar)
+    {
+        return $this->longVarchar->removeElement($longVarchar);
+    }
+
+    /**
+     * Get longVarchar.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getLongVarchar()
+    {
+        return $this->longVarchar;
+    }
+
+    /**
+     * Add mediumVarchar.
+     *
+     * @param \ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar
+     *
+     * @return DataRecord
+     */
+    public function addMediumVarchar(\ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar)
+    {
+        $this->mediumVarchar[] = $mediumVarchar;
+
+        return $this;
+    }
+
+    /**
+     * Remove mediumVarchar.
+     *
+     * @param \ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeMediumVarchar(\ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar)
+    {
+        return $this->mediumVarchar->removeElement($mediumVarchar);
+    }
+
+    /**
+     * Get mediumVarchar.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getMediumVarchar()
+    {
+        return $this->mediumVarchar;
+    }
+
+    /**
+     * Add shortVarchar.
+     *
+     * @param \ODR\AdminBundle\Entity\ShortVarchar $shortVarchar
+     *
+     * @return DataRecord
+     */
+    public function addShortVarchar(\ODR\AdminBundle\Entity\ShortVarchar $shortVarchar)
+    {
+        $this->shortVarchar[] = $shortVarchar;
+
+        return $this;
+    }
+
+    /**
+     * Remove shortVarchar.
+     *
+     * @param \ODR\AdminBundle\Entity\ShortVarchar $shortVarchar
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeShortVarchar(\ODR\AdminBundle\Entity\ShortVarchar $shortVarchar)
+    {
+        return $this->shortVarchar->removeElement($shortVarchar);
+    }
+
+    /**
+     * Get shortVarchar.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getShortVarchar()
+    {
+        return $this->shortVarchar;
+    }
+
+    /**
+     * Add datetimeValue.
+     *
+     * @param \ODR\AdminBundle\Entity\DatetimeValue $datetimeValue
+     *
+     * @return DataRecord
+     */
+    public function addDatetimeValue(\ODR\AdminBundle\Entity\DatetimeValue $datetimeValue)
+    {
+        $this->datetimeValue[] = $datetimeValue;
+
+        return $this;
+    }
+
+    /**
+     * Remove datetimeValue.
+     *
+     * @param \ODR\AdminBundle\Entity\DatetimeValue $datetimeValue
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeDatetimeValue(\ODR\AdminBundle\Entity\DatetimeValue $datetimeValue)
+    {
+        return $this->datetimeValue->removeElement($datetimeValue);
+    }
+
+    /**
+     * Get datetimeValue.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDatetimeValue()
+    {
+        return $this->datetimeValue;
+    }
+
+    /**
+     * Add image.
+     *
+     * @param \ODR\AdminBundle\Entity\Image $image
+     *
+     * @return DataRecord
+     */
+    public function addImage(\ODR\AdminBundle\Entity\Image $image)
+    {
+        $this->image[] = $image;
+
+        return $this;
+    }
+
+    /**
+     * Remove image.
+     *
+     * @param \ODR\AdminBundle\Entity\Image $image
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeImage(\ODR\AdminBundle\Entity\Image $image)
+    {
+        return $this->image->removeElement($image);
+    }
+
+    /**
+     * Get image.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getImage()
+    {
+        return $this->image;
+    }
+
+    /**
+     * Add file.
+     *
+     * @param \ODR\AdminBundle\Entity\File $file
+     *
+     * @return DataRecord
+     */
+    public function addFile(\ODR\AdminBundle\Entity\File $file)
+    {
+        $this->file[] = $file;
+
+        return $this;
+    }
+
+    /**
+     * Remove file.
+     *
+     * @param \ODR\AdminBundle\Entity\File $file
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeFile(\ODR\AdminBundle\Entity\File $file)
+    {
+        return $this->file->removeElement($file);
+    }
+
+    /**
+     * Get file.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getFile()
+    {
+        return $this->file;
+    }
+
+    /**
+     * Add radioSelection.
+     *
+     * @param \ODR\AdminBundle\Entity\RadioSelection $radioSelection
+     *
+     * @return DataRecord
+     */
+    public function addRadioSelection(\ODR\AdminBundle\Entity\RadioSelection $radioSelection)
+    {
+        $this->radioSelection[] = $radioSelection;
+
+        return $this;
+    }
+
+    /**
+     * Remove radioSelection.
+     *
+     * @param \ODR\AdminBundle\Entity\RadioSelection $radioSelection
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRadioSelection(\ODR\AdminBundle\Entity\RadioSelection $radioSelection)
+    {
+        return $this->radioSelection->removeElement($radioSelection);
+    }
+
+    /**
+     * Get radioSelection.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRadioSelection()
+    {
+        return $this->radioSelection;
+    }
+
+    /**
+     * Add tagSelection.
+     *
+     * @param \ODR\AdminBundle\Entity\TagSelection $tagSelection
+     *
+     * @return DataRecord
+     */
+    public function addTagSelection(\ODR\AdminBundle\Entity\TagSelection $tagSelection)
+    {
+        $this->tagSelection[] = $tagSelection;
+
+        return $this;
+    }
+
+    /**
+     * Remove tagSelection.
+     *
+     * @param \ODR\AdminBundle\Entity\TagSelection $tagSelection
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeTagSelection(\ODR\AdminBundle\Entity\TagSelection $tagSelection)
+    {
+        return $this->tagSelection->removeElement($tagSelection);
+    }
+
+    /**
+     * Get tagSelection.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getTagSelection()
+    {
+        return $this->tagSelection;
+    }
 }

@@ -259,4 +259,33 @@ class RadioSelection
     {
         return $this->dataRecordFields;
     }
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecord
+     */
+    private $dataRecord;
+
+
+    /**
+     * Set dataRecord.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord|null $dataRecord
+     *
+     * @return RadioSelection
+     */
+    public function setDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord = null)
+    {
+        $this->dataRecord = $dataRecord;
+
+        return $this;
+    }
+
+    /**
+     * Get dataRecord.
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecord|null
+     */
+    public function getDataRecord()
+    {
+        return $this->dataRecord;
+    }
 }
