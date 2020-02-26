@@ -551,6 +551,7 @@ class SearchAPIServiceNoConflict
                     }
                 }
                 $base_array = $tmp_array;
+                $tmp_array = [];
             }
             $result = $base_array;
         }
