@@ -2763,20 +2763,30 @@ class APIController extends ODRCustomController
                     }
 
                     if (!$record_found) {
-                        // Use delete record
-                        /** @var DataType $master_data_type */
-                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                            array(
-                                'unique_id' => $o_record['record_uuid']
-                            )
-                        );
+                        // Recursively build list of record ids
+                        $records_to_delete = [];
+                        // print var_export($o_record);exit();
+                        self::getRecordsToDelete($records_to_delete, $o_record);
 
-                        if ($del_record) {
-                            $em->remove($del_record);
-                            $em->flush();
-                            $changed = true;
+                        foreach($records_to_delete as $record_to_delete) {
+                            // Use delete record
+                            /** @var DataRecord $del_record */
+                            $del_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                                ->findOneBy(
+                                    array(
+                                        'unique_id' => $record_to_delete
+                                    )
+                                );
+
+
+                            // TODO Need to recursively delete records here....
+                            if ($del_record) {
+                                $em->remove($del_record);
+                                $changed = true;
+                            }
                         }
-
+                        // Commit Deletions
+                        $em->flush();
                     }
                 }
             }
@@ -2930,6 +2940,14 @@ class APIController extends ODRCustomController
         }
     }
 
+    private function getRecordsToDelete(&$records_to_delete, $record) {
+        array_push($records_to_delete, $record['record_uuid']);
+        if(isset($record['records']) && count($record['records']) > 0) {
+            foreach($record['records'] as $child_record) {
+                self::getRecordsToDelete($records_to_delete, $child_record);
+            }
+        }
+    }
 
     /**
      * @param $version
