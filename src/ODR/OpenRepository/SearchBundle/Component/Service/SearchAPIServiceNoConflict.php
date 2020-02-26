@@ -451,6 +451,7 @@ class SearchAPIServiceNoConflict
         // Each field is an "and" requirement
         // General is also an "and"
         $search_array = [];
+        $search_performed = false;
         $search_datetime = new \DateTime();
         foreach($params['fields'] as $field) {
             if(isset($field['selected_tags'])) {
@@ -468,6 +469,7 @@ class SearchAPIServiceNoConflict
                     $parameters['selected_tag_uuids'] = $tag_uuids;
 
                     $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
+                    $search_performed = true;
                 }
 
             }
@@ -485,6 +487,7 @@ class SearchAPIServiceNoConflict
                     $qs .= ' AND rs.selected = 1';
                     $parameters['selected_radio_option_uuids'] = $radio_uuids;
                     $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
+                    $search_performed = true;
                 }
             }
         }
@@ -511,13 +514,22 @@ class SearchAPIServiceNoConflict
                     }
                 }
                 $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
+                $search_performed = true;
             }
             else {
                 $qs = $query_base;
                 $qs .= ' AND ';
                 self::addGeneralParameters($qs, $parameters, $params['general'], 0);
                 $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
+                $search_performed = true;
             }
+        }
+
+        if(!$search_performed) {
+            $parameters = array();
+            $parameters['datatype_id_array'] = array_unique($datatype_id_array);
+            $parameters['now'] = $search_datetime;
+            $search_array[] = self::runSearchQuery($query_base, $parameters, $master_datatype_id);
         }
 
         // print $qs; exit();
