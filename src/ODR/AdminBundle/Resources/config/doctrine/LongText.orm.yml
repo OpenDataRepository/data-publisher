@@ -30,6 +30,11 @@ ODR\AdminBundle\Entity\LongText:
             type: datetime
             nullable: true
 
+    indexes:
+        longtext_fulltext:
+            columns: ["value"]
+            flags: fulltext
+
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -55,7 +60,7 @@ ODR\AdminBundle\Entity\LongText:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: longText
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

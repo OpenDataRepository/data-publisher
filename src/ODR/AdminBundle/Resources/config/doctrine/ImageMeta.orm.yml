@@ -56,6 +56,14 @@ ODR\AdminBundle\Entity\ImageMeta:
             type: datetime
             nullable: true
 
+    indexes:
+        imagemeta_ofn_fulltext:
+            columns: ["original_file_name"]
+            flags: fulltext
+        imagemeta_caption_fulltext:
+            columns: ["caption"]
+            flags: fulltext
+
     manyToOne:
         image:
             targetEntity: Image

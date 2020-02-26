@@ -71,6 +71,9 @@ doctrine:
             softdeleteable:
                 class: Gedmo\SoftDeleteable\Filter\SoftDeleteableFilter
                 enabled: true
+        dql:
+            string_functions:
+                MATCH: ODR\AdminBundle\Component\Utility\MatchAgainstFunction
         mappings:
             translatable:
                 type: annotation

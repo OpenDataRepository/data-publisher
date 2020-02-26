@@ -389,7 +389,7 @@ class SearchAPIServiceNoConflict
          */
 
         // Get dr.unique_id
-        $qs = 'SELECT
+        $query_base = 'SELECT
             distinct dr.unique_id, dr.id, par.id as parent_id, gp.id as grandparent_id
 
             FROM ODRAdminBundle:DataRecord AS dr
@@ -408,27 +408,27 @@ class SearchAPIServiceNoConflict
 
             LEFT JOIN dr.dataRecordFields AS drf
             
-            LEFT JOIN dr.file AS e_f
+            LEFT JOIN drf.file AS e_f
             LEFT JOIN e_f.fileMeta AS e_fm
 
-            LEFT JOIN dr.image AS e_i
+            LEFT JOIN drf.image AS e_i
             LEFT JOIN e_i.imageMeta AS e_im
             LEFT JOIN e_i.parent AS e_ip
             LEFT JOIN e_ip.imageMeta AS e_ipm
             LEFT JOIN e_i.imageSize AS e_is
 
-            LEFT JOIN dr.boolean AS e_b
-            LEFT JOIN dr.integerValue AS e_iv
-            LEFT JOIN dr.decimalValue AS e_dv
-            LEFT JOIN dr.longText AS e_lt
-            LEFT JOIN dr.longVarchar AS e_lvc
-            LEFT JOIN dr.mediumVarchar AS e_mvc
-            LEFT JOIN dr.shortVarchar AS e_svc
-            LEFT JOIN dr.datetimeValue AS e_dtv
-            LEFT JOIN dr.radioSelection AS rs
+            LEFT JOIN drf.boolean AS e_b
+            LEFT JOIN drf.integerValue AS e_iv
+            LEFT JOIN drf.decimalValue AS e_dv
+            LEFT JOIN drf.longText AS e_lt
+            LEFT JOIN drf.longVarchar AS e_lvc
+            LEFT JOIN drf.mediumVarchar AS e_mvc
+            LEFT JOIN drf.shortVarchar AS e_svc
+            LEFT JOIN drf.datetimeValue AS e_dtv
+            LEFT JOIN drf.radioSelection AS rs
             LEFT JOIN rs.radioOption AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
-            LEFT JOIN dr.tagSelection AS ts
+            LEFT JOIN drf.tagSelection AS ts
             LEFT JOIN ts.tag AS t
             LEFT JOIN t.tagMeta AS tm
 
@@ -447,42 +447,58 @@ class SearchAPIServiceNoConflict
         */
 
         // Parameters array
-        $parameters = array();
 
-        // Get list of fields
-        // template radio option uuid
-        // template tag uuid
-
-        $tag_uuids = array();
-        $radio_uuids = array();
+        // Each field is an "and" requirement
+        // General is also an "and"
+        $search_array = [];
+        $search_datetime = new \DateTime();
         foreach($params['fields'] as $field) {
             if(isset($field['selected_tags'])) {
+                $parameters = array();
+                $parameters['datatype_id_array'] = array_unique($datatype_id_array);
+                $parameters['now'] = $search_datetime;
+                // print var_export($parameters, true);
                 $tag_uuids = $field['selected_tags'];
                 // $tag_uuids = array_merge($tag_uuids, $field['selected_tags']);
                 if(count($tag_uuids) > 0) {
+                    $qs = $query_base;
                     $qs .= ' AND t.tagUuid IN (:selected_tag_uuids)';
                     $qs .= ' AND ts.deletedAt IS NULL';
                     $qs .= ' AND ts.selected = 1';
                     $parameters['selected_tag_uuids'] = $tag_uuids;
+
+                    $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
                 }
+
             }
             if(isset($field['selected_options'])) {
+                $parameters = array();
+                $parameters['datatype_id_array'] = array_unique($datatype_id_array);
+                $parameters['now'] = $search_datetime;
+                // print var_export($parameters, true);
                 $radio_uuids = $field['selected_options'];
                 // $radio_uuids = array_merge($radio_uuids, $field['selected_options']);
                 if(count($radio_uuids) > 0) {
+                    $qs = $query_base;
                     $qs .= ' AND ro.radioOptionUuid IN (:selected_radio_option_uuids)';
                     $qs .= ' AND rs.deletedAt IS NULL';
                     $qs .= ' AND rs.selected = 1';
                     $parameters['selected_radio_option_uuids'] = $radio_uuids;
+                    $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
                 }
             }
         }
 
         // Add General Search
         if(isset($params['general'])) {
+            $parameters = array();
+            $parameters['datatype_id_array'] = array_unique($datatype_id_array);
+            $parameters['now'] = $search_datetime;
+            // print var_export($parameters, true);
             if(preg_match('/\|\|/', $params['general'])) {
                 // We need to split and generate a general_terms array
                 $terms = preg_split('/\|\|/', $params['general']);
+                $qs = $query_base;
                 $qs .= ' AND ( ';
                 for($i = 0; $i < count($terms); $i++) {
                     $term = $terms[$i];
@@ -494,17 +510,121 @@ class SearchAPIServiceNoConflict
                         $qs .= ' ) ';
                     }
                 }
+                $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
             }
             else {
+                $qs = $query_base;
                 $qs .= ' AND ';
                 self::addGeneralParameters($qs, $parameters, $params['general'], 0);
+                $search_array[] = self::runSearchQuery($qs, $parameters, $master_datatype_id);
             }
         }
 
-        $parameters['datatype_id_array'] = array_unique($datatype_id_array);
-        $parameters['now'] = new \DateTime();
-        // print var_export($parameters, true);
         // print $qs; exit();
+        // print var_export($search_array,true);exit();
+        $result = [];
+        if(count($search_array) == 1) {
+            $result = $search_array[0];
+        }
+        else if(count($search_array) > 1) {
+            $tmp_array = [];
+            $base_array = $search_array[0];
+            for($i=1; $i < count($search_array); $i++) {
+                $result_array = $search_array[$i];
+                foreach($result_array as $record) {
+                    foreach($base_array as $base_record) {
+                        if($base_record['unique_id'] == $record['unique_id']) {
+                            array_push($tmp_array, $record);
+                        }
+                    }
+                }
+                $base_array = $tmp_array;
+            }
+            $result = $base_array;
+        }
+
+        $records = array();
+        foreach($result as $record_info) {
+                // Attempt with the default UUID for this datatype
+            $metadata_record = $this->cache_service
+                ->get('json_record_' . $record_info['unique_id']);
+
+            if(!$metadata_record) {
+                // need to populate record using record builder
+                $metadata_record = self::getRecordData(
+                    'v3',
+                    $record_info['unique_id'],
+                    $baseurl,
+                    'json',
+                    true,
+                    null,
+                    false
+                );
+            }
+
+            if($metadata_record) {
+                array_push($records, json_decode($metadata_record, true));
+            }
+        }
+
+        // var_dump($records);exit();
+        // Sort by dataset name
+        $sort_array = [];
+        foreach($records as $record) {
+            if(isset($record['fields'])) {
+                foreach($record['fields'] as $field) {
+                    if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
+                        $sort_array[strtolower($field['value'])] = $record;
+                    }
+                }
+            }
+        }
+        ksort($sort_array, SORT_STRING);
+
+        // Use splice to do limit & offset
+        $records = array_values($sort_array);
+
+        return $records;
+    }
+
+    function addGeneralParameters(&$qs, &$parameters, $term, $index) {
+        $qs .= ' (MATCH(e_lt.value) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_lvc.value) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_mvc.value) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_svc.value) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_im.caption) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_im.originalFileName) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_ipm.caption) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_ipm.originalFileName) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_fm.description) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(e_fm.originalFileName) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(rom.optionName) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ' OR MATCH(tm.tagName) AGAINST (:general_' . $index . ') > 0';
+        $qs .= ')';
+
+        $parameters['general_' . $index] = $term;
+
+        /*
+        // Add General Search
+        $qs .= ' (e_lt.value LIKE :general_' . $index;
+        $qs .= ' OR e_lvc.value LIKE :general_' . $index;
+        $qs .= ' OR e_mvc.value LIKE :general_' . $index;
+        $qs .= ' OR e_svc.value LIKE :general_' . $index;
+        $qs .= ' OR e_im.caption LIKE :general_' . $index;
+        $qs .= ' OR e_im.originalFileName LIKE :general_' . $index;
+        $qs .= ' OR e_ipm.caption LIKE :general_' . $index;
+        $qs .= ' OR e_ipm.originalFileName LIKE :general_' . $index;
+        $qs .= ' OR e_fm.description LIKE :general_' . $index;
+        $qs .= ' OR e_fm.originalFileName LIKE :general_' . $index;
+        $qs .= ' OR rom.optionName LIKE :general_' . $index;
+        $qs .= ' OR tm.tagName LIKE :general_' . $index;
+        $qs .= ')';
+
+        $parameters['general_' . $index] = '%' . $term . '%';
+        */
+    }
+
+    private function runSearchQuery($qs, $parameters, $master_datatype_id) {
 
         $query = $this->em->createQuery($qs);
         $query->setParameters($parameters);
@@ -589,73 +709,8 @@ class SearchAPIServiceNoConflict
 
         $result = $query->getArrayResult();
 
-        // var_dump($result);exit();
+        return $result;
 
-
-
-
-        $records = array();
-        foreach($result as $record_info) {
-                // Attempt with the default UUID for this datatype
-            $metadata_record = $this->cache_service
-                ->get('json_record_' . $record_info['unique_id']);
-
-            if(!$metadata_record) {
-                // need to populate record using record builder
-                $metadata_record = self::getRecordData(
-                    'v3',
-                    $record_info['unique_id'],
-                    $baseurl,
-                    'json',
-                    true,
-                    null,
-                    false
-                );
-            }
-
-            if($metadata_record) {
-                array_push($records, json_decode($metadata_record, true));
-            }
-        }
-
-        // var_dump($records);exit();
-        // Sort by dataset name
-        $sort_array = [];
-        foreach($records as $record) {
-            if(isset($record['fields'])) {
-                foreach($record['fields'] as $field) {
-                    if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
-                        $sort_array[strtolower($field['value'])] = $record;
-                    }
-                }
-            }
-        }
-        ksort($sort_array, SORT_STRING);
-
-        // Use splice to do limit & offset
-        $records = array_values($sort_array);
-
-        return $records;
-    }
-
-    function addGeneralParameters(&$qs, &$parameters, $term, $index) {
-
-        // Add General Search
-        $qs .= ' (e_lt.value LIKE :general_' . $index;
-        $qs .= ' OR e_lvc.value LIKE :general_' . $index;
-        $qs .= ' OR e_mvc.value LIKE :general_' . $index;
-        $qs .= ' OR e_svc.value LIKE :general_' . $index;
-        $qs .= ' OR e_im.caption LIKE :general_' . $index;
-        $qs .= ' OR e_im.originalFileName LIKE :general_' . $index;
-        $qs .= ' OR e_ipm.caption LIKE :general_' . $index;
-        $qs .= ' OR e_ipm.originalFileName LIKE :general_' . $index;
-        $qs .= ' OR e_fm.description LIKE :general_' . $index;
-        $qs .= ' OR e_fm.originalFileName LIKE :general_' . $index;
-        $qs .= ' OR rom.optionName LIKE :general_' . $index;
-        $qs .= ' OR tm.tagName LIKE :general_' . $index;
-        $qs .= ')';
-
-        $parameters['general_' . $index] = '%' . $term . '%';
     }
 
     /**

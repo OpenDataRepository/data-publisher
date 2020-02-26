@@ -124,7 +124,7 @@ ODR\AdminBundle\Entity\Image:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: image
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

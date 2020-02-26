@@ -110,7 +110,7 @@ ODR\AdminBundle\Entity\File:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: file
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

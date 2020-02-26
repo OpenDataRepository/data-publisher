@@ -32,6 +32,11 @@ ODR\AdminBundle\Entity\ShortVarchar:
             type: datetime
             nullable: true
 
+    indexes:
+        shortvarchar_fulltext:
+            columns: ["value"]
+            flags: fulltext
+
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -57,7 +62,7 @@ ODR\AdminBundle\Entity\ShortVarchar:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: shortVarchar
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

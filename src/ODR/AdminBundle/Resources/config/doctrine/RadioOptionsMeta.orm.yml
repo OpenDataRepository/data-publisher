@@ -52,6 +52,11 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
             type: datetime
             nullable: true
 
+    indexes:
+        radiooptionsmeta_fulltext:
+            columns: ["option_name"]
+            flags: fulltext
+
     manyToOne:
         radioOption:
             targetEntity: RadioOptions
