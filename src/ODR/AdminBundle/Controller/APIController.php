@@ -2874,7 +2874,8 @@ class APIController extends ODRCustomController
                         $new_record_meta->setUpdated(new \DateTime());
                         $new_record_meta->setCreated(new \DateTime());
                         $new_record_meta->setDataRecord($new_record);
-                        $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
+                        // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
+                        $new_record_meta->setPublicDate(new \DateTime());
 
                         // Need to persist and flush
                         $em->persist($new_record);
