@@ -1857,7 +1857,10 @@ class SearchService
         $cached_searches[$key] = $end_result;
         $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_public_status', $cached_searches);
 
-        // ...then return it
+        // ...set the expiration date of the cache entry for when the next record becomes public
+        self::expireCacheEntry('cached_search_dt_'.$datatype->getId().'_public_status', 'data_record', $datatype->getId());
+
+        // ...and return which records match the search query
         return $end_result;
     }
 
@@ -2065,6 +2068,8 @@ class SearchService
             $df_list = $this->cache_service->get('cached_search_dt_'.$dt_id.'_datafields');
             if (!$df_list) {
                 // If not cached, need to rebuild the list...
+                $current_date = new \DateTime();
+
                 $query = $this->em->createQuery(
                    'SELECT
                         df.id AS df_id, df.fieldUuid AS df_uuid, dfm.publicDate AS df_public_date,
@@ -2100,16 +2105,16 @@ class SearchService
                     if ( is_null($result['df_id']) )
                         continue;
 
-                    // Inline searching requires the ability to search on any datafield, even those
-                    //  the user may not have necessarily marked as "searchable"
                     $searchable = $result['searchable'];
                     $typeclass = $result['typeClass'];
 
+                    // Inline searching requires the ability to search on any datafield, even those
+                    //  the user may not have necessarily marked as "searchable"
 //                    if ( $searchable > 0 ) {
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching
 
-                        if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
+                        if ($result['df_public_date'] <= $current_date) {
                             $df_list['datafields'][$df_id] = array(
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
@@ -2128,6 +2133,9 @@ class SearchService
 
                 // Store the result back in the cache
                 $this->cache_service->set('cached_search_dt_'.$dt_id.'_datafields', $df_list);
+
+                // ...set the expiration date of the cache entry for when the next record becomes public
+                self::expireCacheEntry('cached_search_dt_'.$dt_id.'_datafields', 'data_fields', $datatype_id);
             }
 
             // Continue to build up the array of searchable datafields...
@@ -2247,5 +2255,89 @@ class SearchService
             $dt_uuids[] = $result['dt_uuid'];
 
         return $dt_uuids;
+    }
+
+
+    /**
+     * ODR originally used a "fixed" date of "2200-01-01 00:00:00" to indicate non-public...but
+     * has been changed so that users could specify some date in the future for something to
+     * "automatically" turn public.
+     *
+     * However, there are a couple cache entries with contents that depend on the public date...not
+     * having a "fixed" non-public date means these entries may need to expire themselves when the
+     * entity would become public.
+     *
+     * @param string $cache_entry
+     * @param string $entity_name
+     * @param int $datatype_id
+     */
+    private function expireCacheEntry($cache_entry, $entity_name, $datatype_id)
+    {
+        // Going to need these...
+        $current_date = new \DateTime();
+        $relation = $entity_name;
+        if ( $entity_name === 'data_fields' )
+            $relation = 'data_field';
+
+        // TODO - this query won't work for datatypes, files, or images...
+        // Find the entity that's the closest to "automatically" becoming public...
+        $query =
+           'SELECT em.public_date
+            FROM odr_'.$entity_name.' AS e
+            JOIN odr_'.$entity_name.'_meta em ON em.'.$relation.'_id = e.id
+            WHERE e.data_type_id = :datatype_id
+            AND em.public_date > :current_date AND em.public_date != :fixed_date
+            AND e.deletedAt IS NULL AND em.deletedAt IS NULL
+            ORDER BY em.public_date
+            LIMIT 0,1';
+
+        $search_params = array(
+            'datatype_id' => $datatype_id,
+            'current_date' => $current_date->format('Y-m-d H:i:s'),
+            'fixed_date' => '2200-01-01 00:00:00'
+        );
+
+        // Execute and return the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $search_params);
+
+        // If this entity is going to "automatically" become public at some time sooner than the
+        //  "fixed" non-public date of "2200-01-01 00:00:00"...
+        if ( !empty($results) ) {
+            /** @var \DateTime $next_date */
+            $next_date = new \DateTime($results[0]['public_date']);
+
+            // ...then calculate how long until the entity "automatically" becomes public...
+            $interval = $next_date->diff($current_date);
+
+            // ...and convert that interval into seconds...
+            $duration = 1;    // specify a minimum of 1 second to cover rounding errors...
+
+            $days = intval( $interval->format("%a") );
+            if ($days >= 1)
+                $duration += $days*24*60*60;
+
+            $hours = intval( $interval->format("%h") );
+            if ($hours >= 1)
+                $duration += $hours*60*60;
+
+            $minutes = intval( $interval->format("%i") );
+            if ($minutes >= 1)
+                $duration += $minutes*60;
+
+            $seconds = intval( $interval->format("%s") );
+            if ($seconds >= 1)
+                $duration += $seconds;
+
+
+            // ...and finally set the cache entry to expire at that point in the future
+            $this->cache_service->expire($cache_entry, $duration);
+
+            // TODO - ...daylight savings time is probably going to screw this up, won't it
+
+            // NOTE - as of the time of this change, there's a max difference of over 5.6 billion
+            //  seconds...which is close to 44 years longer than what I believe a 32 bit machine
+            //  would be able to handle...
+        }
     }
 }

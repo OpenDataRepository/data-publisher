@@ -146,21 +146,23 @@ class SearchQueryService
     public function searchPublicStatus($datatype_id, $is_public)
     {
         // ----------------------------------------
+        $current_date = new \DateTime();
+
         // Assume by default that caller wants all public datarecords
         $search_params = array(
-            'str' => 'drm.public_date != :public_date',
+            'str' => 'drm.public_date <= :public_date',
             'params' => array(
                 'datatype_id' => $datatype_id,
-                'public_date' => '2200-01-01 00:00:00'
+                'public_date' => $current_date->format('Y-m-d H:i:s')
             )
         );
 
         if ( !$is_public ) {
             $search_params = array(
-                'str' => 'drm.public_date = :public_date',
+                'str' => 'drm.public_date > :public_date',
                 'params' => array(
                     'datatype_id' => $datatype_id,
-                    'public_date' => '2200-01-01 00:00:00'
+                    'public_date' => $current_date->format('Y-m-d H:i:s')
                 )
             );
         }
