@@ -611,8 +611,6 @@ class CloneMasterDatatypeService
             //  entry so it doesn't attempt to use the meta entry for $template_datatype
             $new_meta = clone $template_meta;
             $new_meta->setDataType($new_datatype);
-
-            // TODO - Does this newly cloned meta entry needs to be modified somehow?
         }
         else {
             // $new_datatype was created back in DatatypeController::finishsetupAction(), and
@@ -665,6 +663,10 @@ class CloneMasterDatatypeService
         $parent_df_array = $template_datatype->getDataFields();
         foreach ($parent_df_array as $parent_df) {
             // Copy over all of the parent datatype's datafields
+            // TODO - ...is this technically a security risk when copying a datatype? (not from a template)
+            // TODO - this will clone all fields from the source, even the ones a user can't see
+
+            // TODO - ...potentially similar issue with themes...this process will eventually copy all of them, even the private ones
             $new_df = clone $parent_df;
             $new_df->setDataType($new_datatype);
             $new_df->setIsMasterField(false);

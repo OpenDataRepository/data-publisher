@@ -284,8 +284,8 @@ class EntityMetaModifyService
         // changes are picked up by derivative data types when the parent data type revision is changed.
         if ($datafield->getIsMasterField() > 0) {
             $datatype = $datafield->getDataType();
-            $properties['master_revision'] = $datatype->getMasterRevision() + 1;
-            self::updateDatatypeMeta($user, $datatype, $properties, $delay_flush);
+            $dt_properties['master_revision'] = $datatype->getMasterRevision() + 1;
+            self::updateDatatypeMeta($user, $datatype, $dt_properties, $delay_flush);
         }
 
         // Return the new entry

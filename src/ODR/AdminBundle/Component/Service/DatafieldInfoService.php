@@ -188,13 +188,15 @@ class DatafieldInfoService
 
         // Also shouldn't delete datafields that are being used by the Datatype's render plugin...
         if ( $dtm['renderPlugin']['pluginClassName'] !== 'odr_plugins.base.default' ) {
-            $rpi = $dtm['renderPlugin']['renderPluginInstance'][0];
-            foreach ($rpi['renderPluginMap'] as $rpm) {
-                if ( $rpm['dataField']['id'] === $datafield_id ) {
-                    return array(
-                        'can_delete' => false,
-                        'delete_message' => "This Datafield can't be deleted because it's currently required by the \"".$dtm['renderPlugin']['pluginName']."\" this Datatype is using"
-                    );
+            if ( !empty($dtm['renderPlugin']['renderPluginInstance']) ) {
+                $rpi = $dtm['renderPlugin']['renderPluginInstance'][0];
+                foreach ($rpi['renderPluginMap'] as $rpm) {
+                    if ($rpm['dataField']['id'] === $datafield_id) {
+                        return array(
+                            'can_delete' => false,
+                            'delete_message' => "This Datafield can't be deleted because it's currently required by the \"".$dtm['renderPlugin']['pluginName']."\" this Datatype is using"
+                        );
+                    }
                 }
             }
         }
