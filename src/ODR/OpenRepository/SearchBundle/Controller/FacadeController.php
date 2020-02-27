@@ -420,6 +420,10 @@ class FacadeController extends Controller
         $baseurl = $this->container->getParameter('site_baseurl');
         $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
+        // Slice for Limit/Offset
+        $records = array_slice($records, $offset, $limit);
+
+        // Wrap array for JSON compliance
         $output = array('records' => $records);
         return new JsonResponse($output);
 
