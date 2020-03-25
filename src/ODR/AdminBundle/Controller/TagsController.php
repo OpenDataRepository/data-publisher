@@ -1249,10 +1249,9 @@ class TagsController extends ODRCustomController
             // Delete the old TagTree if needed...
             if ($delete_old_entry) {
                 $tag_tree->setDeletedBy($user);
+                $tag_tree->setDeletedAt(new \DateTime());
                 $em->persist($tag_tree);
-                $em->flush();
 
-                $em->remove($tag_tree);
                 $em->flush();
             }
 

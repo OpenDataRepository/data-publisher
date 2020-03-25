@@ -3805,14 +3805,11 @@ exit();
                                     else
                                         $emm_service->updateImageMeta($user, $new_obj, $properties);
 
-                                    // Save who replaced the file/image
-                                    $old_obj->setDeletedBy($user);
-                                    $em->persist($old_obj);
-                                    $em->flush($old_obj);
-
                                     // Delete the old object and its metadata entry
-                                    $em->remove($old_obj);
-                                    $em->remove($old_obj_meta);
+                                    $old_obj->setDeletedBy($user);
+                                    $old_obj->setDeletedAt(new \DateTime());
+                                    $em->persist($old_obj);
+
                                     $em->flush();
                                 }
                             }
@@ -3856,8 +3853,13 @@ exit();
 
                                         // Delete the file entity and its associated metadata entry
                                         $file_meta = $file->getFileMeta();
-                                        $em->remove($file);
-                                        $em->remove($file_meta);
+                                        $file_meta->setDeletedAt(new \DateTime());
+                                        $em->persist($file_meta);
+
+                                        $file->setDeletedBy($user);
+                                        $file->setDeletedAt(new \DateTime());
+                                        $em->persist($file);
+
                                         $need_flush = true;
                                     }
                                     else if ($typeclass == 'Image') {
@@ -3867,7 +3869,8 @@ exit();
 
                                             // Delete the image's associated metadata entry
                                             $image_meta = $file->getImageMeta();
-                                            $em->remove($image_meta);
+                                            $image_meta->setDeletedAt(new \DateTime());
+                                            $em->persist($image_meta);
                                         }
 
                                         // Ensure no decrypted version of the image (or thumbnails) exists on the server
@@ -3877,11 +3880,9 @@ exit();
 
                                         // Save who deleted the image
                                         $file->setDeletedBy($user);
+                                        $file->setDeletedAt(new \DateTime());
                                         $em->persist($file);
-                                        $em->flush($file);
 
-                                        // Delete the image (thumbnails are deleted by this as well)
-                                        $em->remove($file);
                                         $need_flush = true;
                                     }
                                 }

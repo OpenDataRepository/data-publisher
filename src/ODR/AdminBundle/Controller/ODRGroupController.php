@@ -15,7 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\EntityCreationService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -37,6 +36,7 @@ use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -371,14 +371,15 @@ class ODRGroupController extends ODRCustomController
             $rows = $query->execute();
 
 
-            // Save who deleted the Group
-            $group->setDeletedBy($user);
-            $em->persist($group);
-            $em->flush();
-
             // Delete the Group and its meta entry
-            $em->remove($group->getGroupMeta());
-            $em->remove($group);
+            $group_meta = $group->getGroupMeta();
+            $group_meta->setDeletedAt(new \DateTime());
+            $em->persist($group_meta);
+
+            $group->setDeletedBy($user);
+            $group->setDeletedAt(new \DateTime());
+            $em->persist($group);
+
             $em->flush();
 
 
@@ -725,7 +726,8 @@ class ODRGroupController extends ODRCustomController
 
 
     /**
-     * Lists all groups the user belongs to, filtered by what the calling user is allowed to view.
+     * Lists all groups the user belongs to, filtered by which datatypes the calling user is allowed
+     * to view.
      *
      * @param integer $user_id
      * @param Request $request
@@ -956,14 +958,17 @@ class ODRGroupController extends ODRCustomController
                     //  database got messed up somehow...
                     $changes_made = false;
                     foreach ($results as $ug) {
-                        // Can't just call $em->remove($ug)...that won't set deletedBy
-
                         /** @var UserGroup $ug */
-                        $ug->setDeletedBy($admin_user);
-                        $ug->setDeletedAt(new \DateTime());
-                        $em->persist($ug);
 
-                        $changes_made = true;
+                        // Don't remove the user from the group that they're supposed to be added to
+                        if ( $ug->getGroup()->getId() !== $group->getId() ) {
+                            // Can't just call $em->remove($ug)...that won't set deletedBy
+                            $ug->setDeletedBy($admin_user);
+                            $ug->setDeletedAt(new \DateTime());
+                            $em->persist($ug);
+
+                            $changes_made = true;
+                        }
                     }
 
                     // Flush now that all the updates have been made
@@ -986,15 +991,16 @@ class ODRGroupController extends ODRCustomController
                         'group' => $group->getId()
                     )
                 );
-                if ($user_group == null) {
+                if ( is_null($user_group) ) {
                     /* user already doesn't belong to this group, do nothing */
                 }
                 else {
                     // Delete the UserGroup entity so the user is no longer linked to the group
+                    // Can't just call $em->remove($ug)...that won't set deletedBy
                     $user_group->setDeletedBy($admin_user);
                     $user_group->setDeletedAt(new \DateTime());
                     $em->persist($user_group);
-//                    $em->remove($user_group);
+
                     $em->flush();
 
                     // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
