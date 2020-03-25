@@ -2358,6 +2358,10 @@
                     datafield_properties[new_field_id].delete_message = data.d.new_field_deletion_message.prevent_deletion_message;
                 }
 
+                // TODO - ...would be nice to not have to reload, but it seems unavoidable
+                if ( data.d.new_url !== undefined )
+                    window.location.href = data.d.new_url;
+
                 notifySaved();
             },
             error: function() {
