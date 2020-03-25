@@ -2069,11 +2069,11 @@ class SearchService
                     if ( is_null($result['df_id']) )
                         continue;
 
-                    // Inline searching requires the ability to search on any datafield, even those
-                    //  the user may not have necessarily marked as "searchable"
                     $searchable = $result['searchable'];
                     $typeclass = $result['typeClass'];
 
+                    // Inline searching requires the ability to search on any datafield, even those
+                    //  the user may not have necessarily marked as "searchable"
 //                    if ( $searchable > 0 ) {
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching

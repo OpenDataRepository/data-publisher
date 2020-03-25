@@ -615,10 +615,7 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
-        $is_filename = false;
-        // RadioOption name column in db can not be null
-        $can_be_null = false;
-        $search_params = self::parseField($value, $is_filename, $can_be_null);
+        $search_params = self::parseField($value, "Radio");
         $search_params['params']['datafield_id'] = $datafield_id;
 
         // The search_param string has "e.value", but needs to have "rom.option_name" instead
@@ -670,10 +667,7 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
-        $is_filename = false;
-        // Tag name column in db can not be null
-        $can_be_null = false;
-        $search_params = self::parseField($value, $is_filename, $can_be_null);
+        $search_params = self::parseField($value, "Radio");
         $search_params['params']['template_dt_id'] = $master_template_uuid;
         $search_params['params']['template_df_id'] = $master_datafield_uuid;
 
@@ -740,10 +734,7 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
-        $is_filename = false;
-        // Tag name column in db can not be null
-        $can_be_null = false;
-        $search_params = self::parseField($value, $is_filename, $can_be_null);
+        $search_params = self::parseField($value, "Tag");
         $search_params['params']['datafield_id'] = $datafield_id;
 
         // The search_param string has "e.value", but needs to have "tm.tag_name" instead
@@ -999,11 +990,7 @@ class SearchQueryService
         $results = array();
 
         if ( !is_null($filename) && $filename !== '' ) {
-            // Filename could have logical terms in it
-            $is_filename = true;
-            // Filename column in db can not be null
-            $can_be_null = false;
-            $search_params = self::parseField($filename, $is_filename, $can_be_null);
+            $search_params = self::parseField($filename, $typeclass);
             $search_params['params']['datafield_id'] = $datafield_id;
 
             $filename_match_query =
@@ -1078,11 +1065,7 @@ class SearchQueryService
         $results = array();
 
         if ( !is_null($filename) && $filename !== '' ) {
-            // Filename could have logical terms in it
-            $is_filename = true;
-            // Filename column in db can not be null
-            $can_be_null = false;
-            $search_params = self::parseField($filename, $is_filename, $can_be_null);
+            $search_params = self::parseField($filename, $typeclass);
             $search_params['params']['template_df_id'] = $master_datafield_uuid;
 
             $filename_match_query =
@@ -1296,17 +1279,11 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
-        $is_filename = false;
-
-        // The value stored in the text-based datafields searched by this can't be null...
-        $can_be_null = false;
-        if ($typeclass === 'IntegerValue' || $typeclass === 'DecimalValue')
-            // ...but the value stored in the number-based datafields can
-            $can_be_null = true;
-
-        $search_params = self::parseField($value, $is_filename, $can_be_null);
+        $search_params = self::parseField($value, $typeclass);
         $search_params['params']['datafield_id'] = $datafield_id;
 
+
+        // ----------------------------------------
         // Define the base query for searching
         $query =
            'SELECT dr.id AS dr_id
@@ -1404,15 +1381,13 @@ class SearchQueryService
 
         // ----------------------------------------
         // Convert the given value into two arrays of parameters...
-        $is_filename = false;
-
         // ...one for the text fieldtypes because their value columns can't store nulls...
-        $search_params_text = self::parseField($value, $is_filename, false);
+        $search_params_text = self::parseField($value, "ShortVarchar");
         $search_params_text['params']['template_df_id'] = $master_datafield_uuid;
         $params[0] = $params[1] = $params[2] = $params[3] = $search_params_text;
 
         // ...and a second for the numerical fieldtypes because their value columns can store nulls
-        $search_params_num = self::parseField($value, $is_filename, true);
+        $search_params_num = self::parseField($value, "IntegerValue");
         $search_params_num['params']['template_df_id'] = $master_datafield_uuid;
         $params[4] = $params[5] = $search_params_num;
 
@@ -1535,6 +1510,14 @@ class SearchQueryService
      */
     private function isNullDrfPossible($str, $params)
     {
+        // ----------------------------------------
+        // If the given string is impossible to match, then the query can't match the empty string
+        //  either...therefore a null drf is not possible
+        if ( $str === '1=0' )
+            return false;
+
+
+        // ----------------------------------------
         // Roughly speaking, there are seven possibilities...
         // search for: ""   => e.value = ""                   could match null drf
         // search for: !""  => e.value != ""                  can't match null drf
@@ -1609,6 +1592,14 @@ class SearchQueryService
      */
     private function canQueryReturnResults($str, $params)
     {
+        // ----------------------------------------
+        // Technically this function won't get executed if the given string is impossible to match,
+        //  but this ensures that it can't match any records with null drfs
+        if ( $str === '1=0' )
+            return false;
+
+
+        // ----------------------------------------
         // Because right now the user isn't allowed to group logical operators, this single php
         //  statment will effectively suffice for determining MYSQL order of operations
         // Individual statements connected by AND will be executed first...the results of each block
@@ -1665,13 +1656,22 @@ class SearchQueryService
      * Turns a piece of the search string into a more SQL-friendly format.
      *
      * @param string $str The string to turn into SQL...
-     * @param bool $is_filename Whether this is being parsed as a filename or not
-     * @param bool $can_be_null Whether the underlying database column allows null values or not
+     * @param string $typeclass
      *
      * @return array
      */
-    private function parseField($str, $is_filename, $can_be_null) {
-        // ?
+    private function parseField($str, $typeclass)
+    {
+        // ----------------------------------------
+        // Most of the database fields that are searched can't have null values...
+        $can_be_null = false;
+        if ($typeclass === 'IntegerValue' || $typeclass === 'DecimalValue')
+            // ...but the number-based datafields can, so their queries might need to be different
+            $can_be_null = true;
+
+
+        // ----------------------------------------
+        // Break the provided string into tokens
         $str = str_replace(array("\n", "\r"), '', $str);
 
         $pieces = array();
@@ -1769,21 +1769,44 @@ class SearchQueryService
                 }
             }
         }
-        // save any remaining piece
+
+        // Save any remaining piece
         if ($tmp !== '')
             $pieces[] = $tmp;
 
-        // clean up the array as best as possible
+
+        // ----------------------------------------
+        // Clean up the array of tokens as best as possible
         $pieces = array_values($pieces);
         $first = true;
         $previous = 0;
+
+        // If this parsing is for a numerical field, then non-numerical values need to be removed
+        // Strings tend to match numerical values of zero in the backend database
+        if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' ) {
+            foreach ($pieces as $num => $piece) {
+                // Ignore the logical operators
+                if ( self::isLogicalOperator($piece) || self::isInequality($piece) )
+                    continue;
+                // Allow the empty string
+                else if ( $piece === '""' )
+                    continue;
+                // Unset any remaining piece that isn't numeric, since it'll never match anything
+                else if ( !is_numeric($piece ) )
+                    unset( $pieces[$num] );
+            }
+
+            // Redo array indices since values might have been deleted
+            $pieces = array_values($pieces);
+        }
+
         foreach ($pieces as $num => $piece) {
-            // prevent operators needing two operands from being out in front
+            // Prevent operators needing two operands from being out in front
             if ( $first && self::isConnective($piece) ) {
                 unset( $pieces[$num] );
                 continue;
             }
-            // save the first "good" token
+            // Save the first "good" token
             if ($first) {
                 $first = false;
                 $previous = $piece;
@@ -1793,34 +1816,42 @@ class SearchQueryService
             if ( !isset($pieces[$num]) || !isset($pieces[$num+1]) )
                 continue;
 
-            // Delete some consecutive logical operators
+            // Delete certain sequences of consecutive logical operators
             if ( $pieces[$num] == '&&' && $pieces[$num+1] == '&&' )
                 unset( $pieces[$num] );
             else if ( $pieces[$num] == '&&' && $pieces[$num+1] == '||' )
                 unset( $pieces[$num] );
             else if ( self::isConnective($previous) && self::isConnective($piece) )
                 unset( $pieces[$num] );
-            // delete operators after inequalities
+            // Delete operators after inequalities
             else if ( self::isInequality($previous) && (self::isConnective($piece) || self::isInequality($piece)) )
                 unset( $pieces[$num] );
-            // legitimate token
+            // Otherwise, this is a legitimate token
             else
                 $previous = $piece;
         }
 
-        // remove trailing operators...they're unmatched by definition
+        // If no pieces remain, then the given string could never match anything in the field
+        // Return impossible search params so the search functions can't return any results
+        if ( empty($pieces) )
+            return array('str' => "1=0", 'params' => array());
+
+        // Remove trailing operators...they're unmatched by definition
         $pieces = array_values($pieces);
         $num = count($pieces)-1;
         if ( self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num]) )
             unset( $pieces[$num] );
 
+
+        // ----------------------------------------
+        // Convert the array of tokens into SQL fragments
         $negate = false;
         $inequality = false;
         $searching_on_null = false;
         $parameters = array();
 
         $str = 'e.value';
-        if ($is_filename)
+        if ($typeclass === 'File' || $typeclass === 'Image')
             $str = 'e_m.original_file_name';
 
         $count = 0;
@@ -1829,13 +1860,13 @@ class SearchQueryService
                 $negate = true;
             }
             else if ($piece == '&&') {
-                if (!$is_filename)
+                if ( $typeclass !== 'File' && $typeclass !== 'Image' )
                     $str .= ' AND e.value';
                 else
                     $str .= ' AND e_m.original_file_name';
             }
             else if ($piece == '||') {
-                if (!$is_filename)
+                if ( $typeclass !== 'File' && $typeclass !== 'Image' )
                     $str .= ' OR e.value';
                 else
                     $str .= ' OR e_m.original_file_name';
@@ -1878,8 +1909,8 @@ class SearchQueryService
 
                         $searching_on_null = true;
                     }
-                    else if ( strpos($piece, "\"") !== false ) {  // does have a quote
-                        $piece = str_replace("\"", '', $piece);
+                    else if ( strpos($piece, "\"") !== false && strpos($piece, " ") === false ) {  // does have a quote, but doesn't have a space
+                        $piece = str_replace("\"", '', $piece);    // replace doublequote with nothing
                         if ( is_numeric($piece) )
                             if ( strpos($piece, '.') === false )
                                 $piece = intval($piece);
@@ -1895,6 +1926,7 @@ class SearchQueryService
                         // MYSQL escape characters due to use of LIKE
                         $piece = str_replace("\\", '\\\\', $piece);     // replace backspace character with double backspace
                         $piece = str_replace( array('%', '_'), array('\%', '\_'), $piece);   // escape existing percent and understore characters
+                        $piece = str_replace("\"", '', $piece);    // replace doublequote with nothing
 
                         $piece = '%'.$piece.'%';
                         if ($negate)
@@ -1913,11 +1945,13 @@ class SearchQueryService
                 $inequality = false;
 
                 if ($searching_on_null) {
-                    //
+                    // This term is searching on NULL somehow, so it doesn't have an associated
+                    //  parameter
                     $searching_on_null = false;
                 }
                 else {
-                    //
+                    // Otherwise, create a placeholder in the SQL string for the parameter, and
+                    //  also store it in the final array
                     $str .= ':term_'.$count;
                     $parameters['term_'.$count] = $piece;
                     $count++;

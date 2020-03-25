@@ -298,7 +298,7 @@ class SearchKeyService
                     else {
                         // Found starting quote
                         $in_quote = true;
-                        $token = "\"";
+                        $token = "\"";    // TODO - this drops everything before the double-quote in a string like  >abc"def<
                     }
                     break;
                 case " ":
