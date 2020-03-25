@@ -2218,7 +2218,7 @@ class DisplaytemplateController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $request->getSchemeAndHttpHost();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
