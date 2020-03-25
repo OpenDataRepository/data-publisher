@@ -1459,6 +1459,10 @@ odr_fix_missing_datafield_template_uuids:
     path:  /admin/fix_missing_datafield_template_uuids
     defaults: { _controller: ODRAdminBundle:Validation:fixmissingdatafielduuids }
 
+odr_check_fieldtype_table:
+    path:  /admin/check_fieldtype_table
+    defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+
 odr_update_datatype_names:
     path:  /admin/update_datatype_names
     defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }

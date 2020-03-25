@@ -49,6 +49,10 @@
                     &nbsp;
                     <span class="ODRInputError ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
                 </fieldset>
+                {% else %}
+                <fieldset style="margin-bottom: 10px;">
+                    <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">This field only allows a single level of tags</span></span>
+                </fieldset>
                 {% endif %}
                 <fieldset>
                     <table class="ODRTagListImport pure-table pure-table-striped pure-u-1">
@@ -82,7 +86,7 @@
 
     $(function () {
         $("#odr_tag_import").hide();
-        $(".ODRInputError").hide();
+        $(".ODRInputError").not(".ODRAlwaysShow").hide();
 
 {# inverse of allow_multiple_levels == false and sort_by_name == true #}
 {% if allow_multiple_levels == true or sort_by_name == false %}
@@ -346,7 +350,7 @@
 {% endif %}
 
     function FindDuplicateTagNames() {
-        $(".ODRInputError").hide();
+        $(".ODRInputError").not(".ODRAlwaysShow").hide();
         var has_duplicates = false;
 
         $("#odr_tag_design_modal").find(".ODRTagGroup").each(function() {
