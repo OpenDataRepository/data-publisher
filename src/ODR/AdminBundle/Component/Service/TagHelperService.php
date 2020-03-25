@@ -473,7 +473,8 @@ class TagHelperService
             // A tag with this name doesn't exist at this level yet
             $would_create_new_tag = true;
 
-            // Twig needs an ID, but don't really care what it is...not going to interact with it
+            // Twig needs an ID, but don't really care what it is...it won't be displayed, and will
+            //  be discarded if/when the tag is actually persisted to the database
             $uuid = UniqueUtility::uniqueIdReal();
 
             // Acceptable to store tags by name here, since none of its siblings *should* have the

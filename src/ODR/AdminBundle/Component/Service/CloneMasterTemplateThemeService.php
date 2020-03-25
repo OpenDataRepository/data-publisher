@@ -13,13 +13,12 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -197,14 +196,14 @@ class CloneMasterTemplateThemeService
 
 
     /**
-     *
      * After the Datatype, Datafield, Radio Option, and any RenderPlugin settings are cloned, the
      * Theme stuff from the master template needs to be cloned too...
      *
-     * @param $user
-     * @param $dt_mapping
-     * @param $df_mapping
-     * @param $associated_datatypes
+     * @param ODRUser $user
+     * @param DataType[] $dt_mapping
+     * @param DataFields[] $df_mapping
+     * @param DataType[] $associated_datatypes
+     *
      * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function cloneTheme(
@@ -216,7 +215,7 @@ class CloneMasterTemplateThemeService
         // Need to store each theme that got created...
         /** @var Theme[] $results */
         $query = $this->em->createQuery(
-            'SELECT t
+           'SELECT t
             FROM ODRAdminBundle:Theme AS t
             WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
             AND t.deletedAt IS NULL'
@@ -297,12 +296,12 @@ class CloneMasterTemplateThemeService
      * Iterates through all of $source_theme, cloning the ThemeElements, ThemeDatafield, and
      * ThemeDatatype entries, and attaching them to $new_theme.
      *
-     * @param $user
-     * @param $source_theme
-     * @param $new_theme
-     * @param $dest_theme_type
-     * @param $dest_datatype_array
-     * @param $dest_datafields
+     * @param ODRUser $user
+     * @param Theme $source_theme
+     * @param Theme $new_theme
+     * @param string $dest_theme_type
+     * @param DataType[] $dest_datatype_array
+     * @param DataFields[] $dest_datafields
      * @param bool $delay_flush
      */
     private function cloneThemeContents(

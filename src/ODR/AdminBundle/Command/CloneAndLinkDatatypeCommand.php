@@ -16,7 +16,7 @@ namespace ODR\AdminBundle\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 
 // Services
-use ODR\AdminBundle\Component\Service\CloneDatatypeService;
+use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
 // Symfony
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -71,7 +71,7 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
                 $output->writeln($current_time->format('Y-m-d H:i:s').' (UTC-5)' );
                 $output->writeln('Beginning clone and link process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...');
 
-                /** @var CloneDatatypeService $clone_datatype_service */
+                /** @var CloneMasterDatatypeService $clone_datatype_service */
                 $clone_datatype_service = $this->getContainer()->get('odr.clone_master_datatype_service');
                 $result = $clone_datatype_service->createDatatypeFromMaster($data->datatype_id, $data->user_id, $data->template_group);
 

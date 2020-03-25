@@ -462,6 +462,7 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
         success: function(data) {
             // Update the datafield's overlay
             updateOverlayProperties(datafield_overlay_id, desired_state);
+            notifySaved();
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error

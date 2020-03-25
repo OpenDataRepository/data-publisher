@@ -56,7 +56,7 @@ ODR\AdminBundle\Entity\IntegerValue:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: integerValue
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

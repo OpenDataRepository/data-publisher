@@ -705,8 +705,6 @@ class DatarecordInfoService
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
-     *
-     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function updateDatarecordCacheEntry($datarecord, $user)
     {
@@ -719,21 +717,8 @@ class DatarecordInfoService
             $dr->setUpdated(new \DateTime());
             $this->em->persist($dr);
 
-            /*
-            // Child datarecords don't have their own cached entries, it's all contained within the
-            //  cache entry for their top-level datarecord
-            $this->cache_service->delete('cached_datarecord_'.$dr->getId());
-
-            // Delete the filtered list of data meant specifically for table themes
-            $this->cache_service->delete('cached_table_data_'.$dr->getId());
-
-            // Clear json caches used in API
-            $this->cache_service->delete('json_record_' . $dr->getUniqueId());
-            */
-
             // Continue locating parent datarecords...
             $dr = $dr->getParent();
-
         }
 
         // $dr is now the grandparent of $datarecord
@@ -890,7 +875,8 @@ class DatarecordInfoService
 
 
         // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
-        // generateCSRFTokens() doesn't require it to be numeric, and the length doesn't matter
+        // self::generateCSRFTokens() doesn't require numeric ids, and the length doesn't matter
+        // Don't need to use UUIDService::generateDatarecordUniqueId(), $fake_id will be discarded
         $fake_id = UniqueUtility::uniqueIdReal();
         while ( is_numeric($fake_id) )
             $fake_id = UniqueUtility::uniqueIdReal();

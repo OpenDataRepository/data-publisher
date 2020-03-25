@@ -1401,18 +1401,18 @@ class ODRCustomController extends Controller
     /**
      * Returns errors encounted while processing a Symfony Form object as a string.
      *
-     * @param \Symfony\Component\Form\Form $form
+     * @param \Symfony\Component\Form\FormInterface $form
      *
      * @return string
      */
-    protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form)
+    protected function ODR_getErrorMessages(\Symfony\Component\Form\FormInterface $form)
     {
         // Get all errors in this form, including those from the form's children
         $errors = $form->getErrors(true);
 
         $error_str = '';
         while( $errors->valid() ) {
-            $error_str .= 'ERROR: '.$errors->current()->getMessage()."\n";
+            $error_str .= 'ERROR: '.$errors->current()->getMessage()."</br>";
             $errors->next();
         }
 
