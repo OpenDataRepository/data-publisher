@@ -17,6 +17,7 @@ use FOS\UserBundle\Model\UserManager;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataRecordFields;
@@ -3284,9 +3285,9 @@ class APIController extends ODRCustomController
                     throw new ODRForbiddenException();
                 // --------------------
 
-                /** @var DatatypeInfoService $dti_service */
-                $dti_service = $this->container->get('odr.datatype_info_service');
-                $dti_service->deleteDatatype($datatype, $user);
+                /** @var EntityDeletionService $ed_service */
+                $ed_service = $this->container->get('odr.entity_deletion_service');
+                $ed_service->deleteDatatype($datatype, $user);
 
                 // Delete datatype
                 $response = new Response('Deleted', 200);
