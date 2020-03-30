@@ -14,21 +14,14 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Component\Service\DatarecordExportService;
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Services
-use ODR\AdminBundle\Component\Service\DatatreeService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\CacheService;
 // Other
 use Doctrine\ORM\EntityManager;
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Bridge\Monolog\Logger;
 
 
@@ -39,11 +32,6 @@ class SearchAPIService
      * @var EntityManager
      */
     private $em;
-
-    /**
-     * @var DatatreeService
-     */
-    private $dt_service;
 
     /**
      * @var DatatreeInfoService
@@ -85,7 +73,6 @@ class SearchAPIService
      * SearchAPIService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatreeService $datatree_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param SearchCacheService $search_cache_service
@@ -96,7 +83,6 @@ class SearchAPIService
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatreeService $datatree_service,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         SearchCacheService $search_cache_service,
@@ -106,7 +92,6 @@ class SearchAPIService
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dt_service = $datatree_service;
         $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->search_cache_service = $search_cache_service;
@@ -145,17 +130,8 @@ class SearchAPIService
             $searchable_datafields = $this->search_service->getSearchableDatafields($top_level_datatype_id);
             foreach ($searchable_datafields as $dt_id => $datatype_data) {
                 $is_public = true;
-
-                // Attempt at date-based public date searches
-                /*
-                $public_date = \DateTime::createFromFormat ( "Y-m-d H:i:s", $datatype_data['dt_public_date']);
-                if ($public_date > new \DateTime("now", new \DateTimeZone('UTC')))
-                    $is_public = false;
-                */
-
                 if ($datatype_data['dt_public_date'] === '2200-01-01')
                     $is_public = false;
-
 
                 $can_view_dt = false;
                 if ($search_as_super_admin)
@@ -907,7 +883,7 @@ class SearchAPIService
      * action gets it.
      *
      * @param array $records
-     * @parm array labels
+     * @param array labels
      * @param array $searchable_datafields @see self::getSearchableDatafieldsForUser()
      * @param array $flattened_list @see self::getSearchArrays()
      *
@@ -1478,7 +1454,7 @@ class SearchAPIService
         // ----------------------------------------
         // In order to properly build the search arrays, all child/linked datatypes with some
         //  connection to this datatype need to be located first
-        $datatree_array = $this->dt_service->getDatatreeArray();
+        $datatree_array = $this->dti_service->getDatatreeArray();
 
         // Base setup for both arrays...
         $flattened_list = array();

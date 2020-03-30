@@ -147,32 +147,6 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Assume by default that caller wants all public datarecords
-        // TODO This query is invalid.  Dates need to be compared as dates and not strings...
-        /*
-        $search_params = array(
-            'params' => array(
-                'datatype_id' => $datatype_id
-            )
-        );
-
-        // Public
-        $query =
-            'SELECT dr.id AS dr_id
-            FROM odr_data_record AS dr
-            JOIN odr_data_record_meta AS drm ON drm.data_record_id = dr.id
-            WHERE dr.data_type_id = :datatype_id AND drm.public_date <= CURRENT_TIMESTAMP()
-            AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-
-        if ( !$is_public ) {
-            $query =
-                'SELECT dr.id AS dr_id
-            FROM odr_data_record AS dr
-            JOIN odr_data_record_meta AS drm ON drm.data_record_id = dr.id
-            WHERE dr.data_type_id = :datatype_id AND drm.public_date > CURRENT_TIMESTAMP()
-            AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-        }
-        */
-
         $search_params = array(
             'str' => 'drm.public_date != :public_date',
             'params' => array(
@@ -180,6 +154,7 @@ class SearchQueryService
                 'public_date' => '2200-01-01 00:00:00'
             )
         );
+
         if ( !$is_public ) {
             $search_params = array(
                 'str' => 'drm.public_date = :public_date',
@@ -190,12 +165,14 @@ class SearchQueryService
             );
         }
 
+        // Define the base query for searching
         $query =
            'SELECT dr.id AS dr_id
             FROM odr_data_record AS dr
             JOIN odr_data_record_meta AS drm ON drm.data_record_id = dr.id
             WHERE dr.data_type_id = :datatype_id AND '.$search_params['str'].'
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+
 
         // ----------------------------------------
         // Execute and return the native SQL query
@@ -560,13 +537,26 @@ class SearchQueryService
                 $selected_datarecords[$dt_id] = array();
             }
             if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
-                if ( isset($all_datarecord_ids[$dt_id]) ) {
-                    $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
-                }
-                if ( !isset($selected_datarecords[$dt_id]) ) {
-                    $selected_datarecords[$dt_id] = array();
-                }
+                // ----------------------------------------
+                // version as of commit 11ef75e (2020-01-15)
+                $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
                 $selected_datarecords[$dt_id][$df_id] = array();
+                // ----------------------------------------
+
+                // ----------------------------------------
+                // version as of commit d87d211 (2020-02-27)
+                // TODO - if $all_datarecord_ids[$dt_id] is not set, then either...
+                // TODO - 1) the database is screwed up (e.g. $dt_id isn't properly set as a derived datatype)
+                // TODO - 2) the 'cached_search_template_dt_'.$template_uuid.'_dr_list' cache entry didn't get cleared when a derived datatype was created
+                // TODO - either way, better to have an error thrown so the underlying logic flaw can be identified and addressed
+//                if ( isset($all_datarecord_ids[$dt_id]) ) {
+//                    $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
+//                }
+//                if ( !isset($selected_datarecords[$dt_id]) ) {
+//                    $selected_datarecords[$dt_id] = array();
+//                }
+//                $selected_datarecords[$dt_id][$df_id] = array();
+                // ----------------------------------------
             }
 
             // The results set contains at least one entry for each datatype/datafield pair...

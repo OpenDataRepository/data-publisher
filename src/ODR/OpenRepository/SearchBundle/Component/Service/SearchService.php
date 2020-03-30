@@ -25,7 +25,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatreeService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -46,9 +46,9 @@ class SearchService
     private $cache_service;
 
     /**
-     * @var DatatreeService
+     * @var DatatreeInfoService
      */
-    private $dt_service;
+    private $dti_service;
 
     /**
      * @var TagHelperService
@@ -71,7 +71,7 @@ class SearchService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatatreeService $datatree_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
      * @param SearchQueryService $search_query_service
      * @param Logger $logger
@@ -79,14 +79,14 @@ class SearchService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatreeService $datatree_service,
+        DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
         SearchQueryService $search_query_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dt_service = $datatree_service;
+        $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
@@ -1837,7 +1837,7 @@ class SearchService
      */
     public function getRelatedDatatypes($top_level_datatype_id)
     {
-        $datatree_array = $this->dt_service->getDatatreeArray();
+        $datatree_array = $this->dti_service->getDatatreeArray();
         $related_datatypes = self::getRelatedDatatypes_worker($datatree_array, array($top_level_datatype_id) );
 
         // array_values() to make unique
@@ -2026,7 +2026,6 @@ class SearchService
         $searchable_datafields = array();
         foreach ($related_datatypes as $num => $dt_id) {
             $df_list = $this->cache_service->get('cached_search_dt_'.$dt_id.'_datafields');
-            // if (1 || !$df_list) {
             if (!$df_list) {
                 // If not cached, need to rebuild the list...
                 $query = $this->em->createQuery(
@@ -2052,11 +2051,6 @@ class SearchService
 
                 // Only need these once...
                 $df_list = array(
-                    // Attempts at dynamic public dates
-                    // 'dt_public_date' => $results[0]['dt_public_date']->format('Y-m-d H:i:s'),
-                    // 'dt_public_date' => $results[0]['dt_public_date'],
-
-                    // Original fixed public date 2200....
                     'dt_public_date' => $results[0]['dt_public_date']->format('Y-m-d'),
                     'datafields' => array(
                         'non_public' => array()
@@ -2078,8 +2072,6 @@ class SearchService
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching
 
-                        // Attempt at dynamic date
-                        // if ($result['df_public_date'] <= new \DateTime("now", new \DateTimeZone('UTC'))) {
                         if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
                             $df_list['datafields'][$df_id] = array(
                                 'searchable' => $searchable,
