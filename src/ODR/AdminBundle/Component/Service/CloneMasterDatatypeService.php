@@ -1229,9 +1229,6 @@ class CloneMasterDatatypeService
                     $dt_id = $datatype->getId();
                 $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpm->getId().', set datafield to '.$df_id.' and set datatype to '.$dt_id);
             }
-
-            // TODO NO FLUSH
-            // $this->em->flush();
         }
     }
 }

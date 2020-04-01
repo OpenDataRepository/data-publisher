@@ -55,7 +55,7 @@ ODR\AdminBundle\Entity\Boolean:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: boolean
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

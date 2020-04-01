@@ -636,14 +636,14 @@ class APIControllerTest extends WebTestCase
      */
     public function testDataRecordFile()
     {
-        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__ || getenv("DEBUG") == "DataRecordFile") ? true : false);
 
 
         // Figure out which record of datarecord is the new file placeholder
 
         // initialise the curl request
-        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
-        $request = curl_init(self::$base_url . '/file');
+        $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        // $request = curl_init(self::$base_url . '/file');
 
         // send a file
         curl_setopt($request, CURLOPT_POST, true);
@@ -652,7 +652,7 @@ class APIControllerTest extends WebTestCase
             "Authorization: Bearer " . self::$token
         ));
 
-        $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
+        $file_name = __DIR__  . '/../../TestResources/Image_14044.jpeg';
         ($debug ? fwrite(STDERR, $file_name) : '');
 
         $curl_file = '@' . realpath($file_name);
@@ -676,13 +676,15 @@ class APIControllerTest extends WebTestCase
             ));
 
         // output the response
+        ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');
         curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($request);
-        ($debug ? fwrite(STDERR, print_r($response)) : '');
+        ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');
+        ($debug ? fwrite(STDERR, '\nHELLO: ' . print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
         ($debug ? fwrite(STDERR, $http_status) : '');
-        $this->assertTrue($http_status == 302 || $code == 200);
+        $this->assertTrue($http_status == 302 || $http_status == 200);
 
         // close the session
         curl_close($request);

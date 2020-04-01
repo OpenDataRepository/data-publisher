@@ -2218,7 +2218,7 @@ class DisplaytemplateController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $request->getSchemeAndHttpHost();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
@@ -2394,6 +2394,10 @@ class DisplaytemplateController extends ODRCustomController
                 }
 
 
+                // ----------------------------------------
+                // May need to change the URL in the browser...
+                $new_search_slug = null;
+
                 if ($datatype_form->isValid()) {
 
                     // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
@@ -2411,6 +2415,8 @@ class DisplaytemplateController extends ODRCustomController
                     /** @var int|null $new_namefield */
                     /** @var int|null $new_sortfield */
 
+                    if ( !is_null($submitted_data->getSearchSlug()) && $datatype->getSearchSlug() !== $submitted_data->getSearchSlug() )
+                        $new_search_slug = $submitted_data->getSearchSlug();
 
                     $update_sort_order = false;
                     if ($old_sortfield !== $new_sortfield)  // These are either null or datafield ids at this point
@@ -2517,6 +2523,28 @@ class DisplaytemplateController extends ODRCustomController
                             $field = $em->getRepository('ODRAdminBundle:DataFields')->find($new_external_id_field);
                             $return['d']['new_field_deletion_message'] = self::canDeleteDatafield($em, $field);
                         }
+                    }
+
+                    // Any change to the search slug needs to be reflected in the URL, otherwise
+                    //  any subsequent attempt to search or view dashboard will immediately throw errors
+                    if ( !is_null($new_search_slug) ) {
+                        $baseurl = $this->generateUrl(
+                            'odr_search',
+                            array(
+                                'search_slug' => $new_search_slug
+                            ),
+                            UrlGeneratorInterface::ABSOLUTE_URL
+                        );
+                        // ...and need to redirect after that to the new database's master layout design page
+                        $url = $this->generateUrl(
+                            'odr_design_master_theme',
+                            array(
+                                'datatype_id' => $datatype->getId(),
+                            )
+                        );
+
+                        // TODO - ...would be nice to not have to reload, but it seems unavoidable
+                        $return['d']['new_url'] = $baseurl.'#'.$url;
                     }
                 }
                 else {

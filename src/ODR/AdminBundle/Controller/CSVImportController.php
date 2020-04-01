@@ -55,7 +55,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
@@ -2875,6 +2875,8 @@ class CSVImportController extends ODRCustomController
             $th_service = $this->container->get('odr.tag_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
 
 
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
@@ -3141,20 +3143,6 @@ print_r($new_mapping);
             $dt_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'];
 
-            // Going to need a list of all tag uuids to prevent duplicates during the creation of
-            //  all these new tags...
-            $query = $em->createQuery(
-               'SELECT t.tagUuid
-                FROM ODRAdminBundle:Tags AS t
-                WHERE t.deletedAt IS NULL'
-            );
-            $results = $query->getArrayResult();
-
-            $all_tag_uuids = array();
-            foreach ($results as $tag)
-                $all_tag_uuids[ $tag['tagUuid'] ] = 1;
-
-
             // The validation process will have stored an array of every tag that will get selected
             //  during the import
             $created_new_tags = false;
@@ -3197,12 +3185,12 @@ print_r($new_mapping);
                         $tag_names[$num] = trim($tag_name);
 
                     $stacked_tag_array = self::createTagsForListImport(
-                        $em,         // Needed to persist new tag uuids and tag tree entries
-                        $ec_service, // Needed to create new tags
-                        $user,       // Needed to create new tags
-                        $datafield,  // Needed to create new tags
+                        $em,           // Needed to persist new tag uuids and tag tree entries
+                        $ec_service,   // Needed to create new tags
+                        $uuid_service, // Needed to create new tags
+                        $user,         // Needed to create new tags
+                        $df,           // Needed to create new tags
                         $hydrated_tag_array,
-                        $all_tag_uuids,         // TODO - fucking uuids...
                         $stacked_tag_array,
                         $tag_names,
                         $created_new_tags,
@@ -3319,11 +3307,11 @@ print_r($new_mapping);
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param EntityCreationService $ec_service
+     * @param UUIDService $uuid_service
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param Tags[] $hydrated_tag_array A flat array of all tags for this datafield, organized by
      *                                   their uuids
-     * @param array $all_tag_uuids
      * @param array $stacked_tag_array @see self::convertTagsForListImport()
      * @param array $posted_tags A flat array of the tag(s) that may end up being inserted into the
      *                           datafield...top level tag at index 0, its child at 1, etc
@@ -3332,7 +3320,7 @@ print_r($new_mapping);
      *
      * @return array
      */
-    private function createTagsForListImport($em, $ec_service, $user, $datafield, &$hydrated_tag_array, &$all_tag_uuids, &$stacked_tag_array, $posted_tags, &$created_new_tags, $parent_tag)
+    private function createTagsForListImport($em, $ec_service, $uuid_service, $user, $datafield, &$hydrated_tag_array, &$stacked_tag_array, $posted_tags, &$created_new_tags, $parent_tag)
     {
         $current_tag = null;
         $tag_name = $posted_tags[0];
@@ -3350,15 +3338,12 @@ print_r($new_mapping);
             $current_tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
 
             // Generate a new uuid for this tag...
-            $new_tag_uuid = UniqueUtility::uniqueIdReal();
-            while ( isset($all_tag_uuids[$new_tag_uuid]) )
-                $new_tag_uuid = UniqueUtility::uniqueIdReal();
+            $new_tag_uuid = $uuid_service->generateTagUniqueId();
             $current_tag->setTagUuid($new_tag_uuid);
             $em->persist($current_tag);
 
             // Need to store the new stuff for later reference...
             $hydrated_tag_array[$new_tag_uuid] = $current_tag;
-            $all_tag_uuids[$new_tag_uuid] = 1;
 
             $stacked_tag_array[$tag_name] = array(
                 'id' => $new_tag_uuid,    // Don't really care what the ID is...only used for rendering
@@ -3395,12 +3380,12 @@ print_r($new_mapping);
             // This level has been processed, move on to its children
             $new_tags = array_slice($posted_tags, 1);
             $stacked_tag_array[$tag_name]['children'] = self::createTagsForListImport(
-                $em,         // Needed to persist new tag uuids and tag tree entries
-                $ec_service, // Needed to create new tags
-                $user,       // Needed to create new tags
-                $datafield,  // Needed to create new tags
+                $em,           // Needed to persist new tag uuids and tag tree entries
+                $ec_service,   // Needed to create new tags
+                $uuid_service, // Needed to create new tags
+                $user,         // Needed to create new tags
+                $datafield,    // Needed to create new tags
                 $hydrated_tag_array,
-                $all_tag_uuids,
                 $existing_child_tags,
                 $new_tags,
                 $created_new_tags,
@@ -3820,14 +3805,11 @@ exit();
                                     else
                                         $emm_service->updateImageMeta($user, $new_obj, $properties);
 
-                                    // Save who replaced the file/image
-                                    $old_obj->setDeletedBy($user);
-                                    $em->persist($old_obj);
-                                    $em->flush($old_obj);
-
                                     // Delete the old object and its metadata entry
-                                    $em->remove($old_obj);
-                                    $em->remove($old_obj_meta);
+                                    $old_obj->setDeletedBy($user);
+                                    $old_obj->setDeletedAt(new \DateTime());
+                                    $em->persist($old_obj);
+
                                     $em->flush();
                                 }
                             }
@@ -3871,8 +3853,13 @@ exit();
 
                                         // Delete the file entity and its associated metadata entry
                                         $file_meta = $file->getFileMeta();
-                                        $em->remove($file);
-                                        $em->remove($file_meta);
+                                        $file_meta->setDeletedAt(new \DateTime());
+                                        $em->persist($file_meta);
+
+                                        $file->setDeletedBy($user);
+                                        $file->setDeletedAt(new \DateTime());
+                                        $em->persist($file);
+
                                         $need_flush = true;
                                     }
                                     else if ($typeclass == 'Image') {
@@ -3882,7 +3869,8 @@ exit();
 
                                             // Delete the image's associated metadata entry
                                             $image_meta = $file->getImageMeta();
-                                            $em->remove($image_meta);
+                                            $image_meta->setDeletedAt(new \DateTime());
+                                            $em->persist($image_meta);
                                         }
 
                                         // Ensure no decrypted version of the image (or thumbnails) exists on the server
@@ -3892,11 +3880,9 @@ exit();
 
                                         // Save who deleted the image
                                         $file->setDeletedBy($user);
+                                        $file->setDeletedAt(new \DateTime());
                                         $em->persist($file);
-                                        $em->flush($file);
 
-                                        // Delete the image (thumbnails are deleted by this as well)
-                                        $em->remove($file);
                                         $need_flush = true;
                                     }
                                 }

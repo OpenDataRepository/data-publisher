@@ -20,7 +20,6 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Services
-use ODR\AdminBundle\Component\Service\DatatreeService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\CacheService;
@@ -40,11 +39,6 @@ class SearchAPIServiceNoConflict
      * @var EntityManager
      */
     private $em;
-
-    /**
-     * @var DatatreeService
-     */
-    private $dt_service;
 
     /**
      * @var DatatreeInfoService
@@ -91,7 +85,6 @@ class SearchAPIServiceNoConflict
      * SearchAPIService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatreeService $datatree_service
      * @param DatatreeInfoService $datatree_info_service
      * @param DatarecordExportService $datarecord_export_service
      * @param SearchService $search_service
@@ -103,7 +96,6 @@ class SearchAPIServiceNoConflict
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatreeService $datatree_service,
         DatatreeInfoService $datatree_info_service,
         DatarecordExportService $datarecord_export_service,
         SearchService $search_service,
@@ -114,7 +106,6 @@ class SearchAPIServiceNoConflict
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dt_service = $datatree_service;
         $this->dti_service = $datatree_info_service;
         $this->dre_service = $datarecord_export_service;
         $this->search_service = $search_service;
@@ -447,7 +438,6 @@ class SearchAPIServiceNoConflict
         */
 
         // Parameters array
-
         // Each field is an "and" requirement
         // General is also an "and"
         $search_array = [];
@@ -493,7 +483,7 @@ class SearchAPIServiceNoConflict
         }
 
         // Add General Search
-        if(isset($params['general'])) {
+        if(isset($params['general']) && $params['general'] !== '') {
             $parameters = array();
             $parameters['datatype_id_array'] = array_unique($datatype_id_array);
             $parameters['now'] = $search_datetime;
@@ -1717,7 +1707,7 @@ class SearchAPIServiceNoConflict
         // ----------------------------------------
         // In order to properly build the search arrays, all child/linked datatypes with some
         //  connection to this datatype need to be located first
-        $datatree_array = $this->dt_service->getDatatreeArray();
+        $datatree_array = $this->dti_service->getDatatreeArray();
 
         // Base setup for both arrays...
         $flattened_list = array();

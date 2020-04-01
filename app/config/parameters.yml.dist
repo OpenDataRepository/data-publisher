@@ -12,7 +12,7 @@ parameters:
     locale: en
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
 
-    site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
+    site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]     # no protocol, no trailing forward slash  e.g.  '//odr.io'
     odr_web_directory: "%kernel.root_dir%/../web"
     uploaded_files_path: '/tmp/odr_uploaded_files'
 

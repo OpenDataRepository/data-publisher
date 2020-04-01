@@ -375,6 +375,8 @@ class DatatypeController extends ODRCustomController
                     /** @var DataTypeMeta $datatype_meta */
                     $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')
                         ->findOneBy(array('searchSlug' => $datatype_unique_id));
+                    if ( is_null($datatype_meta) )
+                        throw new ODRNotFoundException('Datatype');
 
                     $use_search_slug = true;
                     $datatype = $datatype_meta->getDataType();

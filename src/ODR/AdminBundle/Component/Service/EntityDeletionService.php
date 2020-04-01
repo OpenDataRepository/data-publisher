@@ -856,7 +856,7 @@ class EntityDeletionService
             // Delete any leftover ThemeDatatype entries that refer to $datatypes_to_delete...these would be other datatypes linking to the ones being deleted
             // (if block above is commented, then it'll also arbitrarily delete themeDatatype entries for child datatypes)
             $query_str =
-                'UPDATE odr_theme_data_type AS tdt
+               'UPDATE odr_theme_data_type AS tdt
                 SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().'
                 WHERE tdt.data_type_id IN (?)
                 AND tdt.deletedAt IS NULL';

@@ -30,6 +30,7 @@ use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIServiceNoConflict;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // use FOS\UserBundle\Model\UserManagerInterface;
 // Symfony
@@ -370,7 +371,7 @@ class FacadeController extends Controller
 
         // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
         // Grab the current user
-        /** @var User $user */
+        /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
         $html = $this->renderView(
             'ODROpenRepositorySearchBundle:Default:test.html.twig',
@@ -399,11 +400,7 @@ class FacadeController extends Controller
             throw new ODRBadRequestException();
         $search_key = $post['search_key'];
 
-        $search_key = $search_key_service->convertBase64toSearchKey($search_key);
-        // $search_key_service->validateTemplateSearchKey($search_key);
-
-        // Now that the search key is valid, load the datatype being searched on
-        $params = $search_key_service->decodeSearchKey($search_key);
+        $params = json_decode(base64_decode($search_key), true);
         $dt_uuid = $params['template_uuid'];
 
         /** @var DataType $datatype */
@@ -415,16 +412,19 @@ class FacadeController extends Controller
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
 
-        /** @var SearchAPIService $search_api_service */
+        /** @var SearchAPIServiceNoConflict $search_api_service */
         $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
         $baseurl = $this->container->getParameter('site_baseurl');
         $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Slice for Limit/Offset
-        $records = array_slice($records, $offset, $limit);
+        $output_records = array_slice($records, $offset, $limit);
 
         // Wrap array for JSON compliance
-        $output = array('records' => $records);
+        $output = array(
+            'count' => count($records),
+            'records' => $output_records
+        );
         return new JsonResponse($output);
 
     }

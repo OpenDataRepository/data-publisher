@@ -165,14 +165,6 @@ services:
             $cache_service: "@odr.cache_service"
             $logger: "@logger"
 
-    # Possibly not needed?
-    odr.datatree_service:
-        class: ODR\AdminBundle\Component\Service\DatatreeService
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $logger: "@logger"
-
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:
