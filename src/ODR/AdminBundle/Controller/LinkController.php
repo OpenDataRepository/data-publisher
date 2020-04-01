@@ -47,6 +47,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class LinkController extends ODRCustomController
@@ -706,8 +707,7 @@ class LinkController extends ODRCustomController
             $priority = 1024;   // should be roughly default priority
 
             // Get the URL for Linking
-            $router = $this->get('router');
-            $url = $this->container->getParameter('site_baseurl'). $router->generate('odr_design_link_datatype');
+            $url = $this->generateUrl('odr_design_link_datatype', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             $payload = json_encode(
                 array(
@@ -2018,18 +2018,20 @@ class LinkController extends ODRCustomController
                         // Setup for figuring out which cache entries need deleted
                         $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                        // Have to save who deleted this linked_datatree entry first...
+                        // Delete the linked_datatree entry
                         $ldt->setDeletedBy($user);
+                        $ldt->setDeletedAt(new \DateTime());
                         $em->persist($ldt);
-                        $em->flush($ldt);
-                        // ...then mark the linked_datatree entry as deleted...can't do both at once
-                        $em->remove($ldt);
-                    } else {
+                    }
+                    else {
                         // Otherwise, a datarecord was linked and still is linked...
-                        unset($datarecords[$remote_datarecord->getId()]);
+                        unset( $datarecords[$remote_datarecord->getId()] );
                         // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
                     }
                 }
+
+                // Flush once everything is deleted
+                $em->flush();
             }
 
 
@@ -2285,15 +2287,14 @@ class LinkController extends ODRCustomController
                     // Setup for figuring out which cache entries need deleted
                     $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                    // Have to save who deleted this linked_datatree entry first...
+                    // Delete the linked_datatree entry
                     $ldt->setDeletedBy($user);
+                    $ldt->setDeletedAt(new \DateTime());
                     $em->persist($ldt);
-                    $em->flush($ldt);
-                    // ...then mark the linked_datatree entry as deleted...can't do both at once
-                    $em->remove($ldt);
                 }
             }
 
+            // Flush once everything is deleted
             $em->flush();
 
 

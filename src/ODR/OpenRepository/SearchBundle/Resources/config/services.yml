@@ -7,6 +7,18 @@ services:
     odr_custom_controller:
         class: ODR\AdminBundle\Controller\ODRCustomController
 
+    odr.search_api_service_no_conflict:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIServiceNoConflict
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $datarecord_export_service: "@odr.datarecord_export_service"
+            $search_service: "@odr.search_service"
+            $search_cache_service: "@odr.search_cache_service"
+            $search_key_service: "@odr.search_key_service"
+            $sort_service: "@odr.sort_service"
+            $cache_service: "@odr.cache_service"
+            $logger: "@logger"
 
     odr.search_sidebar_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService
@@ -20,11 +32,12 @@ services:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"
             $search_cache_service: "@odr.search_cache_service"
             $search_key_service: "@odr.search_key_service"
             $sort_service: "@odr.sort_service"
+            $cache_service: "@odr.cache_service"
             $logger: "@logger"
 
     odr.search_cache_service:
@@ -47,7 +60,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
             $search_query_service: "@odr.search_query_service"
             $logger: "@logger"

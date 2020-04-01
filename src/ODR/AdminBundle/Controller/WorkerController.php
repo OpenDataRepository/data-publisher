@@ -865,6 +865,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function startencryptAction($object_type, Request $request)
     {
+        throw new ODRNotImplementedException();
 /*
         $em = $this->getDoctrine()->getManager();
         $pheanstalk = $this->get('pheanstalk');
@@ -984,6 +985,8 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();

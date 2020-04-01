@@ -17,8 +17,9 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\CacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -33,7 +34,7 @@ class SearchAPIService
     private $em;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -58,6 +59,11 @@ class SearchAPIService
     private $sort_service;
 
     /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -67,28 +73,31 @@ class SearchAPIService
      * SearchAPIService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param SearchService $searchService
-     * @param SearchCacheService $searchCacheService
-     * @param SearchKeyService $searchKeyService
-     * @param SortService $sortService
+     * @param DatatreeInfoService $datatree_info_service
+     * @param SearchService $search_service
+     * @param SearchCacheService $search_cache_service
+     * @param SearchKeyService $search_key_service
+     * @param SortService $sort_service
+     * @param CacheService $cache_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         SearchCacheService $search_cache_service,
         SearchKeyService $search_key_service,
         SortService $sort_service,
+        CacheService $cache_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_key_service = $search_key_service;
         $this->sort_service = $sort_service;
+        $this->cache_service = $cache_service;
         $this->logger = $logger;
     }
 
@@ -235,6 +244,306 @@ class SearchAPIService
         return $filtered_search_key;
     }
 
+    /**
+     * @param DataType $datatype
+     * @param $baseurl
+     * @param $params
+     * @return array
+     * @throws \Exception
+     */
+    public function fullTemplateSearch($datatype, $baseurl, $params) {
+
+        $master_datatype_id = $datatype->getId();
+        /* Probably will expand to include all actual datasets as well someday
+         *
+        if($datatype->getMetadataFor()) {
+            $master_datatype_id = $datatype->getMetadataFor()->getId();
+        }
+         */
+
+        // Determine all datatypes derived from master template including linked data types.
+        // Possibly use unique_id and _template group_ .... (would not get user-linked)
+        /*
+            SELECT * FROM odr_data_type
+            where master_datatype_id = 670
+            and deletedAt IS NULL
+            and setup_step LIKE 'operational'
+            and (preload_status is NULL OR preload_status LIKE 'issued')
+            order by id desc
+            LIMIT 1000;
+            LEFT JOIN dt.grandparent AS gp
+         */
+        $dt_query = $this->em->createQuery(
+            'SELECT
+            DISTINCT dt.id, dt.unique_id
+            FROM ODRAdminBundle:DataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            WHERE 
+                dt.masterDataType = :master_datatype_id
+                AND dt.deletedAt IS NULL 
+                AND dt.setup_step LIKE \'operational\'
+                AND (dt.preload_status is NULL OR dt.preload_status LIKE \'issued\' OR dt.preload_status like \'\')
+                AND dtm.publicDate <= :now
+            ')
+            ->setParameters(array(
+                'master_datatype_id' => $master_datatype_id,
+                'now' => new \DateTime()
+            ));
+
+        /*
+            LEFT JOIN dt.dataTypeMeta AS dtm
+        */
+        $datatype_result = $dt_query->getArrayResult();
+
+        $datatype_id_array = array();
+        $datatype_associations = array();
+        foreach($datatype_result as $datatype_info) {
+            $associated_datatypes = $this->dti_service->getAssociatedDatatypes($datatype_info['id']);
+            $datatype_associations[$datatype_info['unique_id']] = "||" . join('||', $associated_datatypes) . "||";
+            array_push($datatype_id_array, $datatype_info['id']);
+            $datatype_id_array = array_merge($datatype_id_array, $associated_datatypes);
+        }
+
+        /*
+         $template_groups = select data_type.unique_id from data_type where master_datatype_id = 670
+         $dt_ids = select data_type.id from data_type where template_group_id in template_groups
+         select distinct dr.unique_id from dr join dr.data_fields where df.dt_id in ($dt_ids);
+         */
+
+        /*
+         * {
+    "fields": [
+        {
+            "selected_tags": [
+                {
+                    "template_tag_uuid": "23d621f"
+                },
+                {
+                    "template_tag_uuid": "301b3fa"
+                },
+                {
+                    "template_tag_uuid": "5138dc3"
+                },
+                {
+                    "template_tag_uuid": "2848fb3"
+                },
+                {
+                    "template_tag_uuid": "c9cca56"
+                },
+                {
+                    "template_tag_uuid": "0d46376"
+                }
+            ],
+            "template_field_uuid": "38faf260047f3009ea75f0f8bf86"
+        }
+    ],
+    "sort_by": [
+        {
+            "dir": "asc",
+            "template_field_uuid": "08088a9"
+        }
+    ],
+    "template_name": "AHED Core 1.0",
+    "template_uuid": "2ea627b"
+}
+         */
+
+        // Get list of fields
+        // template radio option uuid
+        // template tag uuid
+
+        $tag_uuids = array();
+        $radio_uuids = array();
+        foreach($params['fields'] as $field) {
+            if(isset($field['selected_tags'])) {
+               $tag_uuids = array_merge($tag_uuids, $field['selected_tags']);
+            }
+            if(isset($field['selected_options'])) {
+                $radio_uuids = array_merge($radio_uuids, $field['selected_options']);
+            }
+        }
+
+        // Test of selecting a keyword tag 'template_tag_uuid' => daefe83
+        /*
+        $sub_query = $this->em->createQuery(
+            'SELECT
+            distinct t.id 
+            FROM ODRAdminBundle:Tags AS t
+            WHERE t.tagUuid IN (:tag_uuids)'
+        )
+        ->setParameter('tag_uuids', $tag_uuids);
+
+        $sub_result = $sub_query->getArrayResult();
+
+        $sub_keys = array();
+        foreach($sub_result as $sub) {
+            array_push($sub_keys, $sub['id']);
+        }
+        */
+
+        // Get dr.unique_id
+        $qs = 'SELECT
+            distinct dr.unique_id, dr.id 
+
+            FROM ODRAdminBundle:DataRecord AS dr
+            LEFT JOIN dr.dataRecordMeta AS drm
+            
+            LEFT JOIN dr.dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
+            
+            LEFT JOIN dt.dataFields AS df_dt
+            LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
+            LEFT JOIN dfm_dt.fieldType AS ft_dt
+            LEFT JOIN dt.metadata_for AS mf
+
+            LEFT JOIN dr.dataRecordFields AS drf
+            
+            LEFT JOIN drf.file AS e_f
+            LEFT JOIN e_f.fileMeta AS e_fm
+
+            LEFT JOIN drf.image AS e_i
+            LEFT JOIN e_i.imageMeta AS e_im
+            LEFT JOIN e_i.parent AS e_ip
+            LEFT JOIN e_ip.imageMeta AS e_ipm
+            LEFT JOIN e_i.imageSize AS e_is
+
+            LEFT JOIN drf.boolean AS e_b
+            LEFT JOIN drf.integerValue AS e_iv
+            LEFT JOIN drf.decimalValue AS e_dv
+            LEFT JOIN drf.longText AS e_lt
+            LEFT JOIN drf.longVarchar AS e_lvc
+            LEFT JOIN drf.mediumVarchar AS e_mvc
+            LEFT JOIN drf.shortVarchar AS e_svc
+            LEFT JOIN drf.datetimeValue AS e_dtv
+            LEFT JOIN drf.radioSelection AS rs
+            LEFT JOIN rs.radioOption AS ro
+            LEFT JOIN ro.radioOptionMeta AS rom
+            LEFT JOIN drf.tagSelection AS ts
+            LEFT JOIN ts.tag AS t
+            LEFT JOIN t.tagMeta AS tm
+
+            LEFT JOIN drf.dataField AS df
+            LEFT JOIN df.dataFieldMeta AS dfm
+            LEFT JOIN dfm.fieldType AS ft
+
+            WHERE
+                dt.id IN (:datatype_id_array)
+                AND drm.publicDate <= :now
+        ';
+
+        // Parameters array
+        $parameters = array();
+        if(count($tag_uuids) > 0) {
+            $qs .= ' AND t.tagUuid IN (:selected_tag_uuids)';
+            $parameters['selected_tag_uuids'] = $tag_uuids;
+        }
+
+        if(count($radio_uuids) > 0) {
+            $qs .= ' AND ro.radioOptionUuid IN (:selected_radio_option_uuids)';
+            $parameters['selected_radio_option_uuids'] = $radio_uuids;
+        }
+
+        // Add General Search
+        if(isset($params['general'])) {
+            $qs .= ' AND (e_lt.value LIKE :general';
+            $qs .= ' OR e_lvc.value LIKE :general';
+            $qs .= ' OR e_mvc.value LIKE :general';
+            $qs .= ' OR e_svc.value LIKE :general';
+            $qs .= ' OR e_im.caption LIKE :general';
+            $qs .= ' OR e_im.originalFileName LIKE :general';
+            $qs .= ' OR e_ipm.caption LIKE :general';
+            $qs .= ' OR e_ipm.originalFileName LIKE :general';
+            $qs .= ' OR e_fm.description LIKE :general';
+            $qs .= ' OR e_fm.originalFileName LIKE :general';
+            $qs .= ' OR rom.optionName LIKE :general';
+            $qs .= ' OR tm.tagName LIKE :general';
+            $qs .= ')';
+
+            $parameters['general'] = '%' . $params['general'] . '%';
+        }
+
+        $parameters['datatype_id_array'] = $datatype_id_array;
+        $parameters['now'] = new \DateTime();
+
+        $query = $this->em->createQuery($qs);
+        $query->setParameters($parameters);
+
+        $result = $query->getArrayResult();
+
+        /*
+        $top_level_datatypes = array();
+        foreach($result as $record_info) {
+            $related_records = $this->dti_service->getAssociatedDatarecords($record_info['id']);
+            print var_export($related_records) ."<br />";
+            foreach ($datatype_associations as $unique_id => $association_string) {
+                if(preg_match("/".$record_info['id'] . "\|\|/", $association_string)) {
+                    // print $record_info['id'] . ' => ' . $unique_id . ' => ' . $association_string . "<br />";
+                    array_push($top_level_datatypes, $unique_id);
+                    break;
+                }
+                // Get the top-level data_type ids that match the query.
+                // query for record uuids of the records of those types
+                // Build result list
+            }
+        }
+        $qs = 'SELECT
+            distinct dr.unique_id
+
+            FROM ODRAdminBundle:DataRecord AS dr
+            LEFT JOIN dr.dataRecordMeta AS drm
+            
+            LEFT JOIN dr.dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
+             WHERE
+                dt.unique_id IN (:top_level_datatypes)
+                AND dtm.publicDate <= :now
+        ';
+
+        // Parameters array
+        $parameters = array();
+        $top_level_datatypes = array_unique($top_level_datatypes);
+        $parameters['top_level_datatypes'] = $top_level_datatypes;
+        $parameters['now'] = new \DateTime();
+
+        $query = $this->em->createQuery($qs);
+        $query->setParameters($parameters);
+
+        $result = $query->getArrayResult();
+        */
+
+        $records = array();
+        foreach($result as $record_info) {
+                // Attempt with the default UUID for this datatype
+            $metadata_record = $this->cache_service
+                ->get('json_record_' . $record_info['unique_id']);
+
+            if(!$metadata_record) {
+                // need to populate record using record builder
+            }
+
+            if($metadata_record) {
+                array_push($records, json_decode($metadata_record));
+            }
+        }
+
+        // Sort by dataset name
+        $sort_array = [];
+        foreach($records as $record) {
+            foreach($record->fields as $field) {
+                if($field->template_field_uuid == $params['sort_by']['0']['template_field_uuid']) {
+                    $sort_array[$field->value] = $record;
+                }
+            }
+        }
+        ksort($sort_array, SORT_STRING);
+
+        // Use splice to do limit & offset
+        $records = array_values($sort_array);
+
+        return $records;
+    }
 
     /**
      * Runs a cross-template search specified by the given $search_key.  The end result is filtered
@@ -574,7 +883,7 @@ class SearchAPIService
      * action gets it.
      *
      * @param array $records
-     * @parm array labels
+     * @param array labels
      * @param array $searchable_datafields @see self::getSearchableDatafieldsForUser()
      * @param array $flattened_list @see self::getSearchArrays()
      *

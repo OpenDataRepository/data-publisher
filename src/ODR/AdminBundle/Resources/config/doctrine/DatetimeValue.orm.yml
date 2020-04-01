@@ -56,7 +56,7 @@ ODR\AdminBundle\Entity\DatetimeValue:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: datetimeValue
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

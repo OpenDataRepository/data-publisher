@@ -14,7 +14,12 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -51,6 +56,11 @@ class DatatypeInfoService
     private $th_service;
 
     /**
+     * @var SearchCacheService
+     */
+    private $search_cache_service;
+
+    /**
      * @var string
      */
     private $odr_web_dir;
@@ -68,6 +78,7 @@ class DatatypeInfoService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
+     * @param SeachCacheService $search_cache_service
      * @param string $odr_web_dir
      * @param Logger $logger
      */
@@ -76,6 +87,7 @@ class DatatypeInfoService
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
+        SearchCacheService $search_cache_service,
         $odr_web_dir,
         Logger $logger
     ) {
@@ -83,6 +95,7 @@ class DatatypeInfoService
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
+        $this->search_cache_service = $search_cache_service;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -739,6 +752,13 @@ class DatatypeInfoService
         // Child datatypes don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datatype
         $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+
+        // Need to clear cached records related to this type for the API...
+        $records = $this->em->getRepository('ODRAdminBundle:DataRecord')->findBy(array('dataType' => $datatype->getId()));
+        /** @var DataRecord $record */
+        foreach($records as $record) {
+            $this->cache_service->delete('json_record_'.$record->getUniqueId());
+        }
     }
 
 

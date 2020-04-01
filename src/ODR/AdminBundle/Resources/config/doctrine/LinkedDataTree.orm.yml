@@ -22,6 +22,16 @@ ODR\AdminBundle\Entity\LinkedDataTree:
             type: datetime
             nullable: true
 
+#    oneToMany:
+#        ldtAncestors:
+#            targetEntity: linkedDataTree
+#            mappedBy: descendant
+#
+#    manyToOne:
+#        ldtDescendants:
+#            targetEntity: linkedDataTree
+#            inversedBy: ancestor
+
     manyToOne:
         ancestor:
             targetEntity: DataRecord

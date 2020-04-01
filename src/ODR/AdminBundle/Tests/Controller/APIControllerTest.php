@@ -12,6 +12,7 @@ class APIControllerTest extends WebTestCase
     public static $token = "";
     public static $headers = array();
 
+    // public static $base_url = "https://ahed-dev.nasawestprime.com/ahed-api/api/v3";
     public static $base_url = "http://office_dev/app_dev.php/api/v3";
     // public static $base_url = "http://localhost:8000/app_dev.php/api/v3";
     // public static $base_url = "http://eta.odr.io/api/v3";
@@ -445,16 +446,51 @@ class APIControllerTest extends WebTestCase
         $updated_dataset = json_decode($response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
         */
-        ($debug ? fwrite(STDERR, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
+        ($debug ? fwrite(STDERR, 'Code: ' . $code . ' -- Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
+        ($debug ? fwrite(STDERR, 'Dataset (updated): ' . $response['response'] . "\n") : '');
+
+        self::$created_dataset['dataset'] = json_decode($response['response'], true);
 
         // Should have the user_email at least
         $this->assertTrue($code == 302 || $code == 200);
     }
 
     // get actual data record
+    public function testGetDataset()
+    {
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+
+        $headers[] = 'Authorization: Bearer ' . self::$token;
+        $headers[] = 'Content-type: application/json';
+
+        ($debug ? fwrite(STDERR, "Getting data record.\n") : '');
+        $url = self::$base_url . '/dataset/' . self::$created_dataset['dataset']['database_uuid'];
+        ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
+        $cp = new CurlUtility(
+            $url,
+            $headers,
+            false,
+            true,
+            __FUNCTION__
+        );
+
+        $response = $cp->get();
+        $content = $response['response'];
+
+        // Show the actual content if debug enabled.
+        ($debug ? fwrite(STDERR, 'Dataset Content Pulled: ' . $content . "\n") : '');
+
+        self::$created_dataset['dataset'] = json_decode($content, true);
+
+        // Should redirect to login
+        $this->assertTrue(isset(self::$created_dataset['dataset']['record_uuid']));
+    }
+
+
+    // get actual data record
     public function testGetDataRecord()
     {
-        $debug = ((getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
@@ -472,6 +508,7 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->get();
         $content = $response['response'];
+
 
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
@@ -510,10 +547,6 @@ class APIControllerTest extends WebTestCase
                         ]
                     },
                     {
-                        "template_field_uuid":"2e72d42aa1f1ae8552079cafe7ba",
-                        "value":[]
-                    },
-                    {
                         "template_field_uuid":"3b971c0238b19bae0bf1b107d5f2",
                         "value":[
                             {
@@ -524,26 +557,16 @@ class APIControllerTest extends WebTestCase
                     },
                     {
                         "template_field_uuid":"47f24cc0bd542e622657a433264a",
-                        "value":""
+                        "value":"File Name Test"
                     },
                     {
                         "template_field_uuid":"ee18783b1f8bf4ad6a5f3175280b",
-                        "value":""
-                    },
-                    {
-                        "template_field_uuid":"fec69c009425dfcc5639a3692399",
-                        "value":""
-                    },
-                    {
-                        "template_field_uuid":"fc89cca0f3e561e5b48a10fa6fb0",
-                        "value":""
+                        "value":"File Description Test"
                     }
                 ]
             }';
 
-
         $datafile_data = json_decode($datafile_template, true);
-
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         self::$created_datarecord['dataset']['records'][] = $datafile_data;
@@ -551,6 +574,7 @@ class APIControllerTest extends WebTestCase
         $put_data = json_encode(self::$created_datarecord);
         $url = self::$base_url . '/dataset';
         ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
+        ($debug ? fwrite(STDERR, "PUT CONTENT: " . $put_data . "\n") : '');
         $cp = new CurlUtility(
             $url,
             $headers,
@@ -612,14 +636,14 @@ class APIControllerTest extends WebTestCase
      */
     public function testDataRecordFile()
     {
-        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__ || getenv("DEBUG") == "DataRecordFile") ? true : false);
 
 
         // Figure out which record of datarecord is the new file placeholder
 
         // initialise the curl request
-        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
-        $request = curl_init(self::$base_url . '/file');
+        $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        // $request = curl_init(self::$base_url . '/file');
 
         // send a file
         curl_setopt($request, CURLOPT_POST, true);
@@ -628,7 +652,7 @@ class APIControllerTest extends WebTestCase
             "Authorization: Bearer " . self::$token
         ));
 
-        $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
+        $file_name = __DIR__  . '/../../TestResources/Image_14044.jpeg';
         ($debug ? fwrite(STDERR, $file_name) : '');
 
         $curl_file = '@' . realpath($file_name);
@@ -652,13 +676,15 @@ class APIControllerTest extends WebTestCase
             ));
 
         // output the response
+        ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');
         curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($request);
-        ($debug ? fwrite(STDERR, print_r($response)) : '');
+        ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');
+        ($debug ? fwrite(STDERR, '\nHELLO: ' . print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
         ($debug ? fwrite(STDERR, $http_status) : '');
-        $this->assertTrue($http_status == 302 || $code == 200);
+        $this->assertTrue($http_status == 302 || $http_status == 200);
 
         // close the session
         curl_close($request);
@@ -666,16 +692,17 @@ class APIControllerTest extends WebTestCase
     }
 
     /**
-     * Post File with CURL
+     * Post Image File with CURL
      */
+    /*
     public function testDatasetImagePost()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
 
 
         // initialise the curl request
-        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
-        $request = curl_init(self::$base_url . '/file');
+        $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        // $request = curl_init(self::$base_url . '/file');
 
         // send a file
         curl_setopt($request, CURLOPT_POST, true);
@@ -698,8 +725,6 @@ class APIControllerTest extends WebTestCase
             array(
                 'name' => 'My File Name',
                 'dataset_uuid' => self::$created_dataset['dataset']['database_uuid'],
-                // 'record_uuid' => '9dbdd7233d347b02c8ed1f5c6ae1',
-                // 'template_field_uuid' => '71019a2b69aa46abd5f03cbbbd9e',
                 'template_field_uuid' => 'c135ef75e9684091f7a1436539b6',
                 'user_email' => 'nathan.a.stone@nasa.gov',
                 'file' => $curl_file
@@ -707,19 +732,24 @@ class APIControllerTest extends WebTestCase
 
         // output the response
         curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($request, CURLOPT_FOLLOWLOCATION, true);
+
         $response = curl_exec($request);
         ($debug ? fwrite(STDERR, print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
         ($debug ? fwrite(STDERR, $http_status) : '');
-        $this->assertTrue($http_status == 302 || $code == 200);
+        $this->assertTrue($http_status == 302 || $http_status == 200);
 
         // close the session
         curl_close($request);
 
     }
 
-    // Publish Dataset
+    /*
+       Publish Record
+    */
+    /*
     public function testPublish()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
@@ -752,6 +782,7 @@ class APIControllerTest extends WebTestCase
     }
 
     // Search (all)
+    /*
     public function testGeneralSearch()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
@@ -778,6 +809,7 @@ class APIControllerTest extends WebTestCase
         // Should have the user_email at least
         $this->assertTrue(count($results) > 0);
     }
+    */
 
 }
 

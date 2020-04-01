@@ -35,6 +35,12 @@ ODR\AdminBundle\Entity\Tags:
             default: ''
             column: tag_uuid
 
+        userCreated:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
         created:
             type: datetime
             gedmo:

@@ -1,102 +1,138 @@
 {% macro input(
-    datatype_array,
     datarecord_array,
-    target_datatype_id,
-    parent_datarecord_id,
+    datatype_array,
     is_top_level,
     using_metadata,
     baseurl,
     version,
-    show_records)
-%}
+    show_records
+    ) %}
 
-{% set datatype = datatype_array[target_datatype_id] %}
-
+{# all lists of datarecords are wrapped in an array structure #}
+{% set output_block %}
 {% for dr_id, datarecord in datarecord_array %}
 
-    {# each datarecord is its own JSON object #}
-    {
-    {# ---------- #}
-
-        "database_uuid": "{{ datatype.unique_id }}",
-        "database_name": "{{ datatype.dataTypeMeta.shortName }}",
-    {% if datatype.masterDataType is not null %}
-        "template_uuid": "{{ datatype.masterDataType.unique_id }}",
+    {% set skip_comma = false %}
+    {% if datarecord is null or datarecord is empty %}
+        {% set skip_comma = true %}
+    {% elseif not datarecord.id is defined and dr_id is not null %}
+        {# Check for Children #}
+        {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+        {% set show_records = 1 %}
+        {{ mychildform.input(
+            datarecord,
+            datatype_array,
+            is_top_level,
+            using_metadata,
+            baseurl,
+            version,
+            show_records
+        ) }}
     {% else %}
-        "template_uuid": "",
-    {% endif %}
-{#
-    {% if datatype.metadata_datatype is not null %}
-        "metadata_uuid": "{{ datatype.metadata_datatype.unique_id }}",
-    {% else %}
-        "metadata_uuid": "",
-    {% endif %}
-#}
-    {% if datatype.metadata_for is not null %}
-        "metadata_for_uuid": "{{ datatype.metadata_for.unique_id }}",
-    {% else %}
-        "metadata_for_uuid": "",
-    {% endif %}
-
-        "internal_id": {{ datarecord.id }},
-        "record_uuid": "{{ datarecord.unique_id }}",
-        "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-        "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-
-    {% if using_metadata == true %}
-        "_record_metadata": {
-            "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
-            "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
-            "_update_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
-            "_update_auth": "{% if datarecord.updatedBy != '' %}{{ datarecord.updatedBy|user_string|xml }}{% endif %}",
-            "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
-        },
-    {% endif %}
-
-        "fields": [
-        {% for df_id, df in datatype.dataFields %}
-            {% if df.dataFieldMeta.fieldType.typeName != "Markdown" %}
-            {
-                {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
-                    'datarecord': datarecord,
-                    'datafield': df,
-                    'using_metadata': using_metadata,
-                    'baseurl': baseurl,
-                    'version': version,
-                } %}
-            }{% if not loop.last %},{% endif %}
+        {
+            "database_uuid": "{{ datarecord.dataType.unique_id }}",
+            "internal_id": {{ datarecord.id }},
+            "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+            "record_uuid": "{{ datarecord.unique_id }}",
+            {% if datarecord.dataType.masterDataType %}
+                "template_uuid": "{{ datarecord.dataType.masterDataType.unique_id }}",
+            {% else %}
+                "template_uuid": "",
             {% endif %}
-        {% endfor %}
-        ],
-
-        "records": [
-            {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
-            {% for child_datatype_id, child_records in datarecord.children %}
-                {% set datatype_array_subset = datatype['descendants'][child_datatype_id]['datatype'] %}
-
-                {% if datatype_array_subset[child_datatype_id] is defined %}
-                    {% set is_top_level = 0 %}
-                    {#{% set is_link = datatype['descendants'][child_datatype_id]['is_link'] %}#}
-
-                    {{ mychildform.input(
-                        datatype_array_subset,
-                        child_records,
-                        child_datatype_id,
-                        dr_id,
-                        is_top_level,
-                        using_metadata,
-                        baseurl,
-                        version,
-                        show_records)
-                    }}
-                {% endif %}
-            {% endfor %}
-        ]
-
-    {# each datarecord is its own JSON object #}
-    },    {# have to always put a comma because of the possibility of multiple child datatypes #}
-    {# ---------- #}
-
+            {% if datarecord.dataType.metadata_for %}
+                "metadata_for_uuid": "{{ datarecord.dataType.metadata_for.unique_id }}",
+            {% else %}
+                "metadata_for_uuid": "",
+            {% endif %}
+            {% if using_metadata == true %}
+                {# display metadata and datafields for top-level and child datarecords #}
+                "_record_metadata": {
+                    {% if datarecord.created is defined and datarecord.created %}
+                        "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
+                    {% else %}
+                        "_create_date": "",
+                    {% endif %}
+                    {% if datarecord.updated is defined and datarecord.updated %}
+                        "_updated_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
+                    {% elseif datarecord.dataRecordMeta is defined and datarecord.dataRecordMeta.created is defined and datarecord.dataRecordMeta.created %}
+                        "_updated_date": "{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}",
+                    {% else %}
+                        "_updated_date": "",
+                    {% endif %}
+                    {% if datarecord.createdBy is defined and datarecord.createdBy %}
+                        "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
+                    {% else %}
+                        "_create_auth": "",
+                    {% endif %}
+                    {% if datarecord.dataRecordMeta is defined and datarecord.dataRecordMeta.publicDate is defined and datarecord.dataRecordMeta.publicDate %}
+                        "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
+                    {% else %}
+                        "_public_date": ""
+                    {% endif %}
+                },
+            {% endif %}
+            {# Fields #}
+            "fields": [
+                {% set field_block %}
+                {% for dt_datafield in datatype_array[datarecord.dataType.id].dataFields %}
+                    {% set comma = true %}
+                    {% set found = false %}
+                    {% for datafield in datarecord.dataRecordFields %}
+                        {% if datafield.id == dt_datafield.id  %}
+                            {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                                {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
+                                    'using_metadata': using_metadata,
+                                    'baseurl': baseurl,
+                                    'version': version,
+                                } %}
+                                {% set found = true %}
+                            {% else %}
+                                {% set comma = false %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if not found %}
+                        {% if dt_datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                            {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                                'datarecord': datarecord,
+                                'datafield': dt_datafield,
+                                'using_metadata': using_metadata,
+                                'baseurl': baseurl,
+                                'version': version,
+                            } %}
+                        {% else %}
+                            {% set comma = false %}
+                        {% endif %}
+                    {% endif %}
+                    {% if comma %}
+                        {% if not loop.last %},{% endif %}
+                    {% endif %}
+                {% endfor %}
+                {% endset %}
+                {{ field_block|comma|raw }}
+            ],
+            "records": [
+                {# Check for Children #}
+                {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+                {% set show_records = 1 %}
+                {{ mychildform.input(
+                    datarecord.children,
+                    datatype_array,
+                    is_top_level,
+                    using_metadata,
+                    baseurl,
+                    version,
+                    show_records
+                ) }}
+            ]
+        }
+    {% endif %}
+    {% if not loop.last and not skip_comma %},{% endif %}
 {% endfor %}
+{% endset %}
+{{ output_block|comma|raw }}
 
 {% endmacro %}
+

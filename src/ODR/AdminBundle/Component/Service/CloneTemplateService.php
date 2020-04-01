@@ -18,6 +18,10 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\AdminBundle\Entity\RenderPluginMap;
+use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -146,6 +150,11 @@ class CloneTemplateService
      */
     private $modified_linked_datatypes;
 
+    /**
+     * @var DataFields[]
+     */
+    private $created_datafields;
+
 
     /**
      * CloneTemplateService constructor.
@@ -202,6 +211,8 @@ class CloneTemplateService
         $this->derived_tag_trees = array();
 
         $this->modified_linked_datatypes = array();
+
+        $this->created_datafields = array();
     }
 
 
@@ -351,17 +362,45 @@ class CloneTemplateService
         // Only want to keep these keys...defining it this way because isset() is faster than in_array()
         $keep = array(
             'id' => 1,
-//            'is_master_type' => 1,
+//            'revision' => 1,
 //            'unique_id' => 1,
+//            'setup_step' => 1,
+//            'preload_status' => 1,
+//            'is_master_type' => 1,
             'template_group' => 1,
+//            'datatype_type' => 1,
+//            'is_default_template' => 1,
+//            'is_metadata_template' => 1,
 //            'metadata_datatype' => 1,
 //            'metadata_for' => 1,
+            'dataTypeMeta' => 1,
             'masterDataType' => 1,
             'dataFields' => 1,
             'descendants' => 1,
 
             'copy_theme_structure' => 1,
         );
+
+        $meta_keep = array(
+//            'searchSlug' => 1,
+//            'shortName' => 1,
+//            'description' => 1,
+//            'searchNotesUpper' => 1,
+//            'searchNotesLower' => 1,
+//            'publicDate' => 1,
+            'newRecordsArePublic' => 1,
+//            'externalIdField' => 1,
+//            'nameField' => 1,
+//            'sortField' => 1,
+//            'backgroundImageField' => 1,
+//            'metadataNameField' => 1,
+//            'metadataDescField' => 1,
+//            'renderPlugin' => 1,
+        );
+
+        // NOTE - derived datatypes don't really have much of a reason to change external_id/name/sort
+        //  fields (assuming the template is properly designed), but actually enforcing this is both
+        //  difficult and doesn't really make sense either
 
         foreach ($datatype as $dt_id => $dt) {
             // This flag controls whether the template's theme_elements/theme_datafield entries are
@@ -373,6 +412,10 @@ class CloneTemplateService
             foreach ($dt as $key => $value) {
                 if ( !isset($keep[$key]) )
                     unset( $datatype[$dt_id][$key] );
+            }
+            foreach ($dt['dataTypeMeta'] as $key => $value) {
+                if ( !isset($meta_keep[$key]) )
+                    unset( $datatype[$dt_id]['dataTypeMeta'][$key] );
             }
 
             // Clean up all the unneeded stuff in the datafields segment of the array...
@@ -425,6 +468,8 @@ class CloneTemplateService
                 if ( !isset($keep[$key]) )
                     unset( $datafields[$df_id][$key] );
             }
+
+            // TODO - change of datafield public status
 
             // Flatten the array of radio options if it exists
             if ( isset($df['radioOptions']) ) {
@@ -504,6 +549,17 @@ class CloneTemplateService
         $dt_id = array_keys($derived_array)[0];
 
         // ----------------------------------------
+        // Check for differences in the dataTypeMeta entity...
+        foreach ($derived_array[$dt_id]['dataTypeMeta'] as $key => $value) {
+            // Should only need to check whether the values match...
+            if ( $template_array[$t_dt_id]['dataTypeMeta'][$key] === $value ) {
+                //  The template datatype and the derived datatype match, unset the array entry
+                unset( $template_array[$t_dt_id]['dataTypeMeta'][$key] );
+            }
+        }
+
+
+        // ----------------------------------------
         // Check for differences between datafields in this datatype...
         if ( isset($derived_array[$dt_id]['dataFields']) ) {
             $derived_datafields = $derived_array[$dt_id]['dataFields'];
@@ -539,6 +595,8 @@ class CloneTemplateService
                             //  datafield...TODO - figure out what it would take to enable this...
 //                            $change_made = true;
                         }
+
+                        // TODO - change of datafield public status?
 
                         // Need to check radio options...
                         if ( isset($template_datafields[$master_df_id]['radioOptions']) ) {
@@ -611,6 +669,7 @@ class CloneTemplateService
             }
         }
 
+
         // ----------------------------------------
         // Check for differences between any child datatypes...
         if ( isset($derived_array[$dt_id]['descendants']) ) {
@@ -646,8 +705,14 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Assume no changes made to the template...
+        $has_datatype_changes = false;
         $has_datafield_changes = false;
         $has_childtype_changes = false;
+
+        if ( isset($template_array[$t_dt_id]['dataTypeMeta']) ) {
+            if ( count($template_array[$t_dt_id]['dataTypeMeta']) > 0 )
+                $has_datatype_changes = true;
+        }
 
         if ( isset($template_array[$t_dt_id]['dataFields']) ) {
             if ( count($template_array[$t_dt_id]['dataFields']) > 0 )
@@ -665,7 +730,7 @@ class CloneTemplateService
 
 
         // If the derived datatype matches the template datatype, then return that no changes need to be made
-        if ( !$has_datafield_changes && !$has_childtype_changes )
+        if ( !$has_datatype_changes && !$has_datafield_changes && !$has_childtype_changes )
             return array();
         else
             return $template_array;
@@ -871,6 +936,7 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Need to get a list of all top-level datatypes associated with the master template
+        // TODO - this looks weird...
         $template_grandparents = $this->cache_service->get('associated_datatypes_for_'.$master_datatype->getId());
         if ($template_grandparents == false) {
             $template_grandparents = $this->dti_service->getAssociatedDatatypes( array($master_datatype->getId()) );
@@ -900,6 +966,7 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Also need to get a list of all top-level datatypes associated with the derived datatype
+        // TODO - this looks weird...
         $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
         if ($derived_grandparents == false) {
             $derived_grandparents = $this->dti_service->getAssociatedDatatypes( array($datatype->getId()) );
@@ -971,6 +1038,8 @@ class CloneTemplateService
                 $this->search_cache_service->onDatatypeImport($dt);
                 $modified_top_level_datatypes[] = $dt->getId();
             }
+
+            // TODO - ...don't the datarecord entries need to be wiped too?
         }
 
         // Need to also delete the permissions related cache entries...technically they've already
@@ -1431,8 +1500,21 @@ class CloneTemplateService
 
 
         // ----------------------------------------
+        // Update datatype properties if needed
+        if ( isset($diff_array['dataTypeMeta']) ) {
+            $props = array();
+            foreach ($diff_array['dataTypeMeta'] as $key => $value) {
+                $props[$key] = $value;
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- setting "'.$key.'" to "'.$value.'"...');
+            }
+
+            $this->emm_service->updateDatatypeMeta($user, $derived_datatype, $props, true);
+        }
+
+
+        // ----------------------------------------
         // Create/modify all datafields necessary
-        $created_datafields = array();
+        $local_created_datafields = array();
         if ( isset($diff_array['dataFields']) ) {
             foreach ($diff_array['dataFields'] as $df_id => $df) {
                 // Locate an existing datafield in the derived datatype that has $master_df as its
@@ -1480,7 +1562,12 @@ class CloneTemplateService
                     $new_df->addDataFieldMetum($new_df_meta);
                     self::persistObject($new_df_meta, $user, true);
 
-                    $created_datafields[ $master_df->getId() ] = $new_df;
+                    // Need to keep track of whether a datafield was created for this datatype...
+                    $local_created_datafields[ $master_df->getId() ] = $new_df;
+                    // ...and do it separately from the list of all created datafields, which is
+                    //  needed when cloning render plugins for a newly created datatype...
+                    $this->created_datafields[ $master_df->getId() ] = $new_df;
+
                     $derived_df = $new_df;
 
                     $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new datafield "'.$new_df->getFieldName().'" (dt '.$derived_datatype->getId().') from master datafield '.$master_df->getId().' (dt_id '.$master_dt->getId().')');
@@ -1506,6 +1593,9 @@ class CloneTemplateService
 
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> created ImageSize entries for new datafield "'.$new_df->getFieldName().'" (dt '.$derived_datatype->getId().')' );
                     }
+
+                    // Copy the render plugin for the newly created datafield, if it exists
+                    self::cloneRenderPluginSettings($indent_text, $user, $master_df->getRenderPlugin(), null, $new_df);
                 }
 
                 $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();
@@ -1518,6 +1608,8 @@ class CloneTemplateService
                     // TODO - how to deal with deletion of datafields from the template?
 //                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- datafield "'.$derived_df->getFieldName().'" (dt '.$derived_datatype->getId().') has the fieldtype "'.$derived_df_typeclass.'", while the master datafield '.$master_df->getId().' (dt_id '.$master_dt->getId().') has the fieldtype "'.$master_df_typeclass.'"');
                 }
+
+                // TODO - change of datafield public status
 
                 // Create/rename/delete radio options as needed so the derived datatype is in sync
                 //  with its template
@@ -1725,7 +1817,7 @@ class CloneTemplateService
 
 
             // If datafields got created, then they need to be attached to the datatype's theme...
-            if ( count($created_datafields) > 0 ) {
+            if ( count($local_created_datafields) > 0 ) {
 
                 if ($diff_array['copy_theme_structure'] == 1) {
                     // If this flag is set, the derived datatype doesn't have any of the datafields
@@ -1762,7 +1854,7 @@ class CloneTemplateService
                                 /** @var ThemeDataField $tdf */
                                 // Locate the new datafield
                                 $master_df_id = $tdf->getDataField()->getId();
-                                $derived_df = $created_datafields[$master_df_id];
+                                $derived_df = $this->created_datafields[$master_df_id];
 
                                 if($derived_df !== null) {
                                     // Clone the existing theme datafield entry
@@ -1792,8 +1884,8 @@ class CloneTemplateService
                     /** @var ThemeElement $new_te */
                     $new_te = null;
 
-                    /** @var DataFields[] $created_datafields */
-                    foreach ($created_datafields as $master_df_id => $new_df) {
+                    /** @var DataFields[] $local_created_datafields */
+                    foreach ($local_created_datafields as $master_df_id => $new_df) {
                         //
                         $source_sync_version++;
 
@@ -1817,7 +1909,7 @@ class CloneTemplateService
         }
 
         // Create the permission entries for each of the new datafields...
-        foreach ($created_datafields as $master_df_id => $new_df) {
+        foreach ($local_created_datafields as $master_df_id => $new_df) {
             $this->ec_service->createGroupsForDatafield($user, $new_df, true);
             $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created GroupDatafieldPermission entries for datafield '.$new_df->getId().' "'.$new_df->getFieldName().'" (master df '.$master_df_id.')');
         }
@@ -1847,6 +1939,7 @@ class CloneTemplateService
 
 
                 // Locate the child/linked datatype in the derived datatype's "family", if possible
+                $datatype_was_created = false;
                 $derived_child_datatype = null;
                 foreach ($this->derived_datatypes as $dt) {
                     if ( $dt->getMasterDataType()->getId() === $c_dt_id ) {
@@ -1907,10 +2000,14 @@ class CloneTemplateService
                         $derived_child_datatype = self::createLinkedDatatype($user, $new_te, $derived_datatype, $master_datatype, $multiple_allowed, $indent_text);
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created new linked datatype, derived from master datatype '.$master_datatype->getId().' "'.$master_datatype->getShortName().'"...');
 
-                        // May need to reference this later if the new linked datatype is referenced
-                        //  more than once
+                        // May need to reference this later if the new datatype is linked to more
+                        //  than once
                         $this->derived_datatypes[ $derived_child_datatype->getId() ] = $derived_child_datatype;
                     }
+
+                    // Make a note that a child datatype was created here...can't set render plugin
+                    //  or external_id/name/sort/etc fields until after self::syncDatatype() is run
+                    $datatype_was_created = true;
                 }
 
                 // Now that the child/linked datatype is guaranteed to exist, need to continue going
@@ -1967,6 +2064,35 @@ class CloneTemplateService
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- linked datatype '.$derived_child_datatype->getId().' "'.$derived_child_datatype->getShortName().'" is already up to date with its master datatype '.$master_datatype->getId().' "'.$master_datatype->getShortName().'"');
                     }
                 }
+
+                if ( $datatype_was_created ) {
+                    // If a datatype was created earlier, then it needs to also check for render
+                    //  plugin and the external_id/name/sort/etc fields...this couldn't be done
+                    //  before because the datafields didn't exist until after self::syncDatatype()
+                    //  was called
+                    self::cloneRenderPluginSettings($indent_text, $user, $master_datatype->getRenderPlugin(), $derived_child_datatype, null);
+
+                    // Need to set external_id/name/sort/etc fields for the new datatype...
+                    $child_properties = array();
+                    if ( !is_null($master_datatype->getExternalIdField()) ) {
+                        $child_df = $this->created_datafields[ $master_datatype->getExternalIdField()->getId() ];
+                        $child_properties['externalIdField'] = $child_df->getId();
+                    }
+                    if ( !is_null($master_datatype->getNameField()) ) {
+                        $child_df = $this->created_datafields[ $master_datatype->getNameField()->getId() ];
+                        $child_properties['nameField'] = $child_df->getId();
+                    }
+                    if ( !is_null($master_datatype->getSortField()) ) {
+                        $child_df = $this->created_datafields[ $master_datatype->getSortField()->getId() ];
+                        $child_properties['sortField'] = $child_df->getId();
+                    }
+                    if ( !is_null($master_datatype->getBackgroundImageField()) ) {
+                        $child_df = $this->created_datafields[ $master_datatype->getBackgroundImageField()->getId() ];
+                        $child_properties['backgroundImageField'] = $child_df->getId();
+                    }
+
+                    $this->emm_service->updateDatatypeMeta($user, $derived_child_datatype, $child_properties, true);
+                }
             }
         }
 
@@ -1980,6 +2106,87 @@ class CloneTemplateService
 
         // Do a final flush
         $this->em->flush();
+    }
+
+
+    /**
+     * Given a Datatype or Datafield, completely clone all the relevant information for its
+     * render plugin, assuming it's currently using one.
+     *
+     * @param string $indent_text
+     * @param ODRUser $user
+     * @param RenderPlugin|null $parent_render_plugin
+     * @param DataType|null $datatype
+     * @param DataFields|null $datafield
+     */
+    private function cloneRenderPluginSettings($indent_text, $user, $parent_render_plugin, $datatype = null, $datafield = null)
+    {
+        // Don't need to clone anything if using the default render plugin
+        if ( is_null($parent_render_plugin) || $parent_render_plugin->getPluginClassName() == 'odr_plugins.base.default')
+            return;
+
+        $repo_rpi = $this->em->getRepository('ODRAdminBundle:RenderPluginInstance');
+        $parent_rpi = null;
+
+        if ( !is_null($datatype) ) {
+            $master_datatype = $datatype->getMasterDataType();
+
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> attempting to clone settings for render plugin '.$parent_render_plugin->getId().' "'.$parent_render_plugin->getPluginName().'" in use by master datatype '.$master_datatype->getId());
+            $parent_rpi = $repo_rpi->findOneBy( array('dataType' => $master_datatype->getId(), 'renderPlugin' => $parent_render_plugin->getId()) );
+
+            // Since self::createChildDatatype() or self::createLinkedDatatype() don't clone their
+            //  parents, the derived datatype needs to set the render plugin its template has defined
+            $properties['renderPlugin'] = $parent_render_plugin->getId();
+            $this->emm_service->updateDatatypeMeta($user, $datatype, $properties, true);
+        }
+        else {
+            $master_datafield = $datafield->getMasterDataField();
+
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> attempting to clone settings for render plugin '.$parent_render_plugin->getId().' "'.$parent_render_plugin->getPluginName().'" in use by master datafield '.$master_datafield->getId());
+            $parent_rpi = $repo_rpi->findOneBy( array('dataField' => $master_datafield->getId(), 'renderPlugin' => $parent_render_plugin->getId()) );
+
+            // The datafield was cloned, so don't need to set render plugin here
+        }
+        /** @var RenderPluginInstance $parent_rpi */
+
+        if ( !is_null($parent_rpi) ) {
+            // If the parent datatype/datafield is using a render plugin, then clone that instance
+            $new_rpi = clone $parent_rpi;
+            $new_rpi->setDataType($datatype);
+            $new_rpi->setDataField($datafield);
+
+            self::persistObject($new_rpi, $user, true);
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$parent_rpi->getId());
+
+            // Clone each option for this instance of the render plugin
+            /** @var RenderPluginOptions[] $parent_rpo_array */
+            $parent_rpo_array = $parent_rpi->getRenderPluginOptions();
+            foreach ($parent_rpo_array as $parent_rpo) {
+                $new_rpo = clone $parent_rpo;
+                $new_rpo->setRenderPluginInstance($new_rpi);
+                self::persistObject($new_rpo, $user, true);    // These don't need to be flushed/refreshed immediately...
+
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_option '.$parent_rpo->getId().' "'.$parent_rpo->getOptionName().'" => "'.$parent_rpo->getOptionValue().'"');
+            }
+
+            // Clone each datafield that's being used by this instance of the render plugin
+            /** @var RenderPluginMap[] $parent_rpm_array */
+            $parent_rpm_array = $parent_rpi->getRenderPluginMap();
+            foreach ($parent_rpm_array as $parent_rpm) {
+                $new_rpm = clone $parent_rpm;
+                $new_rpm->setRenderPluginInstance($new_rpi);
+
+                if ( !is_null($datatype) )
+                    $new_rpm->setDataType($datatype);       // TODO - if null, then a datafield plugin...but why does it work like that in the first place again?
+                // Find the analogous datafield in the new (cloned) datatype
+                /** @var DataFields $matching_df */
+                $matching_df = $this->created_datafields[ $parent_rpm->getDataField()->getId() ];
+                $new_rpm->setDataField($matching_df);
+
+                self::persistObject($new_rpm, $user, true);    // These don't need to be flushed/refreshed immediately...
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpm->getId().' for render_plugin_field "'.$parent_rpm->getRenderPluginFields()->getFieldName().'"');
+            }
+        }
     }
 
 
@@ -2110,7 +2317,15 @@ class CloneTemplateService
         $this->em->persist($child_datatype);
 
         $child_datatype_meta = $child_datatype->getDataTypeMeta();
-        $child_datatype_meta->setRenderPlugin($master_datatype->getRenderPlugin());
+        $child_datatype_meta->setSearchSlug(null);    // child datatypes don't have search slugs
+
+        // These are the only other settings that are safe to immediately clone...
+        $child_datatype_meta->setDescription($master_datatype->getDescription());
+        $child_datatype_meta->setNewRecordsArePublic($master_datatype->getNewRecordsArePublic());
+        $child_datatype_meta->setPublicDate($master_datatype->getPublicDate());
+
+        // Have to ignore the "special" fields for right now (external_id, name, sort, etc)
+        // Also have to ignore render plugin
 
         $this->em->persist($child_datatype_meta);
         $this->em->flush();
@@ -2188,7 +2403,14 @@ class CloneTemplateService
         $this->em->persist($linked_datatype);
 
         $linked_datatype_meta = $linked_datatype->getDataTypeMeta();
-        $linked_datatype_meta->setRenderPlugin($master_datatype->getRenderPlugin());
+
+        // These are the only other settings that are safe to immediately clone...
+        $linked_datatype_meta->setDescription($master_datatype->getDescription());
+        $linked_datatype_meta->setNewRecordsArePublic($master_datatype->getNewRecordsArePublic());
+        $linked_datatype_meta->setPublicDate($master_datatype->getPublicDate());
+
+        // Have to ignore the "special" fields for right now (external_id, name, sort, etc)
+        // Also have to ignore render plugin
 
         $this->em->persist($linked_datatype_meta);
         $this->em->flush();

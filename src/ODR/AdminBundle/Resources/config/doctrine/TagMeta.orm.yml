@@ -46,6 +46,11 @@ ODR\AdminBundle\Entity\TagMeta:
             type: datetime
             nullable: true
 
+    indexes:
+        tagmeta_fulltext:
+            columns: ["tag_name"]
+            flags: fulltext
+
     manyToOne:
         tag:
             targetEntity: Tags

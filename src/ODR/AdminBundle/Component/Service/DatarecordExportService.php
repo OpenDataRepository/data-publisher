@@ -188,7 +188,7 @@ class DatarecordExportService
             array(
                 'sorted_datarecord_ids' => $datarecord_ids,    // Use the given array of datarecord ids to as the output order
 
-                'datatype_array' => $stacked_datatype_array,
+                'datatype_array' => $datatype_array,
                 'datarecord_array' => $stacked_datarecord_array,
                 'record_search' => $record_search,
 
@@ -222,98 +222,101 @@ class DatarecordExportService
      */
     private function reformatJson($data)
     {
-        // Get rid of all whitespace characters that aren't inside double-quotes
-        $trimmed_str = '';
-        $in_quotes = false;
-        $just_wrote_comma = false;
 
-        for ($i = 0; $i < strlen($data); $i++) {
-            if (!$in_quotes) {
-                // If not in quotes...
-                switch ($data{$i} ) {
-                    case "\"":
-                        // ...and a quote was encountered, transcribe it and switch modes
-                        $trimmed_str .= $data{$i};
-                        $in_quotes = true;
-
-                        // Last character transcribed was not a comma
-                        $just_wrote_comma = false;
-                        break;
-
-                    case "}":
-                        // ...and a closing brace was encountered...
-                        if ( $just_wrote_comma ) {
-                            // ...then transcribing this would create a closing brace immediately
-                            //  after a comma.  Not proper JSON.
-
-                            // Instead, replace the most recent comma with a closing brace
-                            $trimmed_str = substr_replace($trimmed_str, '}', -1);
-
-                            // Last character transcribed was not a comma
-                            $just_wrote_comma = false;
-                        }
-                        else {
-                            // Otherwise, closing brace after some non-comma, just transcribe it
-                            $trimmed_str .= $data{$i};
-                        }
-                        break;
-
-                    case "]":
-                        // ...and a closing bracket was encountered...
-                        if ( $just_wrote_comma ) {
-                            // ...then transcribing this would create a closing bracket immediately
-                            //  after a comma.  Not proper JSON.
-
-                            // Instead, replace the most recent comma with a closing bracket
-                            $trimmed_str = substr_replace($trimmed_str, ']', -1);
-
-                            // Last character transcribed was not a comma
-                            $just_wrote_comma = false;
-                        }
-                        else {
-                            // Otherwise, closing bracket after some non-comma, just transcribe it
-                            $trimmed_str .= $data{$i};
-                        }
-                        break;
-
-                    case ",":
-                        // ...and a comma was encountered...
-                        if ( !$just_wrote_comma ) {
-                            // ...then only transcribe a comma when the previous character transcribed
-                            //  was not a comma.  Don't want duplicated commas.
-                            $trimmed_str .= $data{$i};
-                            $just_wrote_comma = true;
-                        }
-                        break;
-
-                    case " ":
-                    case "\n":
-                        // If not in quotes and found a space/newline, don't transcribe it
-                        break;
-
-                    default:
-                        // If not in quotes and found a non-space character, transcribe it
-                        $trimmed_str .= $data{$i};
-
-                        // Commas are handled earlier in the switch statement, so the character
-                        //  transcribed here can't be a comma
-                        $just_wrote_comma = false;
-                        break;
-                }
-            }
-            else {
-                if ($data{$i} === "\"" && $data{$i-1} !== "\\")
-                    $in_quotes = false;
-
-                // If in quotes, always transcribe every character
-                $trimmed_str .= $data{$i};
-            }
-        }
-
-        // Get rid of any trailing commas at the very end of the string
-        while ( substr($trimmed_str, -1) === ',' )
-            $trimmed_str = substr($trimmed_str, 0, -1);
-
-        return $trimmed_str;
+        return $data;
+        // return json_encode(json_decode($data));
+//        // Get rid of all whitespace characters that aren't inside double-quotes
+//        $trimmed_str = '';
+//        $in_quotes = false;
+//        $just_wrote_comma = false;
+//
+//        for ($i = 0; $i < strlen($data); $i++) {
+//            if (!$in_quotes) {
+//                // If not in quotes...
+//                switch ($data{$i} ) {
+//                    case "\"":
+//                        // ...and a quote was encountered, transcribe it and switch modes
+//                        $trimmed_str .= $data{$i};
+//                        $in_quotes = true;
+//
+//                        // Last character transcribed was not a comma
+//                        $just_wrote_comma = false;
+//                        break;
+//
+//                    case "}":
+//                        // ...and a closing brace was encountered...
+//                        if ( $just_wrote_comma ) {
+//                            // ...then transcribing this would create a closing brace immediately
+//                            //  after a comma.  Not proper JSON.
+//
+//                            // Instead, replace the most recent comma with a closing brace
+//                            $trimmed_str = substr_replace($trimmed_str, '}', -1);
+//
+//                            // Last character transcribed was not a comma
+//                            $just_wrote_comma = false;
+//                        }
+//                        else {
+//                            // Otherwise, closing brace after some non-comma, just transcribe it
+//                            $trimmed_str .= $data{$i};
+//                        }
+//                        break;
+//
+//                    case "]":
+//                        // ...and a closing bracket was encountered...
+//                        if ( $just_wrote_comma ) {
+//                            // ...then transcribing this would create a closing bracket immediately
+//                            //  after a comma.  Not proper JSON.
+//
+//                            // Instead, replace the most recent comma with a closing bracket
+//                            $trimmed_str = substr_replace($trimmed_str, ']', -1);
+//
+//                            // Last character transcribed was not a comma
+//                            $just_wrote_comma = false;
+//                        }
+//                        else {
+//                            // Otherwise, closing bracket after some non-comma, just transcribe it
+//                            $trimmed_str .= $data{$i};
+//                        }
+//                        break;
+//
+//                    case ",":
+//                        // ...and a comma was encountered...
+//                        if ( !$just_wrote_comma ) {
+//                            // ...then only transcribe a comma when the previous character transcribed
+//                            //  was not a comma.  Don't want duplicated commas.
+//                            $trimmed_str .= $data{$i};
+//                            $just_wrote_comma = true;
+//                        }
+//                        break;
+//
+//                    case " ":
+//                    case "\n":
+//                        // If not in quotes and found a space/newline, don't transcribe it
+//                        break;
+//
+//                    default:
+//                        // If not in quotes and found a non-space character, transcribe it
+//                        $trimmed_str .= $data{$i};
+//
+//                        // Commas are handled earlier in the switch statement, so the character
+//                        //  transcribed here can't be a comma
+//                        $just_wrote_comma = false;
+//                        break;
+//                }
+//            }
+//            else {
+//                if ($data{$i} === "\"" && $data{$i-1} !== "\\")
+//                    $in_quotes = false;
+//
+//                // If in quotes, always transcribe every character
+//                $trimmed_str .= $data{$i};
+//            }
+//        }
+//
+//        // Get rid of any trailing commas at the very end of the string
+//        while ( substr($trimmed_str, -1) === ',' )
+//            $trimmed_str = substr($trimmed_str, 0, -1);
+//
+//        return $trimmed_str;
     }
 }

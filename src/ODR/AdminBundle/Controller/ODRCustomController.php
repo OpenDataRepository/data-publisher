@@ -52,6 +52,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class ODRCustomController extends Controller
@@ -1004,7 +1005,6 @@ class ODRCustomController extends Controller
             $em->flush();
             $em->refresh($my_obj);
 
-
             // ----------------------------------------
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files
             $pheanstalk = $this->get('pheanstalk');
@@ -1014,8 +1014,7 @@ class ODRCustomController extends Controller
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
             // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_crypto_request');
+            $url = $router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
@@ -1402,18 +1401,18 @@ class ODRCustomController extends Controller
     /**
      * Returns errors encounted while processing a Symfony Form object as a string.
      *
-     * @param \Symfony\Component\Form\Form $form
+     * @param \Symfony\Component\Form\FormInterface $form
      *
      * @return string
      */
-    protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form)
+    protected function ODR_getErrorMessages(\Symfony\Component\Form\FormInterface $form)
     {
         // Get all errors in this form, including those from the form's children
         $errors = $form->getErrors(true);
 
         $error_str = '';
         while( $errors->valid() ) {
-            $error_str .= 'ERROR: '.$errors->current()->getMessage()."\n";
+            $error_str .= 'ERROR: '.$errors->current()->getMessage()."</br>";
             $errors->next();
         }
 

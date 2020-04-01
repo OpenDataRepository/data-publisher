@@ -44,6 +44,103 @@ ODR\AdminBundle\Entity\DataRecord:
             nullable: true
 
     oneToMany:
+
+        boolean:
+            targetEntity: Boolean
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        integerValue:
+            targetEntity: IntegerValue
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        decimalValue:
+            targetEntity: DecimalValue
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        longText:
+            targetEntity: LongText
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        longVarchar:
+            targetEntity: LongVarchar
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        mediumVarchar:
+            targetEntity: MediumVarchar
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        shortVarchar:
+            targetEntity: ShortVarchar
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        datetimeValue:
+            targetEntity: DatetimeValue
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        image:
+            targetEntity: Image
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        file:
+            targetEntity: File
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        radioSelection:
+            targetEntity: RadioSelection
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
+        tagSelection:
+            targetEntity: TagSelection
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -121,7 +218,7 @@ ODR\AdminBundle\Entity\DataRecord:
             targetEntity: DataType
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: dataRecords
             fetch: LAZY
             joinColumns:
                 data_type_id:

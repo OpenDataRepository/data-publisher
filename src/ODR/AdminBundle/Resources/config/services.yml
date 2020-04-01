@@ -172,6 +172,7 @@ services:
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
+            $search_cache_service: "@odr.search_cache_service"
             $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
@@ -204,7 +205,6 @@ services:
             $theme_info_service: "@odr.theme_info_service"
             $router: "@router"
             $logger: "@logger"
-
 
     odr.entity_creation_service:
         class: ODR\AdminBundle\Component\Service\EntityCreationService

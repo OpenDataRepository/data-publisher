@@ -120,12 +120,12 @@ class SearchKeyService
         $search_params = array();
         foreach ($post as $key => $value) {
             // Ignore empty entries
-            $value = trim($value);
+            $value = trim($value);    // TODO - was this breaking API searches?
             if ($value === '')
                 continue;
 
             // Don't care whether the contents of the POST are technically valid or not here
-            $search_params[$key] = self::clean($value);
+            $search_params[$key] = self::clean($value);    // TODO - was this breaking API searches?
         }
 
         // The important part is to sort by key, so different orderings result in the same search_key...
@@ -278,7 +278,7 @@ class SearchKeyService
                     else {
                         // Found starting quote
                         $in_quote = true;
-                        $token = "\"";
+                        $token = "\"";    // TODO - this drops everything before the double-quote in a string like  >abc"def<
                     }
                     break;
                 case " ":

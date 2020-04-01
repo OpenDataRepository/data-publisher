@@ -19,35 +19,21 @@
 {% endif %}
 
 {% if is_selected == 1 %}
-    {
-        "id": {{ tag.id }},
-        "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
-
-        {% if parent_tags_prefix == '' %}
-        "name": "{{ tag.tagName }}",
-        {% else %}
-        "name": "{{ parent_tags_prefix }} &gt; {{ tag.tagName }}",
-        {% endif %}
-
-        "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}",
-        "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",
-        "selected": 1,
-    },
+{
+    "id": {{ tag.id }},
+    "using_tagSelection2": "true",
+    "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
+    "name": "{{ tag.tagName }}",
+    "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}",
+    "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",
+    "selected": 1
+},
 {% elseif has_children and child_is_selected == 1 %}
-    {% if parent_tags_prefix == '' %}
-        {% set parent_tags_prefix = tag.tagName %}
-    {% else %}
-        {% set parent_tags_prefix = parent_tags_prefix ~ ' > ' ~ tag.tagName %}
-        {# Twig will convert the '>' into '&gt;' on the next template include #}
-    {% endif %}
-
     {% for child_tag_id, child_tag in tag.children %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag.json.twig' with {
             'tag_selections': tag_selections,
             'child_tag_selections': child_tag_selections,
             'tag': child_tag,
-
-            'parent_tags_prefix': parent_tags_prefix
         } %}
     {% endfor %}
 {% endif %}

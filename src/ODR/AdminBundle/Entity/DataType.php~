@@ -1074,7 +1074,13 @@ class DataType
      */
     public function getPublicDate()
     {
-        return $this->getDataTypeMeta()->getPublicDate();
+	if(!is_bool($this->getDataTypeMeta())){
+
+         	 return $this->getDataTypeMeta()->getPublicDate();
+	}
+        else {
+                 return new \DateTime('2200-01-01 00:00:00');
+        }
     }
 
     /**
@@ -1135,5 +1141,48 @@ class DataType
     public function getRenderPlugin()
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
+    }
+
+    /**
+    }
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataRecords;
+
+
+    /**
+     * Add dataRecord.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
+     *
+     * @return DataType
+     */
+    public function addDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord)
+    {
+        $this->dataRecords[] = $dataRecord;
+
+        return $this;
+    }
+
+    /**
+     * Remove dataRecord.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord)
+    {
+        return $this->dataRecords->removeElement($dataRecord);
+    }
+
+    /**
+     * Get dataRecords.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDataRecords()
+    {
+        return $this->dataRecords;
     }
 }

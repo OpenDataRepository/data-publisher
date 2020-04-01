@@ -52,9 +52,10 @@ class UtilityController extends Controller
 
         // Ensure the requested url to save is of this domain
         $url = $request->query->get('url');
-        $site_baseurl = $this->container->getParameter('site_baseurl');
+        $site_baseurl = $this->container->getParameter('site_baseurl').'/';    // need to add a trailing slash...
 
-        if ( strpos($url, $site_baseurl) !== 0 )
+        $pos = strpos($url, $site_baseurl);
+        if ( !($pos === 5 || $pos === 6) )    // protocol could be either 'http:' or 'https:'...
             throw new ODRBadRequestException('Invalid query string', 0xed466573);
 
         // Ensure all target paths are cleared before saving

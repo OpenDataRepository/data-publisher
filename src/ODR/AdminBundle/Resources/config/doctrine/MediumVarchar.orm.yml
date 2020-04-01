@@ -32,6 +32,11 @@ ODR\AdminBundle\Entity\MediumVarchar:
             type: datetime
             nullable: true
 
+    indexes:
+        mediumvarchar_fulltext:
+            columns: ["value"]
+            flags: fulltext
+
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -57,7 +62,7 @@ ODR\AdminBundle\Entity\MediumVarchar:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: mediumVarchar
             joinColumns:
                 data_record_id:
                     referencedColumnName: id

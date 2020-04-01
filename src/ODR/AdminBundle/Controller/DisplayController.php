@@ -53,6 +53,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class DisplayController extends ODRCustomController
@@ -445,9 +446,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Generate the url for cURL to use
             $pheanstalk = $this->get('pheanstalk');
-            $router = $this->container->get('router');
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_crypto_request');
+            $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -878,36 +877,20 @@ class DisplayController extends ODRCustomController
 
             // Ensure file exists before attempting to download it
             $filename = 'Image_'.$image_id.'.'.$image->getExt();
-            if ( !$image->isPublic() )
-                $filename = md5($image->getOriginalChecksum().'_'.$image_id.'_'.$user->getId()).'.'.$image->getExt();
+            if ( !$image->isPublic() ) {
 
-            // Ensure the image exists in decrypted format
-            $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
-            if ( !$image->isPublic() || !$image_path )
-                $image_path = $crypto_service->decryptImage($image_id, $filename);
+                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                if ( !$image->isPublic() || !$image_path )
+                    $image_path = $crypto_service->decryptImage($image_id, $filename);
 
-            $handle = fopen($image_path, 'r');
-            if ($handle === false)
-                throw new FileNotFoundException($image_path);
+                $handle = fopen($image_path, 'r');
+                if ($handle === false)
+                    throw new FileNotFoundException($image_path);
 
-
-            if ( $image->isPublic() ) {
-                // Since the image is public, it's expected to continue to exist...so return a
-                //  redirect to its current location instead of streaming its contents
-                $baseurl = $this->container->getParameter('site_baseurl');
-                $upload_dir = $image->getUploadDir();
-
-                $response = new RedirectResponse($baseurl.'/'.$upload_dir.'/'.$filename);
-
-                fclose($handle);
-                return $response;
-            }
-            else {
-                // The image is not public...any decrypted version will only briefly exist, so need
-                //  to create/return a Reponse for the user to download it
+                // Have to send image headers first...
                 $response = new Response();
                 $response->setPrivate();
-                switch (strtolower($image->getExt())) {
+                switch ( strtolower($image->getExt()) ) {
                     case 'gif':
                         $response->headers->set('Content-Type', 'image/gif');
                         break;
@@ -930,7 +913,7 @@ class DisplayController extends ODRCustomController
 
                 // After headers are sent, send the image itself
                 $im = null;
-                switch (strtolower($image->getExt())) {
+                switch ( strtolower($image->getExt()) ) {
                     case 'gif':
                         $im = imagecreatefromgif($image_path);
                         imagegif($im);
@@ -949,13 +932,22 @@ class DisplayController extends ODRCustomController
 
                 fclose($handle);
 
-                // If the image isn't public, delete the decrypted version so it can't be accessed
-                //  without going through symfony
-                if (!$image->isPublic())
+                // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
+                if ( !$image->isPublic() )
                     unlink($image_path);
 
                 // Return the previously created response
                 return $response;
+            }
+            else {
+                // If image is public but doesn't exist, decrypt now
+                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                if ( !$image_path )
+                    $image_path = $crypto_service->decryptImage($image_id, $filename);
+
+                $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
+                return $this->redirect($url, 301);
+
             }
         }
         catch (\Exception $e) {
@@ -1356,9 +1348,7 @@ exit();
             else {
                 // Generate the url for cURL to use
                 $pheanstalk = $this->get('pheanstalk');
-                $router = $this->container->get('router');
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $router->generate('odr_crypto_request');
+                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $api_key = $this->container->getParameter('beanstalk_api_key');
 

@@ -1459,6 +1459,10 @@ odr_fix_missing_datafield_template_uuids:
     path:  /admin/fix_missing_datafield_template_uuids
     defaults: { _controller: ODRAdminBundle:Validation:fixmissingdatafielduuids }
 
+odr_check_fieldtype_table:
+    path:  /admin/check_fieldtype_table
+    defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+
 odr_update_datatype_names:
     path:  /admin/update_datatype_names
     defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }
@@ -1552,6 +1556,16 @@ odr_api_get_datarecord_single:
 odr_api_get_field_stats:
     path:  /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        template_uuid: '^[a-z0-9]+$'
+        template_field_uuid: '^[a-z0-9]+$'
+        format: '|xml|json'
+
+odr_api_get_field_stats_by_dataset:
+    path:  /api/{version}/search/field/statsbydataset/{template_uuid}/{template_field_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getfieldstatsbydataset, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
@@ -1666,9 +1680,10 @@ odr_search_api_general_search:
         offset: \d+
         _format: '|json|xml'
 
-odr_search_api_template_post_test:
-    path: /api/{version}/searchtest/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostTest, limit: 0, offset: 0, _format: 'json', version: 'v1'}
+#odr_search_api_template_post_test:
+odr_search_api_template_post:
+    path: /api/{version}/search/{limit}/{offset}.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostOptimized, limit: 0, offset: 0, _format: 'json', version: 'v1'}
     methods: [ POST ]
     requirements:
         version: 'v\d+'
@@ -1677,8 +1692,8 @@ odr_search_api_template_post_test:
         _format: '|json|xml'
 
 
-odr_search_api_template_post:
-    path: /api/{version}/search/{limit}/{offset}.{_format}
+odr_search_api_template_post_old:
+    path: /api/{version}/legacysearch/{limit}/{offset}.{_format}
     defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, limit: 0, offset: 0, _format: 'json', version: 'v1'}
     methods: [ POST ]
     requirements:
@@ -1706,7 +1721,7 @@ odr_api_record_public:
         version: 'v\d+'
         _format: '|json|xml'
 
-odr_api_get_datset_single_no_format:
+odr_api_get_dataset_single_no_format:
     path:  /api/{version}/dataset/{dataset_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]
@@ -1728,6 +1743,15 @@ odr_api_delete_dataset:
     path:  /api/{version}/dataset/{dataset_uuid}
     defaults: { _controller: ODRAdminBundle:API:deleteDatasetByUUID, version: 'v3' }
     methods: [ DELETE ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        format: 'json'
+
+odr_api_dataset_quota:
+    path:  /api/{version}/dataset/quota/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:datasetQuotaByUUID, version: 'v3' }
+    methods: [ GET ]
     requirements:
         version: 'v\d+'
         dataset_uuid: '^[a-z0-9]+$'

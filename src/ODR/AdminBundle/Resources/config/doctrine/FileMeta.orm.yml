@@ -52,6 +52,14 @@ ODR\AdminBundle\Entity\FileMeta:
             type: datetime
             nullable: true
 
+    indexes:
+        filemeta_ofn_fulltext:
+            columns: ["original_file_name"]
+            flags: fulltext
+        filemeta_desc_fulltext:
+            columns: ["description"]
+            flags: fulltext
+
     manyToOne:
         file:
             targetEntity: File

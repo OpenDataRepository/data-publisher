@@ -61,6 +61,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class MassEditController extends ODRCustomController
@@ -497,8 +498,7 @@ exit();
 
             // ----------------------------------------
             // Set the url for mass updating public status
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $this->container->get('router')->generate('odr_mass_update_worker_status');
+            $url = $this->generateUrl('odr_mass_update_worker_status', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             $job_count = 0;
 
@@ -559,8 +559,7 @@ exit();
 
             // ----------------------------------------
             // Set the url for mass updating datarecord values
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $this->container->get('router')->generate('odr_mass_update_worker_values');
+            $url = $this->generateUrl('odr_mass_update_worker_values', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             foreach ($datafields as $df_id => $value) {
                 // Ensure user has the permisions to modify values of this datafield

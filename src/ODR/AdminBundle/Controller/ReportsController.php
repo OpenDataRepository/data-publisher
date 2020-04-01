@@ -44,7 +44,7 @@ class ReportsController extends ODRCustomController
 {
 
     /**
-     * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
+     * Returns a list of all datarecords that have identical values in the given datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -140,6 +140,7 @@ class ReportsController extends ODRCustomController
 
     /**
      * Builds an array of duplicated values for a datafield belonging to a top-level datatype.
+     *
      * In this version, duplicate values are not allowed in this datafield.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -207,7 +208,9 @@ print_r($grandparent_list);
 
     /**
      * Builds an array of duplicated values for a datafield belonging to a child datatype.
-     * In this version, duplicate values are allowed in this datafield...provided they don't occur within the same parent datarecord.
+     *
+     * In this version, duplicate values are allowed in this datafield...provided they don't occur
+     * within the same parent datarecord.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Datafields $datafield
@@ -291,7 +294,8 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a Datafield, build a list of Datarecords (if any) that have multiple files/images uploaded in that Datafield.
+     * Returns a list of all datarecords that have multiple files/images uploaded to the given
+     * datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -419,7 +423,9 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a Datatree, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     * For a specific datatree relationship (e.g. parent datatype -> child datatype, OR ancestor
+     * datatype -> remote datatype), returns a list of parent/ancestor datarecords that have
+     * multiple children/remote datarecords.
      *
      * @param integer $datatree_id
      * @param Request $request
@@ -533,7 +539,8 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a Datatype, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     * Returns a list of local datarecords that are linked to the datarecords of the remote datatype,
+     * as well as which remote records are linked to.
      *
      * @param integer $local_datatype_id
      * @param integer $remote_datatype_id
@@ -637,7 +644,7 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a datafield, build a list of all values stored in that datafield
+     * Returns a list of all values stored in the given datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
@@ -774,7 +781,7 @@ print_r($grandparent_list);
 
 
     /**
-     * Given a datafield, build a list of all values stored in that datafield
+     * Returns a list of all records that have selected radio options in the given datafield.
      *
      * @param integer $datafield_id
      * @param Request $request

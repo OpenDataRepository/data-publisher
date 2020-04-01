@@ -204,4 +204,81 @@ class LinkedDataTree
     {
         return $this->deletedBy;
     }
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $ancestors;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->ancestors = new \Doctrine\Common\Collections\ArrayCollection();
+    }
+
+    /**
+     * Add ancestor.
+     *
+     * @param \ODR\AdminBundle\Entity\linkedDataTree $ancestor
+     *
+     * @return LinkedDataTree
+     */
+    public function addAncestor(\ODR\AdminBundle\Entity\linkedDataTree $ancestor)
+    {
+        $this->ancestors[] = $ancestor;
+
+        return $this;
+    }
+
+    /**
+     * Remove ancestor.
+     *
+     * @param \ODR\AdminBundle\Entity\linkedDataTree $ancestor
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeAncestor(\ODR\AdminBundle\Entity\linkedDataTree $ancestor)
+    {
+        return $this->ancestors->removeElement($ancestor);
+    }
+
+    /**
+     * Get ancestors.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getAncestors()
+    {
+        return $this->ancestors;
+    }
+    /**
+     * @var \ODR\AdminBundle\Entity\linkedDataTree
+     */
+    private $descendants;
+
+
+    /**
+     * Set descendants.
+     *
+     * @param \ODR\AdminBundle\Entity\linkedDataTree|null $descendants
+     *
+     * @return LinkedDataTree
+     */
+    public function setDescendants(\ODR\AdminBundle\Entity\linkedDataTree $descendants = null)
+    {
+        $this->descendants = $descendants;
+
+        return $this;
+    }
+
+    /**
+     * Get descendants.
+     *
+     * @return \ODR\AdminBundle\Entity\linkedDataTree|null
+     */
+    public function getDescendants()
+    {
+        return $this->descendants;
+    }
 }

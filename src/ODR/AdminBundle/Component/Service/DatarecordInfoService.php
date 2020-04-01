@@ -14,6 +14,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -61,7 +62,7 @@ class DatarecordInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param TagHelperService $tagHelperService
+     * @param TagHelperService $tag_helper_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
@@ -145,6 +146,8 @@ class DatarecordInfoService
      */
     public function getAssociatedDatarecords($grandparent_datarecord_ids)
     {
+        $this->logger->debug('DatarecordInfoService: getAssociatedDatarecords: ' . $grandparent_datarecord_ids[0]);
+
         // Locate all datarecords that are children of the datarecords listed in $grandparent_datarecord_ids
         $query = $this->em->createQuery(
            'SELECT dr.id AS id
@@ -166,6 +169,7 @@ class DatarecordInfoService
         // Don't want any duplicate datarecord ids...
         $associated_datarecord_ids = array_unique( array_merge($grandparent_datarecord_ids, $linked_datarecord_ids) );
 
+        $this->logger->debug('DatarecordInfoService: getAssociatedDatarecords: ' . var_export($associated_datarecord_ids, 1));
         return $associated_datarecord_ids;
     }
 
@@ -558,6 +562,14 @@ class DatarecordInfoService
                     $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
                     $t_id = $ts['tag']['id'];
+                    if($ts['tag']['userCreated'] > 0) {
+                        /** @var TagTree $tag_tree */
+                        $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')
+                            ->findOneBy(array(
+                                'child' => $ts['tag']['id']
+                            ));
+                        $ts['tag_parent_uuid'] = $tag_tree->getParent()->getTagUuid();
+                    }
                     $new_ts_array[$t_id] = $ts;
                 }
                 $drf['tagSelection'] = $new_ts_array;
@@ -693,8 +705,6 @@ class DatarecordInfoService
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
-     *
-     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function updateDatarecordCacheEntry($datarecord, $user)
     {
@@ -718,7 +728,6 @@ class DatarecordInfoService
 
         // Save all changes made
         $this->em->flush();
-
 
         // Child datarecords don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datarecord
@@ -866,7 +875,8 @@ class DatarecordInfoService
 
 
         // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
-        // generateCSRFTokens() doesn't require it to be numeric, and the length doesn't matter
+        // self::generateCSRFTokens() doesn't require numeric ids, and the length doesn't matter
+        // Don't need to use UUIDService::generateDatarecordUniqueId(), $fake_id will be discarded
         $fake_id = UniqueUtility::uniqueIdReal();
         while ( is_numeric($fake_id) )
             $fake_id = UniqueUtility::uniqueIdReal();

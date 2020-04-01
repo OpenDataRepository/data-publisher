@@ -73,6 +73,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class EditController extends ODRCustomController
@@ -658,8 +659,13 @@ class EditController extends ODRCustomController
 
             // Delete the file and its current metadata entry
             $file_meta = $file->getFileMeta();
-            $em->remove($file);
-            $em->remove($file_meta);
+            $file_meta->setDeletedAt(new \DateTime());
+            $em->persist($file_meta);
+
+            $file->setDeletedBy($user);
+            $file->setDeletedAt(new \DateTime());
+            $em->persist($file);
+
             $em->flush();
 
 
@@ -821,9 +827,7 @@ class EditController extends ODRCustomController
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
 
                 $pheanstalk = $this->get('pheanstalk');
-                $router = $this->container->get('router');
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $router->generate('odr_crypto_request');
+                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $api_key = $this->container->getParameter('beanstalk_api_key');
                 $file_decryptions = $cache_service->get('file_decryptions');
@@ -1097,7 +1101,9 @@ class EditController extends ODRCustomController
                     unlink($local_filepath);
 
                 // Delete the alternate sized image from the database
-                $em->remove($img);
+                $img->setDeletedBy($user);
+                $img->setDeletedAt(new \DateTime());
+                $em->persist($img);
             }
 
             // Ensure no decrypted version of the original image exists on the server
@@ -1105,15 +1111,16 @@ class EditController extends ODRCustomController
             if ( file_exists($local_filepath) )
                 unlink($local_filepath);
 
-            // Save who deleted the image
-            $image->setDeletedBy($user);
-            $em->persist($image);
-            $em->flush($image);
-
-            // Delete the original image and its associated meta entry as well
+            // Delete the image's meta entry
             $image_meta = $image->getImageMeta();
-            $em->remove($image);
-            $em->remove($image_meta);
+            $image_meta->setDeletedAt(new \DateTime());
+            $em->persist($image_meta);
+
+            // Delete the image
+            $image->setDeletedBy($user);
+            $image->setDeletedAt(new \DateTime());
+            $em->persist($image);
+
             $em->flush();
 
 
@@ -1356,12 +1363,19 @@ class EditController extends ODRCustomController
                     unlink($local_filepath);
 
                 // Delete the original image and its metadata entry
-                $em->remove($image);
-                $em->remove($old_image_meta);
+                $old_image_meta->setDeletedAt(new \DateTime());
+                $em->persist($old_image_meta);
+
+                $image->setDeletedBy($user);
+                $image->setDeletedAt(new \DateTime());
+                $em->persist($image);
 
                 // Delete any thumbnails of the original image
-                foreach ($images as $img)
-                    $em->remove($img);
+                foreach ($images as $img) {
+                    $img->setDeletedBy($user);
+                    $img->setDeletedAt(new \DateTime());
+                    $em->persist($img);
+                }
 
                 $em->flush();
             }

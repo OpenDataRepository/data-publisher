@@ -25,7 +25,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -46,7 +46,7 @@ class SearchService
     private $cache_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -69,24 +69,24 @@ class SearchService
     /**
      * SearchService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param CacheService $cacheService
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param TagHelperService $tagHelperService
-     * @param SearchQueryService $searchQueryService
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param DatatreeInfoService $datatree_info_service
+     * @param TagHelperService $tag_helper_service
+     * @param SearchQueryService $search_query_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
         SearchQueryService $search_query_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
@@ -2063,11 +2063,11 @@ class SearchService
                     if ( is_null($result['df_id']) )
                         continue;
 
-                    // Inline searching requires the ability to search on any datafield, even those
-                    //  the user may not have necessarily marked as "searchable"
                     $searchable = $result['searchable'];
                     $typeclass = $result['typeClass'];
 
+                    // Inline searching requires the ability to search on any datafield, even those
+                    //  the user may not have necessarily marked as "searchable"
 //                    if ( $searchable > 0 ) {
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching

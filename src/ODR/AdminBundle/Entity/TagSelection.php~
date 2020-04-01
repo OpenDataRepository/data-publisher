@@ -265,4 +265,33 @@ class TagSelection
     {
         return $this->dataRecordFields;
     }
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecord
+     */
+    private $dataRecord;
+
+
+    /**
+     * Set dataRecord.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord|null $dataRecord
+     *
+     * @return TagSelection
+     */
+    public function setDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord = null)
+    {
+        $this->dataRecord = $dataRecord;
+
+        return $this;
+    }
+
+    /**
+     * Get dataRecord.
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecord|null
+     */
+    public function getDataRecord()
+    {
+        return $this->dataRecord;
+    }
 }

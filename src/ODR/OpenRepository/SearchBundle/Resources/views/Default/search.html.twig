@@ -119,33 +119,8 @@
     }
 
     function doReset() {
-        // radio and tag fields
-        $(".ODRRadioSearchDiv").find(".ODRTristateCheckbox").each(function() {
-            $(this).removeAttr('title');
-            $(this).children(".fa").removeClass('fa-check fa-ban partial');
-            $(this).children("input").val('');
-        });
-
-        // general field
-        $("#textbox_general").val('');
-
-        // select fields
-        $("select.ODRInput").val('');
-
-        // every other field
-        $("input.ODRInput").not(".hidden").each(function () {
-            if ($(this).hasClass('ODRDatePicker')) {
-                $(this).datepicker('setDate', '');
-                $(this).datepicker("option", "maxDate", null);
-                $(this).datepicker("option", "minDate", null);
-            }
-            else {
-                $(this).val('');
-            }
-        });
-
-        // Trigger another search when the reset button is clicked
-        doSearch();
+        {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
+        window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
     }
 
     function doSearch() {
