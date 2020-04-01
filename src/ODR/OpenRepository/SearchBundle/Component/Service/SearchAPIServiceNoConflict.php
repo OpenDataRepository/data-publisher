@@ -438,7 +438,6 @@ class SearchAPIServiceNoConflict
         */
 
         // Parameters array
-
         // Each field is an "and" requirement
         // General is also an "and"
         $search_array = [];
@@ -484,7 +483,7 @@ class SearchAPIServiceNoConflict
         }
 
         // Add General Search
-        if(isset($params['general'])) {
+        if(isset($params['general']) && $params['general'] !== '') {
             $parameters = array();
             $parameters['datatype_id_array'] = array_unique($datatype_id_array);
             $parameters['now'] = $search_datetime;

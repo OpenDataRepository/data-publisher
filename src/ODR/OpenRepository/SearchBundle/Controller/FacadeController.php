@@ -400,11 +400,7 @@ class FacadeController extends Controller
             throw new ODRBadRequestException();
         $search_key = $post['search_key'];
 
-        $search_key = $search_key_service->convertBase64toSearchKey($search_key);
-        // $search_key_service->validateTemplateSearchKey($search_key);
-
-        // Now that the search key is valid, load the datatype being searched on
-        $params = $search_key_service->decodeSearchKey($search_key);
+        $params = json_decode(base64_decode($search_key), true);
         $dt_uuid = $params['template_uuid'];
 
         /** @var DataType $datatype */
@@ -422,10 +418,13 @@ class FacadeController extends Controller
         $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Slice for Limit/Offset
-        $records = array_slice($records, $offset, $limit);
+        $output_records = array_slice($records, $offset, $limit);
 
         // Wrap array for JSON compliance
-        $output = array('records' => $records);
+        $output = array(
+            'count' => count($records),
+            'records' => $output_records
+        );
         return new JsonResponse($output);
 
     }
