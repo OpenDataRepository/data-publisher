@@ -15,9 +15,9 @@
     <span class="ODRTagSpacer"></span>
 {% endif %}
 
-    <label class="ODRTagLabel">{{ tag.tagMeta.tagName }}</label>
+    <label class="ODRTagLabel">{{ tag.tagMeta.tagName|markdown }}</label>
 
-{% if has_children %}
+    {% if has_children %}
     <ul class="ODRTagGroup" style="display: none;">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:Displaytemplate:tag.html.twig' with {

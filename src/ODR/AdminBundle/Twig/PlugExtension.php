@@ -16,7 +16,6 @@ namespace ODR\AdminBundle\Twig;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 
-
 class PlugExtension extends \Twig_Extension
 {
 
@@ -43,17 +42,17 @@ class PlugExtension extends \Twig_Extension
      * @return array An array of filters
      */
     public function getFilters()
-    {  
+    {
         return array(
-            new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
-            new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
-            new \Twig_SimpleFilter('comma', array($this, 'commaFilter')),
-            new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
-            new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
-            new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
-            new \Twig_SimpleFilter('filesize', array($this, 'filesizeFilter')),
-            new \Twig_SimpleFilter('is_empty', array($this, 'isEmptyFilter')),
-            new \Twig_SimpleFilter('is_filtered', array($this, 'isFilteredDivFilter')),
+            new \Twig\TwigFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
+            new \Twig\TwigFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
+            new \Twig\TwigFilter('comma', array($this, 'commaFilter')),
+            new \Twig\TwigFilter('xml', array($this, 'xmlFilter')),
+            new \Twig\TwigFilter('is_public', array($this, 'isPublicFilter')),
+            new \Twig\TwigFilter('user_string', array($this, 'userStringFilter')),
+            new \Twig\TwigFilter('filesize', array($this, 'filesizeFilter')),
+            new \Twig\TwigFilter('is_empty', array($this, 'isEmptyFilter')),
+            new \Twig\TwigFilter('is_filtered', array($this, 'isFilteredDivFilter')),
         );
     }
 

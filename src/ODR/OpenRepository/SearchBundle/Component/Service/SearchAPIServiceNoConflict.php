@@ -570,19 +570,65 @@ class SearchAPIServiceNoConflict
             }
         }
 
-        // var_dump($records);exit();
-        // Sort by dataset name
+        // Sort by Updated Date first
+        /*
+            "_record_metadata": {
+                "_create_date": "2018-09-25 18:15:57",
+                "_updated_date": "2019-08-05 07:58:19",
+                "_create_auth": "Barbara Lafuente",
+                "_public_date": "2018-09-25 20:11:45"
+            },
+         */
+
         $sort_array = [];
-        foreach($records as $record) {
-            if(isset($record['fields'])) {
-                foreach($record['fields'] as $field) {
-                    if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
-                        $sort_array[strtolower($field['value'])] = $record;
+        $sort_dir = $params['sort_by']['0']['dir'];
+
+        switch($params['sort_by']['0']['template_field_uuid']) {
+            case 'create_date':
+                $sort_type = SORT_NUMERIC;
+                foreach($records as $record) {
+                    $sort_array[strtotime($record['_record_metadata']['_create_date'])] = $record;
+                }
+                break;
+            case 'updated_date':
+                // Sort by updated
+                $sort_type = SORT_NUMERIC;
+                foreach($records as $record) {
+                    $sort_array[strtotime($record['_record_metadata']['_updated_date'])] = $record;
+                }
+                break;
+            case 'default':  // For Default passed as template_field_uuid
+            case 'public_date':
+                // Sort by public/release date
+                $sort_type = SORT_NUMERIC;
+            foreach($records as $record) {
+                $sort_array[strtotime($record['_record_metadata']['_public_date'])] = $record;
+            }
+            break;
+            default:
+                $sort_type = SORT_STRING;
+                // Template field ID
+                // Sort by dataset name
+                foreach($records as $record) {
+                    if(isset($record['fields'])) {
+                        foreach($record['fields'] as $field) {
+                            if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
+                                $sort_array[strtolower($field['value'])] = $record;
+                            }
+                        }
                     }
                 }
-            }
+                break;
         }
-        ksort($sort_array, SORT_STRING);
+
+        // var_dump($records);exit();
+        if($sort_dir === "asc") {
+            ksort($sort_array, $sort_type);
+        }
+        else {
+            // Reverse sort
+            krsort($sort_array, $sort_type);
+        }
 
         // Use splice to do limit & offset
         $records = array_values($sort_array);
