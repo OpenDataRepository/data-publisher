@@ -4143,9 +4143,11 @@ if ($debug)
                 throw new ODRForbiddenException();
             // --------------------
 
-            // These fields must always be public
-            if ( $datatype->getMetadataNameField()->getId() === $datafield->getId()
-                || $datatype->getMetadataDescField()->getId() === $datafield->getId()
+            // These special fields must always be public
+            $metadata_name_df = $datatype->getMetadataNameField();
+            $metadata_desc_df = $datatype->getMetadataDescField();
+            if ( (!is_null($metadata_name_df) && $metadata_name_df->getId() === $datafield->getId())
+                || (!is_null($metadata_desc_df) && $metadata_desc_df->getId() === $datafield->getId())
             ) {
                 throw new ODRBadRequestException('Unable to change public status of special metadata fields');
             }
@@ -4461,25 +4463,27 @@ if ($debug)
                 )
             );
 
-            $pheanstalk->useTube('synch_template')->put($payload);
+//            $pheanstalk->useTube('synch_template')->put($payload);
 
             // TODO - this checker construct needs a database entry, but i'm pretty sure this isn't the intended use
             $datatype->setDatatypeType('synchronizing');
             $em->persist($datatype);
             $em->flush();
 
+            $clone_template_service->syncWithTemplate($user, $datatype);
+
 
             // ----------------------------------------
             // Redirect the user to the status checker
-            $return['d'] = array(
-                'url' => $this->generateUrl(
-                    'odr_design_check_sync_with_template',
-                    array(
-                        'datatype_id' => $datatype->getId(),
-                        'sync_metadata' => $sync_metadata
-                    )
-                )
-            );
+//            $return['d'] = array(
+//                'url' => $this->generateUrl(
+//                    'odr_design_check_sync_with_template',
+//                    array(
+//                        'datatype_id' => $datatype->getId(),
+//                        'sync_metadata' => $sync_metadata
+//                    )
+//                )
+//            );
         }
         catch (\Exception $e) {
             $source = 0x0d869f58;

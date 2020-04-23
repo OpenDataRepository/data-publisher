@@ -4244,3 +4244,12 @@ i {
     padding-right: 6px;
 }
 
+
+.ODRTemplateInfo_label {
+    text-align: right;
+    padding: 7px;
+}
+.ODRTemplateInfo_span {
+    text-align: left;
+    padding: 7px;
+}

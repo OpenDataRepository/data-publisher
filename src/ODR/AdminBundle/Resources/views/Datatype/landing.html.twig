@@ -57,7 +57,7 @@
             {% endif %}
         {% endif %}
 
-        {# TODO - ...this doesn't really work as a template dashboard... #}
+        {# TODO - ...this doesn't really work as a template dashboard...nor as a metadata dashboard, if that should even exist #}
         {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
             {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
                 'header_label': 'Database Tools',

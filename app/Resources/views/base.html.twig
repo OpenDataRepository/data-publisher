@@ -629,9 +629,9 @@
 
     function checkMyJobs() {
         var checkJobs = false;
-        {% if current_user != '' %}
-        checkJobs = true;
-        {% endif %}
+{#        {% if current_user != '' %}#}
+//         checkJobs = true;
+{#        {% endif %}#}
         var url = "{{ path('odr_my_jobs') }}";
         if(checkJobs) {
             $.ajax({

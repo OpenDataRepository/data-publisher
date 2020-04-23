@@ -28,7 +28,7 @@
                     break;
 
                 default:    /* 400, 403, 404, 405, 500, etc */
-                    // console.log( jqxhr );
+                    console.log( jqxhr );
                     var response = $.parseJSON( jqxhr.responseText );
                     createJGrowlError(response);
                     break;
@@ -648,8 +648,8 @@
 
         // Ensure it looks okay
         modal_height -= 20;
-        if (modal_height < 100)
-            modal_height = 100;
+        if (modal_height < 200)
+            modal_height = 200;
 
         modal_inner.animate(
             {height: modal_height},
