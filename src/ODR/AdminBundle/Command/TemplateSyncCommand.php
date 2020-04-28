@@ -83,7 +83,7 @@ class TemplateSyncCommand extends ContainerAwareCommand
                         CURLOPT_FRESH_CONNECT => 1,
                         CURLOPT_RETURNTRANSFER => 1,
                         CURLOPT_FORBID_REUSE => 1,
-                        CURLOPT_TIMEOUT => 120, 
+                        CURLOPT_TIMEOUT => 1200,
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
                     )
                 );
