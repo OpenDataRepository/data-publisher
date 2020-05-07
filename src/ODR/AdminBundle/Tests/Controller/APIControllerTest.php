@@ -13,9 +13,9 @@ class APIControllerTest extends WebTestCase
     public static $headers = array();
 
     // public static $base_url = "https://ahed-dev.nasawestprime.com/ahed-api/api/v3";
-    public static $base_url = "http://office_dev/app_dev.php/api/v3";
+    // public static $base_url = "http://office-dev/app_dev.php/api/v3";
     // public static $base_url = "http://localhost:8000/app_dev.php/api/v3";
-    // public static $base_url = "http://eta.odr.io/api/v3";
+    public static $base_url = "http://eta.odr.io/api/v3";
 
     public static $template_uuid = "2ea627b";
 
@@ -250,54 +250,54 @@ class APIControllerTest extends WebTestCase
                         "field_name": "Person Website",
                         "template_field_uuid": "9ba0f2f",
                         "value": ""
-                    },
-                    {
-                        "field_name": "ORCID Identifier",
-                        "template_field_uuid": "2877316",
-                        "value": "' . rand(100000000000, 999999999999) . '"
                     }
                 ],
                 "records": [
                     {
-                        "database_name": "Postal Address",
-                        "template_uuid": "95f9363",
+                        "name": "Institution",
+                        "template_uuid": "870a2f7",
                         "fields": [
                             {
-                                "template_field_uuid": "ed4f42c",
-                                "value": "Institution_' . rand(10000, 99999) . '"
-                            },
+                                "name": "Sub unit name",
+                                "template_field_uuid": "0b8a9f3",
+                                "value": "Sub_Unit_' . rand(100000000, 999999999) . '"
+                            }
+                        ],
+                        "records": [
                             {
-                                "template_field_uuid": "2d1d105",
-                                "value": "Mail-Stop ' . rand(10000, 99999) . '" 
-                            },
-                            {
-                                "template_field_uuid": "3503e92",
-                                "value": "City_' . rand(10000, 99999) . '"
-                            },
-                            {
-                                "template_field_uuid": "062df8b",
-                                "value": [
+                                "name": "Postal Address",
+                                "template_uuid": "95f9363",
+                                "fields": [
                                     {
-                                        "template_radio_option_uuid": "96f65a3",
-                                        "selected": "1"
-                                    }
-                                ]
-                            },
-                            {
-                                "template_field_uuid": "79590b6",
-                                "value": "94035-' . rand(10000, 99999) . '"
-                            },
-                            {
-                                "template_field_uuid": "c7d1a2e",
-                                "value": [
+                                        "name": "City",
+                                        "template_field_uuid": "3503e92",
+                                        "value": "City_' . rand(100000000, 999999999) . '"
+                                    },
                                     {
-                                        "template_radio_option_uuid": "48f278b",
-                                        "selected": "1"
+                                        "name": "State/Province (Only USA and Canada)",
+                                        "template_field_uuid": "062df8b",
+                                        "value": [
+                                            {
+                                                "name": "South Carolina",
+                                                "template_radio_option_uuid": "f9976ab",
+                                                "updated_at": "2018-09-24 14:36:34"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "name": "Country",
+                                        "template_field_uuid": "c7d1a2e",
+                                        "value": [
+                                            {
+                                                "name": "Belgium",
+                                                "template_radio_option_uuid": "d144c0b",
+                                                "updated_at": "2018-09-24 14:38:45"
+                                            }
+                                        ]
                                     }
                                 ]
                             }
-                        ],
-                        "records": []
+                        ]
                     }
                 ]
             }';
@@ -331,6 +331,7 @@ class APIControllerTest extends WebTestCase
     }
 
 
+    /*
     public function testAddInstitution()
     {
 
@@ -340,29 +341,9 @@ class APIControllerTest extends WebTestCase
             "template_uuid": "870a2f7",
             "fields": [
                 {
-                    "name": "Institution ID",
-                    "template_field_uuid": "ec0706f",
-                    "value": "' . rand(100000000, 999999999) . '"
-                },
-                {
-                    "name": "Institution name",
-                    "template_field_uuid": "1df6df8",
-                    "value": "Institution_' . rand(100000000, 999999999) . '"
-                },
-                {
                     "name": "Sub unit name",
                     "template_field_uuid": "0b8a9f3",
                     "value": "Sub_Unit_' . rand(100000000, 999999999) . '"
-                },
-                {
-                    "name": "Sub unit website URL",
-                    "template_field_uuid": "6712650",
-                    "value": "URL_' . rand(100000000, 999999999) . '"
-                },
-                {
-                    "name": "GRID Identifier (e.g.  grid.419075.e)",
-                    "template_field_uuid": "c83b5ff",
-                    "value": "GRID_ID_' . rand(100000000, 999999999) . '"
                 }
             ],
             "records": [
@@ -370,21 +351,6 @@ class APIControllerTest extends WebTestCase
                     "name": "Postal Address",
                     "template_uuid": "95f9363",
                     "fields": [
-                        {
-                            "name": "Address ID#",
-                            "template_field_uuid": "a0c83b5",
-                            "value": "Address_' . rand(100000000, 999999999) . '"
-                        },
-                        {
-                            "name": "Address 1",
-                            "template_field_uuid": "ed4f42c",
-                            "value": "Address_Line_1' . rand(100000000, 999999999) . '"
-                        },
-                        {
-                            "name": "Address 2",
-                            "template_field_uuid": "2d1d105",
-                            "value": "Address_Line_2' . rand(100000000, 999999999) . '"
-                        },
                         {
                             "name": "City",
                             "template_field_uuid": "3503e92",
@@ -400,11 +366,6 @@ class APIControllerTest extends WebTestCase
                                     "updated_at": "2018-09-24 14:36:34"
                                 }
                             ]
-                        },
-                        {
-                            "name": "Postal Code",
-                            "template_field_uuid": "79590b6",
-                            "value": "' . rand(100000000, 999999999) . '"
                         },
                         {
                             "name": "Country",
@@ -442,10 +403,6 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->put($put_data);
         $code = json_decode($response['code'], true);
-        /*
-        $updated_dataset = json_decode($response['response'], true);
-        self::$created_dataset['dataset'] = $updated_dataset;
-        */
         ($debug ? fwrite(STDERR, 'Code: ' . $code . ' -- Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
         ($debug ? fwrite(STDERR, 'Dataset (updated): ' . $response['response'] . "\n") : '');
 
@@ -454,6 +411,7 @@ class APIControllerTest extends WebTestCase
         // Should have the user_email at least
         $this->assertTrue($code == 302 || $code == 200);
     }
+    */
 
     // get actual data record
     public function testGetDataset()
@@ -538,30 +496,8 @@ class APIControllerTest extends WebTestCase
                 "template_uuid":"823bb3f",
                 "fields":[
                     {
-                        "template_field_uuid":"b65591cac0768fcb5af0232c68a8",
-                        "value":[
-                            {
-                                "template_radio_option_uuid":"0bf41a7ff126bf8e4bde561e931d",
-                                "selected":1
-                            }
-                        ]
-                    },
-                    {
-                        "template_field_uuid":"3b971c0238b19bae0bf1b107d5f2",
-                        "value":[
-                            {
-                                "template_radio_option_uuid":"242a05dd3a123f284548d7f6af79",
-                                "selected":1
-                            }
-                        ]
-                    },
-                    {
                         "template_field_uuid":"47f24cc0bd542e622657a433264a",
                         "value":"File Name Test"
-                    },
-                    {
-                        "template_field_uuid":"ee18783b1f8bf4ad6a5f3175280b",
-                        "value":"File Description Test"
                     }
                 ]
             }';
