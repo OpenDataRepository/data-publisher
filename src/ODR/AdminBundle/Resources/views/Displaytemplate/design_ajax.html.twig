@@ -1648,21 +1648,34 @@
             console.log('setup tool set datatype');
             setupElement(this);
 
-            // Grab the id of the Datatype to load
-            var datatype_id = $(this).attr('rel');
+            // Locate this datatype's id
+            var datatype = $(this).parents('.ODRDataType').first();
+            var id_data = $(datatype).attr('id').split(/_/);
+            var datatype_id = id_data[1];
 
             // Prepare the Sidebar Tools
             console.log('Render tool set datatype');
             RenderToolSet(datatype_id);
             console.log('Datatype Props 1:', datatype_properties[datatype_id]);
 
-            // Determine if this Datatype has a parent
+            // Determine if this Datatype has a parent, and locate its id if possible
             var parent_datatype_id = '';
-            var potential_parent_element = $("#DataType_" + datatype_id).parent().parent().parent().parent();
-            if ( $(potential_parent_element).hasClass('ODRDataType') ) {
-                var id_data = $(potential_parent_element).attr('id').split(/_/);
+
+            var parents = $(datatype).parents('.ODRDataType');
+            if ( $(parents).length > 0 ) {
+                var id_data = $(parents).first().attr('id').split(/_/);
                 parent_datatype_id = id_data[1];
             }
+
+            // Also need the theme_element id when this is a child/linked datatype
+            var theme_element_id = '';
+
+            var theme_element = $(datatype).parents('.ODRThemeElement');
+            if ( $(theme_element).length > 0 ) {
+                var id_data = $(theme_element).first().attr('id').split(/_/);
+                var theme_element_id = id_data[1];
+            }
+
 
             // Don't load the properties form if this is a linked datatype the user can't modify
             var tdf = $("#ThemeDesignForm");
@@ -1670,12 +1683,12 @@
             if ( $(this).hasClass("ODRForbidden") )
                 return;
 
-            var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
-            url = url.substring(0, (url.length - 3));
+
+            var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0, 'theme_element_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 5));
             url += datatype_id;
             if (parent_datatype_id !== '')
-                url += '/' + parent_datatype_id;
-
+                url += '/' + parent_datatype_id + '/' + theme_element_id;
 
             // Load the datatype properties
             $.ajax({

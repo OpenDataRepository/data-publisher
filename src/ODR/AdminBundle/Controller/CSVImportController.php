@@ -1069,7 +1069,7 @@ class CSVImportController extends ODRCustomController
                 else
                     $parent_datatype_id = intval($post['parent_datatype_id']);
             }
-            $parent_external_id_column = '';
+            $parent_external_id_column = '';    // Needs to be empty string instead of null because it's passed into the database and over cURL
             if ( isset($post['parent_external_id_column']) ) {
                 if ( !is_numeric($post['parent_external_id_column']) )
                     throw new ODRException('Invalid Form');
@@ -1745,7 +1745,7 @@ class CSVImportController extends ODRCustomController
         $line_num = 0;
         $unique_values = array();
 
-        if ($parent_external_id_column == '') {
+        if ($parent_external_id_column === '') {
             // Unique column in a top-level datatype...this column of the csv file must not contain any duplicates
             foreach ($reader as $row) {
                 $line_num++;
@@ -1938,6 +1938,7 @@ class CSVImportController extends ODRCustomController
                 $dr = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
 
                 // If a parent with this external id does not exist, warn the user (the row will be ignored)
+                // Don't want to throw an error here (which will prevent the import from happening)
                 if ($dr == null) {
                     $errors[] = array(
                         'level' => 'Warning',
@@ -2028,6 +2029,9 @@ class CSVImportController extends ODRCustomController
                         $datarecord_id = $dr->getId();
 
                     // Doesn't matter if the child datarecord is missing, a new one can be created
+
+                    // This function already checked whether the parent datarecord existed, and has
+                    //  already generated a warning if it doesn't
                 }
                 else {
                     // Don't think this can even happen, but don't continue if it does
@@ -2182,12 +2186,10 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
 
-                    // TODO - make these use ValidUtility?
                     case "IntegerValue":
-                        $value = trim($value);
                         if ( !ValidUtility::isValidInteger($value) ) {
                             // Warn about invalid characters in an integer conversion
-                            $errors[] = array(  // TODO - display warnings differently?
+                            $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
@@ -2197,9 +2199,8 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
                     case "DecimalValue":
-                        $value = trim($value);
                         if ( !ValidUtility::isValidDecimal($value) ) {
-                            $errors[] = array(    // TODO - display warnings separately from errors?
+                            $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
@@ -2210,7 +2211,7 @@ class CSVImportController extends ODRCustomController
                         break;
 
                     case "DatetimeValue":
-                        // TODO - more strenuous date checking
+                        // TODO - make this use ValidUtility?  it also doesn't exactly match the actual import logic...
                         $pattern = '/^(\d{1,4})$/'; // string consists solely of one to four digits
                         if ( preg_match($pattern, $value) == 1 ) {
                             $errors[] = array(
@@ -2237,9 +2238,8 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
 
-                    // TODO - make these use ValidUtility?
                     case "ShortVarchar":
-                        if ($length > 32) {
+                        if ( !ValidUtility::isValidShortVarchar($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
@@ -2250,7 +2250,7 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
                     case "MediumVarchar":
-                        if ($length > 64) {
+                        if ( !ValidUtility::isValidMediumVarchar($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
@@ -2261,7 +2261,7 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
                     case "LongVarchar":
-                        if ($length > 255) {
+                        if ( !ValidUtility::isValidLongVarchar($value) ) {
                             $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
@@ -2543,6 +2543,8 @@ class CSVImportController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            $grandparent_datatype = $datatype->getGrandparent();
+
 
             // --------------------
             // Determine user privileges
@@ -2638,11 +2640,6 @@ class CSVImportController extends ODRCustomController
             if ($parent_datatype == null)
                 $import_into_top_level = true;
 
-            // If importing into child datatype, $datatype is the child datatype and $parent_datatype is $datatype's parent
-//            $import_into_child_datatype = false;
-//            if (!$import_into_top_level && $datatype->getParent()->getId() == $parent_datatype_id)
-//                $import_into_child_datatype = true;
-
             // If importing linked datatype, $datatype is the remote datatype and $parent_datatype is the local datatype
             $import_as_linked_datatype = false;
             if (!$import_into_top_level && $datatype->getParent()->getId() !== $parent_datatype_id)
@@ -2651,8 +2648,8 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Grab all datafields belonging to that datatype
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), false);
+            // Grab all datafields belonging to the correct datatype
+            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't load linked datatypes
             $datafields = $datatype_array[$datatype->getId()]['dataFields'];
             uasort($datafields, "self::name_sort");
 
@@ -2790,7 +2787,7 @@ class CSVImportController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:CSVImport:import.html.twig',
                     array(
-                        'datatype' => $datatype,
+                        'datatype' => $datatype,    // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
                         'childtypes' => $childtypes,
                         'linked_types' => $linked_types,
                         'upload_type' => '',
@@ -2803,7 +2800,7 @@ class CSVImportController extends ODRCustomController
                         'resulting_tag_arrays' => $new_tag_arrays,
 
                         // These get passed to layout.html.twig
-                        'parent_datatype' => $parent_datatype,
+                        'parent_datatype' => $parent_datatype,    // as expected if importing into a child datatype, or null if importing into top-level datatype, or equivalent to the local datatype if importing links
                         'linked_importing' => $import_as_linked_datatype,
 
                         'csv_delimiter' => $delimiter,
@@ -2900,7 +2897,9 @@ class CSVImportController extends ODRCustomController
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+
             $grandparent_datatype = $datatype->getGrandparent();
+
 
             // --------------------
             // Determine user privileges
@@ -3011,11 +3010,6 @@ class CSVImportController extends ODRCustomController
             $import_into_top_level = false;
             if ($parent_datatype_id == '')
                 $import_into_top_level = true;
-
-            // If importing into child datatype, $datatype is the child datatype and $parent_datatype is $datatype's parent
-//            $import_into_child_datatype = false;
-//            if (!$import_into_top_level && $datatype->getParent()->getId() == $parent_datatype_id)
-//                $import_into_child_datatype = true;
 
             // If importing linked datatype, $datatype is the remote datatype and $parent_datatype is the local datatype
             $import_as_linked_datatype = false;
@@ -3688,21 +3682,25 @@ exit();
                         /** @var ODRBoolean $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Any character in the field counts as checked
-                        $checked = false;
-                        if ($column_data !== '')
-                            $checked = true;
+                        // Assume the field is checked initially...
+                        $checked = true;
+                        switch ($column_data) {
+                            case '':
+                            case 'N':
+                            case 'No':
+                            case '0':    // $column_data is a string at this point
+                                // ...but if it matches any of the above strings, make it unchecked instead
+                                $checked = false;
+                                break;
+                        }
 
                         // Ensure the value in the datafield matches the value in the import file
                         $emm_service->updateStorageEntity($user, $entity, array('value' => $checked));
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
-
-                        // ----------------------------------------
                         $csv_filenames = array();
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
-
 
                         // ----------------------------------------
                         // If a filename is in this column...
@@ -3746,13 +3744,19 @@ exit();
                                     parent::finishUpload($em, $storage_filepath, $csv_filename, $user->getId(), $drf->getId());
 
                                     $status .= '      ...uploaded new '.$typeclass.' ("'.$csv_filename.'")'."\n";
+
+                                    // The version of the file in the storage directory will get
+                                    //  deleted as part of the crypto worker job
                                 }
                                 else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($path_prefix.$storage_filepath.'/'.$csv_filename) ) {
                                     // ...the specified file/image is already in datafield
                                     $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is an exact copy of existing version, skipping.'."\n";
 
-                                    // Delete the file/image from the csv import storage directory on the server since it already exists as an officially uploaded file
-                                    unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
+                                    // Delete the file/image from the csv import storage directory
+                                    //  on the server since it already exists as an officially
+                                    //  uploaded file
+                                    if ( file_exists($path_prefix.$storage_filepath.'/'.$csv_filename) )
+                                        unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
                                 }
                                 else {
                                     // ...need to "update" the existing file/image

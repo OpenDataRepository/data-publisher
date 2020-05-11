@@ -71,7 +71,7 @@
                     <td>
                         <input type="checkbox" id="column_{{ column_id }}_unique"
                                class="unique_checkbox"
-                               name="unique_columns[{{ column_id }}]" value="1" disabled
+                               name="unique_columns[{{ column_id }}]" value="1"
                                rel="{{ column_id }}"/>
                         <span class="csvimport_inline_warning"
                               title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
@@ -89,7 +89,7 @@
                                 {% set df_meta = df.dataFieldMeta %}
                                 {% if df_meta.fieldType.id in allowed_fieldtypes|keys %}
                                     <option value="{{ df_id }}"
-                                        {% if column_name == df_meta.fieldName %}selected{% endif %}
+                                        {% if column_name|lower == df_meta.fieldName|lower %}selected{% endif %}
                                             rel="{{ df_meta.fieldType.id }}">{{ df_meta.fieldName }}
                                     </option>
                                 {% endif %}
@@ -236,6 +236,9 @@
         $(".csvimport_inline_warning").hide();
 
         // Disable all the dropdowns and the secondary delimiter fields to begin with
+        $(".unique_checkbox").each(function() {
+            $(this).prop('disabled', true);
+        });
         $('#csv_import_table select').each(function () {
             $(this).prop('disabled', true);
         });
@@ -787,7 +790,7 @@
 
         // Remove disabled attribute from any checked unique checkboxes so they're included in the post
         $(".unique_checkbox:checked").each(function () {
-            $(this).prop('disabled', true);
+            $(this).prop('disabled', false);
         });
 
 
@@ -852,10 +855,11 @@
         });
 
     {% endif %}
+
+        var import_data = $("#csv_import_form").serialize();
         // console.log(import_data);
         // return;
 
-        var import_data = $("#csv_import_form").serialize();
         var url = '{{ path('odr_csv_import_start_validate') }}';
         $.ajax({
             cache: false,

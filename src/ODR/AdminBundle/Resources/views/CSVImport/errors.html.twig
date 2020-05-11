@@ -1,22 +1,69 @@
 {% spaceless %}
 
-<table class="ODRCSVImportErrors pure-table pure-table-striped">
-    <thead>
+{% set has_warnings = false %}
+{% set has_errors = false %}
+{% for error in error_messages %}
+    {% if error.error_level == 'Error' %}
+        {% set has_errors = true %}
+    {% elseif error.error_level == 'Warning' %}
+        {% set has_warnings = true %}
+    {% endif %}
+{% endfor %}
+
+{% if has_warnings %}
+    <div class="ODRValidationSystem ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
+            <a>Warnings</a>
+        </h3>
+    </div>
+
+    <table class="ODRCSVImportErrors pure-table pure-table-striped pure-u-1" style="margin-left: 10px;">
+        <thead>
         <tr>
             <th>Line Number</th>
-            <th>Level</th>
             <th>Message</th>
         </tr>
-    </thead>
-    <tbody>
+        </thead>
+        <tbody>
         {% for error in error_messages %}
-        <tr>
-            <td>{{ error.error_body.line_num }}</td>
-            <td>{{ error.error_level }}</td>
-            <td>{{ error.error_body.message }}</td>
-        </tr>
+            {% if error.error_level == 'Warning' %}
+            <tr>
+                <td>{{ error.error_body.line_num }}</td>
+                <td>{{ error.error_body.message }}</td>
+            </tr>
+            {% endif %}
         {% endfor %}
-    </tbody>
-</table>
+        </tbody>
+    </table>
+{% endif %}
+
+{% if has_errors %}
+    <div class="ODRValidationSystem ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
+            <a>Errors</a>
+        </h3>
+    </div>
+
+    <table class="ODRCSVImportErrors pure-table pure-table-striped pure-u-1" style="margin-left: 10px;">
+        <thead>
+        <tr>
+            <th>Line Number</th>
+            <th>Message</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for error in error_messages %}
+            {% if error.error_level == 'Error' %}
+            <tr>
+                <td>{{ error.error_body.line_num }}</td>
+                <td>{{ error.error_body.message }}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
 
 {% endspaceless %}

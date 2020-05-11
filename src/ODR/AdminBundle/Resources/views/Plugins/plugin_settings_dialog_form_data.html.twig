@@ -1,7 +1,7 @@
 {% spaceless %}
 
     {% set valid_fieldtype = true %}
-    {% if local_datafield != null and plugin.id != 1 %}
+    {% if local_datafield != null and plugin.pluginClassName != "odr_plugins.base.default" %}
         {% for plugin_field in render_plugin_fields %}
             {% if local_datafield.fieldtype.id not in allowed_fieldtypes[plugin_field.id] %}
                 {% set valid_fieldtype = false %}

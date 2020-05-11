@@ -986,26 +986,34 @@ class DefaultController extends Controller
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Don't continue if the datafield is "not searchable" or "general search only"
+
             $searchable = $datafield->getSearchable();
-            if ($searchable === 0 || $searchable === 1)
-                throw new ODRBadRequestException('Datafield is not searchable');
+            if ($searchable === 0 || $searchable === 1) {
+                // Don't attempt to re-render the datafield if it's either "not searchable" or
+                //  "general search only"
+                $return['d'] = array(
+                    'needs_update' => false,
+                    'html' => ''
+                );
+            }
+            else {
+                // Datafield is in advanced search, so it has an HTML element on the sidebar
+                // Need the datafield's array entry in order to re-render it
+                $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
-
-            // Need the datafield's array entry in order to re-render it
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
-            $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
-
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
-                    array(
-                        'datatype_id' => $datatype->getId(),
-                        'datafield' => $df_array,
+                $templating = $this->get('templating');
+                $return['d'] = array(
+                    'needs_update' => true,
+                    'html' => $templating->render(
+                        'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
+                        array(
+                            'datatype_id' => $datatype->getId(),
+                            'datafield' => $df_array,
+                        )
                     )
-                )
-            );
+                );
+            }
         }
         catch (\Exception $e) {
             $source = 0x9d85646e;

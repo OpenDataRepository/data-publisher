@@ -1158,7 +1158,7 @@ class APIController extends ODRCustomController
      * @return mixed
      * @throws \Exception
      */
-    private function datasetDiff($dataset, $orig_dataset, $user, &$changed)
+    private function datasetDiff($dataset, $orig_dataset, $user, $top_level, &$changed)
     {
         // Check if radio options are added or updated
         /*
@@ -1172,6 +1172,7 @@ class APIController extends ODRCustomController
         */
 
         // Check if fields are added or updated
+        $fields_updated = false;
         try {
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
@@ -1257,7 +1258,7 @@ class APIController extends ODRCustomController
                         $new_field->setValue($field['selected']);
                         $em->persist($new_field);
 
-                        $changed = true;
+                        $fields_updated = true;
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
@@ -1345,7 +1346,7 @@ class APIController extends ODRCustomController
 
                                     if ($tag_selection) {
                                         $em->remove($tag_selection);
-                                        $changed = true;
+                                        $fields_updated = true;
                                     }
                                 }
 
@@ -1445,7 +1446,7 @@ class APIController extends ODRCustomController
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    $changed = true;
+                                    $fields_updated = true;
 
 
                                     // Trying to do everything realtime - no waiting forever stuff
@@ -1574,7 +1575,7 @@ class APIController extends ODRCustomController
 
                                     if ($option_selection) {
                                         $em->remove($option_selection);
-                                        $changed = true;
+                                        $fields_updated = true;
                                     }
                                 }
 
@@ -1644,7 +1645,7 @@ class APIController extends ODRCustomController
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -1762,7 +1763,7 @@ class APIController extends ODRCustomController
 
                                     if ($option_selection) {
                                         $em->remove($option_selection);
-                                        $changed = true;
+                                        $fields_updated = true;
                                     }
                                 }
 
@@ -1832,7 +1833,7 @@ class APIController extends ODRCustomController
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -1949,7 +1950,7 @@ class APIController extends ODRCustomController
 
                                     if ($option_selection) {
                                         $em->remove($option_selection);
-                                        $changed = true;
+                                        $fields_updated = true;
                                     }
                                 }
 
@@ -2019,7 +2020,7 @@ class APIController extends ODRCustomController
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2136,7 +2137,7 @@ class APIController extends ODRCustomController
 
                                     if ($option_selection) {
                                         $em->remove($option_selection);
-                                        $changed = true;
+                                        $fields_updated = true;
                                     }
                                 }
 
@@ -2206,7 +2207,7 @@ class APIController extends ODRCustomController
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2327,7 +2328,7 @@ class APIController extends ODRCustomController
 
                                     if ($option_selection) {
                                         $em->remove($option_selection);
-                                        $changed = true;
+                                        $fields_updated = true;
                                     }
                                 }
 
@@ -2399,7 +2400,7 @@ class APIController extends ODRCustomController
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2532,7 +2533,7 @@ class APIController extends ODRCustomController
                                     if ($existing_field) {
                                         $em->remove($existing_field);
                                     }
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
@@ -2567,7 +2568,7 @@ class APIController extends ODRCustomController
                                     if ($existing_field) {
                                         $em->remove($existing_field);
                                     }
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
@@ -2603,7 +2604,7 @@ class APIController extends ODRCustomController
                                     if ($existing_field) {
                                         $em->remove($existing_field);
                                     }
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
@@ -2638,7 +2639,7 @@ class APIController extends ODRCustomController
                                     if ($existing_field) {
                                         $em->remove($existing_field);
                                     }
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
@@ -2673,7 +2674,7 @@ class APIController extends ODRCustomController
                                     if ($existing_field) {
                                         $em->remove($existing_field);
                                     }
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
@@ -2708,7 +2709,7 @@ class APIController extends ODRCustomController
                                     if ($existing_field) {
                                         $em->remove($existing_field);
                                     }
-                                    $changed = true;
+                                    $fields_updated = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
@@ -2814,7 +2815,7 @@ class APIController extends ODRCustomController
                             ) {
                                 $record_found = true;
                                 // Check for differences
-                                $dataset['records'][$i] = self::datasetDiff($record, $o_record, $user, $changed);
+                                $dataset['records'][$i] = self::datasetDiff($record, $o_record, $user, false, $changed);
                             }
                         }
                     }
@@ -2914,15 +2915,27 @@ class APIController extends ODRCustomController
 
                         // Difference with null
                         $null_record = false;
-                        $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, $changed);
+                        $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
 
                     }
                 }
             }
 
-            if ($changed) {
+            if ($fields_updated ||
+                ($top_level && $changed)
+            ) {
                 // Mark this datarecord as updated
+                $data_record->setUpdated(new \DateTime());
+                $data_record->setUpdatedBy($user);
+
+                // Need to set changed for higher levels
+                $changed = true;
+
                 $em->flush();
+                $em->refresh($data_record);
+
+                $dataset['_record_metadata']['_updated_date'] = $data_record->getUpdated()->format('Y-m-d H:i:s');
+
                 /** @var ODRUser $api_user */  // Anon when nobody is logged in.
                 // $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
                 // Forget about the cache - just return the dataset...
@@ -3052,7 +3065,7 @@ class APIController extends ODRCustomController
                     $metadata_record = json_decode($metadata_record, true);
                 }
                 */
-                $dataset = self::datasetDiff($dataset, $metadata_record, $user, $changed);
+                $dataset = self::datasetDiff($dataset, $metadata_record, $user, true, $changed);
 
 
                 // Here we need to set the anon record as well...

@@ -102,7 +102,9 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    $("#Input_" + datafield_id + ".ODRTagSearchDiv").parent().html( data.d.html );
+                    // Only update this datafield's HTML element on the search sidebar if it exists
+                    if ( data.d.needs_update === true )
+                        $("#Input_" + datafield_id + ".ODRTagSearchDiv").parent().html( data.d.html );
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Close the dialog so it's not in some half-initialized state

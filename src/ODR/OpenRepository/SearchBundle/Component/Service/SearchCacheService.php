@@ -278,6 +278,7 @@ class SearchCacheService
         //  really not worthwhile
         $this->cache_service->delete('cached_search_df_'.$datafield->getId());
         $this->cache_service->delete('cached_search_df_'.$datafield->getId().'_ordering');
+        $this->cache_service->delete('cached_search_dt_'.$datafield->getDataType()->getId().'_datafields');
 
         if ( !is_null($datafield->getMasterDataField()) ) {
             $master_df_uuid = $datafield->getMasterDataField()->getFieldUuid();

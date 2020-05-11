@@ -140,6 +140,8 @@ class PluginsController extends ODRCustomController
             }
         }
 
+
+        // ----------------------------------------
         // Ensure each of the plugins have a valid configuration file
         if ($validate) {
             foreach ($available_plugins as $plugin_classname => $plugin_config)
@@ -515,7 +517,7 @@ class PluginsController extends ODRCustomController
 
             if ( $plugin_classname === 'odr_plugins.base.default' )
                 $render_plugin->setPluginType( RenderPlugin::DEFAULT_PLUGIN );
-            else if ( $plugin_data['datatype'] === '' )
+            else if ( $plugin_data['datatype'] === false )
                 $render_plugin->setPluginType( RenderPlugin::DATAFIELD_PLUGIN );
             else
                 $render_plugin->setPluginType( RenderPlugin::DATATYPE_PLUGIN );

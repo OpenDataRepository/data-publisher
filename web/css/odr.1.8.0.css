@@ -3806,6 +3806,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRTagWrapper .ODRTagLabel {
     cursor: default;
 }
+.ODRTagWrapper .ODRTagLabel p {
+    display: inline;
+}
 .ODRTagGroup {
     position: relative;
     padding-left: 15px;

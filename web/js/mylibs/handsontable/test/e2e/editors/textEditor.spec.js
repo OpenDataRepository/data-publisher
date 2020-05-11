@@ -224,7 +224,7 @@ describe('TextEditor', () => {
     }, 200);
   });
 
-  it('should hide whole editor when it is higher then header', (done) => {
+  it('should hide whole editor when it is higher then header and TD is not rendered anymore', async() => {
     const hot = handsontable({
       data: Handsontable.helper.createSpreadsheetData(50, 50),
       rowHeaders: true,
@@ -242,11 +242,34 @@ describe('TextEditor', () => {
     mainHolder.scrollTop = 150;
     mainHolder.scrollLeft = 150;
 
-    setTimeout(() => {
-      expect(parseInt(hot.getActiveEditor().textareaParentStyle.top, 10)).toBeAroundValue(-77);
-      expect(parseInt(hot.getActiveEditor().textareaParentStyle.left, 10)).toBeAroundValue(-1);
-      done();
-    }, 200);
+    await sleep(200);
+
+    expect(parseInt(hot.getActiveEditor().textareaParentStyle.opacity, 10)).toBe(0); // result of textEditor .close()
+  });
+
+  it('should hide whole editor when it is higher then header and TD is still rendered', async() => {
+    const hot = handsontable({
+      data: Handsontable.helper.createSpreadsheetData(50, 50),
+      rowHeaders: true,
+      colHeaders: true
+    });
+
+    setDataAtCell(2, 2, 'string\nstring\nstring');
+    selectCell(2, 2);
+
+    keyDown('enter');
+    keyUp('enter');
+
+    const mainHolder = hot.view.wt.wtTable.holder;
+
+    mainHolder.scrollTop = 150;
+    mainHolder.scrollLeft = 100;
+
+    await sleep(200);
+
+    expect(parseInt(hot.getActiveEditor().textareaParentStyle.opacity, 10)).toBe(1);
+    expect(parseInt(hot.getActiveEditor().textareaParentStyle.top, 10)).toBeAroundValue(-77);
+    expect(parseInt(hot.getActiveEditor().textareaParentStyle.left, 10)).toBeAroundValue(50);
   });
 
   it('should hide editor when quick navigation by click scrollbar was triggered', async() => {
@@ -597,35 +620,105 @@ describe('TextEditor', () => {
     expect(isEditorVisible()).toEqual(true);
   });
 
-  it('should open editor after double clicking on a cell', (done) => {
-    const hot = handsontable({
+  it('should open editor after double clicking on a cell', async() => {
+    handsontable({
       data: Handsontable.helper.createSpreadsheetData(5, 2)
     });
     const cell = $(getCell(0, 0));
-    let clicks = 0;
 
+    selectCell(0, 0);
     window.scrollTo(0, cell.offset().top);
 
-    setTimeout(() => {
-      mouseDown(cell);
-      mouseUp(cell);
-      clicks += 1;
-    }, 0);
+    await sleep(0);
 
-    setTimeout(() => {
-      mouseDown(cell);
-      mouseUp(cell);
-      clicks += 1;
-    }, 100);
+    cell
+      .simulate('mousedown')
+      .simulate('mouseup')
+      .simulate('click')
+    ;
 
-    setTimeout(() => {
-      const editor = hot.getActiveEditor();
+    await sleep(100);
 
-      expect(clicks).toBe(2);
-      expect(editor.isOpened()).toBe(true);
-      expect(editor.isInFullEditMode()).toBe(true);
-      done();
-    }, 200);
+    cell
+      .simulate('mousedown')
+      .simulate('mouseup')
+      .simulate('click')
+    ;
+
+    await sleep(100);
+
+    const editor = getActiveEditor();
+
+    expect(editor.isOpened()).toBe(true);
+    expect(editor.isInFullEditMode()).toBe(true);
+  });
+
+  it('should not open editor after double clicking on a cell using the middle mouse button', async() => {
+    handsontable({
+      data: Handsontable.helper.createSpreadsheetData(5, 2)
+    });
+    const cell = $(getCell(0, 0));
+    const button = 1;
+
+    selectCell(0, 0);
+    window.scrollTo(0, cell.offset().top);
+
+    await sleep(0);
+
+    cell
+      .simulate('mousedown', { button })
+      .simulate('mouseup', { button })
+      .simulate('click', { button })
+    ;
+
+    await sleep(100);
+
+    cell
+      .simulate('mousedown', { button })
+      .simulate('mouseup', { button })
+      .simulate('click', { button })
+    ;
+
+    await sleep(100);
+
+    const editor = getActiveEditor();
+
+    expect(editor.isOpened()).toBe(false);
+    expect(editor.isInFullEditMode()).toBe(false);
+  });
+
+  it('should not open editor after double clicking on a cell using the right mouse button', async() => {
+    handsontable({
+      data: Handsontable.helper.createSpreadsheetData(5, 2)
+    });
+    const cell = $(getCell(0, 0));
+    const button = 2;
+
+    selectCell(0, 0);
+    window.scrollTo(0, cell.offset().top);
+
+    await sleep(0);
+
+    cell
+      .simulate('mousedown', { button })
+      .simulate('mouseup', { button })
+      .simulate('click', { button })
+    ;
+
+    await sleep(100);
+
+    cell
+      .simulate('mousedown', { button })
+      .simulate('mouseup', { button })
+      .simulate('click', { button })
+    ;
+
+    await sleep(100);
+
+    const editor = getActiveEditor();
+
+    expect(editor.isOpened()).toBe(false);
+    expect(editor.isInFullEditMode()).toBe(false);
   });
 
   it('should call editor focus() method after opening an editor', () => {
@@ -1377,6 +1470,27 @@ describe('TextEditor', () => {
     expect(document.activeElement).toBe(getActiveEditor().TEXTAREA);
     expect(isEditorVisible()).toBe(true);
     expect(getActiveEditor().TEXTAREA.value).toBe('999');
+  });
+
+  it('should not prepare editor after the close editor and selecting the read-only cell', () => {
+    const hot = handsontable({
+      data: Handsontable.helper.createSpreadsheetData(2, 2),
+      columns: [
+        { readOnly: true },
+        {}
+      ]
+    });
+
+    selectCell(0, 1);
+
+    keyDownUp('enter');
+    keyDownUp('enter');
+
+    selectCell(0, 0);
+
+    keyDownUp('enter');
+
+    expect(hot.getActiveEditor()).toBe(void 0);
   });
 
   describe('IME support', () => {
