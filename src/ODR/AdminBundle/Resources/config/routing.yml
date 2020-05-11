@@ -485,11 +485,12 @@ odr_design_reload_datafield:
 
 
 odr_design_get_datatype_properties:
-    path:  /design/displaytemplate/datatypeproperties/{datatype_id}/{parent_datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '' }
+    path:  /design/displaytemplate/datatypeproperties/{datatype_id}/{parent_datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '', theme_element_id: '' }
     requirements:
         datatype_id:  \d+
         parent_datatype_id: \d+
+        theme_element_id: \d+
 
 odr_design_save_datatree:
     path:  /design/displaytemplate/savedatatree/{datatree_id}

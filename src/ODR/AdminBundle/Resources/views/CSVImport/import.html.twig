@@ -1,7 +1,7 @@
 {% spaceless %}
 
 <div class="header">
-    <h2>CSV Import for <span id="target_datatype_name">{{ datatype.shortname }}</span></h2>
+    <h2>CSV Import for "<span id="target_datatype_name">{{ datatype.shortname }}</span>"</h2>
 </div>
 
 
@@ -114,7 +114,7 @@
         {% if presets != null and resulting_tag_arrays|length > 0 %}
             <div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
                 <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-                    <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+                    <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
                     <a>Resulting Tag structure</a>
                 </h3>
             </div>
@@ -141,8 +141,8 @@
         {% if presets != null %}
             <div class="ODRValidationSystem ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
                 <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-                    <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
-                    <a>Validation Errors</a>
+                    <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
+                    <a>Validation Results</a>
                 </h3>
             </div>
 
@@ -279,7 +279,12 @@
             }
         });
 
-        $(".ODRCSVImportHeader").last().next().show();
+        $("#FullCSVImportForm").children(".ODRCSVImportHeader").last().trigger('click');
+        $(".ODRCSVImportErrors").prev().trigger('click');
+
+        {% if resulting_tag_arrays|length > 0 %}
+        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        {% endif %}
     {% endif %}
     });
 
@@ -292,8 +297,9 @@
         url = url.substr(0, url.length-3);
         url += $("#source_datatype").val() + '/' + $("#target_datatype").val();
 
-        var datatype_name = $("#target_datatype").find(':selected').text();
-        if ( $("#target_datatype").find(':selected').attr('rel') != undefined )
+        var selection = $("#target_datatype").find(':selected');
+        var datatype_name = $(selection).text();
+        if ( $(selection).hasClass('child') || $(selection).hasClass('link') )
             datatype_name = datatype_name.substr(4);
 
 //alert(url);
@@ -412,7 +418,17 @@
             url: url,
             dataType: 'json',
             success: function(data, textStatus, jqXHR) {
-                var url = '{{ path('odr_csv_import', {'datatype_id': datatype.grandparent.id}) }}';
+                {% if linked_importing is not defined %}
+                    {# this is called from CSVImportController::importAction() #}
+                    {# needs to be 'parent_datatype' instead of 'datatype' for some reason... #}
+                    var url = '{{ path('odr_csv_import', {'datatype_id': parent_datatype.grandparent.id}) }}';
+                {% elseif not linked_importing %}
+                    {# this is called from CSVImportController::validateresultsAction() when importing into a top-level or child datatype#}
+                    var url = '{{ path('odr_csv_import', {'datatype_id': datatype.grandparent.id}) }}';
+                {% else %}
+                    {# this is called from CSVImportController::validateresultsAction() when linking datatypes together #}
+                    var url = '{{ path('odr_csv_import', {'datatype_id': parent_datatype.grandparent.id}) }}';
+                {% endif %}
                 UpdateURL(url);
             },
             error: function(jqXHR, textStatus, errorThrown) {

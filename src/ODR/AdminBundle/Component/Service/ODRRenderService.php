@@ -97,13 +97,13 @@ class ODRRenderService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatarecordInfoService $dri_service
-     * @param DatatypeInfoService $dti_service
-     * @param PermissionsManagementService $pm_service
-     * @param ThemeInfoService $theme_service
-     * @param CloneThemeService $cloneThemeService
-     * @param CloneTemplateService $cloneTemplateService
-     * @param EntityMetaModifyService $emm_service
+     * @param DatarecordInfoService $datarecord_info_service
+     * @param DatatypeInfoService $datatype_info_service
+     * @param PermissionsManagementService $permissions_service
+     * @param ThemeInfoService $theme_info_service
+     * @param CloneThemeService $clone_theme_service
+     * @param CloneTemplateService $clone_template_service
+     * @param EntityMetaModifyService $entity_meta_modify_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */

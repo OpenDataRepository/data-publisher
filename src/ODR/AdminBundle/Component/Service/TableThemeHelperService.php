@@ -264,6 +264,7 @@ class TableThemeHelperService
                         if ($dr_data == false)
                             $dr_data = self::buildTableData($tmp_dr_id);
 
+                        // TODO - ...this doesn't filter out fields/records from linked datatypes that aren't legal for table themes
                         // Don't want to save the sortfield_value of the linked datarecord...
                         unset( $dr_data['sortField_value'] );
                         // ...but save everything else in the datarecord being searched on

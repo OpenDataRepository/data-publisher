@@ -2202,13 +2202,14 @@ class DisplaytemplateController extends ODRCustomController
     /**
      * Loads/saves a Symfony DataType properties Form, and chain-loads Datatree and ThemeDataType properties forms as well.
      *
-     * @param integer $datatype_id       The database id of the Datatype that is being modified
-     * @param mixed $parent_datatype_id  Either the id of the Datatype of the parent of $datatype_id, or the empty string
+     * @param integer $datatype_id      The database id of the Datatype that is being modified
+     * @param mixed $parent_datatype_id Either the id of the Datatype of the parent of $datatype_id, or the empty string
+     * @param mixed $theme_element_id
      * @param Request $request
      *
      * @return Response
      */
-    public function datatypepropertiesAction($datatype_id, $parent_datatype_id, Request $request)
+    public function datatypepropertiesAction($datatype_id, $parent_datatype_id, $theme_element_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2228,15 +2229,12 @@ class DisplaytemplateController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 throw new ODRNotFoundException('Datatype');
-
 
 
             // --------------------
@@ -2250,7 +2248,17 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
 
-            // If $parent_datatype_id is set, locate the datatree and theme_datatype entities linking $datatype_id and $parent_datatype_id
+            // Either both $parent_datatype_id and $theme_element_id have to be the empty string, or
+            //  they both have to have a value
+            if ( ($parent_datatype_id === '' && $theme_element_id !== '')
+                || ($parent_datatype_id !== '' && $theme_element_id === '')
+            ) {
+                throw new ODRBadRequestException();
+            }
+
+
+            // If $parent_datatype_id is set, locate the datatree and theme_datatype entities
+            //  linking $datatype_id and $parent_datatype_id
             /** @var DataTree|null $datatree */
             $datatree = null;
             /** @var DataTreeMeta|null $datatree_meta */
@@ -2272,26 +2280,14 @@ class DisplaytemplateController extends ODRCustomController
                 if ($datatree_meta->getDeletedAt() != null)
                     throw new ODRNotFoundException('DatatreeMeta');
 
-                $parent_theme = $theme_service->getDatatypeMasterTheme($parent_datatype_id);
-
-                $query = $em->createQuery(
-                   'SELECT tdt
-                    FROM ODRAdminBundle:Theme AS t
-                    JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                    JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
-                    WHERE t = :parent_master_theme AND tdt.dataType = :child_datatype
-                    AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
-                )->setParameters(
+                $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDatatype')->findOneBy(
                     array(
-                        'parent_master_theme' => $parent_theme->getId(),
-                        'child_datatype' => $datatype_id
+                        'themeElement' => $theme_element_id,
+                        'dataType' => $datatype_id,    // the id of the child/linked datatype
                     )
                 );
-                $results = $query->getResult();
-
-                if ( !isset($results[0]) )
+                if ( $theme_datatype == null )
                     throw new ODRNotFoundException('ThemeDatatype');
-                $theme_datatype = $results[0];
             }
 
             // Store the current external id/name/sort datafield ids
