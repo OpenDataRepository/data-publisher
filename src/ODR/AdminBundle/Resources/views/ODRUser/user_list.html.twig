@@ -1,103 +1,99 @@
 {% spaceless %}
 
-{# Determine permissino level of the user doing the changing of permissions #}
-{% set admin_level = 0 %}
-{% for role in admin_user.getroles %}
-    {% if role == 'ROLE_SUPER_ADMIN' %}
-        {% set admin_level = admin_level + 4 %}
-    {% elseif role == 'ROLE_ADMIN' %}
-        {% set admin_level = admin_level + 2 %}
-    {% elseif role == 'ROLE_USER' %}
-        {% set admin_level = admin_level + 1 %}
-    {% endif %}
-{% endfor %}
-
-
 <div class="content">
 <div class="header">
     <h2>User List</h2>
 </div>
-    <button type="button" id="deleted_user_toggle" class="pure-button" onclick="toggleDeletedUsers();" rel="Hide">Show deleted users</button>
-{% if admin_level >= 3 %}
+    {% if is_granted("ROLE_SUPER_ADMIN") %}
+        {# Only super admins can see deleted users #}
+        <button type="button" id="deleted_user_toggle" class="pure-button" onclick="toggleDeletedUsers();" rel="Hide">Show deleted users</button>
+    {% endif %}
+    {% if is_datatype_admin %}
     <button type="button" class="pure-button" onclick="createNewUser();" rel="Hide">Create new user</button>
-{% endif %}
+    {% endif %}
 
     <div class="ODRTableOuterWrap">
-    <div class="ODRTableWrap">
-    <table id="ODRUserList" class="display dataTable">
-        <thead>
-            <tr>
-                <th></th>
-                <th>User Name</th>
-                <th>Email</th>
-                <th>Edit Profile</th>
-                <th>Manage Groups</th>
-                <th>Delete User</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for user in users %}
-            <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
-                <td>{{ user.id }}</td>
-                <td>{{ user.getuserstring }}</td>
-                <td>{{ user.email }}</td>
+        <div class="ODRTableWrap">
+            <table id="ODRUserList" class="display dataTable">
+                <thead><tr>
+                    <th></th>
+                    <th>User Name</th>
+                    {% if is_granted("ROLE_SUPER_ADMIN") %}<th>Email</th>{% endif %}
+                    <th>Institution</th>
+                    <th>Edit Profile</th>
+                    <th>Manage Groups</th>
+                    <th>Delete User</th>
+                </tr></thead>
+                <tbody>
+                {% for user in users %}
+                    {% set target_is_super_admin = user.hasrole("ROLE_SUPER_ADMIN") %}
 
-            {% if user.enabled == 1 %}
-                {% set target_is_super_admin = false %}
-                {% set target_is_admin = false %}
-                {% for role in user.getroles %}
-                    {% if role == "ROLE_SUPER_ADMIN" %}
-                        {% set target_is_super_admin = true %}
+                    <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.getuserstring }}</td>
+                        {% if is_granted("ROLE_SUPER_ADMIN") %}<td>{{ user.email }}</td>{% endif %}
+                        <td>{{ user.institution }}</td>
+
+                    {% if user.enabled == 1 %}
+                        <td class="center">
+                            {% if user.id == admin_user.id %}
+                                {# Calling user is always able to edit their own profile #}
+                                <a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
+                            {% elseif is_granted("ROLE_SUPER_ADMIN") %}
+                                {# Calling user is only able to edit other users' profiles if they're a super admin #}
+                                <a class="address" href="#{{ path('odr_profile_edit', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
+                            {% endif %}
+                        </td>
+
+                        <td class="center">
+                            {% if target_is_super_admin == true %}
+                                {# target has all permissions by definition...do nothing #}
+                            {% elseif user == admin_user %}
+                                {# users are unable to modify their own group membership #}
+                            {% elseif is_datatype_admin %}
+                                {# calling user can modify permissions for at least one datatype, so let them reach the group membership page for this user #}
+                                <a class="address" href="#{{ path('odr_manage_user_groups', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Groups</a>
+                            {% endif %}
+                        </td>
+
+                        <td class="center">
+                            {% if is_granted("ROLE_SUPER_ADMIN") and user.id != admin_user.id %}
+                                {# Users are only allowed to delete other users if they're a super admin #}
+                                <a style="cursor:pointer;" onclick="deleteUser({{ user.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete User</a>
+                            {% endif %}
+                        </td>
+
+                    {% else %}
+                        {# User is deleted #}
+                        <td class="center"></td>
+                        <td class="center"></td>
+                        <td class="center">
+                        {% if is_granted("ROLE_SUPER_ADMIN") %}
+                            {# Only able to undelete a user if calling user is a super admin #}
+                            <a style="cursor:pointer;" onclick="undeleteUser({{ user.id }});"><i class="fa fa-lg fa-repeat"></i>&nbsp;Undelete User</a>
+                        {% endif %}
+                        </td>
+
                     {% endif %}
-                    {% if role == "ROLE_ADMIN" %}
-                        {% set target_is_admin = true %}
-                    {% endif %}
+                    </tr>
                 {% endfor %}
+                </tbody>
 
-                <td class="center">
-                    {% if user.id == admin_user.id %}
-                    <a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
-                    {% elseif (admin_level == 3 and target_is_super_admin == false) or admin_level == 7 %}
-                    <a class="address" href="#{{ path('odr_profile_edit', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
-                    {% endif %}
-                </td>
-
-                <td class="center">
-                {% if target_is_super_admin == true or (admin_level == 1 and target_is_admin == true) %}
-                    {# either target has all permissions by definition, or the user visiting this page has insufficient permissions...do nothing #}
-                {% else %}
-                    <a class="address" href="#{{ path('odr_manage_user_groups', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Groups</a>
-                {% endif %}
-                </td>
-
-                <td class="center">
-                    {% if admin_level == 7 and user != admin_user %}
-                    <a style="cursor:pointer;" onclick="deleteUser({{ user.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete User</a>
-                    {% endif %}
-                </td>
-
-            {% else %}
-                <td class="center"></td>
-                <td class="center"></td>
-                <td class="center">
-                    {% if admin_level == 7 %}
-                    <a style="cursor:pointer;" onclick="undeleteUser({{ user.id }});"><i class="fa fa-lg fa-repeat"></i>&nbsp;Undelete User</a>
-                    {% endif %}
-                </td>
-            {% endif %}
-            </tr>
-        {% endfor %}
-
-        </tbody>
-    </table>
-    </div>
-    </div>
+            </table>
+        </div><!-- End of .ODRTableWrap -->
+    </div><!-- End of .ODRTableOuterWrap -->
             
 </div><!-- End of .content -->
 
 <script>
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        {% if is_granted("ROLE_SUPER_ADMIN") %}
+        var not_searchable = [4,5,6];
+        {% else %}
+        var not_searchable = [3,4,5];    {# there's no "email" column to search/order #}
+        {% endif %}
 
         $("#ODRUserList").dataTable({
             "columnDefs": [
@@ -106,7 +102,7 @@
                     "visible": false,
                 },
                 {
-                    "targets": [3,4,5],
+                    "targets": not_searchable,
                     "orderable": false,
                     "searchable": false,
                 }
@@ -135,6 +131,7 @@
         });
     }
 
+{% if is_granted("ROLE_SUPER_ADMIN") %}
     function toggleDeletedUsers() {
         var action = $("#deleted_user_toggle").attr('rel');
         $("#deleted_user_toggle").html( action + " deleted users");
@@ -154,7 +151,9 @@
 
         redoRowClasses();
     }
+{% endif %}
 
+{% if is_granted("ROLE_SUPER_ADMIN") %}
     function deleteUser(user_id) {
         // Prevent an admin from deleting himself
         if (user_id == {{ admin_user.id }}) {
@@ -197,7 +196,9 @@
             });
         }
     }
+{% endif %}
 
+{% if is_granted("ROLE_SUPER_ADMIN") %}
     function undeleteUser(user_id) {
         var url = '{{ path('odr_undelete_user', { 'user_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -232,8 +233,9 @@
             }
         });
     }
+{% endif %}
 
-{% if admin_level >= 3 %}
+{% if is_datatype_admin %}
     function createNewUser() {
         var url = '{{ path('odr_admin_new_user_create') }}';
         UpdateURL(url);

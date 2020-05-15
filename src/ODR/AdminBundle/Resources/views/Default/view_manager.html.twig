@@ -7,6 +7,7 @@
     {% set title = "Edit Record" %}
 {% endif %}
 
+{# Determine user permissions for this datatype... #}
 {% set can_add_record = false %}
 {% set can_edit_datatype = false %}
 {% set is_datatype_admin = false %}
@@ -24,6 +25,32 @@
     {% endif %}
 {% endif %}
 
+{# ...then determine which of the additional controls to render on the page #}
+{% set display_editable_records_toggle = false %}
+{% if (has_search_restriction is defined and has_search_restriction)
+    and (page_type == 'search_results' or page_type == 'table') %}
+    {% set display_editable_records_toggle = true %}
+{% endif %}
+
+{% set display_add_record = false %}
+{% if (display_export_options is defined and display_export_options == true)
+    and intent == 'searching' and can_add_record == true %}
+    {% set display_add_record = true %}
+{% endif %}
+
+{% set display_mass_edit = false %}
+{% if (display_export_options is defined and display_export_options == true)
+    and intent == 'searching' and has_datarecords and can_edit_datatype == true %}
+    {% set display_mass_edit = true %}
+{% endif %}
+
+{% set display_csv_export = false %}
+{% if (display_export_options is defined and display_export_options == true)
+    and intent == 'searching' and has_datarecords %}
+    {% set display_csv_export = true %}
+{% endif %}
+
+
 {% if notitle is defined %}
 {% else %}
     <h1 class="no-margin-top-phone">
@@ -35,8 +62,7 @@
     {# Record View Menu #}
     <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display:none;">
         <ul class="pure-menu-list">
-        {% if (has_search_restriction is defined and has_search_restriction)
-            and (page_type == 'search_results' or page_type == 'table') %}
+        {% if display_editable_records_toggle %}
             <li class="pure-menu-item SpacerRight">
                 <label for="display_only_editable_toggle" class="pure-button">
                     <input type="checkbox" id="display_only_editable_toggle" class="ODRDisplayOnlyEditable" style="margin-right: 5px;" />
@@ -51,8 +77,7 @@
                 </label>
             </li>
 
-        {% if display_export_options is defined and display_export_options == true
-            and intent == 'searching' and can_add_record == true %}
+        {% if display_add_record %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ODRAddRecord" class="pure-button">
                     Add New Record
@@ -60,27 +85,24 @@
             </li>
         {% endif %}
 
-        {% if display_export_options is defined and display_export_options == true
-            and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
-
-            {% if can_edit_datatype or is_datatype_admin %}
+        {% if display_mass_edit %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ODRMassEdit" class="pure-button">
                     Mass Edit Records
                 </label>
             </li>
-            {% endif %}
+        {% endif %}
 
+        {% if display_csv_export %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ODRCSVExport" class="pure-button">
                     Export Records (CSV)
                 </label>
             </li>
-
         {% endif %}
         </ul>
 {#
-    {% if display_export_options is defined and display_export_options == true and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
+    {% if display_export_options is defined and display_export_options == true and intent == 'searching' and has_datarecords %}
         {% if use_jupyterhub %}
             <div style="float:right;">
                 <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
@@ -103,28 +125,29 @@
     $(function() {
         initViewManager();
 
-{% if display_export_options is defined and display_export_options == true
-    and intent == 'searching' and can_add_record == true %}
+{% if display_add_record %}
         $("#ODRAddRecord").unbind('click').click(function() {
             var url = '{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id}) }}';
             UpdateURL(url);
         });
 {% endif %}
 
-{% if display_export_options is defined and display_export_options == true
-    and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
+{% if display_mass_edit %}
         $("#ODRMassEdit").unbind('click').click(function() {
             var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
             UpdateURL(url);
         });
+{% endif %}
 
+{% if display_csv_export %}
         $("#ODRCSVExport").unbind('click').click(function() {
             var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
             UpdateURL(url);
         });
+{% endif %}
 
 {#
-    {% if user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
+    {% if has_datarecords and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
             cache: false,
@@ -147,10 +170,8 @@
         });
     {% endif %}
 #}
-{% endif %}
 
-{% if (has_search_restriction is defined and has_search_restriction)
-    and (page_type == 'search_results' or page_type == 'table') %}
+{% if display_editable_records_toggle %}
         {% if editable_only is not defined or editable_only == true %}
         $("#display_only_editable_toggle").prop('checked', true);
         {% endif %}

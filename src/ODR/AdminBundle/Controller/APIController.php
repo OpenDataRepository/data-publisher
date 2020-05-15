@@ -4845,7 +4845,7 @@ class APIController extends ODRCustomController
                 $user->setUsername($user_email);
                 $user->setEmail($user_email);
                 $user->setPlainPassword(random_bytes(8));
-                $user->setRoles(array('ROLE_ADMIN'));
+                $user->setRoles(array('ROLE_USER'));
                 $user_manager->updateUser($user);
 
                 // TODO - how to input first and last name

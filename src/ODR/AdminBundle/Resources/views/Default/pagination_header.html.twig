@@ -90,16 +90,6 @@
         {% set is_datatype_admin = true %}
     {% endif %}
 
-    {% set user_role = '' %}
-    {% if user != 'anon.' %}
-        {% for role in user.getroles %}
-            {% if role == 'ROLE_ADMIN' %}
-                {% set user_role = 'ROLE_ADMIN' %}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
-
-
     {# Page/View Options #}
     {% set page_type = 'search_results' %}
     {% if intent == 'linking' %}
@@ -118,7 +108,6 @@
 
         'display_export_options': true,
         'intent': intent,
-        'user_role': user_role,
         'user_permissions': user_permissions,
 
         'notitle': true,

@@ -1,16 +1,5 @@
 {% spaceless %}
 
-    {% set level = 0 %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_SUPER_ADMIN' %}
-            {% set level = level + 4 %}
-        {% elseif role == 'ROLE_ADMIN' %}
-            {% set level = level + 2 %}
-        {% elseif role == 'ROLE_USER' %}
-            {% set level = level + 1 %}
-        {% endif %}
-    {% endfor %}
-
     <div id="ODRDataTypeListWrapper">
         <table id="ODRDatatypeList" class="display dataTable">
             <thead>

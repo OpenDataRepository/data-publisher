@@ -585,7 +585,7 @@ class ODRGroupController extends ODRCustomController
                 $user_id = $result['id'];
                 $roles = $result['roles'];
 
-                // Never display a super-admin as a member of the group...it's effectively assumed they belong to all groups
+                // Never display a super-admin as a member of a group...they effectively belong to all groups
                 if ( !in_array('ROLE_SUPER_ADMIN', $roles) ) {
                     $user_data = UserUtility::cleanUserData($result);
                     $user_list[$user_id] = $user_data;
@@ -689,6 +689,7 @@ class ODRGroupController extends ODRCustomController
                         foreach ($g['userGroups'] as $num => $ug) {
                             $user_id = $ug['user']['id'];
 
+                            // Never display a super-admin as a member of a group...they effectively belong to all groups
                             if ( $ug['user']['enabled'] == 1 && !in_array('ROLE_SUPER_ADMIN', $ug['user']['roles']) ) {
                                 $user = UserUtility::cleanUserData($ug['user']);
                                 $group_list[$group_id]['users'][$user_id] = $user;
@@ -726,8 +727,8 @@ class ODRGroupController extends ODRCustomController
 
 
     /**
-     * Lists all groups the user belongs to, filtered by which datatypes the calling user is allowed
-     * to view.
+     * Returns a list of which groups a given user belongs to, filtered to only display the datatypes
+     * that the calling user has the "is_datatype_admin" permission for.
      *
      * @param integer $user_id
      * @param Request $request
@@ -757,14 +758,14 @@ class ODRGroupController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
-            $admin_permission_count = 0;
+            // Deny access when the user isn't an admin of any datatype
+            $datatypes_with_admin_permission = array();
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
-                    $admin_permission_count++;
+                    $datatypes_with_admin_permission[$dt_id] = 1;
             }
 
-//            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )  // provide access to super admins or those with at least one 'is_datatype_admin' permission
-            if ( !$admin_user->hasRole('ROLE_ADMIN') || $admin_permission_count == 0 )          // deny access if user does not have any 'is_datatype_admin' permissions, or if user is not admin/super admin
+            if ( empty($datatypes_with_admin_permission) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -773,15 +774,21 @@ class ODRGroupController extends ODRCustomController
             if ( $user == null || !$user->isEnabled() )
                 throw new ODRNotFoundException('User');
 
-            if ($user->getId() == $admin_user->getId())
+            if ( $user->getId() == $admin_user->getId() )
                 throw new ODRBadRequestException('Unable to change own group membership.');
             if ( $user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRBadRequestException('Unable to change group membership for a Super-Admin.');
 
 
             // ----------------------------------------
-            // Get a listing of all top level datatypes
+            // Only want the top-level datatypes ids where the calling user is an admin...
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            foreach ($top_level_datatypes as $num => $dt_id) {
+                if ( !isset($datatypes_with_admin_permission[$dt_id]) )
+                    unset( $top_level_datatypes[$num] );
+            }
+
+            // ...so that all relevant groups for just those datatypes can be loaded
             $query = $em->createQuery(
                'SELECT dt, dtm, g, g_cb, gm, dt_cb
                 FROM ODRAdminBundle:DataType AS dt
@@ -796,33 +803,31 @@ class ODRGroupController extends ODRCustomController
             )->setParameters( array('datatype_ids' => $top_level_datatypes, 'setup_steps' => DataType::STATE_VIEWABLE) );
             $results = $query->getArrayResult();
 
-            // Only save datatypes that the admin user has the 'dt_admin' permission for
+            // For each of the datatypes that the calling user has the 'dt_admin' permission for...
             $datatypes = array();
             foreach ($results as $dt_num => $dt) {
                 $dt_id = $dt['id'];
 
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_admin']) ) {
-                    $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
-                    $dt['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
-                    $datatypes[$dt_id] = $dt;
+                $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
+                $dt['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
+                $datatypes[$dt_id] = $dt;
 
-                    // Categorize groups by the original purpose of the group if stated, or by group id if a custom group
-                    unset( $datatypes[$dt_id]['groups'] );
-                    foreach ($dt['groups'] as $num => $g) {
-                        $group_id = $g['id'];
-                        $purpose = $g['purpose'];
+                // ...categorize the groups for this datatype by their original purpose if stated,
+                //  or by group_id if they're not a default group
+                unset( $datatypes[$dt_id]['groups'] );
+                foreach ($dt['groups'] as $num => $g) {
+                    $group_id = $g['id'];
+                    $purpose = $g['purpose'];
 
-                        $g['createdBy'] = UserUtility::cleanUserData( $g['createdBy'] );
-                        $g['groupMeta'] = $g['groupMeta'][0];
+                    $g['createdBy'] = UserUtility::cleanUserData( $g['createdBy'] );
+                    $g['groupMeta'] = $g['groupMeta'][0];
 
-                        if ($purpose !== '')
-                            $datatypes[$dt_id]['groups'][$purpose] = $g;
-                        else
-                            $datatypes[$dt_id]['groups'][$group_id] = $g;
-                    }
+                    if ($purpose !== '')
+                        $datatypes[$dt_id]['groups'][$purpose] = $g;
+                    else
+                        $datatypes[$dt_id]['groups'][$group_id] = $g;
                 }
             }
-//print '<pre>'.print_r($datatypes, true).'</pre>';  exit();
 
             // Also going to need which groups the target user is currently a member of
             /** @var UserGroup[] $user_groups */
@@ -837,8 +842,6 @@ class ODRGroupController extends ODRCustomController
             foreach ($user_groups as $user_group)
                 $user_datatype_group_membership[ $user_group->getGroup()->getDataType()->getId() ] = 1;
 
-//print '<pre>'.print_r($user_group_list, true).'</pre>';
-//print '<pre>'.print_r($user_datatype_group_membership, true).'</pre>';
 
             // ----------------------------------------
             // Render and return the interface
@@ -924,9 +927,7 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$admin_user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
+            // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -934,7 +935,7 @@ class ODRGroupController extends ODRCustomController
 
             if ( $user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRBadRequestException('Unable to change group membership for a Super-Admin.');
-            if ($user->getId() == $admin_user->getId())
+            if ( $user->getId() == $admin_user->getId() )
                 throw new ODRBadRequestException('Unable to change own group membership.');
 
 
@@ -991,6 +992,7 @@ class ODRGroupController extends ODRCustomController
                         'group' => $group->getId()
                     )
                 );
+
                 if ( is_null($user_group) ) {
                     /* user already doesn't belong to this group, do nothing */
                 }
@@ -1094,11 +1096,7 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Require admin user to have at least admin role to do this...
-            if ( !$user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
-            // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+            // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1185,10 +1183,7 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // TODO - why did a user have to have the admin role to do this?
-            if ( !$admin_user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
+            // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1418,9 +1413,7 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$admin_user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
+            // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------

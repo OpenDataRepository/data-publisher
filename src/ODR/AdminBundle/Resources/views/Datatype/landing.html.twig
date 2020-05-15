@@ -1,17 +1,5 @@
 {% spaceless %}
     <div class="ODRContentWrapper">
-        {% set level = 0 %}
-        {% for role in user.getroles %}
-            {% if role == 'ROLE_SUPER_ADMIN' %}
-                {% set level = level + 4 %}
-            {% elseif role == 'ROLE_ADMIN' %}
-                {% set level = level + 2 %}
-            {% elseif role == 'ROLE_USER' %}
-                {% set level = level + 1 %}
-            {% endif %}
-        {% endfor %}
-
-
         {# Template Group Default Datatype Manager #}
         {% set datatype = related_datatypes[initial_datatype_id] %}
         {% set datatype_meta = datatype.dataTypeMeta %}
@@ -104,7 +92,7 @@
                     {% endif %}
                 </div>
 
-                {# add/import links for this datatype...only makes sense for a metadata datatype if
+                {# add record link for this datatype...only makes sense for a metadata datatype if
                    it doesn't already have a record #}
                 <div>
                     {% if can_add_datarecord %}
@@ -149,7 +137,7 @@
                 {# metadata layout designer link...never makes sense for a metadata datatype #}
                 <div>
                 {% if not is_metadata_datatype %}
-                    {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
+                    {% if is_datatype_admin %}
                         {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
                             <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                                class="address"
@@ -158,7 +146,7 @@
                             >
                                 <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
                             </a>
-                        {%  else %}
+                        {% else %}
                             <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                                class="address"
                                href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
@@ -174,7 +162,7 @@
 
                 {# Group management link for this datatype #}
                 <div>
-                {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
+                {% if is_datatype_admin %}
                     <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
                        class="address"
                        href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
@@ -185,7 +173,7 @@
                 </div>
 
             {% if is_datatype_admin and not is_metadata_datatype %}
-                {# spacer div so deletion is harder to unintentionally click on #}
+                {# spacer div so it's harder to unintentionally click on the deletion link #}
                 <div>&nbsp;</div>
 
                 {# deletion link for this datatype #}
@@ -214,8 +202,7 @@
         <p>The settings under the "Manage Database" heading allow you to modify and add records to your database.</p>
         <p>Your database may have related databases that provide reference or other data that are used in your database.
             If so, you can managed those databases using the tools in the list of "Related Databases" below. Depending
-            on
-            your permission level, you may not have access to all features of the related databases.</p>
+            on your permission level, you may not have access to all features of the related databases.</p>
         {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
         {# END Template Group Instructions #}
 

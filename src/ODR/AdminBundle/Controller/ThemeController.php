@@ -55,6 +55,90 @@ class ThemeController extends ODRCustomController
 {
 
     /**
+     * Returns a list of themes the current user can use in the current context for the given
+     * datatype.
+     *
+     * @param integer $datatype_id
+     * @param string $page_type     'display', 'edit', 'search_results', 'table', or 'linking'
+     * @param Request $request
+     *
+     * @return Response $response
+     */
+    public function getavailablethemesAction($datatype_id, $page_type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ( is_null($datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            // --------------------
+
+            // View/Edit mode pages should use theme_types from ThemeInfoService::LONG_FORM_THEMETYPES
+            if ($page_type == "display" || $page_type == "edit")
+                $page_type = "master";
+
+
+            // Get all available themes for this datatype that the user can view
+            $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
+
+            // If the previous query didn't return anything, then load the master layout instead
+            if ( empty($themes) )
+                $themes = $theme_service->getAvailableThemes($user, $datatype, "master");
+
+            // Get the user's default theme for this datatype, if they have one
+            $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
+            $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);
+
+
+            // Render and return the theme chooser dialog
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:choose_view.html.twig',
+                array(
+                    'themes' => $themes,
+                    'user_default_theme' => $user_default_theme,
+                    'selected_theme_id' => $selected_theme_id,
+
+                    'user' => $user,
+                    'datatype_admin' => $is_datatype_admin
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x81fad8c3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Saves changes made to a theme's name/description.  Loading the form is automatically done
      * inside self::DisplayTheme()
      *

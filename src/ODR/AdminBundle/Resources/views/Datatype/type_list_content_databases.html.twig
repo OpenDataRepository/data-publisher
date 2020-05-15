@@ -1,24 +1,14 @@
 {% spaceless %}
 
-    {% set level = 0 %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_SUPER_ADMIN' %}
-            {% set level = level + 4 %}
-        {% elseif role == 'ROLE_ADMIN' %}
-            {% set level = level + 2 %}
-        {% elseif role == 'ROLE_USER' %}
-            {% set level = level + 1 %}
-        {% endif %}
-    {% endfor %}
-
     <div class="tabletools">
-        {% if level > 1 %}
-            <div>
-                <a id="ODRDatatypeList_createDatatype" class="pure-button pure-button-primary ODRCreateDatatype"
-                   href="#{{ path('odr_create_type', {'create_master': 0}) }}"><i class="fa fa-lg fa-plus"></i> New
-                    Database</a>
-            </div>
-        {% endif %}
+        <div>
+            <a id="ODRDatatypeList_createDatatype"
+               class="pure-button pure-button-primary ODRCreateDatatype"
+               href="#{{ path('odr_create_type', {'create_master': 0}) }}"
+            >
+                <i class="fa fa-lg fa-plus"></i> New Database
+            </a>
+        </div>
     </div>
 
     <div id="ODRDatatypeToggleDiv">

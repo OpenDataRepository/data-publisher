@@ -8,16 +8,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% set user_role = '' %}
-{% if user != 'anon.' %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_ADMIN' %}
-            {% set user_role = 'ROLE_ADMIN' %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-
-
 <div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}

@@ -59,6 +59,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
+use FOS\UserBundle\Doctrine\UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -142,10 +143,6 @@ class MassEditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
-
-            // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
 
             if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -321,14 +318,8 @@ class MassEditController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
-            $can_edit_datarecord = $pm_service->canEditDatatype($user, $datatype);
-
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
-            if ( !$can_view_datatype || !$can_edit_datarecord )
+            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -729,23 +720,22 @@ exit();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
 
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
 
-
-            // ----------------------------------------
-            /** @var ODRUser $user */
-            $user = $repo_user->find($user_id);
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -755,8 +745,18 @@ exit();
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to a deleted DataType, skipping');
-
             $datatype_id = $datatype->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $user_manager->findUserBy( array('id' => $user_id) );
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
 
 
             // ----------------------------------------
@@ -903,19 +903,19 @@ exit();
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var TagHelperService $th_service */
             $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
 
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
 
-
-            // ----------------------------------------
-            /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -931,6 +931,17 @@ exit();
             if ($datatype->getDeletedAt() !== null)
                 throw new ODRNotFoundException('MassEditCommand.php: Datatype '.$datatype->getId().' is deleted, skipping');
             $datatype_id = $datatype->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $user_manager->findUserBy( array('id' => $user_id) );
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
 
 
             // ----------------------------------------
@@ -1267,9 +1278,6 @@ $ret .=  "---------------\n";
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
             if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------

@@ -26,7 +26,7 @@
 {% endif %}
 
 {% block navigation_top %}
-    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'user_permissions': user_permissions} %}
+    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
 {% endblock %}
 
 {# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODROpenRepositorySearchBundle:Default:index.html.twig #}

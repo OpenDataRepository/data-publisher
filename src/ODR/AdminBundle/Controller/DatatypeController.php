@@ -1037,8 +1037,7 @@ class DatatypeController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            // TODO - relax this restriction?
-            if ( !$user->hasRole('ROLE_ADMIN') )
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1221,7 +1220,7 @@ class DatatypeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$user->hasRole('ROLE_ADMIN') )
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
 
             $create_master = false;

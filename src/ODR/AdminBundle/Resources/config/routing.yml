@@ -88,17 +88,6 @@ odr_undelete_user:
     requirements:
         user_id:  \d+
 
-odr_session_pagelength:
-    path:  /session/pagelength/{length}
-    defaults: { _controller: ODRAdminBundle:ODRUser:pagelength }
-    requirements:
-        length: 10|25|50|100
-
-odr_session_toggle_show_editable:
-    path:  /session/toggle/show_editable
-    defaults: { _controller: ODRAdminBundle:ODRUser:toggleshoweditable }
-    methods: [ POST ]
-
 odr_view_effective_permissions:
     path:  /admin/user/view_as/{user_id}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:ODRUser:vieweffectivepermissions }
@@ -113,14 +102,6 @@ odr_view_permissions_result:
         user_id:  \d+
         theme_id:  \d+
 
-
-odr_apply_theme:
-    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
-    defaults: { _controller: ODRAdminBundle:ODRUser:applytheme }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-        persist: 0|1
 #-----------------------------------------
 
 #-----------------------------------------
@@ -321,6 +302,13 @@ odr_add_blank_metadata_datatype:
 
 #-----------------------------------------
 # Theme Controller
+odr_get_available_themes:
+    path:  /view/getthemes/{datatype_id}/{page_type}
+    defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes }
+    requirements:
+        datatype_id:  \d+
+        page_type:  'display|edit|search_results|table'
+
 odr_save_theme_properties:
     path:  /view/theme_properties/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemeproperties }
@@ -941,13 +929,6 @@ odr_file_download:
     requirements:
         file_id:  \d+
 
-odr_get_available_themes:
-    path:  /view/getthemes/{datatype_id}/{page_type}
-    defaults: { _controller: ODRAdminBundle:Display:getavailablethemes }
-    requirements:
-        datatype_id:  \d+
-        page_type:  'display|edit|search_results|table'
-
 # deprecated?
 #odr_cancel_file_decrypt:
 #    path:  /view/downloadfile_cancel/{file_id}
@@ -1471,6 +1452,29 @@ odr_update_datatype_names:
 #-----------------------------------------
 
 #-----------------------------------------
+# Session Controller
+odr_session_pagelength:
+    path:  /session/pagelength/{length}
+    defaults: { _controller: ODRAdminBundle:Session:pagelength }
+    requirements:
+        length: 10|25|50|100
+
+odr_session_toggle_show_editable:
+    path:  /session/toggle/show_editable
+    defaults: { _controller: ODRAdminBundle:Session:toggleshoweditable }
+    methods: [ POST ]
+
+odr_apply_theme:
+    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
+    defaults: { _controller: ODRAdminBundle:Session:applytheme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+        persist: 0|1
+
+#-----------------------------------------
+
+#-----------------------------------------
 # API Controller
 odr_api_userdata:
     path: /api/{version}/userdata.{_format}
@@ -1818,3 +1822,16 @@ odr_api_user_check:
 #    requirements:
 #        version: 'v\d+'
 #        _format: '|json|xml'
+
+
+#-----------------------------------------
+# Migration Controller
+odr_migrate_1.0:
+    path:  /admin/migrate/1.0
+    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_0_ }
+
+#odr_migrate_1.1:
+#    path:  /admin/migrate/1.1
+#    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
+
+#-----------------------------------------
