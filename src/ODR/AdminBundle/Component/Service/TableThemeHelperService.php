@@ -356,13 +356,13 @@ class TableThemeHelperService
         $data = array('sortField_value' => $dr['sortField_value']);
         foreach ($datatype_array['dataFields'] as $df_id => $df) {
             // The datarecord might not have an entry for this datafield...
+            $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
             $df_value = '';
             $save_value = true;
 
-            // If the datafield is using a render plugin...
+            // If the datafield is using a render plugin, and is not a file datafield...
             $render_plugin = $df['dataFieldMeta']['renderPlugin'];
-            $render_plugin_id = $render_plugin['id'];
-            if ($render_plugin_id !== 1) {
+            if ($render_plugin['pluginClassName'] !== 'odr_plugins.base.default' && $df_typename !== 'File') {
                 // Run the render plugin for this datafield
                 try {
                     /** @var DatafieldPluginInterface $plugin */
@@ -378,7 +378,6 @@ class TableThemeHelperService
             }
             else {
                 // ...otherwise, (almost) directly transfer the data
-                $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
                 $drf = $dr['dataRecordFields'][$df_id];
 
                 switch ($df_typename) {

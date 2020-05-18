@@ -487,21 +487,29 @@ class CloneMasterDatatypeService
             $this->cache_service->delete('top_level_datatypes');
             $this->cache_service->delete('cached_datatree_array');
 
-            //
+            // Locate which users already are members for this datatype's groups...most likely only
+            //  going to be the user creating the datatype, but safer to be thorough
             $user_list = array();
             foreach ($this->created_groups as $created_group) {
-                // Store which users are in this group
                 /** @var UserGroup[] $user_groups */
                 $user_groups = $created_group->getUserGroups();
                 foreach ($user_groups as $ug)
                     $user_list[ $ug->getUser()->getId() ] = 1;
-
-                // Wipe the cached entry for this group since it likely has changed
-                $this->cache_service->delete('group_'.$created_group->getId().'_permissions');
             }
 
-            // Also wipe cached entry for all affected users...should typically just be super
-            //  admins and whoever created the datatype
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result)
+                $user_list[ $result['user_id'] ] = 1;
+
+            // Delete cached permission entries related to this datatype
             foreach ($user_list as $user_id => $num)
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
 
@@ -922,29 +930,14 @@ class CloneMasterDatatypeService
             self::persistObject($new_group_meta, true);
             self::persistObject($new_group, true);
 
-            $this->logger->info('CloneDatatypeService: created new Group '.$new_group->getId().' from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
+            $this->logger->info('CloneDatatypeService: created new Group from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
 
-            // If an admin group got created, then all super-admins need to be added to it
+            // Ensure the user making the clone is added to the admin group of the new datatype,
+            //  otherwise they won't be able to see it when the cloning is complete
             if ($new_group->getPurpose() == "admin") {
-                /** @var ODRUser[] $user_list */
-                $user_list = $this->user_manager->findUsers();    // disabled users set to ROLE_USER, so doesn't matter if they're in the list
-
-                // Locate those with super-admin permissions...
-                foreach ($user_list as $u) {
-                    if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
-                        // ...add the super admin to this new admin group
-                        $this->ec_service->createUserGroup($u, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
-                        $this->logger->debug('-- added super_admin user '.$u->getId().' to admin group');
-
-                        // Don't bother deleting this user's cached permissions here...
-                        // There's no guarantee they won't access the datatype before all the
-                        //  permissions are ready anyways.
-                    }
-                }
-
-                // If the user isn't a super-admin, then add them to the admin group as well...
-                // ...otherwise, they won't be able to see the new datatype either
-                if (!$this->user->hasRole('ROLE_SUPER_ADMIN')) {
+                if ( !$this->user->hasRole('ROLE_SUPER_ADMIN') ) {
+                    // Don't need to do this when the creating user is a super-admin, since they'll
+                    //  automatically be able to see the new datatype
                     $this->ec_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 

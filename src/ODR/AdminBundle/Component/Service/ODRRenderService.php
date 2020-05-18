@@ -552,12 +552,7 @@ class ODRRenderService
             /** @var Group $group */
             $group = $extra_parameters['group'];
 
-            $permissions = $this->cache_service->get('group_'.$group->getId().'_permissions');
-            if ($permissions == false) {
-                $permissions = $this->pm_service->rebuildGroupPermissionsArray($group->getId());
-                $this->cache_service->set('group_'.$group->getId().'_permissions', $permissions);
-            }
-
+            $permissions = $this->pm_service->getGroupPermissionsArray( $group->getId() );
             $datatype_permissions = $permissions['datatypes'];
             $datafield_permissions = $permissions['datafields'];
         }
@@ -1053,12 +1048,7 @@ class ODRRenderService
 //            /** @var Group $group */
 //            $group = $extra_parameters['group'];
 //
-//            $permissions = $this->cache_service->get('group_'.$group->getId().'_permissions');
-//            if ($permissions == false) {
-//                $permissions = $this->pm_service->rebuildGroupPermissionsArray($group->getId());
-//                $this->cache_service->set('group_'.$group->getId().'_permissions', $permissions);
-//            }
-//
+//            $permissions = $this->pm_service->getGroupPermissionsArray( $group->getId() );
 //            $datatype_permissions = $permissions['datatypes'];
 //            $datafield_permissions = $permissions['datafields'];
 //        }

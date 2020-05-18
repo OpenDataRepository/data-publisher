@@ -164,7 +164,7 @@ class EntityDeletionService
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
-            // Save which groups need to delete their permission entries for this datafield
+            // Determine which groups will be affected by the deletion of this datafield
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
                 FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
@@ -187,6 +187,18 @@ class EntityDeletionService
             )->setParameters(array('groups' => $all_affected_groups));
             $all_affected_users = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
+
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $all_super_admins = $query->getArrayResult();
+
+            // Merge the two lists together
+            $all_affected_users = array_merge($all_affected_users, $all_super_admins);
 
 
             // ----------------------------------------
@@ -389,12 +401,7 @@ class EntityDeletionService
                 $this->cache_service->delete('cached_table_data_'.$dr_id);
             }
 
-            // Wipe cached entries for Group and User permissions involving this datafield
-            foreach ($all_affected_groups as $group) {
-                $group_id = $group['group_id'];
-                $this->cache_service->delete('group_'.$group_id.'_permissions');
-            }
-
+            // Wipe cached permission entries for all users affected by this
             foreach ($all_affected_users as $u) {
                 $user_id = $u['user_id'];
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
@@ -695,9 +702,24 @@ class EntityDeletionService
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
             )->setParameters(array('groups' => $groups_to_delete));
-            $all_affected_users = $query->getArrayResult();
+            $group_members = $query->getArrayResult();
 
-            //print '<pre>'.print_r($all_affected_users, true).'</pre>';  exit();
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+                'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $all_super_admins = $query->getArrayResult();
+
+            // Merge the two lists together
+            $all_affected_users = array();
+            foreach ($group_members as $num => $u)
+                $all_affected_users[ $u['user_id'] ] = 1;
+            foreach ($all_super_admins as $num => $u)
+                $all_affected_users[ $u['user_id'] ] = 1;
+            $all_affected_users = array_keys($all_affected_users);
 
             // Locate all cached theme entries that need to be rebuilt...
             $query = $this->em->createQuery(
@@ -1009,14 +1031,9 @@ class EntityDeletionService
 
 
             // ----------------------------------------
-            // Delete cached entries for Group and User permissions involving this Datatype
-            foreach ($groups_to_delete as $num => $group_id)
-                $this->cache_service->delete('group_'.$group_id.'_permissions');
-
-            foreach ($all_affected_users as $user) {
-                $user_id = $user['user_id'];
+            // Delete cached permission entries for the users related to this Datatype
+            foreach ($all_affected_users as $user_id)
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
-            }
 
             // ...cached searches
             $this->search_cache_service->onDatatypeDelete($datatype);

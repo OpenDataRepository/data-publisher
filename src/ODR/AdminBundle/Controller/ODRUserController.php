@@ -1120,13 +1120,15 @@ class ODRUserController extends ODRCustomController
                 $target_user->addRole('ROLE_SUPER_ADMIN');
 
                 // ----------------------------------------
-                // Remove the user from all the non-admin groups they're currently a member of...
+                // Since the user is now a super-admin, they'll be treated as being members of every
+                //  datatype's admin group...this makes membership in other groups pointless, so
+                //  remove them from all the groups they're currently a member of
                 // NOTE - doing it this way because doctrine doesn't support multi-table updates
                 $query_str =
                    'UPDATE odr_user_group AS ug, odr_group AS g
                     SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
                     WHERE ug.group_id = g.id
-                    AND ug.user_id = :user_id AND g.purpose IN ("", "edit_all", "view_all", "view_only")
+                    AND ug.user_id = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
                 $parameters = array(
                     'admin_user_id' => $admin_user->getId(),
@@ -1136,27 +1138,7 @@ class ODRUserController extends ODRCustomController
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters);
 
-                // ...so they can be added to all existing "admin" default groups instead
-                /** @var Group[] $admin_groups */
-                $admin_groups = $em->getRepository('ODRAdminBundle:Group')->findBy( array('purpose' => 'admin') );
-                if ( count($admin_groups) > 0 ) {
-                    // Build a single INSERT INTO query to add this user to all existing "admin" default groups
-                    // A unique constraint placed upon (user_id, group_id) in the database will prevent duplicate entries
-                    $query_str =
-                       'INSERT IGNORE INTO odr_user_group (user_id, group_id, created, createdBy)
-                        VALUES ';
-
-                    foreach ($admin_groups as $admin_group)
-                        $query_str .= '("'.$target_user->getId().'", "'.$admin_group->getId().'", NOW(), "'.$admin_user->getId().'"),'."\n";
-                    $query_str = substr($query_str, 0, -2).';';
-
-                    $conn = $em->getConnection();
-                    $rowsAffected = $conn->executeUpdate($query_str);
-                }
-
-
-                // ----------------------------------------
-                // Delete any cached permissions for the affected user
+                // Delete the cached permissions for this user
                 $cache_service->delete('user_'.$user_id.'_permissions');
             }
 

@@ -345,13 +345,21 @@ class ODRGroupController extends ODRCustomController
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 
+            // Don't need to do anything special for super-admins...default groups can't be deleted,
+            //  and super-admins can't ever be members of a non-default group
 
             // Delete all UserGroup entities
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:UserGroup AS ug
                 SET ug.deletedAt = :now, ug.deletedBy = :user_id
                 WHERE ug.group = :group_id AND ug.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'user_id' => $user->getId(), 'group_id' => $group_id) );
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'user_id' => $user->getId(),
+                    'group_id' => $group_id
+                )
+            );
             $rows = $query->execute();
 
             // Delete all GroupDatatypePermissions entities
@@ -384,9 +392,6 @@ class ODRGroupController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Delete the cached version of this group
-            $cache_service->delete('group_'.$group_id.'_permissions');
-
             // Delete cached permisions for all users who were members of the now deleted group
             foreach ($user_list as $num => $user_id)
                 $cache_service->delete('user_'.$user_id.'_permissions');
@@ -570,7 +575,8 @@ class ODRGroupController extends ODRCustomController
             // --------------------
 
 
-            // Get all non-super admin users who are members of this group
+            // Get all users who are members of this group...twig will print a blurb about super-admins
+            //  being in the datatype's admin group
             $query = $em->createQuery(
                'SELECT u
                 FROM ODROpenRepositoryUserBundle:User AS u
@@ -583,13 +589,9 @@ class ODRGroupController extends ODRCustomController
             $user_list = array();
             foreach ($results as $result) {
                 $user_id = $result['id'];
-                $roles = $result['roles'];
 
-                // Never display a super-admin as a member of a group...they effectively belong to all groups
-                if ( !in_array('ROLE_SUPER_ADMIN', $roles) ) {
-                    $user_data = UserUtility::cleanUserData($result);
-                    $user_list[$user_id] = $user_data;
-                }
+                $user_data = UserUtility::cleanUserData($result);
+                $user_list[$user_id] = $user_data;
             }
 
 
@@ -689,8 +691,8 @@ class ODRGroupController extends ODRCustomController
                         foreach ($g['userGroups'] as $num => $ug) {
                             $user_id = $ug['user']['id'];
 
-                            // Never display a super-admin as a member of a group...they effectively belong to all groups
-                            if ( $ug['user']['enabled'] == 1 && !in_array('ROLE_SUPER_ADMIN', $ug['user']['roles']) ) {
+                            // Filter down the list to enabled users
+                            if ( $ug['user']['enabled'] == 1 ) {
                                 $user = UserUtility::cleanUserData($ug['user']);
                                 $group_list[$group_id]['users'][$user_id] = $user;
                             }
@@ -1328,9 +1330,7 @@ class ODRGroupController extends ODRCustomController
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 
-
-            // Could be quite a few changes to the cached group array...just delete it
-            $cache_service->delete('group_'.$group_id.'_permissions');
+            // Super-admins won't ever be affected by this
 
             // Clear cached version of permissions for all users in this group
             // Not updating the cache entry because it's a combination of all group permissions,
@@ -1474,22 +1474,11 @@ class ODRGroupController extends ODRCustomController
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 
-            // Immediately update group permissions with the new datatype, if a cached version of those permissions exists
-            $group_permissions = $cache_service->get('group_'.$group->getId().'_permissions');
-            if ($group_permissions != false) {
-                if ( !isset($group_permissions['datafields'][$datatype_id]) )
-                    $group_permissions['datafields'][$datatype_id] = array();
-
-                $group_permissions['datafields'][$datatype_id][$datafield->getId()] = $cache_update;
-                $cache_service->set('group_'.$group->getId().'_permissions', $group_permissions);
-            }
-
-            // Clear cached version of permissions for all users of this group
+            // Clear cached version of permissions for all users in this group
             // Not updating cached entry because it's a combination of all group permissions, and
-            //  is easier to just rebuild it
+            //  it's easier to just rebuild the entire entry
             foreach ($user_list as $user_id)
                 $cache_service->delete('user_'.$user_id.'_permissions');
-
         }
         catch (\Exception $e) {
             $source = 0xaf7407e0;

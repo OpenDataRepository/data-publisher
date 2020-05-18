@@ -36,6 +36,7 @@ class MigrationController extends ODRCustomController
      * 1) ROLE_ADMIN is removed from all users
      * 2) users with ROLE_SUPER_ADMIN are removed from all groups they were divviously members of
      * 3) "Edit All" and "Admin" groups receive the "can_change_public_status" permission
+     * 4) Update the description for the "Edit All" group
      *
      * @param Request $request
      *
@@ -47,6 +48,8 @@ class MigrationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        $conn = null;
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -121,8 +124,8 @@ class MigrationController extends ODRCustomController
             // Want to be able to update deleted entities as well
             $em->getFilters()->disable('softdeleteable');
 
-            // Doctrine can't do multi-table updates, so need to find all groups that will be
-            //  affected first...
+            // Doctrine can't do multi-table updates, so need to find all the "Edit" and "Admin"
+            //  groups beforehand...
             $query = $em->createQuery(
                'SELECT g.id
                 FROM ODRAdminBundle:Group AS g
@@ -134,6 +137,8 @@ class MigrationController extends ODRCustomController
             foreach ($results as $result)
                 $groups[] = $result['id'];
 
+            // Update each of the GroupDatatypePermission entries for every "Edit" and "Admin" group
+            //  to give them the "chan_change_public_status" permission
 //            $query = $em->createQuery(
 //               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
 //                SET gdtp.can_change_public_status = 1
@@ -153,13 +158,53 @@ class MigrationController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Done with the changes
-            $conn->rollBack();
-//            $conn->commit();
+            // 4) Update the description for the "Edit All" group
+            $ret .= '<div>Updating description for the "Edit" group:<br>';
 
-            // Force a recache of all groups that were affected by this
-            foreach ($groups as $num => $group_id)
-                $cache_service->delete('group_'.$user->getId().'_permissions');
+            // Want to be able to update deleted entities as well
+            $em->getFilters()->disable('softdeleteable');
+
+            // Doctrine can't do multi-table updates, so need to find all the "Edit" groups beforehand...
+            $query = $em->createQuery(
+               'SELECT g.id
+                FROM ODRAdminBundle:Group AS g
+                WHERE g.purpose IN (:groups)'
+            )->setParameters( array('groups' => array('edit_all')) );
+            $results = $query->getArrayResult();
+
+            $groups = array();
+            foreach ($results as $result)
+                $groups[] = $result['id'];
+
+            // Update the meta entries for every "Edit" group to have a description that mentions
+            //  they're able to change public status now
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:GroupMeta AS gm
+                SET gm.groupDescription = :new_description
+                WHERE gm.group IN (:groups)'
+            )->setParameters(
+                array(
+                    'new_description' => "Users in this default Group are always allowed to view and edit all Datarecords, and can also change public status of Files, Images, and Datarecords.",
+                    'groups' => $groups
+                )
+            );
+            $rows = $query->execute();
+
+            // TODO - update this description in EntityCreationService::createGroup()
+
+            $ret .= '** Updated '.$rows.' rows total';
+
+            // Re-enable the softdeleteable filter
+            $em->getFilters()->enable('softdeleteable');
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
+
+
+            // ----------------------------------------
+            // Done with the changes
+//            $conn->rollBack();
+            $conn->commit();
 
             // Force a recache of permissions for all users
             foreach ($users as $user)
@@ -169,6 +214,10 @@ class MigrationController extends ODRCustomController
             print $ret;
         }
         catch (\Exception $e) {
+
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
             $source = 0xe36aba84;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
