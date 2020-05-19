@@ -452,9 +452,47 @@ class PermissionsManagementService
     }
 
 
-    // TODO - implement a permission specifically for linking datarecords?  or modify linking datarecords to use the "can_add/delete_datarecord" permissions?
+    /**
+     * Returns whether the given user can change the public status of the given Datarecord.  This
+     * doesn't cover the ability to change public status of files/images/radio options/tags...those
+     * would be better handled by a new Datafield-level permission.
+     * If the user has this permission, it's implied they can edit the Datarecord.
+     *
+     * Users with this permission are able to...
+     *  - change public status of this datarecord
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     *
+     * @return bool
+     */
+    public function canChangePublicStatus($user, $datarecord)
+    {
+        // If the user isn't logged in, they can't change public status
+        if ($user === "anon.")
+            return false;
 
-    // TODO - implement some kind of "can_change_public_status" permission?  currently need to have the "is_datatype_admin" to change public status...
+        // Otherwise, the user is logged in...ensure they can edit the datarecord first
+        if ( !self::canEditDatarecord($user, $datarecord) )
+            return false;
+
+        $datatype = $datarecord->getDataType();
+        $datatype_permissions = self::getDatatypePermissions($user);
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_public'])
+        ) {
+            // User has the can_change_public_status permission
+            return true;
+        }
+        else {
+            // User does not have the can_change_public_status permission
+            return false;
+        }
+    }
+
+
+    // TODO - implement a permission specifically for linking datarecords?  or modify linking datarecords to use the "can_add/delete_datarecord" permissions?
 
     // TODO - implement the "can_design_datatype" permission?  it's currently controlled by the "is_datatype_admin" permission...
 
@@ -466,7 +504,8 @@ class PermissionsManagementService
      * Users with this permission are able to...
      *  - run CSV Imports for this datatype
      *  - modify the "master" theme for a datatype
-     *  - change public status of datarecords for this datatype
+     *  - change public status of datafields for this datatype
+     *  - change public status of the datatype itself
      *  - create/modify/delete user groups for this datatype
      *
      * @param ODRUser $user
@@ -583,11 +622,12 @@ class PermissionsManagementService
         }
     }
 
+    // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
+
+    // TODO - does it make sense for "can_view_datarecord" to control viewing non-public files/images, or does that need its own permission?
 
     /**
      * Returns whether the given user can view or download the given File.
-     *
-     * TODO - this really should have its own permission...
      *
      * @param ODRUser $user
      * @param File $file
@@ -631,8 +671,6 @@ class PermissionsManagementService
 
     /**
      * Returns whether the given user can view or download the given Image.
-     *
-     * TODO - this really should have its own permission...
      *
      * @param ODRUser $user
      * @param Image $image
@@ -726,6 +764,7 @@ class PermissionsManagementService
                         $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
                         $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
                         $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_public'] = 1;
 //                        $user_permissions['datatypes'][$dt_id]['dt_design'] = 1;
                         $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
                         $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
@@ -764,20 +803,24 @@ class PermissionsManagementService
                     if ( is_null($dt_id) )
                         continue;
 
-                    if ($gdtp['can_view_datatype'])
+                    if ( $gdtp['can_view_datatype'] )
                         $user_permissions['datatypes'][$dt_id]['dt_view'] = 1;
-                    if ($gdtp['can_view_datarecord'])
+                    if ( $gdtp['can_view_datarecord'] )
                         $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
-                    if ($gdtp['can_add_datarecord'])
+                    if ( $gdtp['can_add_datarecord'] )
                         $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
-                    if ($gdtp['can_delete_datarecord'])
+                    if ( $gdtp['can_delete_datarecord'] )
                         $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
-//                if ($gdtp['can_design_datatype'])
+                    if ( $gdtp['can_change_public_status'] )
+                        $user_permissions['datatypes'][$dt_id]['dr_public'] = 1;
+//                if ( $gdtp['can_design_datatype'] )
 //                    $user_permissions['datatypes'][$dt_id]['dt_design'] = 1;
-                    if ($gdtp['is_datatype_admin']) {
+                    if ( $gdtp['is_datatype_admin'] )
                         $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
 
-                        // Always able to view the record's edit page, even if no datafields exist
+                    // Additionally, if the user has these permissions...
+                    if ( $gdtp['is_datatype_admin'] || $gdtp['can_change_public_status'] ) {
+                        // ...then they're always able to view the record's edit page, even if no datafields exist
                         $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
                     }
                 }
@@ -832,10 +875,10 @@ class PermissionsManagementService
                     if ( is_null($df_id) || is_null($dt_id) )
                         continue;
 
-                    if ($gdfp['can_view_datafield'])
+                    if ( $gdfp['can_view_datafield'] )
                         $user_permissions['datafields'][$df_id]['view'] = 1;
 
-                    if ($gdfp['can_edit_datafield']) {
+                    if ( $gdfp['can_edit_datafield'] ) {
                         $user_permissions['datafields'][$df_id]['edit'] = 1;
 
                         // If the user is able to edit a datafield, ensure they can view the record's
@@ -954,6 +997,8 @@ class PermissionsManagementService
                     $datatype_permissions[$dt_id]['dr_add'] = 1;
                 if ($permission['can_delete_datarecord'])
                     $datatype_permissions[$dt_id]['dr_delete'] = 1;
+                if ($permission['can_change_public_status'])
+                    $datatype_permissions[$dt_id]['dr_public'] = 1;
 //                if ($permission['can_design_datatype'])
 //                    $datatype_permissions[$dt_id]['dt_design'] = 1;
                 if ($permission['is_datatype_admin'])
@@ -1131,7 +1176,7 @@ if ($debug)
                 }
 
                 // ...also need to remove files the user isn't allowed to see
-                // TODO - this needs its own permission instead of using "can_view_datarecord"
+                // TODO - does it make sense for "can_view_datarecord" to control viewing non-public files, or does this need its own permission?
                 foreach ($drf['file'] as $file_num => $file) {
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
                         && !$can_view_datarecord[$dt_id]
@@ -1143,7 +1188,7 @@ if ($debug)
                 }
 
                 // ...also need to remove images the user isn't allowed to see
-                // TODO - this needs its own permission instead of using "can_view_datarecord"
+                // TODO - does it make sense for "can_view_datarecord" to control viewing non-public images, or does this need its own permission?
                 foreach ($drf['image'] as $image_num => $image) {
                     if (
                         isset($image['parent']['imageMeta']['publicDate'])

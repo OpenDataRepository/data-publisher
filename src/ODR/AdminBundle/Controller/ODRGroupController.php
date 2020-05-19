@@ -1225,6 +1225,7 @@ class ODRGroupController extends ODRCustomController
                         'can_view_datarecord' => 1,
                         'can_add_datarecord' => 1,
                         'can_delete_datarecord' => 1,
+                        'can_change_public_status' => 1,
                         'can_design_datatype' => 1,    // TODO - implement this permission
                         'is_datatype_admin' => 1,
                     );
@@ -1290,6 +1291,9 @@ class ODRGroupController extends ODRCustomController
                     case 'dr_delete':
                         $properties['can_delete_datarecord'] = $value;
                         break;
+                    case 'dr_public':
+                        $properties['can_change_public_status'] = $value;
+                        break;
                 }
 
                 if ($permission != 'dt_view' && $value == 1) {
@@ -1306,6 +1310,7 @@ class ODRGroupController extends ODRCustomController
                         'can_view_datarecord' => 0,
                         'can_add_datarecord' => 0,
                         'can_delete_datarecord' => 0,
+                        'can_change_public_status' => 0,
                     );
                 }
 

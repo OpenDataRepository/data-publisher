@@ -47,7 +47,7 @@
             {% if datarecord.dataRecordMeta.publicDate|is_public %}
                 {% set class_str = class_str ~ " ODRActiveIcon" %}
             {% endif %}
-            {% if is_link == 0 and can_edit_record == 1 %}
+            {% if is_link == 0 and can_change_public_status %}
                 {% set class_str = class_str ~ " Pointer ODRPublicChildRecord" %}
             {% endif %}
 
@@ -58,7 +58,7 @@
                     rel="{{ datarecord.id }}"
                 ></i>
 
-            {% if is_link == 0 and can_delete_record == 1 %}
+            {% if is_link == 0 and can_delete_record %}
                 <i class="Pointer tooltip fa fa-times ODRDeleteChildRecord" title="Delete Record" rel="{{ datarecord.id }}"></i>
             {% endif %}
             </span>

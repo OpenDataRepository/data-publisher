@@ -2,75 +2,79 @@
 
 {% set datatype = datatype_array[initial_datatype_id] %}
 
-{% set is_datatype_admin = false %}
-{% if datatype_permissions[initial_datatype_id] is defined and datatype_permissions[initial_datatype_id][ 'dt_admin' ] is defined %}
-    {% set is_datatype_admin = true %}
+{% set can_delete_datarecord = false %}
+{% if datatype_permissions[initial_datatype_id] is defined and datatype_permissions[initial_datatype_id][ 'dr_delete' ] is defined %}
+    {% set can_delete_datarecord = true %}
 {% endif %}
 
-    <div id="MassEditForm">
-        <div class="grid_12 no-margin-top-phone">
-            <h1 style="display: inline;">
-                <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-            </h1>
-            {% if is_datatype_admin %}
-                <span>
-        <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
-            <option value="-1">Make all Datarecords non-public</option>
-            <option value="0" selected>Don't change public status</option>
-            <option value="1">Make all Datarecords public</option>
-        </select>
-    </span>
-            {% endif %}
-        </div>
+{% set can_change_public_status = false %}
+{% if datatype_permissions[initial_datatype_id] is defined and datatype_permissions[initial_datatype_id][ 'dr_public' ] is defined %}
+    {% set can_change_public_status = true %}
+{% endif %}
 
-        <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
-            <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
-            <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
-        </form>
-
-        <div>
-            <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes
-            </button>
-            {% if is_datatype_admin %}
-                &nbsp;
-                <button class="pure-button" type="button" onclick="doMassDelete();"><i class="fa fa-warning"></i>&nbsp;Mass
-                    Delete
-                </button>
-            {% endif %}
-        </div>
-
-        </br></br>
-
-        {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
-            'datatype_array': datatype_array,
-            'theme_array': theme_array,
-
-            'initial_datatype_id': initial_datatype_id,
-            'initial_theme_id': initial_theme_id,
-
-            'datatype_permissions': datatype_permissions,
-            'datafield_permissions': datafield_permissions,
-        } %}
-
+<div id="MassEditForm">
+    <div class="grid_12 no-margin-top-phone">
+        <h1 style="display: inline;">
+            <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        </h1>
+    {% if can_change_public_status %}
+        <span>
+            <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
+                <option value="-1">Make all Datarecords non-public</option>
+                <option value="0" selected>Don't change public status</option>
+                <option value="1">Make all Datarecords public</option>
+            </select>
+        </span>
+    {% endif %}
     </div>
 
+    <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
+        <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
+        <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+    </form>
 
+    <div>
+        <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">
+            Save Changes
+        </button>&nbsp;
+    {% if can_delete_datarecord %}
+        <button class="pure-button" type="button" onclick="doMassDelete();">
+            <i class="fa fa-warning"></i>&nbsp;Mass Delete
+        </button>
+    {% endif %}
+    </div>
 
-    <div id="LoadingBlock" class="ODRHidden">
-        <div class="ODRRemodalLoading pure-u-1">
-            <div class="JobStatusWrapper">
-                <div class="JobComplete ODRHidden">Mass Edit Complete</div>
-                <div class="loading-container">
-                    <div class="loading"></div>
-                    <div class="loading-text">editing</div>
-                </div>
-            </div>
-            <div class="JobTracker"></div>
-            <div class="CSVExportMessage">Your edits will run in the background. If you don't want to wait, feel free
-                to continue to use the site and a message will inform you when mass edit is complete.
+    </br></br>
+
+    {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
+        'datatype_array': datatype_array,
+        'theme_array': theme_array,
+
+        'initial_datatype_id': initial_datatype_id,
+        'initial_theme_id': initial_theme_id,
+
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+    } %}
+
+</div>
+
+<div id="LoadingBlock" class="ODRHidden">
+    <div class="ODRRemodalLoading pure-u-1">
+        <div class="JobStatusWrapper">
+            <div class="JobComplete ODRHidden">Mass Edit Complete</div>
+            <div class="loading-container">
+                <div class="loading"></div>
+                <div class="loading-text">editing</div>
             </div>
         </div>
+        <div class="JobTracker"></div>
+        <div class="CSVExportMessage">Your edits will run in the background. If you don't want to
+            wait, feel free to continue to use the site and a message will inform you when mass edit
+            is complete.
+        </div>
     </div>
+</div>
 {% endspaceless %}
 
 <script>

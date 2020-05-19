@@ -74,7 +74,7 @@ class EntityMetaModifyService
     /**
      * EntityMetaModifyService constructor.
      *
-     * @param EntityManager $entityManager
+     * @param EntityManager $entity_manager
      * @param Logger $logger
      */
     public function __construct(
@@ -765,6 +765,7 @@ class EntityMetaModifyService
             'can_view_datarecord' => $permission->getCanViewDatarecord(),
             'can_add_datarecord' => $permission->getCanAddDatarecord(),
             'can_delete_datarecord' => $permission->getCanDeleteDatarecord(),
+            'can_change_public_status' => $permission->getCanChangePublicStatus(),
             'can_design_datatype' => $permission->getCanDesignDatatype(),
             'is_datatype_admin' => $permission->getIsDatatypeAdmin(),
         );
@@ -805,6 +806,8 @@ class EntityMetaModifyService
             $new_permission->setCanAddDatarecord( $properties['can_add_datarecord'] );
         if ( isset( $properties['can_delete_datarecord']) )
             $new_permission->setCanDeleteDatarecord( $properties['can_delete_datarecord'] );
+        if ( isset( $properties['can_change_public_status']) )
+            $new_permission->setCanChangePublicStatus( $properties['can_change_public_status'] );
         if ( isset( $properties['can_design_datatype']) )
             $new_permission->setCanDesignDatatype( $properties['can_design_datatype'] );
         if ( isset( $properties['is_datatype_admin']) )

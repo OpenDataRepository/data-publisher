@@ -791,7 +791,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // TODO - should a new permission be added to control this...potentially one related to changing public status of datarecords?
+            // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -955,7 +955,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // TODO - should a new permission be added to control this...potentially one related to changing public status of datarecords?
+            // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1566,8 +1566,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            // TODO - create a new permission specifically for changing public status of datarecords?
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$pm_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 

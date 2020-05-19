@@ -23,6 +23,11 @@
     {% set can_delete_datarecord = true %}
 {% endif %}
 
+{% set can_change_public_status = false %}
+{% if datatype_permissions[datatype_id] is defined and datatype_permissions[datatype_id]['dr_public'] is defined %}
+    {% set can_change_public_status = true %}
+{% endif %}
+
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[datatype_id] is defined and datatype_permissions[datatype_id]['dt_admin'] is defined %}
     {% set is_datatype_admin = true %}
@@ -51,6 +56,11 @@
         <span class="fa-stack ODRDataTypePermission ODRCanDeleteDatarecord {% if is_datatype_admin or prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not can_delete_datarecord %} not{% endif %} allowed to delete existing Datarecords" rel="{{ group.id }}">
             <i class="fa fa-trash-o fa-stack-1x"></i>
             <i class="fa fa-ban fa-stack-2x" {% if can_delete_datarecord %}style="display: none;"{% endif %}></i>
+        </span>
+
+        <span class="fa-stack ODRDataTypePermission ODRCanChangePublicStatus {% if is_datatype_admin or prevent_all_changes %}fa-muted{% else %}Pointer{% endif %}" title="Members of this Group are{% if not can_change_public_status %} not{% endif %} allowed to change public status of Datarecords" rel="{{ group.id }}">
+            <i class="fa fa-globe fa-stack-1x"></i>
+            <i class="fa fa-ban fa-stack-2x" {% if can_change_public_status %}style="display: none;"{% endif %}></i>
         </span>
 
         {% if is_top_level %}

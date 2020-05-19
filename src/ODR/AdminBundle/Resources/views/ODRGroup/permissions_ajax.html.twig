@@ -323,6 +323,57 @@ function initPage() {
         });
     });
 
+    $(".ODRCanChangePublicStatus").unbind('click').click(function() {
+
+        if ( $(this).hasClass('fa-muted') )
+            return;
+
+        var datatype_id = $(this).parent().attr('rel');
+        var group_id = $(this).attr('rel');
+
+        var element = $(this);
+
+        var value = 1;
+        if ( $(element).children('.fa-ban').first().is(':hidden') )
+            value = 0;
+
+        var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
+        url = url.substring(0,(url.length-6));
+        url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_public';
+
+//alert(url);
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                if (value == 0)
+                    $(element).children('.fa-ban').first().show();
+                else
+                    $(element).children('.fa-ban').first().hide();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
     $(".ODRIsDatatypeAdmin").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )

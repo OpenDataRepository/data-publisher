@@ -45,6 +45,11 @@ class GroupDatatypePermissions
     private $can_delete_datarecord;
 
     /**
+     * @var bool
+     */
+    private $can_change_public_status;
+
+    /**
      * @var boolean
      */
     private $can_design_datatype;
@@ -194,6 +199,30 @@ class GroupDatatypePermissions
     public function getCanDeleteDatarecord()
     {
         return $this->can_delete_datarecord;
+    }
+
+    /**
+     * Set canChangePublicStatus.
+     *
+     * @param bool $canChangePublicStatus
+     *
+     * @return GroupDatatypePermissions
+     */
+    public function setCanChangePublicStatus($canChangePublicStatus)
+    {
+        $this->can_change_public_status = $canChangePublicStatus;
+
+        return $this;
+    }
+
+    /**
+     * Get canChangePublicStatus.
+     *
+     * @return bool
+     */
+    public function getCanChangePublicStatus()
+    {
+        return $this->can_change_public_status;
     }
 
     /**

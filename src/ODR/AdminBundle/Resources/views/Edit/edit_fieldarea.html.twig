@@ -30,6 +30,12 @@
     {% set can_delete_record = true %}
 {% endif %}
 
+{% set can_change_public_status = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_public' ] is defined %}
+    {% set can_change_public_status = true %}
+{% endif %}
+
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
@@ -48,6 +54,7 @@ datatype: {{ datatype.id }}, datarecord: {{ datarecord.id }} {% if is_link == 1 
 can_add_record: {% if can_add_record %}yes{% else %}no{% endif %}</br>
 can_edit_record: {% if can_edit_record %}yes{% else %}no{% endif %}</br>
 can_delete_record: {% if can_delete_record %}yes{% else %}no{% endif %}</br>
+can_change_public_status: {% if can_change_public_status %}yes{% else %}no{% endif %}</br>
 is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
 --------------------</br>
 #}
@@ -78,7 +85,7 @@ is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
         <span rel="{{ datatype.id }}">
             <i
                 id="datarecord_{{ datarecord.id }}_public"
-                class="tooltip fa fa-globe {% if datarecord_meta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_edit_record %}Pointer ODRPublicChildRecord{% endif %}"
+                class="tooltip fa fa-globe {% if datarecord_meta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_change_public_status %}Pointer ODRPublicChildRecord{% endif %}"
                 title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
                 rel="{{ datarecord.id }}"
             ></i>

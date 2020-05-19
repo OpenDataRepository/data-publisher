@@ -551,7 +551,7 @@ class EntityCreationService
         }
         else if ($initial_purpose == 'edit_all') {
             $group_meta->setGroupName('Default Group - Editor');
-            $group_meta->setGroupDescription('Users in this default Group can always both view and edit all Datarecords and Datafields of this Datatype.');
+            $group_meta->setGroupDescription('Users in this default Group are always allowed to view, edit, and change public status of Datarecords.');
         }
         else if ($initial_purpose == 'view_all') {
             $group_meta->setGroupName('Default Group - View All');
@@ -604,6 +604,7 @@ class EntityCreationService
             // Default all permissions to false...
             $gdtp->setIsDatatypeAdmin(false);
             $gdtp->setCanDesignDatatype(false);
+            $gdtp->setCanChangePublicStatus(false);
             $gdtp->setCanDeleteDatarecord(false);
             $gdtp->setCanAddDatarecord(false);
             $gdtp->setCanViewDatarecord(false);
@@ -616,6 +617,7 @@ class EntityCreationService
                     $gdtp->setCanDesignDatatype(true);
                 case 'edit_all':
                     // the 'edit_all' group gets all permissions below this line
+                    $gdtp->setCanChangePublicStatus(true);
                     $gdtp->setCanDeleteDatarecord(true);
                     $gdtp->setCanAddDatarecord(true);
                 case 'view_all':
@@ -802,6 +804,7 @@ class EntityCreationService
                 // Default all permissions to false...
                 $gdtp->setIsDatatypeAdmin(false);
                 $gdtp->setCanDesignDatatype(false);
+                $gdtp->setCanChangePublicStatus(false);
                 $gdtp->setCanDeleteDatarecord(false);
                 $gdtp->setCanAddDatarecord(false);
                 $gdtp->setCanViewDatarecord(false);
@@ -814,6 +817,7 @@ class EntityCreationService
                         $gdtp->setCanDesignDatatype(true);
                     case 'edit_all':
                         // the 'edit_all' group gets all permissions below this line
+                        $gdtp->setCanChangePublicStatus(true);
                         $gdtp->setCanDeleteDatarecord(true);
                         $gdtp->setCanAddDatarecord(true);
                     case 'view_all':

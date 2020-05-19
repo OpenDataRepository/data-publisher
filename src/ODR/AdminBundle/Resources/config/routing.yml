@@ -178,7 +178,7 @@ odr_save_group_datatype_permission:
         group_id:  \d+
         datatype_id:  \d+
         value: '0|1'
-        permission:  'dt_view|dr_view|dr_add|dr_delete|dt_admin|'
+        permission:  'dt_view|dr_view|dr_add|dr_delete|dr_public|dt_admin|'
 
 odr_save_group_datafield_permission:
     path:  /admin/group/savepermissions/datafield/{group_id}/{datafield_id}/{value}

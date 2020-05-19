@@ -138,15 +138,15 @@ class MigrationController extends ODRCustomController
                 $groups[] = $result['id'];
 
             // Update each of the GroupDatatypePermission entries for every "Edit" and "Admin" group
-            //  to give them the "chan_change_public_status" permission
-//            $query = $em->createQuery(
-//               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
-//                SET gdtp.can_change_public_status = 1
-//                WHERE gdtp.group IN (:groups)'
-//            )->setParameters( array('groups' => $groups) );
-//            $rows = $query->execute();
-//
-//            $ret .= '<br><br>Updated '.$rows.' rows total';
+            //  to give them the "can_change_public_status" permission
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                SET gdtp.can_change_public_status = 1
+                WHERE gdtp.group IN (:groups)'
+            )->setParameters( array('groups' => $groups) );
+            $rows = $query->execute();
+
+            $ret .= '<br>** Updated '.$rows.' rows total';
 
             // Will recache the group permission arrays later...
 
@@ -184,15 +184,13 @@ class MigrationController extends ODRCustomController
                 WHERE gm.group IN (:groups)'
             )->setParameters(
                 array(
-                    'new_description' => "Users in this default Group are always allowed to view and edit all Datarecords, and can also change public status of Files, Images, and Datarecords.",
+                    'new_description' => "Users in this default Group are always allowed to view, edit, and change public status of Datarecords.",
                     'groups' => $groups
                 )
             );
             $rows = $query->execute();
 
-            // TODO - update this description in EntityCreationService::createGroup()
-
-            $ret .= '** Updated '.$rows.' rows total';
+            $ret .= '<br> ** Updated '.$rows.' rows total';
 
             // Re-enable the softdeleteable filter
             $em->getFilters()->enable('softdeleteable');

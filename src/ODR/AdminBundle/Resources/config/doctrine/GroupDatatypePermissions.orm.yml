@@ -30,6 +30,10 @@ ODR\AdminBundle\Entity\GroupDatatypePermissions:
             type: boolean
             nullable: false
             default: false
+        can_change_public_status:
+            type: boolean
+            nullable: false
+            default: false
 
         can_design_datatype:
             type: boolean

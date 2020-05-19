@@ -377,7 +377,8 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure no unique datafields managed to get marked for this mass update...store which datatype they belong to at the same time
+            // Perform some rudimentary validation on the datafields marked for this mass update
+            // Also, organize the datafields by datatype for later use
             $datafield_list = array();
             $datatype_list = array();
 
@@ -393,7 +394,7 @@ class MassEditController extends ODRCustomController
                     unset( $datafields[$df_id] );
                 }
                 else {
-                    // Verity that the user is allowed to change contents of this field
+                    // Verify that the user is allowed to change this field
                     if ( !$pm_service->canEditDatafield($user, $df) )
                         throw new ODRForbiddenException();
 
@@ -456,16 +457,21 @@ class MassEditController extends ODRCustomController
                 }
             }
 
-/*
-print '$complete_datarecord_list: '.print_r($complete_datarecord_list, true)."\n";
-print '$datarecords: '.print_r($datarecords, true)."\n";
-print '$datafields: '.print_r($datafields, true)."\n";
-print '$datafield_list: '.print_r($datafield_list, true)."\n";
-exit();
-*/
+
+            // If the user attempted to mass update public status of datarecords, verify that they're
+            //  allowed to do that
+            foreach ($public_status as $dt_id => $status) {
+                $can_change_public_status = false;
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_public']) )
+                    $can_change_public_status = true;
+
+                if ( !$can_change_public_status )
+                    throw new ODRForbiddenException();
+            }
+
 
             // ----------------------------------------
-            // Now that the fields are vaild, delete the datarecord list out of the user's session
+            // Now that all possible requests are valid, delete the datarecord list out of the user's session
             // If this was done earlier, then invalid datafield values could not be recovered from
             unset( $list[$odr_tab_id] );
             $session->set('mass_edit_datarecord_lists', $list);
@@ -496,14 +502,6 @@ exit();
             // Deal with datarecord public status first, if needed
             $updated = false;
             foreach ($public_status as $dt_id => $status) {
-                // Ensure user has the permisions to change public status of datarecords for this datatype
-                $is_datatype_admin = false;
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id][ 'dt_admin' ]) )
-                    $is_datatype_admin = true;
-
-                if (!$is_datatype_admin)
-                    continue;
-
                 // Get all datarecords of this datatype
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
@@ -754,7 +752,7 @@ exit();
             $user = $user_manager->findUserBy( array('id' => $user_id) );
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
+            if ( !$pm_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -939,7 +937,7 @@ exit();
             $user = $user_manager->findUserBy( array('id' => $user_id) );
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1278,7 +1276,7 @@ $ret .=  "---------------\n";
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
+            if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
