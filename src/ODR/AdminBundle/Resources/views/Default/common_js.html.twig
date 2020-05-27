@@ -28,7 +28,7 @@
                     break;
 
                 default:    /* 400, 403, 404, 405, 500, etc */
-                    console.log( jqxhr.responseText );
+                    // console.log( jqxhr.responseText );
                     var response = $.parseJSON( jqxhr.responseText );
                     createJGrowlError(response);
                     break;

@@ -132,6 +132,7 @@
             {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
 
                 'initial_datatype_id': initial_datatype_id,
                 'initial_theme_id': initial_theme_id,
@@ -210,19 +211,18 @@
         });
     }
 
-    // TODO - test this?
     function LoadThemeElementForm(theme_element_id) {
         var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
         url = url.substr(0, url.length-1);
         jQuery.getJSON(
             url + theme_element_id,
             function(data) {
-                jQuery("#ThemeDesignForm").html(data.d)
+                jQuery("#ThemeDesignForm").html(data.d);
+                // console.log('LoadThemeElementForm()', data);
             }
         )
     }
 
-    // TODO - test this?
     function LoadDatafieldForm(theme_element_id, datafield_id) {
         var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
         url = url.substr(0, url.length-3);
@@ -257,12 +257,6 @@
         )
     }
 
-{#
-        // This would prevent resizing of theme_elements and datafields inside linked datatypes
-        // This restriction is no longer needed because datatypes make copies of linked themes now
-        $(".ODRThemeElement.ODRForbidden").resizable("destroy");
-        $(".ODRDataField.ODRForbidden").resizable("destroy");
-#}
     function clearAllFields(reset_opacity) {
         // Default is to reset opacity
         if(reset_opacity === undefined)
@@ -310,17 +304,15 @@
     /**
      * Initializes the resizeable and sortable handles for a field, TED, or child datatype.
      *
-     * @param elem
-     * @param element_type
+     * @param {HTMLElement} elem
+     * @param {string} element_type
      */
     function setupElement(elem, element_type) {
-        if(element_type === undefined) {
-            element_type = '';
-        }
-        console.log('Element Type:', element_type);
+        if (element_type === undefined)
+            return;
 
         // Store the previous element for opacity switching
-        SelectedElement = $(elem);
+        SelectedElement = $(elem);    // TODO - this looks like it's unused...
 
         // Fade out all elements other than this one....
         var actual_parent = null;
@@ -417,284 +409,24 @@
 
         // Highlight the field
         $(elem).addClass('ODRFieldSelected');
-        console.log('field highlighted.....', $(elem).attr('id'));
+        // console.log('field highlighted.....', $(elem).attr('id'));
 
+        // Attach resizeable handlers to the element if needed
+        setupResizeable(elem);    {# defined in Displaytemplate:functions.js.twig #}
 
-        // TODO If Datatype, find related Theme Element (Parent)
-        var handles;
-        var handle_e = '<span class="ODRDragHandle ODRDragHandleTEEast ui-resizeable-handle ui-resizeable-e">&esdot;</span>';
-        var handle_w = '<span class="ODRDragHandle ODRDragHandleTEWest ui-resizeable-handle ui-resizeable-w">&esdot;</span>';
-        switch(element_type) {
-            case 'theme_element':
-                // Set Handle
-                // handles = {
-                    // e: "#ThemeDesignArea .ui-resizeable-ne"
-                // };
-                // Add Resize Handles
-                // var handle_ne = '<span class="ODRThemeElementHandle ui-resizeable-handle ui-resizeable-ne">&#x263e;</span>';
-                // $(this).prepend(handle_ne);
+        // Attach sortable handlers to the element if needed
+        if (element_type === 'theme_element')
+            setupSortableThemeElements(elem);    {# defined in Displaytemplate:functions.js.twig #}
 
-                // Add Resize Handles
-                // var handle_sort = '<span class="ODRSortHandle"><i class="fa fa-bars"></i></span>';
-
-                $(elem).prepend(handle_e);
-                // $(elem).append(handle_sort);
-                $(elem).append(handle_w);
-
-                // Fix position of sort handle
-                // var left = $(elem).width()/2 - 12;
-                // $(elem).find(".ODRSortHandle").css('left', left + "px");
-
-                handles = {
-                    e: "#ThemeDesignArea .ui-resizeable-e"
-                };
-                break;
-
-            default:
-                // Add Resize Handles
-                var handle_sort = '<span class="ODRSortHandle"><i class="fa fa-bars"></i></span>';
-
-                $(elem).prepend(handle_e);
-                $(elem).append(handle_sort);
-                $(elem).append(handle_w);
-
-                // Fix position of sort handle
-                var left = $(elem).width()/2 - 12;
-                $(elem).find(".ODRSortHandle").css('left', left + "px");
-
-                handles = {
-                    e: "#ThemeDesignArea .ui-resizeable-e"
-                };
-                break;
-        }
-
-
-
-        var datafield_id;
-        var theme_element_id;
-        /*
-            TODO - Replace with alternate grid method due to jQuery bug:
-            https://bugs.jqueryui.com/ticket/8932
-         */
-        $(elem).resizable({
-            handles: handles,
-            minHeight: $(elem).height(),
-            maxHeight: $(elem).height(),
-            grid: ($(elem).parent().parent().width())/64, // 41.5,  // 996 width / 24 units
-            start: function( event, ui) {
-                console.log('Resizeable start:');
-                console.log('height: ', $(elem).height());
-                console.log('grid:', $(elem).parent().parent().width()/24);
-                console.log('parent width:', $(elem).parent().parent().width());
-                console.log('element width:', $(elem).width());
-                switch(element_type) {
-                    case 'theme_element':
-                        theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '');
-                        LoadThemeElementForm(theme_element_id);
-                        break;
-
-                    default:
-                        datafield_id = ui.originalElement.attr('id').replace('Field_', '');
-                        theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '');
-                        LoadDatafieldForm(theme_element_id, datafield_id);
-                        break;
-                }
-            },
-            stop: function( event, ui ) {
-                // Refactor all widths for all elements in array to be f/24
-                var ui_elem = ui.originalElement;
-                var total_width = ui_elem.parent().parent().width();
-                var padding_left = parseInt(ui_elem.css('padding-left'));
-                var padding_right = parseInt(ui_elem.css('padding-right'));
-                var width = ui_elem.width(); //  + padding_left + padding_right;
-                console.log('End total width:: ', total_width);
-                console.log('End width:: ', width);
-
-                // Need to add padding before calculation?
-                console.log('Padding left', padding_left);
-                console.log('Padding right', padding_right);
-
-                var pct = width / total_width * 100;
-
-                var u_factor = pct/4.16667;  // 100 / 24 = 4.16666667
-
-                console.log('u', u_factor);
-                if (u_factor < 1) {
-                    console.log('u', u_factor);
-                    u_factor = 1;
-                }
-                else if (u_factor > 24) {
-                    console.log('u', u_factor);
-                    u_factor = 24;
-                }
-                else {
-                    console.log('u', u_factor);
-                    u_factor = Math.ceil(u_factor);
-                }
-
-                console.log('Factor:: ', u_factor);
-
-                var prefix = "pure-u";
-                var classes = ui_elem.attr('class').split(" ").filter(function(c) {
-                    return c.lastIndexOf(prefix, 0) !== 0;
-                });
-                ui_elem.attr('class', classes.join(" ").trim());
-
-                // Get new width and refactor to f/24
-                // Remove inline width style.
-                if(ui_elem.attr('style')) {
-                    ui_elem.attr('style', function(i, style) {
-                        return style.replace(/width[^;]+;?/g, '');
-                    });
-                }
-
-                // default is always pure-u-1
-                ui_elem.addClass('pure-u-1');
-                ui_elem.addClass('pure-u-md-' + u_factor + '-24');
-                ui_elem.addClass('pure-u-xl-' + u_factor + '-24');
-
-                // ui_elem.width(width)
-
-                switch(element_type) {
-                    case 'theme_element':
-                        // Save new U Factors to DB via Get Request
-                        jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24");
-                        jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24");
-                        SaveThemeElementProperties(theme_element_id);
-                        break;
-
-                    default:
-                        // Fix position of sort handle
-                        var left = ui_elem.width()/2 - 12;
-                        ui_elem.find(".ODRSortHandle").css('left', left + "px");
-
-                        // Save new U Factors to DB via Get Request
-                        jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24");
-                        jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24");
-                        SaveThemeDatafieldProperties(theme_element_id, datafield_id);
-                        break;
-                }
-
-            }
-        });
-
-
-
-
-
-
-        // Initialize sortables
-        if(element_type === 'theme_element') {
-            // setup sortable for theme elements at the selected level
-            // Add class to theme element handles at this level to select only those?
-            $(elem).parent().find('> .ODRThemeElement > .ODRThemeElementHandle').addClass('ODRLiveSortable');
-
-            var starting_fieldarea = null;
-            $(elem).parent().each(function() {
-                // If for some reason this theme element already has a sortable instance,
-                // destroy it to prevent duplicate saves
-                if ( $(this).sortable('instance') !== undefined )
-                    $(this).sortable('destroy');
-
-                $(this).sortable({
-                    handle: ".ODRLiveSortable",
-                    placeholder: "ui-state-highlight",
-                    // connectWith: ".ODRFieldArea",
-                    start: function (event, ui) {
-                        // Store where the theme element started
-                        starting_fieldarea = $(ui.helper).parent().attr('id');
-
-                        // Style the placeholder to more closely match the datafield being drug around
-                        $(ui.placeholder).addClass($(ui.helper).attr('class'));
-                        $(ui.placeholder).css('height', $(ui.helper).height());
-                        $(ui.placeholder).css('width', $(ui.helper).width() * 0.95);
-                    },
-                    stop: function (event, ui) {
-                        // Grab where it ended
-                        var ending_fieldarea = $(ui.item).parent().attr('id');
-
-                        // If the theme element ended up in a different fieldarea,
-                        // don't save the change and revert the layout
-                        if (starting_fieldarea === ending_fieldarea)
-                            SaveThemeElementOrder($(ui.item).parent());
-                        else
-                            $(this).sortable("cancel");
-
-                        // Unhide the object that was being dragged around
-                        $(ui.item).show();
-                        // $(ui.item).removeAttr('style');
-                        starting_fieldarea = null;
-                    }
-                });
-            });
-        }
-
-
-        // If element is data field
-        if ($(elem).hasClass('ODRDataField')) {
-            // Remove existing sortables in document.
-
-            // Restrict sortable to only same level theme elements.
-            // i.e. theme elements that have the same field area as a parent
-            var ParentFieldArea = $(elem).parent().parent().parent();
-
-            // Setup sortable for all DataFields
-            ParentFieldArea.find("> .ODRThemeElement > .ODRInnerBox").each(function () {
-                // Only create sortables from theme elements that are not child types or linked types.
-                if($(this).find('> .ODRLinkedType').length > 0 || $(this).find('> .ODRDataType').length > 0) {
-                    console.log('Linked or child');
-                    return
-                }
-                console.log('Setting datafield sortable');
-
-                var starting_theme_element;
-                $(this).sortable({
-                    handle: ".ODRSortHandle",
-                    items: "> .ODRDataField",   // Only attach the event to datafields within the ODRInnerBox
-                    placeholder: "ui-state-highlight",
-                    connectWith: ".ODRInnerBox",
-                    dropOnEmpty: true,
-                    start: function (event, ui) {
-                        // Store where the datafield started
-                        starting_theme_element = $(ui.helper).parent().parent().attr('id');
-                        starting_fieldarea = $(ui.helper).parent().parent().parent().attr('id');
-
-                        // Style the placeholder to more closely match the datafield being drug around
-                        $(ui.placeholder).addClass($(ui.helper).attr('class'));
-                        $(ui.placeholder).css('height', $(ui.helper).height());
-                        $(ui.placeholder).css('width', $(ui.helper).width() * 0.95);
-                    },
-                    stop: function (event, ui) {
-                        // Grab where the datafield ended
-                        var ending_theme_element = $(ui.item).parent().parent().attr('id');
-                        var ending_fieldarea = $(ui.item).parent().parent().parent().attr('id');
-
-                        // If the datafield ended up in the same fieldarea...
-                        if (starting_fieldarea === ending_fieldarea)
-                        // Just need to save the destination theme element
-                            SaveDatafieldOrder($(ui.item).parent(), starting_theme_element, ending_theme_element);
-                        else
-                        // ...if not, don't save the change and revert the layout
-                            $(this).sortable("cancel");
-
-
-                        // Unhide the object that was being dragged around
-                        $(ui.item).show();
-
-                        // jQuery Sortable attaches a display: block style to these elements...get rid of it
-                        $(ui.item).removeAttr('style');
-
-                        // Reset for the next sortable call
-                        starting_theme_element = null;
-                        starting_fieldarea = null;
-                        $(ui.placeholder).removeAttr('css');
-                    }
-                });
-            });
-        }
-
+        if ( element_type === 'datafield' )
+            setupSortableDatafields(elem);    {# defined in Displaytemplate:functions.js.twig #}
     }
 
+    {% include 'ODRAdminBundle:Displaytemplate:functions.js.twig' %}
+
+    /**
+     * Resets the various toolset links on the left side of the master layout design page.
+     */
     function ResetToolSet() {
         // Clear the theme form
         $("#ThemeDesignForm").html("");
@@ -756,10 +488,15 @@
         }
     }
 
-    function RenderToolSet(id, tool_type) {
-        if(tool_type === undefined) {
-            tool_type = 'datatype';
-        }
+    /**
+     * Changes the various toolset links on the left side of the master layout design to match the
+     * entity that the user is attempting to modify.
+     *
+     * @param {number} entity_id
+     * @param {string} tool_type
+     * @param {number} [theme_element_id]
+     */
+    function RenderToolSet(entity_id, tool_type, theme_element_id) {
 
         var tools = [];
         tools.add_te     = $("#ODRDatatype_addTE");
@@ -774,94 +511,216 @@
 
         ResetToolSet();
 
-        var props;
         switch(tool_type) {
             case 'datatype':
-                props = datatype_properties[id];
-                console.log('Dataset Props: ', props);
+                var datatype_id = entity_id;
+                var props = datatype_properties[datatype_id];
+                // console.log('RenderToolSet() Dataset ' + datatype_id + ' Props: ', props);
 
-                // Render Plugin
-                tools.render.removeClass('faded');
-                if(props.render_plugin_id !== 1) {
-                    tools.render.find('i').addClass('ODRActiveIcon');
-                    tools.render.find('.link-text').html('Custom Render');
-                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '.');
-                }
-                tools.render.unbind('click').click(function () {
-                    console.log('Changing render plugin (dt): ', id);
-                    changeRenderPlugin(id, 'datatype');
+                var is_datatype_admin = false;
+                if ( datatype_properties[datatype_id].is_datatype_admin )
+                    is_datatype_admin = true;
+                // console.log('is_datatype_admin?', is_datatype_admin);
+
+                // ----------------------------------------
+                // Add ThemeElement/Group Box is always available...the user has admin permissions
+                //  to the local dataype, and is only modifying a copy of the master theme for a
+                //  linked/remote datatype
+                tools.add_te.removeClass('faded');
+                tools.add_te.unbind('click').click(function () {
+                    var theme_id = datatype_properties[datatype_id].theme_id;
+                    // console.log('adding theme_element to theme ' + theme_id);
+                    addThemeElement(theme_id);
                 });
 
-                // Delete Field
-                if(!props.is_top_level) {
-                    tools.del_dt.find('i').addClass('ODRActiveIcon');
-                    tools.del_dt.removeClass('faded');
+                // ----------------------------------------
+                // Add Field
+                if ( is_datatype_admin ) {
+                    tools.add_df.removeClass('faded');
+                    tools.add_df.find('i').addClass('ODRActiveIcon');
+                    tools.add_df.find('.link-text').html('Add Field');
+                    tools.add_df.attr('title', 'Click to add a field to this dataset.');
+                    tools.add_df.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
 
-                    // Do not allow deletion of top-level dataset
-                    tools.del_dt.attr('title', 'Click to delete this dataset.');
-                    tools.del_dt.find('.link-text').html('Delete Child Field Set');
-                    tools.del_dt.unbind('click').click(function () {
-                        if( confirm("This will delete the selected dataset from all layouts and will delete stored ALL data (including files and images).\n\nAre you certain you want to proceed?")) {
-                            DeleteDatatype(id);
-                        }
-                    });
-                }
+                        // console.log('adding field to datatype: ' + datatype_id);
 
+                        // Locate a theme element that's not being used for child/linked datatypes, if possible
+                        var te = null;
+                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
+                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
+                            var te_props = theme_element_properties[te_id];
 
-
-                // We can always add a datafield to a datatype???
-                // What about linked datatypes - child datatypes yes....
-                // Linked should be yes as well....
-                tools.add_df.removeClass('faded');
-                tools.add_df.attr('title', 'Add Field');
-                tools.add_df.find('i').addClass('ODRActiveIcon');
-                tools.add_df.find('.link-text').html('Add Field');
-                tools.add_df.attr('title', 'Click to add a field to this dataset.');
-                tools.add_df.unbind('click').click(function () {
-                    addDataField(id, 'datatype');
-                });
-
-                // Any Datatype can have a child added
-                tools.add_cdt.removeClass('faded');
-                tools.add_cdt.find('i').addClass('ODRActiveIcon');
-                tools.add_cdt.find('.link-text').html('Add a Child Field Set');
-                tools.add_cdt.attr('title', 'Click to add a child field set.');
-                tools.add_cdt.unbind('click').click(function () {
-                    $(this).effect("highlight", {}, 2000);
-
-                    // Find first TE or add TE and then add child
-                    console.log('data type add field here', id);
-                    // Check for an TE that is not a link to add the field to
-                    var te = null;
-                    $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
-                        if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                            var id = $(this).attr('id').replace('ThemeElement_', '');
-                            var props = theme_element_properties[id];
-                            if(te === null && !props.is_link && !props.has_childtype) {
+                            if ( te === null && !te_props.child_is_link && !te_props.has_childtype ) {
                                 te = $(this);
+                                // console.log('found existing suitable ThemeElement: ' + te_id, te_props);
                             }
-                            console.log('TE Props [' + id + ']: ', props);
+                        });
+
+                        if (te != null) {
+                            // Add child dataset to the previously found theme element
+                            var te_id = te.attr('id').replace('ThemeElement_', '');
+                            addDataField(te_id);
+                        }
+                        else {
+                            // Create a new theme element in this theme, then add a datafield to it
+                            var theme_id = datatype_properties[datatype_id].theme_id;
+                            // console.log('creating new theme element in datatype: ' + datatype_id + ', theme: ' + theme_id);
+                            addThemeElement(theme_id, function (new_theme_element_id) {
+                                addDataField(new_theme_element_id);
+                            });
                         }
                     });
+                }
+                else {
+                    // User isn't allowed to modify this datatype
+                    tools.add_df.addClass('faded');
+                    tools.add_df.find('i').removeClass('ODRActiveIcon');
+                    // tools.add_df.find('.link-text').html('Add Field');
+                    // tools.add_df.attr('title', 'Click to add a field to this dataset.');
+                    tools.add_df.unbind('click');
+                }
 
-                    if(te != null) {
-                        console.log('TE', te.attr('id'));
-                        // Add Field to this TE
-                        var te_id = te.attr('id').replace('ThemeElement_','');
-                        addChildType(te_id);
+                // ----------------------------------------
+                // Add child dataset
+                if ( is_datatype_admin) {
+                    tools.add_cdt.removeClass('faded');
+                    tools.add_cdt.find('i').addClass('ODRActiveIcon');
+                    tools.add_cdt.find('.link-text').html('Add a Child Field Set');
+                    tools.add_cdt.attr('title', 'Click to add a child field set.');
+                    tools.add_cdt.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
+
+                        // console.log('adding child dataset to datatype: ' + datatype_id);
+
+                        // Locate an empty theme element, if possible
+                        var te = null;
+                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
+                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
+                            var te_props = theme_element_properties[te_id];
+
+                            if ( te === null && !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
+                                te = $(this);
+                                // console.log('found existing empty ThemeElement: ' + te_id, te_props);
+                            }
+                        });
+
+                        if (te != null) {
+                            // Add child dataset to the empty theme element
+                            var te_id = te.attr('id').replace('ThemeElement_', '');
+                            addChildType(te_id);
+                            ScrollHighlight("#ThemeElement_" + te_id);
+                        }
+                        else {
+                            // Create a new theme element in this theme, then add a child dataset to it
+                            var theme_id = datatype_properties[datatype_id].theme_id;
+                            // console.log('creating new theme element in datatype: ' + datatype_id + ', theme: ' + theme_id);
+                            addThemeElement(theme_id, function (new_theme_element_id) {
+                                addChildType(new_theme_element_id);
+                            });
+                        }
+                    });
+                }
+                else {
+                    // User isn't allowed to modify this datatype
+                    tools.add_cdt.addClass('faded');
+                    tools.add_cdt.find('i').removeClass('ODRActiveIcon');
+                    // tools.add_cdt.find('.link-text').html('Add a Child Field Set');
+                    // tools.add_cdt.attr('title', 'Click to add a child field set.');
+                    tools.add_cdt.unbind('click');
+                }
+
+                // ----------------------------------------
+                // Link to dataset
+                tools.link_dt.removeClass('faded');
+                tools.link_dt.find('i').addClass('ODRActiveIcon');
+
+                if ( isMasterType ) {
+                    if ( props.is_link ) {
+                        // User clicked on a datatype that is a linked template
+                        tools.link_dt.find('.link-text').html('Linked Template');
+                        tools.link_dt.attr('title', 'This is a linked template.  Click to choose a different template.');
                     }
                     else {
-                        // Add new TE and add field
-                        addThemeElement(id, 'datatype', function(theme_element_id) {
-                            addChildType(theme_element_id)
-                        })
+                        // User clicked on a datatype that's not a linked template
+                        tools.link_dt.find('.link-text').html('Link to a Template');
+                        tools.link_dt.attr('title', 'Click to link in a layout from an existing template.');
                     }
-                });
+                }
+                else {
+                    if ( props.is_link ) {
+                        // User clicked on a datatype that is a linked dataset
+                        tools.link_dt.find('.link-text').html('Linked Dataset');
+                        tools.link_dt.attr('title', 'This is a linked dataset.  Click to choose a different dataset.');
+                    }
+                    else {
+                        // User clicked on a datatype that's not a linked dataset
+                        tools.link_dt.find('.link-text').html('Link to a Dataset');
+                        tools.link_dt.attr('title', 'Click to link in data from an existing dataset.');
+                    }
+                }
 
+                if ( props.is_link ) {
+                    // User clicked on a datatype that is a linked dataset/template...all users are
+                    //  allowed to open the related modal, though they still need permissions to
+                    //  actually make changes
+                    tools.link_dt.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
+
+                        if ( theme_element_id !== undefined ) {
+                            // Can't use DOM to find the correct linked dataset/template...there
+                            //  could be more than one of them on the page.  Have to use the
+                            //  given theme_element_id instead, but only if it was provided
+
+                            // Open the modal to view/modify the link's properties
+                            linkDatatype(theme_element_id);
+                        }
+                    });
+                }
+                else if ( is_datatype_admin ) {
+                    // User clicked on a datatype that's not a linked dataset/template
+                    // The tool should only do something if they're an admin for this datatype
+                    tools.link_dt.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
+
+                        // console.log('linking dataset into datatype: ' + datatype_id);
+
+                        // Locate an empty theme element, if possible
+                        var te = null;
+                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
+                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
+                            var te_props = theme_element_properties[te_id];
+
+                            if ( te === null && !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
+                                te = $(this);
+                                // console.log('found existing empty ThemeElement: ' + te_id, te_props);
+                            }
+                        });
+
+                        if (te != null) {
+                            // Add dataset from template to the empty theme element
+                            var te_id = te.attr('id').replace('ThemeElement_', '');
+                            linkDatatype(te_id);
+                            ScrollHighlight("#ThemeElement_" + te_id);
+                        }
+                        else {
+                            // Create a new theme element in this theme, then open the "link datatype" modal
+                            var theme_id = datatype_properties[datatype_id].theme_id;
+                            // console.log('creating new theme element in datatype: ' + datatype_id + ', theme: ' + theme_id);
+                            addThemeElement(theme_id, function(theme_element_id) {
+                                linkDatatype(theme_element_id);
+                            });
+                        }
+                    });
+                }
+                else {
+                    // User can't link to or unlink from anything here
+                    tools.link_dt.unbind('click');
+                }
+
+                // ----------------------------------------
                 // Any non linked datatype can link from a template
-                if (props.is_link < 1) {
-
-                    console.log('datatype is NOT link');
+                if ( !props.is_link && is_datatype_admin ) {
                     tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
@@ -869,112 +728,76 @@
                     tools.link_ft.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
 
-                        // Find first empty TE or add TE and then add linked dataset
-                        console.log('data type add field here', id);
-                        // Check for an TE that is not a link to add the field to
+                        // console.log('adding dataset from template to datatype: ' + datatype_id);
+
+                        // Locate an empty theme element, if possible
                         var te = null;
-                        $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
-                            if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                                var id = $(this).attr('id').replace('ThemeElement_', '');
-                                var props = theme_element_properties[id];
-                                if(te === null && !props.is_link && !props.has_childtype) {
-                                    te = $(this);
-                                }
-                                console.log('TE Props [' + id + ']: ', props);
+                        $("#DataType_" + datatype_id + " > .ODRFieldArea > .ODRThemeElement").each(function () {
+                            var te_id = $(this).attr('id').replace('ThemeElement_', '');
+                            var te_props = theme_element_properties[te_id];
+
+                            if ( te === null && !te_props.has_datafields && !te_props.child_is_link && !te_props.has_childtype ) {
+                                te = $(this);
+                                // console.log('found existing empty ThemeElement: ' + te_id, te_props);
                             }
                         });
 
-                        if(te != null) {
-                            console.log('TE', te.attr('id'));
-                            // Add Field to this TE
-                            var te_id = te.attr('id').replace('ThemeElement_','');
-                            // addChildType(te_id);
-                            console.log('Using TE: ', te_id);
+                        if (te != null) {
+                            // Add dataset from template to the empty theme element
+                            var te_id = te.attr('id').replace('ThemeElement_', '');
                             linkFromTemplate(te_id);
+                            ScrollHighlight("#ThemeElement_" + te_id);
                         }
                         else {
-                            // Add new TE and add field
-                            addThemeElement(id, 'datatype', function(theme_element_id) {
-                                console.log('Using TE: ', theme_element_id);
+                            // Create a new theme element, then open the linking modal
+                            var theme_id = datatype_properties[datatype_id].theme_id;
+                            // console.log('creating new theme element in datatype: ' + datatype_id + ', theme: ' + theme_id);
+                            addThemeElement(theme_id, function (theme_element_id) {
                                 linkFromTemplate(theme_element_id);
-                            })
+                            });
                         }
-                    });
-                }
-
-
-                // Any non linked datatype can have a link
-                if (props.is_link > 0) {
-                    console.log('datatype is link');
-                    tools.link_dt.removeClass('faded');
-                    tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    if(isMasterType) {
-                        tools.link_dt.find('.link-text').html('Linked Template');
-                    }
-                    else {
-                        tools.link_dt.find('.link-text').html('Linked Dataset');
-                    }
-                    tools.link_dt.attr('title', 'This is a linked dataset.  Click to choose a different dataset.');
-                    tools.link_dt.unbind('click').click(function () {
-                        $(this).effect("highlight", {}, 2000);
-                        // Find parent theme element...
-                        var te_id_data = $("#DataType_" + id).parent().parent().attr('id').split(/_/);
-                        var te_id = te_id_data[1];
-
-                        linkDatatype(te_id);
                     });
                 }
                 else {
-                    console.log('datatype is NOT link');
-                    tools.link_dt.removeClass('faded');
-                    tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    if(isMasterType) {
-                        tools.link_dt.find('.link-text').html('Link to a Template');
-                    }
-                    else {
-                        tools.link_dt.find('.link-text').html('Link to a Dataset');
-                    }
-                    tools.link_dt.attr('title', 'Click to link in data from an existing dataset.');
-                    tools.link_dt.unbind('click').click(function () {
-                        $(this).effect("highlight", {}, 2000);
-
-                        // Find first empty TE or add TE and then add linked dataset
-                        console.log('data type add field here', id);
-                        // Check for an TE that is not a link to add the field to
-                        var te = null;
-                        $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
-                            if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                                var id = $(this).attr('id').replace('ThemeElement_', '');
-                                var props = theme_element_properties[id];
-                                if(te === null && !props.is_link && !props.has_childtype) {
-                                    te = $(this);
-                                }
-                                console.log('TE Props [' + id + ']: ', props);
-                            }
-                        });
-
-                        if(te != null) {
-                            console.log('TE', te.attr('id'));
-                            // Add Field to this TE
-                            var te_id = te.attr('id').replace('ThemeElement_','');
-                            // addChildType(te_id);
-                            linkDatatype(te_id);
-                        }
-                        else {
-                            // Add new TE and add field
-                            addThemeElement(id, 'datatype', function(theme_element_id) {
-                                linkDatatype(theme_element_id);
-                            })
-                        }
-                    });
+                    // User isn't allowed to modify this datatype
+                    tools.link_ft.addClass('faded');
+                    tools.link_ft.find('i').removeClass('ODRActiveIcon');
+                    // tools.link_ft.find('.link-text').html('Add from Template');
+                    // tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
+                    tools.link_ft.unbind('click');
                 }
 
+                // ----------------------------------------
+                // Render Plugin
+                tools.render.removeClass('faded');
+                tools.render.find('i').addClass('ODRActiveIcon');
 
+                if (props.render_plugin_classname === "odr_plugins.base.default") {
+                    tools.render.find('.link-text').html('Change Render Plugin');
+                    tools.render.attr('title', 'Change Render Plugin');
+                }
+                else {
+                    tools.render.find('.link-text').html('Custom Render');
+                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '"');
+                }
 
+                if ( is_datatype_admin ) {
+                    tools.render.unbind('click').click(function () {
+                        // console.log('Changing render plugin for datatype: ', datatype_id);
+                        changeRenderPlugin(datatype_id, 'datatype');
+                    });
+                }
+                else {
+                    // User isn't allowed to modify this datatype
+                    tools.render.addClass('faded');
+                    tools.render.find('i').removeClass('ODRActiveIcon');
+                    tools.render.unbind('click');
+                }
 
-
+                // ----------------------------------------
+                // Dataset public status
                 tools.pub_stat.removeClass('faded');
-                if(props.is_public > 0) {
+                if (props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Dataset is Public');
                     tools.pub_stat.attr('title', 'Users may view any record or field in the dataset that has been marked public without additional permissions.');
@@ -985,136 +808,286 @@
                     tools.pub_stat.attr('title', 'Only logged in users with specific rights to this dataset may view the dataset.');
                 }
 
+                if ( is_datatype_admin ) {
+                    tools.pub_stat.unbind('click').click(function () {
+                        togglePublic(datatype_id, 'datatype');
+                    });
+                }
+                else {
+                    // User isn't allowed to modify this datatype
+                    tools.pub_stat.unbind('click');
+                }
 
-                // Attach click handlers
-                tools.pub_stat.unbind('click').click(function () {
-                    togglePublic(id, 'datatype');
-                });
-
-
-                // Allow theme elements/group boxes
-                tools.add_te.removeClass('faded');
-                tools.add_te.unbind('click').click(function () {
-                    addThemeElement(id, 'datatype');
-                });
-
+                // ----------------------------------------
+                // Delete dataset
+                if ( !props.is_top_level && is_datatype_admin ) {
+                    // Only allowed on not-top-level datatypes the user can modify
+                    tools.del_dt.find('i').addClass('ODRActiveIcon');
+                    tools.del_dt.removeClass('faded');
+                    tools.del_dt.attr('title', 'Click to delete this dataset.');
+                    if ( !props.is_link )
+                        tools.del_dt.find('.link-text').html('Delete Child Field Set');
+                    else
+                        tools.del_dt.find('.link-text').html('Delete Linked Field Set');
+                    tools.del_dt.unbind('click').click(function () {
+                        if (confirm("This will delete the selected dataset from all layouts and will delete stored ALL data (including files and images).\n\nAre you certain you want to proceed?")) {
+                            DeleteDatatype(datatype_id);
+                        }
+                    });
+                }
+                else {
+                    // User can't modify this datatype
+                    tools.del_dt.find('i').removeClass('ODRActiveIcon');
+                    tools.del_dt.addClass('faded');
+                    // tools.del_dt.attr('title', 'Click to delete this dataset.');
+                    // tools.del_dt.find('.link-text').html('Delete Child Field Set');
+                    tools.del_dt.unbind('click');
+                }
 
                 break;
 
             case 'theme_element':
+                var theme_element_id = entity_id;
+                var props = theme_element_properties[theme_element_id];
+                // console.log('RenderToolSet() theme_element ' + theme_element_id + ' Props: ', props);
 
-                props = theme_element_properties[id];
-                console.log('TED Props:', props);
+                // Locate this ThemeElement's datatype...need to store whether user is a datatype admin
+                var datatype_id_data = $("#ThemeElement_" + theme_element_id).parents(".ODRDataType").first().attr('id').split(/_/);
+                var datatype_id = datatype_id_data[1];
 
-                if(!props.has_childtype && !props.has_datafields) {
-                    tools.del_dt.removeClass('faded');
-                    tools.del_dt.find('.link-text').html('Delete group box');
-                    tools.del_dt.attr('title', 'Click to delete this group box.');
+                var is_datatype_admin = false;
+                if ( datatype_properties[datatype_id].is_datatype_admin )
+                    is_datatype_admin = true;
+                // console.log('is_datatype_admin?', is_datatype_admin);
+
+                // ----------------------------------------
+                // Can't add a ThemeElement/Group Box to a ThemeElement
+
+                // ----------------------------------------
+                // Add Field
+                if ( is_datatype_admin && !props.has_childtype && props.child_is_link === 0 ) {
+                    tools.add_df.removeClass('faded');
+                    tools.add_df.find('i').addClass('ODRActiveIcon');
+                    tools.add_df.find('.link-text').html('Add Field');
+                    tools.add_df.attr('title', 'Click to add a field to this dataset.');
+                    tools.add_df.unbind('click').click(function () {
+                        addDataField(theme_element_id);
+                    });
                 }
                 else {
-                    tools.del_dt.attr('title', 'A group box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
+                    // User isn't allowed to modify this datatype, or it already has a child/linked datatype
+                    tools.add_df.addClass('faded');
+                    tools.add_df.find('i').removeClass('ODRActiveIcon');
+                    // tools.add_df.find('.link-text').html('Add Field');
+                    // tools.add_df.attr('title', 'Click to add a field to this dataset.');
+                    tools.add_df.unbind('click');
                 }
 
-                if(!props.has_childtype && !props.has_datafields && props.child_is_link === 0) {
+                // ----------------------------------------
+                // Add child dataset
+                if ( is_datatype_admin && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
                     tools.add_cdt.removeClass('faded');
                     tools.add_cdt.find('i').addClass('ODRActiveIcon');
                     tools.add_cdt.find('.link-text').html('Add a Child Field Set');
                     tools.add_cdt.attr('title', 'Click to add a child field set.');
                     tools.add_cdt.unbind('click').click(function () {
-                        addChildType(id);
+                        addChildType(theme_element_id);
                     });
                 }
+                else {
+                    // User isn't allowed to modify this datatype, or it's not empty
+                    tools.add_cdt.addClass('faded');
+                    tools.add_cdt.find('i').removeClass('ODRActiveIcon');
+                    // tools.add_cdt.find('.link-text').html('Add a Child Field Set');
+                    // tools.add_cdt.attr('title', 'Click to add a child field set.');
+                    tools.add_cdt.unbind('click');
+                }
 
-                if (props.child_is_link > 0) {
-                    console.log('ted is link');
-                    tools.link_dt.removeClass('faded');
-                    tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    if(isMasterType) {
+                // ----------------------------------------
+                // Link to dataset
+                tools.link_dt.removeClass('faded');
+                tools.link_dt.find('i').addClass('ODRActiveIcon');
+
+                if ( isMasterType ) {
+                    if ( props.child_is_link ) {
+                        // User clicked on a datatype that is a linked template
                         tools.link_dt.find('.link-text').html('Linked Template');
+                        tools.link_dt.attr('title', 'This is a linked template.  Click to choose a different template.');
                     }
                     else {
-                        tools.link_dt.find('.link-text').html('Linked Dataset');
-                    }
-                    tools.link_dt.attr('title', 'This is a linked dataset.  Click to choose a different dataset.');
-                    tools.link_dt.unbind('click').click(function () {
-                        linkDatatype(id);
-                    });
-                }
-                else if (!props.has_childtype && !props.has_datafields) {
-                    console.log('ted is NOT link');
-                    tools.link_dt.removeClass('faded');
-                    tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    if(isMasterType) {
+                        // User clicked on a datatype that's not a linked template
                         tools.link_dt.find('.link-text').html('Link to a Template');
+                        tools.link_dt.attr('title', 'Click to link in a layout from an existing template.');
+                    }
+                }
+                else {
+                    if ( props.child_is_link ) {
+                        // User clicked on a datatype that is a linked dataset
+                        tools.link_dt.find('.link-text').html('Linked Dataset');
+                        tools.link_dt.attr('title', 'This is a linked dataset.  Click to choose a different dataset.');
                     }
                     else {
+                        // User clicked on a datatype that's not a linked dataset
                         tools.link_dt.find('.link-text').html('Link to a Dataset');
+                        tools.link_dt.attr('title', 'Click to link in data from an existing dataset.');
                     }
-                    tools.link_dt.attr('title', 'Click to link in data from an existing dataset.');
-                    tools.link_dt.unbind('click').click(function () {
-                        linkDatatype(id);
-                    });
                 }
 
+                if ( is_datatype_admin ) {
+                    if ( props.child_is_link ) {
+                        // User clicked on a theme_element that has a linked dataset/template
+                        tools.link_dt.unbind('click').click(function () {
+                            // Open the modal to view/modify the link's properties
+                            linkDatatype(theme_element_id);
+                        });
+                    }
+                    else if ( !props.has_childtype && !props.has_datafields ) {
+                        // User clicked on an empty theme_element
+                        tools.link_dt.unbind('click').click(function () {
+                            // Open the modal to view/modify the link's properties
+                            linkDatatype(theme_element_id);
+                        });
+                    }
+                    else {
+                        // User clicked on a theme_element that isn't eligible for linking
+                        tools.link_dt.addClass('faded');
+                        tools.link_dt.unbind('click');
+                    }
+                }
+                else {
+                    // User can't link to or unlink from anything here
+                    tools.link_dt.addClass('faded');
+                    tools.link_dt.unbind('click');
+                }
+
+                // ----------------------------------------
                 // Any non linked datatype can link from a template
-                if (!props.has_childtype && !props.has_datafields) {
-                    console.log('datatype is NOT link');
+                if ( is_datatype_admin && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
                     tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
                     tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
                     tools.link_ft.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
-                        console.log('Using TE: ', id);
-                        linkFromTemplate(id);
+
+                        // console.log('using existing empty ThemeElement: ' + te_id, te_props);
+                        linkFromTemplate(theme_element_id);
                     });
                 }
-
-                if(!props.has_childtype && props.child_is_link === 0) {
-                    tools.add_df.removeClass('faded');
-                    tools.add_df.attr('title', 'Add Field');
-                    tools.add_df.find('i').addClass('ODRActiveIcon');
-                    tools.add_df.find('.link-text').html('Add Field');
-                    tools.add_df.attr('title', 'Click to add a field to this dataset.');
-                    tools.add_df.unbind('click').click(function () {
-                        addDataField(id, 'theme_element');
-                    });
+                else {
+                    // User isn't allowed to modify this datatype, or the theme_element isn't empty
+                    tools.link_ft.addClass('faded');
+                    tools.link_ft.find('i').removeClass('ODRActiveIcon');
+                    // tools.link_ft.find('.link-text').html('Add from Template');
+                    // tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
+                    tools.link_ft.unbind('click');
                 }
 
-                if(!props.has_childtype && !props.has_datafields && props.child_is_link === 0) {
+                // ----------------------------------------
+                // ThemeElements don't have Render Plugins
+
+                // ----------------------------------------
+                // ThemeElements don't have public status
+
+                // ----------------------------------------
+                // Delete ThemeElement/Group Box is always available...the user has admin permissions
+                //  to the local dataype, and is only modifying a copy of the master theme for a
+                //  linked/remote datatype
+                if ( !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
                     tools.del_dt.removeClass('faded');
-                    tools.del_dt.attr('title', 'Delete Group Box');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
-                    tools.del_dt.attr('title', 'Empty group boxes may be deleted.');
+                    tools.del_dt.attr('title', 'Click to delete this group box.');
                     tools.del_dt.unbind('click').click(function () {
-                        deleteThemeElement(id);
+                        deleteThemeElement(theme_element_id);
                     });
                 }
-
+                else {
+                    tools.del_dt.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
+                    tools.del_dt.unbind('click');
+                }
                 break;
 
-
             case 'datafield':
+                var datafield_id = entity_id;
+                var props = datafield_properties[datafield_id];
+                // console.log('RenderToolSet() datafield ' + datafield_id + ' Props: ', props);
 
-                console.log('datafield id: ', id);
-                props = datafield_properties[id];
-                console.log('Datafield props:', props);
+                // Locate this datafield's datatype...need to store whether user is a datatype admin
+                var datatype_id_data = $("#Field_" + datafield_id).parents(".ODRDataType").first().attr('id').split(/_/);
+                var datatype_id = datatype_id_data[1];
 
-                // Render Plugin
-                tools.render.removeClass('faded');
-                tools.render.find('.link-text').html('Change Render Plugin');
-                if(props.render_plugin_id !== 1) {
-                    tools.render.find('i').addClass('ODRActiveIcon');
-                    tools.render.find('.link-text').html('Custom Render');
-                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '.');
+                var is_datatype_admin = false;
+                if ( datatype_properties[datatype_id].is_datatype_admin )
+                    is_datatype_admin = true;
+                // console.log('is_datatype_admin?', is_datatype_admin);
+
+                // ----------------------------------------
+                // Can't add a ThemeElement/Group Box to a Datafield
+
+                // ----------------------------------------
+                // Can't add a datafield to a Datafield
+                // This element handles copying of datafields instead
+                tools.add_df.parent().hide();
+                tools.copy_df.parent().show();
+
+                if ( is_datatype_admin && props.can_copy ) {
+                    tools.copy_df.removeClass('faded');
+                    tools.copy_df.find('i').addClass('ODRActiveIcon');
+                    tools.copy_df.unbind('click').click(function () {
+                        CopyDatafield(datafield_id);
+                    });
+                }
+                else {
+                    // User isn't allowed to modify this datatype, or the datafield can't be copied
+                    tools.copy_df.addClass('faded');
+                    tools.copy_df.find('i').removeClass('ODRActiveIcon');
+                    tools.copy_df.unbind('click');
                 }
 
-                tools.render.unbind('click').click(function () {
-                    changeRenderPlugin(id, 'datafield');
-                });
+                // ----------------------------------------
+                // Can't add a child dataset to a Datafield
 
-                // Public Status
+                // ----------------------------------------
+                // Can't link to dataset in a Datafield
+
+                // ----------------------------------------
+                // Can't link to a template in a Datafield
+
+                // ----------------------------------------
+                // Render Plugin
+                tools.render.removeClass('faded');
+                tools.render.find('i').addClass('ODRActiveIcon');
+
+                if (props.render_plugin_classname === "odr_plugins.base.default") {
+                    if ( is_datatype_admin ) {
+                        tools.render.find('.link-text').html('Change Render Plugin');
+                        tools.render.attr('title', 'Change Render Plugin');
+                    }
+                    else {
+                        tools.render.find('.link-text').html('Default Render Plugin');
+                        // tools.render.attr('title', 'Change Render Plugin');
+                    }
+                }
+                else {
+                    tools.render.find('.link-text').html('Custom Render Plugin');
+                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '"');
+                }
+
+                if ( is_datatype_admin ) {
+                    tools.render.unbind('click').click(function () {
+                        // console.log('Changing render plugin for datafield: ', datafield_id);
+                        changeRenderPlugin(datafield_id, 'datafield');
+                    });
+                }
+                else {
+                    // User isn't allowed to modify this datatype
+                    tools.render.find('i').removeClass('ODRActiveIcon');
+                    tools.render.unbind('click');
+                }
+
+                // ----------------------------------------
+                // Public status
                 tools.pub_stat.removeClass('faded');
                 if (props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
@@ -1127,43 +1100,37 @@
                     tools.pub_stat.attr('title', 'Only logged in users may view this field.');
                 }
 
-                // Attach click handlers
-                tools.pub_stat.unbind('click').click(function () {
-                    togglePublic(id, 'datafield');
-                });
-
-
-                // Copy Datafield
-                tools.add_df.parent().hide();
-                tools.copy_df.parent().show();
-
-                if (props.can_copy) {
-                    tools.copy_df.removeClass('faded');
-                    tools.copy_df.find('i').addClass('ODRActiveIcon');
-                    tools.copy_df.unbind('click').click(function () {
-                        CopyDatafield(id);
+                if ( is_datatype_admin && props.can_change_public_status ) {
+                    tools.pub_stat.unbind('click').click(function () {
+                        togglePublic(datafield_id, 'datafield');
                     });
                 }
+                else {
+                    // User isn't allowed to modify this datafield, or public status can't be changed
+                    tools.pub_stat.unbind('click');
+                }
 
+                // ----------------------------------------
                 // Delete Datafield
-                tools.del_dt.find('.link-text').html('Delete Field');
-                if (props.can_delete) {
+                if ( is_datatype_admin && props.can_delete) {
                     tools.del_dt.removeClass('faded');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.attr('title', 'Click to delete this field.');
-
+                    tools.del_dt.find('.link-text').html('Delete Field');
                     tools.del_dt.unbind('click').click(function () {
                         if (confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
-                            DeleteDatafield(id);
+                            DeleteDatafield(datafield_id);
                         }
                     });
                 }
                 else {
+                    // User isn't allowed to modify this datafield, or the field can't be deleted
+                    tools.del_dt.addClass('faded');
+                    tools.del_dt.find('i').removeClass('ODRActiveIcon');
                     tools.del_dt.attr('title', props.delete_message);
                     tools.del_dt.unbind('click');
                 }
                 break;
-
 
             default:
                 break;
@@ -1175,43 +1142,63 @@
         $.jGrowl('You must first select an element from the page to modify its settings.');
     }
 
+    /**
+     * Opens the modal to view/change the datatype link residing in the given theme_element.
+     *
+     * @param {number} theme_element_id
+     */
     function linkFromTemplate(theme_element_id) {
-        // Find TED Parent Field Area
-        var local_datatype_id = $('#ThemeElement_' + theme_element_id).parent().attr('id').replace(/FieldArea_/,'');
+        // Find the datatype that this theme_element belongs to
+        var local_datatype = $('#ThemeElement_' + theme_element_id).parents('.ODRDataType').first().attr('id').split(/_/);
+        var local_datatype_id = local_datatype[1];
 
-        {# defined in Link::link_type_dialog.html.twig #}
+        {# defined in Link::link_from_template_dialog.html.twig #}
         openLinkFromTemplateDialog(local_datatype_id, theme_element_id);
     }
 
+    /**
+     * Opens the modal to view/change the datatype link residing in the given theme_element.
+     *
+     * @param {number} theme_element_id
+     */
     function linkDatatype(theme_element_id) {
-        // Find TED Parent Field Area
-        var local_datatype_id = $('#ThemeElement_' + theme_element_id).parent().attr('id').replace(/FieldArea_/,'');
+        // Find the datatype that this theme_element belongs to
+        var local_datatype = $('#ThemeElement_' + theme_element_id).parents('.ODRDataType').first().attr('id').split(/_/);
+        var local_datatype_id = local_datatype[1];
 
         {# defined in Link::link_type_dialog.html.twig #}
         openLinkDatatypeDialog(local_datatype_id, theme_element_id);
     }
 
+    /**
+     * Opens the modal to view/change the current datatype/datafield's render plugin.
+     *
+     * @param {number} id
+     * @param {string} element_type
+     */
     function changeRenderPlugin(id, element_type) {
-        var datatype_id = id;
+        var datatype_id = 0;
         var datafield_id = 0;
-        switch(element_type) {
-            case 'datatype':
-                {# defined in Displaytemplate::plugin_settings_dialog.html.twig #}
-                openPluginSettingsDialog(datafield_id, datatype_id);
 
-                break;
-
-            case 'datafield':
-                // Switch id assigments for datafield
-                datatype_id = 0;
-                datafield_id = id;
-
-                openPluginSettingsDialog(datafield_id, datatype_id);
-
-                break;
+        if ( element_type === 'datatype' ) {
+            datatype_id = id;
         }
+        else if ( element_type === 'datafield' ) {
+            datafield_id = id;
+        }
+        else {
+            return;
+        }
+
+        {# defined in Displaytemplate::plugin_settings_dialog.html.twig #}
+        openPluginSettingsDialog(datafield_id, datatype_id);
     }
 
+    /**
+     * Creates and attaches a new child datatype to the given theme_element.
+     *
+     * @param {number} theme_element_id
+     */
     function addChildType(theme_element_id) {
         // Load display template menu
         var url  = '{{ path('odr_design_add_childtype', {'theme_element_id': 0 } ) }}';
@@ -1246,6 +1233,11 @@
         });
     }
 
+    /**
+     * Deletes the given theme_element.
+     *
+     * @param {number} theme_element_id
+     */
     function deleteThemeElement(theme_element_id) {
         // Don't allow deletion of a theme element that has datafields or a child/linked datatype attached to it
         // if ( $(this).hasClass('fa-muted') )
@@ -1286,142 +1278,117 @@
         });
     }
 
-    function addDataField(id, element_type) {
-        switch(element_type) {
-            case 'datatype':
-                console.log('data type add field here', id);
-                // Check for an TE that is not a link to add the field to
-                var te = null;
-                $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
-                    var id = $(this).attr('id').replace('ThemeElement_', '');
-                    var props = theme_element_properties[id];
-                    if(te === null && !props.is_link && !props.has_childtype) {
-                        te = $(this);
-                    }
-                    console.log('TE Props [' + id + ']: ', props);
-                });
+    /**
+     * Creates and attaches a new datafield to the given theme_element.
+     *
+     * @param {number} theme_element_id
+     */
+    function addDataField(theme_element_id) {
 
-                if(te != null) {
-                    console.log('TE', te.attr('id'));
-                    // Add Field to this TE
-                    var te_id = te.attr('id').replace('ThemeElement_','');
-                    addDataField(te_id, 'theme_element');
+        var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
+        url = url.substring(0, (url.length - 1)) + theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function() {
+                // Clear object properties panel
+                $("#ThemeDesignForm").html("");
+
+                // The <script> tags in design_fieldarea.html.twig will update the
+                //  theme_element_properties and datafield_properties arrays
+                ReloadThemeElement(theme_element_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-                else {
-                    // Add new TE and add field
-                    addThemeElement(id, 'datatype', function(theme_element_id) {
-                        addDataField(theme_element_id, 'theme_element');
-                    });
-                }
-                break;
-
-            case 'theme_element':
-
-                // if ( $(this).hasClass('fa-muted') )
-                    // return;
-
-                var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
-                url = url.substring(0, (url.length - 1)) + id;
-
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function() {
-                        // Clear object properties panel
-                        $("#ThemeDesignForm").html("");
-
-                        // The <script> tags in design_fieldarea.html.twig will update the
-                        //  theme_element_properties and datafield_properties arrays
-                        ReloadThemeElement(id);
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function(jqXHR) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                        }
-                    }
-                });
-                break;
-        }
+            }
+        });
     }
 
-
-    function addThemeElement(id, element_type, callback) {
-        if(callback === undefined) {
+    /**
+     * Creates and attaches a new theme_element to the given datatype.
+     *
+     * @param {number} theme_id
+     * @param {function} [callback]
+     */
+    function addThemeElement(theme_id, callback) {
+        if (callback === undefined) {
             callback = function() {}
         }
-        switch(element_type) {
-            case 'datatype':
 
-                var datatype_id = id;
-                var url = '{{ path('odr_design_add_theme_element_by_datatype', { 'datatype_id': 0 }) }}';
-                url = url.substring(0, url.length-1) + datatype_id;
+        var url = '{{ path('odr_design_add_theme_element', { 'theme_id': 0 }) }}';
+        url = url.substring(0, url.length-1) + theme_id;
 
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function(data) {
-                        // Clear object properties panel
-                        // $("#ThemeDesignForm").html("");
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // Clear object properties panel
+                // $("#ThemeDesignForm").html("");
 
-                        // Grab ID of new theme element
-                        var theme_element_id = data.d.theme_element_id;
+                // Grab ID of new theme element
+                var theme_element_id = data.d.theme_element_id;
+                var datatype_id = data.d.datatype_id;
 
-                        // The server has returned HTML for a blank theme_element...when appended,
-                        //  the theme_element_properties array will be updated
-                        $("#FieldArea_" + datatype_id).append(data.d.html);
+                // The server has returned HTML for a blank theme_element...when appended,
+                //  the theme_element_properties array will be updated
+                $("#FieldArea_" + datatype_id).append(data.d.html);
 
-                        // Ensure the theme thinks the new theme_element is at the end of the list
-                        SaveThemeElementOrder("#FieldArea_" + datatype_id);
+                // Ensure the theme thinks the new theme_element is at the end of the list
+                SaveThemeElementOrder("#FieldArea_" + datatype_id);
 
-                        // Init the page
-                        initPage();
+                // Init the page
+                initPage();
 
-                        // Show the element
-                        ScrollHighlight("#ThemeElement_" + theme_element_id);
+                // Show the element
+                ScrollHighlight("#ThemeElement_" + theme_element_id);
+                // console.log('after adding theme_element ' + theme_element_id + ':', theme_element_properties);
 
-                        console.log('after adding theme_element:', theme_element_properties);
+                // Run the callback
+                callback(theme_element_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-                        // Run the callback
-                        callback(theme_element_id)
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
 
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function(jqXHR) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                        }
-                    }
-                });
-
-                break;
-        }
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
     }
 
+    /**
+     * Scrolls to the given element on the page, if possible.
+     *
+     * @param {HTMLElement} element
+     * @param {HTMLElement} [container]
+     */
     function ScrollHighlight(element, container) {
         var obj = $(element);
         if (container === undefined) {
@@ -1440,7 +1407,7 @@
             }, 1000)
         }
         // Highlight
-        console.log('highlighting.....');
+        // console.log('highlighting.....');
         obj.effect("highlight", {}, 3000);
     }
 
@@ -1462,15 +1429,20 @@
         return elementBottom > viewportTop && elementTop < viewportBottom;
     };
 
+    /**
+     * Toggles the public status of the given entity.
+     *
+     * @param {number} id
+     * @param {string} element_type
+     */
     function togglePublic(id, element_type) {
 
-        var element, url;
         switch(element_type) {
             case 'datatype':
                 var datatype_id = id;
-                element = $("#ODRDatatype_" + datatype_id + "_publicStatus");
+                var element = $("#ODRDatatype_" + datatype_id + "_publicStatus");
 
-                url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
+                var url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
                 url = url.substring(0,(url.length-1));
                 url += datatype_id;
 
@@ -1483,17 +1455,12 @@
                         notifySaved();
 
                         // Toggle muted status
-                        if ( element.hasClass('ODRActiveIcon') )
-                            element.removeClass('ODRActiveIcon');
-                        else
-                            element.addClass('ODRActiveIcon');
+                        $(element).toggleClass('ODRActiveIcon');
 
-                        // Change the locally stored dataset properties values
-                        // and re-render the tools section.
+                        // Change the locally stored properties value and re-render the tools section
                         var props = datatype_properties[datatype_id];
                         props.is_public = !props.is_public;
                         RenderToolSet(datatype_id, 'datatype');
-
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
@@ -1515,7 +1482,6 @@
                 break;
 
             case 'datafield':
-
                 var datafield_id = id;
                 element = $('#ODRDatafield_' + datafield_id + '_publicStatus');
 
@@ -1531,9 +1497,6 @@
                     success: function() {
                         notifySaved();
 
-                        var props = datafield_properties[datafield_id];
-                        props.is_public = !props.is_public;
-
                         // Toggle muted status
                         if ( $(element).hasClass('ODRActiveIcon') ) {
                             $(element).removeClass('ODRActiveIcon');
@@ -1543,8 +1506,11 @@
                             $(element).addClass('ODRActiveIcon');
                             $(element).attr('title', 'Datafield does not require permission to view');
                         }
-                        RenderToolSet(datafield_id, 'datafield');
 
+                        // Change the locally stored properties value and re-render the tools section
+                        var props = datafield_properties[datafield_id];
+                        props.is_public = !props.is_public;
+                        RenderToolSet(datafield_id, 'datafield');
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
@@ -1568,10 +1534,12 @@
         }
     }
 
+    /**
+     * Deletes the given datatype.
+     *
+     * @param {number} datatype_id
+     */
     function DeleteDatatype(datatype_id) {
-        // Determine datatype_id (for delete) and theme_element_id (for reload)
-        var theme_element_data = $("#DataType_" + datatype_id).parent().parent().attr('id').split(/_/);
-        var theme_element_id = theme_element_data[1];
 
         var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -1583,12 +1551,26 @@
             url: url,
             dataType: "json",
             success: function() {
-                // Delete the datatype from the page
-                $("#DataType_" + datatype_id).remove();
+                // Delete all occurrences of this datatype from the page
 
-                // Reset the theme element properties so the sidebar displays correctly
-                theme_element_properties[theme_element_id]['has_childtype'] = 0;
-                theme_element_properties[theme_element_id]['child_is_link'] = 0;
+                // Can't just use "#Datatype_<id>" because there could be multiples of the same
+                //  datatype due to linking
+                $(".ODRDataType").each(function() {
+                    if ( $(this).attr('id') === 'DataType_' + datatype_id ) {
+                        // Need to locate the theme element this datatype instance resided in...
+                        var theme_element = $(this).parents(".ODRThemeElement").first();
+                        var id_data = $(theme_element).attr('id').split(/_/);
+                        var theme_element_id = id_data[1];
+
+                        // ...so the theme element properties can be updated
+                        theme_element_properties[theme_element_id]['has_datafields'] = 0;
+                        theme_element_properties[theme_element_id]['has_childtype'] = 0;
+                        theme_element_properties[theme_element_id]['child_is_link'] = 0;
+
+                        // Remove the HTML for this datatype
+                        $(this).remove();
+                    }
+                });
 
                 // Update the sidebar so it no longer references the now-deleted datatype
                 ResetToolSet();
@@ -1619,6 +1601,7 @@
             if ( $(this).parents(".ODRFieldArea").length === 0 )
                 return;
 
+            // TODO - stop this from adding duplicate handles
             // Add Resize Handles
             var handle_ne = '<span class="ODRThemeElementHandle ui-resizeable-handle ui-resizeable-ne">&#x263e;</span>';
 
@@ -1645,18 +1628,13 @@
         $(".ODRDatatypeProperties").unbind('click').click(function() {
 
             // Highlight and setup element properties
-            console.log('setup tool set datatype');
-            setupElement(this);
+            // console.log('setup tool set datatype');
+            setupElement(this, 'datatype');
 
             // Locate this datatype's id
             var datatype = $(this).parents('.ODRDataType').first();
             var id_data = $(datatype).attr('id').split(/_/);
             var datatype_id = id_data[1];
-
-            // Prepare the Sidebar Tools
-            console.log('Render tool set datatype');
-            RenderToolSet(datatype_id);
-            console.log('Datatype Props 1:', datatype_properties[datatype_id]);
 
             // Determine if this Datatype has a parent, and locate its id if possible
             var parent_datatype_id = '';
@@ -1667,22 +1645,25 @@
                 parent_datatype_id = id_data[1];
             }
 
-            // Also need the theme_element id when this is a child/linked datatype
+            // Also need the theme_element id when this is a child/linked datatype, since there could
+            //  be multiple instances of this datatype on the page
             var theme_element_id = '';
 
             var theme_element = $(datatype).parents('.ODRThemeElement');
             if ( $(theme_element).length > 0 ) {
                 var id_data = $(theme_element).first().attr('id').split(/_/);
-                var theme_element_id = id_data[1];
+                theme_element_id = id_data[1];
             }
 
+            // Prepare the Sidebar Tools
+            // console.log('Render tool set datatype');
+            RenderToolSet(datatype_id, 'datatype', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datatype
+            // console.log('Datatype Props 1:', datatype_properties[datatype_id]);
 
-            // Don't load the properties form if this is a linked datatype the user can't modify
+
+            // Reset the theme design form prior to reloading its contents
             var tdf = $("#ThemeDesignForm");
             tdf.hide().html("");
-            if ( $(this).hasClass("ODRForbidden") )
-                return;
-
 
             var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0, 'theme_element_id': 0 } ) }}';
             url = url.substring(0, (url.length - 5));
@@ -1722,7 +1703,6 @@
                 }
             });
         });
-
     }
 
 
@@ -1923,6 +1903,12 @@
             success: function(data) {
                 notifySaved();
 
+                // Ensure that the javascript always has the most recent state of what can be done
+                //  to the datafield
+                var tmp = data.d.datafield_properties;
+                datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                // console.log("new datafield properties", datafield_properties);
+
                 // Only reload datafield if necessary
                 if (reload_datafield === true)
                     ReloadDatafield(datafield_id);
@@ -2001,11 +1987,16 @@
 
     function SetupDataFields() {
         $(".ODRDataField").unbind('click').click(function(event) {
+
+            // Grab datafield id
+            var id_data = $(this).attr('id').split(/_/);
+            var datafield_id = id_data[1];
+
             // Setup Resizeable
-            setupElement(this);
+            setupElement(this, 'datafield');
 
             // Render Tool Set
-            RenderToolSet($(this).attr('id').replace(/Field_/,''), 'datafield');
+            RenderToolSet(datafield_id, 'datafield');
 
             // The icon to open RadioOption properties will be overridden by this click
             // event unless this if statement is active
@@ -2015,10 +2006,6 @@
             // ...same deal with datafield public status
             if ( event.target.className.indexOf('ODRPublicDatafield') !== -1 )
                 return;
-
-            // Grab datafield id
-            var id_data = $(this).attr('id').split(/_/);
-            var datafield_id = id_data[1];
 
             // Wait for a datafield property save to finish if required
             if (save_datafield_xhr != null) {
@@ -2357,23 +2344,16 @@
             data: form_data,
             dataType: "json",
             success: function(data) {
-                // May need to update the datafield properties array if the external id field got
-                //  changed
-                if ( data.d.old_field_deletion_message.prevent_deletion !== undefined ) {
-                    var old_field_id = data.d.old_external_id_field;
-                    datafield_properties[old_field_id].can_delete = !data.d.old_field_deletion_message.prevent_deletion;
-                    datafield_properties[old_field_id].delete_message = data.d.old_field_deletion_message.prevent_deletion_message;
-                }
-
-                if ( data.d.new_field_deletion_message.prevent_deletion !== undefined ) {
-                    var new_field_id = data.d.new_external_id_field;
-                    datafield_properties[new_field_id].can_delete = !data.d.new_field_deletion_message.prevent_deletion;
-                    datafield_properties[new_field_id].delete_message = data.d.new_field_deletion_message.prevent_deletion_message;
-                }
-
-                // TODO - ...would be nice to not have to reload, but it seems unavoidable
+                // TODO - ...would be nice to not have to reload when the search slug changes, but
+                //  it seems unavoidable
                 if ( data.d.new_url !== undefined )
                     window.location.href = data.d.new_url;
+
+                // Changing several datatype properties (like external id field) can completely
+                //  change what can be done to a datafield (like deletion)
+                var tmp = data.d.datafield_properties;
+                datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                // console.log("new datafield properties", datafield_properties);
 
                 notifySaved();
             },
@@ -2469,7 +2449,11 @@
         });
     }
 
-    // This is referencing ThemeController...
+    /**
+     * Saves the results of moving a theme_element inside a datatype.
+     *
+     * @param {HTMLElement} container - The .ODRFieldArea element that is the direct parent of the theme_element being moved
+     */
     function SaveThemeElementOrder(container) {
 
         var i = 0;
@@ -2511,8 +2495,14 @@
         });
     }
 
-    // This is referencing ThemeController...
-    function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_element_id) {
+    /**
+     * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
+     *
+     * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
+     * @param {string} source_theme_element_id - The id of the theme_element that the moved datafield started in
+     * @param {string} dest_theme_element_id - The id of the theme_element that the moved datafield ended in
+     */
+    function SaveDatafieldOrder(container, source_theme_element_id, dest_theme_element_id) {
 
         var i = 0;
         var datafield_ids = {};
@@ -2523,12 +2513,11 @@
         });
 
         // Get the id numbers of the passed-in theme elements
-        var theme_element = initial_theme_element_id.split(/_/);
-        initial_theme_element_id = theme_element[1];
-        theme_element = ending_theme_element_id.split(/_/);
-        ending_theme_element_id = theme_element[1];
+        var theme_element = source_theme_element_id.split(/_/);
+        var initial_theme_element_id = theme_element[1];
+        theme_element = dest_theme_element_id.split(/_/);
+        var ending_theme_element_id = theme_element[1];
 
-        // Theme ID
         var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
         url = url.substring(0, url.length-3);
         url += initial_theme_element_id + '/' + ending_theme_element_id;
@@ -2542,26 +2531,19 @@
             success: function() {
                 notifySaved();
 
-                // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
-                var te_id_length = $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length;
-                if ( initial_theme_element_id !== ending_theme_element_id ) {
-                    // Reload starting ThemeElement if all datafields got moved out of it
-                    var icons = {};
-                    if ( te_id_length === 0 ) {
-                        ReloadThemeElement(initial_theme_element_id);
+                // Ensure the properties of both the source and the destination theme elements are
+                //  kept up to date
+                var initial_te_length = $("#ThemeElement_" + initial_theme_element_id).children(".ODRDataField").length;
+                if ( initial_te_length > 0 )
+                    theme_element_properties[initial_theme_element_id].has_datafields = 1;
+                else
+                    theme_element_properties[initial_theme_element_id].has_datafields = 0;
 
-                        // TODO - what is this still doing in here?
-                        icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                        setThemeElementIcons(initial_theme_element_id, icons);
-                    }
-
-                    // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
-                    if ( te_id_length === 1 ) {
-
-                        icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
-                        setThemeElementIcons(ending_theme_element_id, icons);
-                    }
-                }
+                var ending_te_length = $("#ThemeElement_" + ending_theme_element_id).children(".ODRDataField").length;
+                if (ending_te_length > 0)
+                    theme_element_properties[ending_theme_element_id].has_datafields = 1;
+                else
+                    theme_element_properties[ending_theme_element_id].has_datafields = 0;
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -2583,12 +2565,19 @@
         });
     }
 
+    /**
+     * Saves properties of a theme_element (usually widths)
+     *
+     * @param {number} theme_element_id
+     */
     function SaveThemeElementProperties(theme_element_id) {
         var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
         url += theme_element_id;
 
         var form_data = $("#ThemeElementPropertiesForm_" + theme_element_id).serialize();
+        // console.log('SaveThemeElementProperties()', form_data);
+
         $.ajax({
             type: 'POST',
             url: url,
@@ -2695,6 +2684,11 @@
         });
     }
 
+    /**
+     * Makes a copy of the given datafield.
+     *
+     * @param {number} datafield_id
+     */
     function CopyDatafield(datafield_id) {
 
         // TODO - currently blocked in the backend for linked datatypes
@@ -2741,6 +2735,11 @@
         });
     }
 
+    /**
+     * Deletes the given datafield.
+     *
+     * @param {number} datafield_id
+     */
     function DeleteDatafield(datafield_id) {
         var url = '{{ path('odr_design_delete_datafield', { 'datafield_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -3153,13 +3152,17 @@
         });
     }
 
-
+    /**
+     * Requests a new version of the HTML for an entire theme element from the server.
+     *
+     * @param {number} theme_element_id
+     */
     function ReloadThemeElement(theme_element_id) {
-        console.log('reloading theme_element: ' + theme_element_id);
+        // console.log('reloading theme_element: ' + theme_element_id);
 
-        var url = '{{ path('odr_design_reload_theme_element', { 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
-        url = url.substring(0, url.length-3);
-        url += {{ datatype.id }} + '/' + theme_element_id;
+        var url = '{{ path('odr_design_reload_theme_element', { 'theme_element_id': 0 }) }}';
+        url = url.substring(0, url.length-1);
+        url += theme_element_id;
 
         var append = true;
         var theme_element = $("#ThemeElement_" + theme_element_id);
@@ -3212,6 +3215,11 @@
         });
     }
 
+    /**
+     * Requests a new version of the HTML for a datafield from the server.
+     *
+     * @param {number} datafield_id
+     */
     function ReloadDatafield(datafield_id) {
         // Find all theme elements that contain the given datafield on the page...they all need to
         //  be reloaded
@@ -3224,63 +3232,17 @@
             }
         });
 
-
-        // For each of the theme element ids in the array...
         $.each(theme_element_ids, function(index, theme_element_id) {
             ReloadThemeElement(theme_element_id);
-            // return;
-{#
-            // ...reload the given datafield in each of the theme elements
-            console.log('reloading datafield: ' + datafield_id + ' inside theme_element: ' + theme_element_id);
-
-            var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'theme_element_id': 0, 'datafield_id': 0 }) }}';
-            url = url.substring(0, url.length-5);
-            url += {{ datatype.id }} + '/' + theme_element_id + '/' + datafield_id;
-
-            // Create a loading div to block off the datafield
-            var datafield_css_selector = "#ThemeElement_" + theme_element_id + " #Field_" + datafield_id;
-            var loading_div_selector = "ThemeElement_" + theme_element_id + "_Field_" + datafield_id;
-            insertLoadingDiv(datafield_css_selector, loading_div_selector);
-
-            var datafield = $(datafield_css_selector);
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: 'json',
-                success: function(data) {
-                    // Replace old datafield
-                    $(datafield).replaceWith(data.d.html);
-                    console.log('setting up data fields ');
-                    SetupDataFields($(datafield));
-
-                    console.log('highlight datafield');
-                    var new_datafield = $(datafield_css_selector);
-                    setupElement(new_datafield);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-#}
         });
     }
 
+    /**
+     * Covers the requested HTML element with an overlay div so click events don't work on it.
+     *
+     * @param {string} css_selector
+     * @param {string} loading_div_selector
+     */
     function insertLoadingDiv(css_selector, loading_div_selector) {
         // Need dimensions of parent div...
         var element = $(css_selector);
@@ -3295,6 +3257,3 @@
     }
 
 </script>
-
-{# contains setDatatypeIcons() and setThemeElementIcons() #}
-{% include 'ODRAdminBundle:Displaytemplate:icon_functions.html.twig' %}

@@ -452,7 +452,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setMarkdownText('');
                     $dfm->setIsUnique(false);
                     $dfm->setRequired(false);
-                    $dfm->setSearchable(0);
+                    $dfm->setSearchable(DataFields::NOT_SEARCHED);
                     $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
                     $dfm->setChildrenPerRow(1);

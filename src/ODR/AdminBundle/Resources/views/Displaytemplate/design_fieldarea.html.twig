@@ -20,41 +20,33 @@
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}">
     <div class="ODRInnerBox">
+        {# Convert to JS Data for New interface #}
+        <script>
+            if (theme_element_properties === undefined)
+                var theme_element_properties = [];
 
-        {# TODO Allow linked datatypes to be edited directly - need to warn user if used by other databases #}
-        {% if is_datatype_admin %}
-            {# Convert to JS Data for New interface #}
-            <script>
-                if (theme_element_properties === undefined) {
-                    var theme_element_properties = [];
-                    // var theme_element_properties = {};
-                }
+            theme_element_properties[{{ theme_element.id }}] = {};
 
-                theme_element_properties[{{ theme_element.id }}] = {};
+            {% if has_childtype %}
+            theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
+            {% else %}
+            theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
+            {% endif %}
 
-                {% if has_childtype %}
-                theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
-                {% else %}
-                theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
-                {% endif %}
+            {% if has_datafields %}
+            theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
+            {% else %}
+            theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
+            {% endif %}
 
-                {% if has_datafields %}
-                theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
-                {% else %}
-                theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
-                {% endif %}
+            {% if child_is_link %}
+            theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
+            {% else %}
+            theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
+            {% endif %}
 
-                {% if child_is_link %}
-                theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
-                {% else %}
-                theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
-                {% endif %}
-
-                {#console.log('theme_element ' + {{ theme_element.id }});#}
-                {#console.log(theme_element_properties);#}
-                console.log(theme_element_properties[{{ theme_element.id }}]);
-            </script>
-        {% endif %}
+            {#console.log('theme_element {{ theme_element.id }}', theme_element_properties[{{ theme_element.id }}]);#}
+        </script>
 
         {% if theme_element.themeDataFields is defined %}
             {# render all datafields in this theme element #}
@@ -66,36 +58,11 @@
                 {% else %}
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                    {# Users aren't allowed to delete datafields that are being used in special ways by the datatype #}
-                    {% set is_external_id_field = false %}
-                    {% if datatype.dataTypeMeta.externalIdField is not null and datatype.dataTypeMeta.externalIdField.id == datafield_id %}
-                        {% set is_external_id_field = true %}
-                    {% endif %}
-
-                    {% set is_master_template_field = false %}
-                    {% if datafield.masterDataField is defined and datafield.masterDataField is not null %}
-                        {% set is_master_template_field = true %}
-                    {% endif %}
-
-                    {% set is_datatype_render_plugin_field = false %}
-                    {% if datatype.dataTypeMeta.renderPlugin.pluginClassName != 'odr_plugins.base.default' %}
-                        {% for rpi in datatype.dataTypeMeta.renderPlugin.renderPluginInstance %}
-                            {% for rpm in rpi.renderPluginMap %}
-                                {% if rpm.dataField.id == datafield_id %}
-                                    {% set is_datatype_render_plugin_field = true %}
-                                {% endif %}
-                            {% endfor %}
-                        {% endfor %}
-                    {% endif %}
-
                     {% include 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig' with {
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
 
-                        'is_datatype_admin': is_datatype_admin,
-                        'is_external_id_field': is_external_id_field,
-                        'is_master_template_field': is_master_template_field,
-                        'is_datatype_render_plugin_field': is_datatype_render_plugin_field,
+                        'datafield_properties': datafield_properties,
                     } %}
                 {% endif %}
 
@@ -113,16 +80,15 @@
                     {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
                     {# Don't want the UI to permit modification of linked datatypes the user isn't allowed to modify #}
-                    {% set child_is_datatype_admin = true %}
-                    {% if theme_datatype.is_link %}
-                        {% if datatype_permissions[ child_datatype_id ] is not defined or datatype_permissions[ child_datatype_id ][ 'dt_admin' ] is not defined %}
-                            {% set child_is_datatype_admin = false %}
-                        {% endif %}
+                    {% set child_is_datatype_admin = false %}
+                    {% if datatype_permissions[ child_datatype_id ] is defined and datatype_permissions[ child_datatype_id ][ 'dt_admin' ] is defined %}
+                        {% set child_is_datatype_admin = true %}
                     {% endif %}
 
                     {% include 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
+                        'datafield_properties': datafield_properties,
 
                         'target_datatype_id': child_datatype_id,
                         'target_theme_id': child_theme_id,

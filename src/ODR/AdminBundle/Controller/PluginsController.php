@@ -19,7 +19,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\RenderPlugin;
@@ -35,6 +34,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatafieldInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -1251,6 +1251,8 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatafieldInfoService $dfi_service */
+            $dfi_service = $this->container->get('odr.datafield_info_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
@@ -1284,12 +1286,9 @@ class PluginsController extends ODRCustomController
 
 
             /** @var DataType|null $target_datatype */
-            $target_datatype = null;    // the datatype that is getting its render plugin modified
-
+            $target_datatype = null;    // the datatype that is getting its render plugin modified, or the datatype of the datafield getting its render plugin modified
             /** @var DataFields|null $target_datafield */
             $target_datafield = null;   // the datafield that is getting its render plugin modified
-            /** @var DataType $associated_datatype */
-            $associated_datatype = null;    // ...of the datafield getting modified
 
             $plugin_settings_changed = false;
             $reload_datatype = false;
@@ -1303,7 +1302,6 @@ class PluginsController extends ODRCustomController
                 if ( is_null($target_datatype) )
                     throw new ODRNotFoundException('Datatype');
 
-                $associated_datatype = $target_datatype;
                 $changing_datatype_plugin = true;
             }
             else {
@@ -1312,34 +1310,34 @@ class PluginsController extends ODRCustomController
                 if ( is_null($target_datafield) )
                     throw new ODRNotFoundException('Datafield');
 
-                $associated_datatype = $target_datafield->getDataType();
-                if ( !is_null($associated_datatype->getDeletedAt()) )
+                $target_datatype = $target_datafield->getDataType();
+                if ( !is_null($target_datatype->getDeletedAt()) )
                     throw new ODRNotFoundException('Datatype');
 
                 $changing_datafield_plugin = true;
             }
 
 
-            /** @var RenderPlugin $render_plugin */
-            $render_plugin = $repo_render_plugin->find($selected_plugin_id);
-            if ( is_null($render_plugin) )
+            /** @var RenderPlugin $selected_render_plugin */
+            $selected_render_plugin = $repo_render_plugin->find($selected_plugin_id);
+            if ( is_null($selected_render_plugin) )
                 throw new ODRNotFoundException('RenderPlugin');
 
             if ( $changing_datatype_plugin
-                && $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN
+                && $selected_render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN
                 && is_null($target_datatype)
             ) {
                 throw new ODRBadRequestException('Unable to save a Datatype plugin to a Datafield');
             }
             else if ( $changing_datafield_plugin
-                && $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN
+                && $selected_render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN
                 && is_null($target_datafield)
             ) {
                 throw new ODRBadRequestException('Unable to save a Datafield plugin to a Datatype');
             }
             else if ( is_null($target_datatype)
                 && is_null($target_datafield)
-                && $render_plugin->getPluginType() == RenderPlugin::DEFAULT_PLUGIN
+                && $selected_render_plugin->getPluginType() == RenderPlugin::DEFAULT_PLUGIN
             ) {
                 throw new ODRBadRequestException('No target specified for the Render Plugin');
             }
@@ -1359,7 +1357,7 @@ class PluginsController extends ODRCustomController
 
             // Ensure the datafields in the plugin map are the correct fieldtype, and that none of the fields required for the plugin are missing
             /** @var RenderPluginFields[] $render_plugin_fields */
-            $render_plugin_fields = $repo_render_plugin_fields->findBy( array('renderPlugin' => $render_plugin) );
+            $render_plugin_fields = $repo_render_plugin_fields->findBy( array('renderPlugin' => $selected_render_plugin) );
             foreach ($render_plugin_fields as $rpf) {
                 $rpf_id = $rpf->getId();
 
@@ -1393,7 +1391,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Create any new datafields required
-            $theme = $theme_service->getDatatypeMasterTheme($associated_datatype->getId());
+            $theme = $theme_service->getDatatypeMasterTheme($target_datatype->getId());
 
             $theme_element = null;
             foreach ($plugin_fieldtypes as $rpf_id => $ft_id) {
@@ -1423,7 +1421,7 @@ class PluginsController extends ODRCustomController
 
 
                 // Create the Datafield and set basic properties from the render plugin settings
-                $datafield = $ec_service->createDatafield($user, $associated_datatype, $fieldtype, $default_render_plugin, true);    // Don't flush immediately...
+                $datafield = $ec_service->createDatafield($user, $target_datatype, $fieldtype, $default_render_plugin, true);    // Don't flush immediately...
 
                 $datafield_meta = $datafield->getDataFieldMeta();
                 $datafield_meta->setFieldName( $rpf->getFieldName() );
@@ -1443,26 +1441,21 @@ class PluginsController extends ODRCustomController
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
-            if ($reload_datatype) {
+            if ($reload_datatype)
                 $em->flush();
-
-                // Also wipe the cached datatype and theme entries
-                $dti_service->updateDatatypeCacheEntry($associated_datatype, $user);
-                $theme_service->updateThemeCacheEntry($theme, $user);
-            }
 
 
             // ----------------------------------------
             // Mark the Datafield/Datatype as using the selected RenderPlugin
             if ($changing_datatype_plugin) {
                 $properties = array(
-                    'renderPlugin' => $render_plugin->getId()
+                    'renderPlugin' => $selected_render_plugin->getId()
                 );
                 $emm_service->updateDatatypeMeta($user, $target_datatype, $properties);
             }
             else if ($changing_datafield_plugin) {
                 $properties = array(
-                    'renderPlugin' => $render_plugin->getId()
+                    'renderPlugin' => $selected_render_plugin->getId()
                 );
                 $emm_service->updateDatafieldMeta($user, $target_datafield, $properties);
             }
@@ -1494,10 +1487,11 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            if ($render_plugin->getPluginClassName() !== 'odr_plugins.base.default') {
-                // If not using the default RenderPlugin, create a RenderPluginInstance if needed
+            // If the datatype/datafield is no longer using the default render plugin...
+            if ($selected_render_plugin->getPluginClassName() !== 'odr_plugins.base.default') {
+                // ...figure out whether to create a new RenderPluginInstance
                 if ( is_null($render_plugin_instance) )
-                    $render_plugin_instance = $ec_service->createRenderPluginInstance($user, $render_plugin, $target_datatype, $target_datafield);    // need to flush here
+                    $render_plugin_instance = $ec_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
                 /** @var RenderPluginInstance $render_plugin_instance */
 
                 // Save the field mapping
@@ -1522,7 +1516,7 @@ class PluginsController extends ODRCustomController
                         /** @var DataFields $df */
                         $df = $repo_datafield->find($df_id);
 
-                        $ec_service->createRenderPluginMap($user, $render_plugin_instance, $render_plugin_field, $associated_datatype, $df, true);    // don't need to flush...
+                        $ec_service->createRenderPluginMap($user, $render_plugin_instance, $render_plugin_field, $target_datatype, $df, true);    // don't need to flush...
                         $plugin_settings_changed = true;
                     }
                     else {
@@ -1583,36 +1577,39 @@ class PluginsController extends ODRCustomController
                 // Master Template Data Types must increment Master Revision on all change requests.
                 if ($target_datatype->getIsMasterType()) {
                     $dtm_properties['master_revision'] = $target_datatype->getMasterRevision() + 1;
-                    $emm_service->updateDatatypeMeta($user, $target_datatype, $properties);
+                    $emm_service->updateDatatypeMeta($user, $target_datatype, $dtm_properties);
                 }
             }
             else {
                 // Master Template Data Types must increment Master Revision on all change requests.
                 if ($target_datafield->getIsMasterField()) {
                     $dfm_properties['master_revision'] = $target_datafield->getMasterRevision() + 1;
-                    $emm_service->updateDatafieldMeta($user, $target_datafield, $properties);
+                    $emm_service->updateDatafieldMeta($user, $target_datafield, $dfm_properties);
                 }
             }
 
+            // ----------------------------------------
+            // Now that all the database changes have been made, wipe the relevant cache entries
+            $dti_service->updateDatatypeCacheEntry($target_datatype, $user);
+            $theme_service->updateThemeCacheEntry($theme, $user);
 
-            /** @var RenderPlugin $render_plugin */
-            $render_plugin = $repo_render_plugin->find($selected_plugin_id);
-
-            $em->flush();
+            // Changes in render plugin tend to require changes in datafield properties
+            $datatype_array = $dti_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
+            // Don't need to filter here
+            $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
 
             $return['d'] = array(
                 'datafield_id' => $local_datafield_id,
                 'datatype_id' => $local_datatype_id,
-                'render_plugin_id' => $render_plugin->getId(),
-                'render_plugin_name' => $render_plugin->getPluginName(),
+                'render_plugin_id' => $selected_render_plugin->getId(),
+                'render_plugin_name' => $selected_render_plugin->getPluginName(),
+                'render_plugin_classname' => $selected_render_plugin->getPluginClassName(),
                 'html' => '',
+
+                'datafield_properties' => $datafield_properties,
 
                 'reload_datatype' => $reload_datatype,
             );
-
-
-            // Mark the datatype as updated
-            $dti_service->updateDatatypeCacheEntry($associated_datatype, $user);
         }
         catch (\Exception $e) {
             $source = 0x75fbef09;

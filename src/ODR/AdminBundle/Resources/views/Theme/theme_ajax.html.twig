@@ -573,14 +573,19 @@
             });
 
             $(".ODRDatatypeProperties").unbind('click').click(function() {
-                // Grab the id of the Datatype to load
-                var datatype_id = $(this).attr('rel');
 
-                // Get the datatype tools
-                var datatype_tools = $("#DataTypeTools_" + datatype_id).html();
+                // If this is a top-level datatype...
+                if ( $(this).parents('.ODRDataType').first().parent().hasClass('ODRFormWrap') ) {
+                    // ...then prepend the datatype tools so users can add new theme element
+                    // Child/linked datatypes will do this inside LoadDatatypeForm()
+                    var datatype_id_data = $(this).attr('id').split(/_/);
+                    var datatype_id = datatype_id_data[1];
 
-                $("#ThemeDesignForm").prepend(datatype_tools).fadeIn('fast');
-                initDatatypeProperties();
+                    var datatype_tools = $("#DataTypeTools_" + datatype_id).html();
+                    $("#ThemeDesignForm").html(datatype_tools).fadeIn('fast');
+
+                    initDatatypeProperties();
+                }
             });
         }
 
@@ -588,8 +593,8 @@
 
             $(".ODRAddThemeElement").unbind('click').click(function() {
                 // I think this option is always available, but just incase...
-                if ( $(this).hasClass('fa-muted') )
-                    return;
+                // if ( $(this).hasClass('fa-muted') )
+                //     return;
 
                 var theme_id = $(this).attr('rel');
 
@@ -787,17 +792,20 @@
                         // Reload starting ThemeElement if all datafields got moved out of it
                         if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
                             ReloadThemeElement(initial_theme_element_id);
-
+                            {#
                             var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
                             setThemeElementIcons(initial_theme_element_id, icons);
+                            #}
                         }
 
+                        {#
                         // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
                         if ( $("#ThemeElement_"+ending_theme_element_id).children(".ODRDataField").length == 1 ) {
 
                             var icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
                             setThemeElementIcons(ending_theme_element_id, icons);
                         }
+                        #}
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -933,10 +941,16 @@
             var url = "{{ path('odr_design_load_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}";
             url = url.substr(0, url.length-3);
 
+            // Prepend the datatype tools so users can add theme elements
+            var datatype_tools = $("#DataTypeTools_" + datatype_id).html();
+            $("#ThemeDesignForm").html(datatype_tools).fadeIn('fast');
+
             jQuery.getJSON(
                 url + theme_element_id + "/" + datatype_id,
                 function(data) {
-                    jQuery("#ThemeDesignForm").html(data.d);
+                    jQuery("#ThemeDesignForm").append(data.d);
+
+                    initDatatypeProperties();
 
                     // Save changes to the visibility
                     jQuery("#UpdateThemeDatatypeForm_hidden").unbind('change').change(function() {
@@ -1003,9 +1017,9 @@
 
 
         function ReloadThemeElement(theme_element_id) {
-            var url = '{{ path('odr_theme_reload_theme_element', { 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
-            url = url.substring(0, url.length-3);
-            url += {{ datatype.id }} + '/' + theme_element_id;
+            var url = '{{ path('odr_theme_reload_theme_element', { 'theme_element_id': 0 }) }}';
+            url = url.substring(0, url.length-1);
+            url += theme_element_id;
 
             var append = true;
             var theme_element = $("#ThemeElement_" + theme_element_id);

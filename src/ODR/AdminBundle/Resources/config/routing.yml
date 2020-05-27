@@ -357,24 +357,16 @@ odr_clone_theme:
         new_theme_type: '[a-z\-\_]*'
 
 odr_theme_reload_theme_element:
-    path: /design/theme/themeelementreload/{source_datatype_id}/{theme_element_id}
+    path: /design/theme/themeelementreload/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
     requirements:
-        source_datatype_id: \d+
         theme_element_id: \d+
 
-odr_design_add_theme_element_by_datatype:
-    path:  /design/themeelement2/add/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Theme:addthemeelementbydatatype }
-    requirements:
-        datatype_id:  \d+
-
 odr_design_add_theme_element:
-    path:  /design/themeelement/add/{theme_id}/{full_html}
-    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement, full_html: 0 }
+    path:  /design/themeelement/add/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement }
     requirements:
         theme_id:  \d+
-        full_html: 0|1
 
 odr_design_delete_theme_element:
     path:  /design/themeelement/delete/{theme_element_id}
@@ -457,10 +449,9 @@ odr_design_metadata_theme:
 
 
 odr_design_reload_theme_element:
-    path: /design/displaytemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
+    path: /design/displaytemplate/themeelementreload/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadthemeelement }
     requirements:
-        source_datatype_id: \d+
         theme_element_id: \d+
 
 odr_design_reload_datafield:

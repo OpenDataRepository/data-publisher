@@ -498,7 +498,7 @@ class DatatypeInfoService
                 partial df_cb.{id, username, email, firstName, lastName},
 
                 ro, rom, t, tm,
-                df_rp, df_rpi, df_rpo, df_rpm
+                df_rp, df_rpi, df_rpo, df_rpm, df_rpf
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -534,6 +534,7 @@ class DatatypeInfoService
             LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
             LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
+            LEFT JOIN df_rpm.renderPluginFields AS df_rpf
 
             WHERE
                 dt.grandparent = :grandparent_datatype_id

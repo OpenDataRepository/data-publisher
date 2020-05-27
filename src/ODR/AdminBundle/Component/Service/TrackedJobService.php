@@ -14,15 +14,20 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedError;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Doctrine\ORM\EntityManager;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bridge\Monolog\Logger;
+
 
 class TrackedJobService
 {
@@ -387,7 +392,7 @@ class TrackedJobService
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user              The user to use if a new TrackedJob is to be created
+     * @param ODRUser $user           The user to use if a new TrackedJob is to be created
      * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
      * @param string $target_entity   Which entity this job is operating on
      * @param array $additional_data  Additional data related to the TrackedJob
@@ -570,4 +575,99 @@ class TrackedJobService
         return $rows;
     }
 
+
+    /**
+     * Checks the database for any in-progress jobs, throwing an error if the given entity is
+     * related to an in-progress job.
+     *
+     * @param DataType|DataFields|DataRecord $entity
+     * @param string[] $restricted_jobs
+     * @param string $prefix
+     *
+     * @throws ODRException
+     */
+    public function checkActiveJobs($entity, $restricted_jobs, $prefix)
+    {
+        $query = $this->em->createQuery(
+           'SELECT tj.job_type, tj.target_entity, tj.restrictions
+            FROM ODRAdminBundle:TrackedJob tj
+            WHERE tj.completed IS NULL
+            AND tj.deletedAt IS NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $active_jobs = array();
+        foreach ($results as $result) {
+            $job_type = $result['job_type'];
+            if ( !isset($active_jobs[$job_type]) )
+                $active_jobs[$job_type] = array();
+
+            switch ($job_type) {
+                case 'csv_export':
+                case 'csv_import_validate':
+                case 'csv_import':
+                case 'mass_edit':
+                    // These jobs affect the entire datatype
+                    $datatype_data = explode("_", $result['target_entity']);
+                    $datatype_id = $datatype_data[1];
+                    $active_jobs[$job_type][$datatype_id] = 1;
+                    break;
+
+                case 'migrate':
+                    // These jobs only affect a single datafield out of a datatype
+                    $datatype_data = explode("_", $result['restrictions']);
+                    $datatype_id = $datatype_data[1];
+                    $active_jobs[$job_type][$datatype_id] = array();
+
+                    $datafield_data = explode("_", $result['target_entity']);
+                    $datafield_id = $datafield_data[1];
+                    $active_jobs[$job_type][$datatype_id][$datafield_id] = 1;
+                    break;
+
+                default:
+                    /* Ignore other job types */
+                    break;
+            }
+        }
+
+
+        // ----------------------------------------
+        // Determine if the provided entity conflicts with an in-progress job
+        $grandparent_datatype = null;
+        $datafield = null;
+        if ( $entity instanceof DataType ) {
+            $grandparent_datatype = $entity->getGrandparent();
+        }
+        else if ( $entity instanceof DataFields ) {
+            $datafield = $entity;
+            $grandparent_datatype = $datafield->getDataType()->getGrandparent();
+        }
+        else if ( $entity instanceof DataRecord ) {
+            $grandparent_datatype = $entity->getDataType()->getGrandparent();
+        }
+        else {
+            throw new ODRNotImplementedException("Unrecognized entity");
+        }
+
+        foreach ($restricted_jobs as $num => $job) {
+            if ( isset($active_jobs[$job]) ) {
+                if ( isset($active_jobs[$job][$grandparent_datatype->getId()]) ) {
+                    // There's a job active for this datatype...check whether it only affects
+                    //  a single datafield
+                    $current_jobs = $active_jobs[$job][$grandparent_datatype->getId()];
+                    if ( is_array($current_jobs) && isset($current_jobs[$datafield->getId()]) ) {
+                        // This job affects the current datafield...block it
+                        throw new ODRBadRequestException($prefix.': a "'.$job.'" job is in progress');
+                    }
+                    else {
+                        // The job affects the entire datatype...block to be safe
+                        throw new ODRBadRequestException($prefix.': a "'.$job.'" job is in progress');
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------
+        // If this point is reached, no conflict was found
+    }
 }

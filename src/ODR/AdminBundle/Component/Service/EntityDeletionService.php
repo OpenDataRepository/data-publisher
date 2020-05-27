@@ -48,6 +48,11 @@ class EntityDeletionService
     private $cache_service;
 
     /**
+     * @var DatafieldInfoService
+     */
+    private $dfi_service;
+
+    /**
      * @var DatarecordInfoService
      */
     private $dri_service;
@@ -78,6 +83,11 @@ class EntityDeletionService
     private $search_service;
 
     /**
+     * @var TrackedJobService
+     */
+    private $tj_service;
+
+    /**
      * @var ThemeInfoService
      */
     private $ti_service;
@@ -93,42 +103,48 @@ class EntityDeletionService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatypeInfoService $datatype_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
      * @param SearchCacheService $search_cache_service
      * @param SearchService $search_service
+     * @param TrackedJobService $tracked_job_service
      * @param ThemeInfoService $theme_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatypeInfoService $datatype_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
         SearchCacheService $search_cache_service,
         SearchService $search_service,
+        TrackedJobService $tracked_job_service,
         ThemeInfoService $theme_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatype_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_service = $search_service;
+        $this->tj_service = $tracked_job_service;
         $this->ti_service = $theme_info_service;
         $this->logger = $logger;
     }
 
 
     /**
-     * Deletes a datafield
+     * Deletes a datafield.
      *
      * @param DataFields $datafield
      * @param ODRUser $user
@@ -149,6 +165,18 @@ class EntityDeletionService
             if (!$this->pm_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
             // --------------------
+
+
+            // Check that the datafield isn't being used for something else before deleting it
+            $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $props = $this->dfi_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
+            if ( !$props['can_delete'] )
+                throw new ODRBadRequestException( $props['delete_message'] );
+
+
+            // Also prevent a datafield from being deleted if certain jobs are in progress
+            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
+            $this->tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to delete this datafield");
 
 
             // ----------------------------------------
@@ -282,6 +310,7 @@ class EntityDeletionService
             $properties = array();
 
             // ...external id field
+            // NOTE: external id fields aren't allowed to be deleted, but keep for safety
             if ( !is_null($datatype->getExternalIdField())
                 && $datatype->getExternalIdField()->getId() === $datafield->getId()
             ) {
@@ -430,6 +459,7 @@ class EntityDeletionService
 
 
     /**
+     * Deletes a datarecord.
      * TODO - test this
      * TODO - EditController only needs to delete one at a time, but MassEditController needs multiple?
      *
@@ -454,6 +484,14 @@ class EntityDeletionService
             $is_top_level = true;
             if ($datatype->getId() !== $parent_datarecord->getDataType()->getId())
                 $is_top_level = false;
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            if ( !$this->pm_service->canEditDatarecord($user, $parent_datarecord) )
+                throw new ODRForbiddenException();
+            if ( !$this->pm_service->canDeleteDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
 
 
             // ----------------------------------------
@@ -646,7 +684,11 @@ class EntityDeletionService
                 throw new ODRBadRequestException('Unable to delete a metadata datatype');
 
             // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
-            // TODO - prevent datatype deletion when jobs are in progress?
+
+
+            // Prevent a datatype from being deleted if certain jobs are in progress
+            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
+            $this->tj_service->checkActiveJobs($datatype, $restricted_jobs, "Unable to delete this datatype");
 
 
             // ----------------------------------------

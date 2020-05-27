@@ -374,8 +374,14 @@ class LinkController extends ODRCustomController
             // Ensure this isn't being called on a linked datatype
             $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
             $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
-            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
-                throw new ODRBadRequestException('Unable to link to or unlink from a Datatype inside a Linked Datatype');
+
+            // Want to prevent users from making any changes in this case, but still let them view
+            //  the contents of the modal
+            $prevent_unlinking = false;
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id) {
+//                throw new ODRBadRequestException('Unable to link to or unlink from a Datatype inside a Linked Datatype');
+                $prevent_unlinking = true;
+            }
 
 
             // ----------------------------------------
@@ -521,6 +527,7 @@ class LinkController extends ODRCustomController
                         'linkable_datatypes' => $linkable_datatypes,
 
                         'has_linked_datarecords' => $has_linked_datarecords,
+                        'prevent_unlinking' => $prevent_unlinking,
                     )
                 )
             );

@@ -86,7 +86,7 @@ class ODRGroupController extends ODRCustomController
             // Groups should only be attached to top-level datatypes...child datatypes inherit groups
             //  from their parent
             if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -155,6 +155,10 @@ class ODRGroupController extends ODRCustomController
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -245,6 +249,11 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
 
             // --------------------
             // Determine user privileges
@@ -316,6 +325,10 @@ class ODRGroupController extends ODRCustomController
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to delete, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -448,6 +461,10 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
 
             // --------------------
             // Determine user privileges
@@ -563,6 +580,10 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
 
             // --------------------
             // Determine user privileges
@@ -649,6 +670,10 @@ class ODRGroupController extends ODRCustomController
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -799,11 +824,18 @@ class ODRGroupController extends ODRCustomController
                 JOIN dt.createdBy AS dt_cb
                 JOIN g.createdBy AS g_cb
                 JOIN g.groupMeta AS gm
-                WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps) AND dt.is_master_type = 0
+                WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps)
+                AND dt.is_master_type = 0 AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
-            )->setParameters( array('datatype_ids' => $top_level_datatypes, 'setup_steps' => DataType::STATE_VIEWABLE) );
+            )->setParameters(
+                array(
+                    'datatype_ids' => $top_level_datatypes,
+                    'setup_steps' => DataType::STATE_VIEWABLE
+                )
+            );
             $results = $query->getArrayResult();
+
 
             // For each of the datatypes that the calling user has the 'dt_admin' permission for...
             $datatypes = array();
@@ -922,6 +954,10 @@ class ODRGroupController extends ODRCustomController
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups of their own, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -1092,6 +1128,10 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
+            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1178,6 +1218,10 @@ class ODRGroupController extends ODRCustomController
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups of their own, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -1411,6 +1455,10 @@ class ODRGroupController extends ODRCustomController
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Child datatypes shouldn't have any groups of their own, but make sure nothing happens
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------

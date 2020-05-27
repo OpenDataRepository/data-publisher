@@ -10,7 +10,7 @@
 }) }}
 
     <fieldset>
-        {% if datafield_name is defined %}
+        {% if datafield_name is defined and not is_master_theme %}
             <div class="pure-control-group pure-u-1">
                 <span class="ODRDatafieldName">{{ datafield_name }}</span>
             </div>

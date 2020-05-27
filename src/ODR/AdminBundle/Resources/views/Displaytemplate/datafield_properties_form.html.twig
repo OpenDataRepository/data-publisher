@@ -18,7 +18,7 @@
 }) }}
 
     <fieldset>
-    {% if typename != "Markdown" %}
+        {% if typename != "Markdown" %}
         <div class="">
             <label for="{{ datafield_form.field_name.vars.id }}">
                 {{ datafield_form.field_name.vars.label }}
@@ -26,7 +26,7 @@
             {{ form_errors(datafield_form.field_name) }}
             {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
-    {% endif %}
+        {% endif %}
 
         <div class="">
             <label for="{{ datafield_form.description.vars.id }}">
@@ -35,6 +35,19 @@
             {{ form_errors(datafield_form.description) }}
             {{ form_widget(datafield_form.description, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
+
+{#
+# Render plugin for a datafield isn't set through this form
+        <div class="">
+            <label for="render_plugin_id">
+                Render Plugin
+            </label>
+            <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-23-24"/>
+            <span class="pure-u-1">
+                <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
+            </span>
+        </div>
+#}
 {#
         <div class="">
             <label for="{{ datafield_form.regex_validator.vars.id }}">
@@ -60,25 +73,25 @@
             {{ form_errors(datafield_form.field_type) }}
             <span class="ODRSelectWrap">
                 {% if prevent_fieldtype_change == true %}
-                {{
-                    form_widget(datafield_form.field_type, {
-                        'attr': {
-                            'class': 'required ODRDatafieldType ODRSelect',
-                            'data-error-type': 'inline',
-                            'disabled': 'disabled',
-                            'title': prevent_fieldtype_change_message
-                        }
-                    })
-                }}
+                    {{ form_widget(datafield_form.field_type,
+                        {
+                            'attr': {
+                                'class': 'required ODRDatafieldType ODRSelect',
+                                'data-error-type': 'inline',
+                                'disabled': 'disabled',
+                                'title': prevent_fieldtype_change_message
+                            }
+                        })
+                    }}
                 {% else %}
-                {{
-                    form_widget(datafield_form.field_type, {
-                        'attr': {
-                            'class': 'required ODRDatafieldType ODRSelect',
-                            'data-error-type': 'inline'
-                        }
-                    })
-                }}
+                    {{ form_widget(datafield_form.field_type,
+                        {
+                            'attr': {
+                                'class': 'required ODRDatafieldType ODRSelect',
+                                'data-error-type': 'inline'
+                            }
+                        })
+                    }}
                 {% endif %}
             </span>
 
@@ -120,36 +133,13 @@
         </div>
         {% endif %}
 
-        {% if typename != "Markdown" %}
-            {#
-        <div class="">
-            <label for="render_plugin_id">
-                Render Plugin
-            </label>
-            <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-23-24"/>
-            <span class="pure-u-1">
-                <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
-            </span>
-        </div>
-
-            #}
-        <div class="ODRCheckboxProperty">
-            {{ form_errors(datafield_form.required) }}
-            {{ form_widget(datafield_form.required, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
-            <label for="{{ datafield_form.required.vars.id }}">
-                {{ datafield_form.required.vars.label }}
-            </label>
-        </div>
-        {% endif %}
-
         {% if fieldtype.getcanbeunique == 1 %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.is_unique) }}
-            {% if is_external_id_field == true %}
-                {{
-                    form_widget(datafield_form.is_unique, {
-                        'attr':
-                        {
+            {% if must_be_unique %}
+                {{ form_widget(datafield_form.is_unique,
+                    {
+                        'attr': {
                             'style': 'width:auto',
                             'class': 'ODRFloatingCheckbox',
                             'disabled': 'disabled',
@@ -158,8 +148,8 @@
                     })
                 }}
             {% else %}
-                {{
-                    form_widget(datafield_form.is_unique, {
+                {{ form_widget(datafield_form.is_unique,
+                    {
                         'attr': {
                             'style': 'width:auto',
                             'class': 'ODRFloatingCheckbox'
@@ -167,7 +157,7 @@
                     })
                 }}
             {% endif %}
-            <label for="{{ datafield_form.is_unique.vars.id }}">
+            <label for="{{ datafield_form.is_unique.vars.id }}" {% if must_be_unique %}title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."{% endif %}>
                 {{ datafield_form.is_unique.vars.label }}
                 <span>
                     <a target="_blank"
@@ -183,11 +173,11 @@
         {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
         <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">
-                {% if typename == 'Image' %}
-                    Images per row:&nbsp;
-                {% else %}
-                    Options per row:&nbsp;
-                {% endif %}
+            {% if typename == 'Image' %}
+                Images per row:&nbsp;
+            {% else %}
+                Options per row:&nbsp;
+            {% endif %}
             </label>
             {{ form_errors(datafield_form.children_per_row) }}
             {{ form_widget(datafield_form.children_per_row, { 'attr': {'class': 'ODRDatafieldChildren', 'style': 'width:auto'} }) }}
@@ -218,13 +208,9 @@
             <div class="ODRCheckboxProperty">
                 {{ form_errors(datafield_form.tags_allow_multiple_levels) }}
 
-                <span
-                {% if has_multiple_levels == 1 %}
-                    title="This option can't be changed because the tag structure already has multiple levels"
-                {% endif %}
-                >
+                <span{% if has_tag_hierarchy %} title="This option can't be changed because the tag structure already has multiple levels"{% endif %}>
 
-                {% if has_multiple_levels == 1 %}
+                {% if has_tag_hierarchy %}
                     {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'style': 'width:auto'} }) }}
                 {% else %}
                     {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
@@ -257,13 +243,7 @@
             </label>
             {{ form_errors(datafield_form.searchable) }}
             <span class="ODRSelectWrap">
-            {{ form_widget(datafield_form.searchable,
-                {
-                    'attr': {
-                        'class': 'ODRSelect',
-                    }
-                })
-            }}
+            {{ form_widget(datafield_form.searchable, { 'attr': {'class': 'ODRSelect'} }) }}
             </span>
         </div>
         {% endif %}
@@ -273,19 +253,17 @@
             <label for="{{ datafield_form.allow_multiple_uploads.vars.id }}">
                 {{ datafield_form.allow_multiple_uploads.vars.label }}
             </label>
-            <span
-            {% if has_multiple_uploads == 1 %}
-                title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
-            {% endif %}
-            >
+
+            <span{% if has_multiple_uploads %} title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"{% endif %}>
 
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
-            {% if has_multiple_uploads == 1 %}
+            {% if has_multiple_uploads %}
                 <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
+            {# TODO - warn when changing this would end up changing table layouts?
             {% elseif used_by_table_theme == true %}
-                {# TODO - warn when changing this would end up changing table layouts? #}
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
+            #}
             {% else %}
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
             {% endif %}
@@ -300,9 +278,7 @@
             </span>
 
         </div>
-        {% endif %}
 
-        {% if typename == 'File' %}
         <div class="">
             <label for="{{ datafield_form.shorten_filename.vars.id }}">
                 {{ datafield_form.shorten_filename.vars.label }}
@@ -310,9 +286,7 @@
             {{ form_errors(datafield_form.shorten_filename) }}
             {{ form_widget(datafield_form.shorten_filename, { 'attr': {'style': 'width:auto'} }) }}
         </div>
-        {% endif %}
 
-        {% if typename == 'File' or typename == 'Image' %}
         <div class="">
             <label for="{{ datafield_form.newFilesArePublic.vars.id }}">
                 {{ datafield_form.newFilesArePublic.vars.label }}
@@ -331,7 +305,7 @@
         </div>
 
         <div style="display: none">
-        {{ form_rest(datafield_form) }}
+            {{ form_rest(datafield_form) }}
         </div>
 
     </fieldset>

@@ -1,16 +1,16 @@
 {% spaceless %}
 
-    {{ form_start(datatype_form, {
-        'method': 'POST',
-        'attr': {
-            'id': 'DatatypePropertiesForm_' ~ datatype.id,
-            'class': 'ODRDatatypePropertiesForm pure-form'
-        }
-    }) }}
+{{ form_start(datatype_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'DatatypePropertiesForm_' ~ datatype.id,
+        'class': 'ODRDatatypePropertiesForm pure-form'
+    }
+}) }}
 
-    {% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
+{% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
 
-        <fieldset>
+    <fieldset>
             {% if show_name %}
                 {# TODO Make long name the default and auto-populate short name with the same value #}
                 <div class="pure-control-group">
@@ -53,146 +53,157 @@
                 </div>
             {% endif %}
 
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.newRecordsArePublic.vars.id }}">
-                    {{ datatype_form.newRecordsArePublic.vars.label }}
-                </label>
-                {{ form_errors(datatype_form.newRecordsArePublic) }}
-                {{ form_widget(datatype_form.newRecordsArePublic, { 'attr': {'style': 'width:auto'} }) }}
-            </div>
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.newRecordsArePublic.vars.id }}">
+                {{ datatype_form.newRecordsArePublic.vars.label }}
+            </label>
+            {{ form_errors(datatype_form.newRecordsArePublic) }}
+            {{ form_widget(datatype_form.newRecordsArePublic, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
 
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.externalIdField.vars.id }}">
-                    {{ datatype_form.externalIdField.vars.label }}
-                    <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                             title="The contents of the selected Datafield will be used to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
-                </label>
-                <div class="ODRFieldWrapper">
-                    {{ form_errors(datatype_form.externalIdField) }}
-                    <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.externalIdField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.externalIdField.vars.id }}">
+                {{ datatype_form.externalIdField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The contents of the selected Datafield will be used to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i>
                 </span>
-                </div>
-            </div>
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.nameField.vars.id }}">
-                    {{ datatype_form.nameField.vars.label }}
-                    <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                             title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.{#  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use.#}"></i></span>
-                </label>
-                <div class="ODRFieldWrapper">
-                    {{ form_errors(datatype_form.nameField) }}
-                    <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.nameField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
+            </label>
+
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.externalIdField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.externalIdField,
+                        {
+                            'attr': {
+                                'class': 'pure-u-1 ODRSelect',
+                                'data-error-type': 'inline'
+                            }
+                        })
+                    }}
                 </span>
-                </div>
             </div>
+        </div>
 
-            <div class="pure-control-group">
-                <label for="{{ datatype_form.sortField.vars.id }}">
-                    {{ datatype_form.sortField.vars.label }}
-                    <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                             title="The contents of the selected Datafield will determine the sorting order of the Datarecords of this Datatype."></i></span>
-                </label>
-                <div class="ODRFieldWrapper">
-                    {{ form_errors(datatype_form.sortField) }}
-                    <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.sortField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.nameField.vars.id }}">
+                {{ datatype_form.nameField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places."></i>
                 </span>
-                </div>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.nameField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.nameField,
+                        {
+                            'attr': {
+                                'class': 'pure-u-1 ODRSelect',
+                                'data-error-type': 'inline'
+                            }
+                        })
+                    }}
+                </span>
             </div>
+        </div>
 
-            {% if is_top_level == true %}
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.backgroundImageField.vars.id }}">
-                        {{ datatype_form.backgroundImageField.vars.label }}
-                        <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor"
-                                                 title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield."></i></span>
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        {{ form_errors(datatype_form.backgroundImageField) }}
-                        <span class="ODRSelectWrap">
-                {{ form_widget(datatype_form.backgroundImageField,
-                    {
-                        'attr': {
-                        'class': 'pure-u-1 ODRSelect',
-                        'data-error-type': 'inline'
-                    }
-                    }) }}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.sortField.vars.id }}">
+                {{ datatype_form.sortField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="The contents of the selected Datafield will determine the sorting order of the Datarecords of this Datatype."></i>
                 </span>
-                    </div>
-                </div>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.sortField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.sortField,
+                        {
+                            'attr': {
+                                'class': 'pure-u-1 ODRSelect',
+                                'data-error-type': 'inline'
+                            }
+                        })
+                    }}
+                </span>
+            </div>
+        </div>
 
-                <div class="pure-control-group">
-                    <label for="{{ datatype_form.searchSlug.vars.id }}">
-                        {{ datatype_form.searchSlug.vars.label }}
-                    </label>
-                    <div class="ODRFieldWrapper">
-                        {{ form_errors(datatype_form.searchSlug) }}
-                        <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/' }}</span>
-                        <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'class': '','style': 'width:auto;', 'maxlength': '32'} }) }}</span>
-                    </div>
-                </div>
-            {% endif %}
+        {% if is_top_level == true %}
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.backgroundImageField.vars.id }}">
+                {{ datatype_form.backgroundImageField.vars.label }}
+                <span class="ODRHelp">
+                    <i class="fa fa-lg fa-question-circle Cursor"
+                       title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield."></i>
+                </span>
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.backgroundImageField) }}
+                <span class="ODRSelectWrap">
+                    {{ form_widget(datatype_form.backgroundImageField,
+                        {
+                            'attr': {
+                                'class': 'pure-u-1 ODRSelect',
+                                'data-error-type': 'inline'
+                            }
+                        })
+                    }}
+                </span>
+            </div>
+        </div>
 
-            {% if is_top_level == true and can_view_permissions == true %}
-                <div class="pure-control-group">
-                    <label>
-                        Datatype Permissions
-                    </label>
-                    <span>
-                &nbsp;<a target="_blank" class="address"
-                         href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;"
-                         title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i></a>
+        <div class="pure-control-group">
+            <label for="{{ datatype_form.searchSlug.vars.id }}">
+                {{ datatype_form.searchSlug.vars.label }}
+            </label>
+            <div class="ODRFieldWrapper">
+                {{ form_errors(datatype_form.searchSlug) }}
+                <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/' }}</span>
+                <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'class': '','style': 'width:auto;', 'maxlength': '32'} }) }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_top_level == true %}
+        {# since only datatype admins can get this far, the user always can view permissions #}
+        <div class="pure-control-group">
+            <label>Datatype Permissions</label>
+            <span>&nbsp;
+                <a target="_blank" class="address"
+                   href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;"
+                   title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i>
+                </a>
             </span>
-                </div>
-            {% endif %}
+        </div>
+        {% endif %}
 
-            {# render all hidden fields, and anything else that's necessary #}
-            <div style="display: none">
-                {{ form_rest(datatype_form) }}
-            </div>
+        {# render all hidden fields, and anything else that's necessary #}
+        <div style="display: none">
+            {{ form_rest(datatype_form) }}
+        </div>
 
-        </fieldset>
-    {% endif %}
-    {{ form_end(datatype_form) }}
+    </fieldset>
+{% endif %}
 
-    {% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
-        {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with
-            {
-                'datatree': datatree,
-                'datatree_form': datatree_form,
-                'force_multiple': force_multiple,
-                'affects_sortfield': affects_sortfield
-            }
-        %}
-    {% endif %}
+{{ form_end(datatype_form) }}
 
-    {% if is_top_level == false and theme_datatype != null %}   {# display theme_datatype properties if not a top-level datatype #}
-        {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with
-            {
-                'theme_datatype': theme_datatype,
-                'theme_datatype_form': theme_datatype_form
-            }
-        %}
-    {% endif %}
+{% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
+    {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with {
+        'datatree': datatree,
+        'datatree_form': datatree_form,
+        'force_multiple': force_multiple,
+        'affects_sortfield': affects_sortfield
+    } %}
+{% endif %}
+
+{% if is_top_level == false and theme_datatype != null %}   {# display theme_datatype properties if not a top-level datatype #}
+    {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with {
+        'theme_datatype': theme_datatype,
+        'theme_datatype_form': theme_datatype_form
+    } %}
+{% endif %}
 
 {% endspaceless %}

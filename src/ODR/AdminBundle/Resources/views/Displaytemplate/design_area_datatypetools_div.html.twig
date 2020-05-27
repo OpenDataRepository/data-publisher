@@ -1,34 +1,36 @@
 {% spaceless %}
 
-    {% set datatype_id = datatype.id %}
+{% set datatype_id = datatype.id %}
+{% set datatype_meta = datatype.dataTypeMeta %}
 
-    {# Convert this to JSON Data so we can use it in the toolbox #}
-    <script>
-        if (datatype_properties === undefined) {
-            var datatype_properties = [];
-            // var datatype_properties = {};
-        }
+{# Convert this to JSON Data so we can use it in the toolbox #}
+<script>
+    if (datatype_properties === undefined)
+        var datatype_properties = [];
 
-        datatype_properties[{{ datatype_id }}] = {};
-        datatype_properties[{{ datatype_id }}].is_top_level = {{ is_top_level }};
-        datatype_properties[{{ datatype_id }}].is_link = {{ is_link }};
+    datatype_properties[{{ datatype_id }}] = {};
+    datatype_properties[{{ datatype_id }}].theme_id = {{ theme_id }};
 
-        {% if datatype.dataTypeMeta.publicDate|is_public %}
-        datatype_properties[{{ datatype_id }}].is_public = 1;
-        {% else %}
-        datatype_properties[{{ datatype_id }}].is_public = 0;
-        {% endif %}
+    {# this value is not guaranteed to be true for linked datatypes... #}
+    {% if is_datatype_admin %}
+    datatype_properties[{{ datatype_id }}].is_datatype_admin = true;
+    {% else %}
+    datatype_properties[{{ datatype_id }}].is_datatype_admin = false;
+    {% endif %}
 
-        {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
-        datatype_properties[{{ datatype_id }}].render_plugin_id = {{ datatype.dataTypeMeta.renderPlugin.id }};
-        datatype_properties[{{ datatype_id }}].render_plugin_name = "{{ datatype.dataTypeMeta.renderPlugin.pluginName }}";
-        {% else %}
-        datatype_properties[{{ datatype_id }}].render_plugin_id = 1;
-        datatype_properties[{{ datatype_id }}].render_plugin_name = "Default Render";
-        {% endif %}
+    datatype_properties[{{ datatype_id }}].is_top_level = {{ is_top_level }};
+    datatype_properties[{{ datatype_id }}].is_link = {{ is_link }};
 
-        {#console.log('datatype ' + {{ datatype_id }});#}
-        {#console.log( datatype_properties );#}
-        console.log(datatype_properties[{{ datatype_id }}]);
-    </script>
+    {% if datatype_meta.publicDate|is_public %}
+    datatype_properties[{{ datatype_id }}].is_public = 1;
+    {% else %}
+    datatype_properties[{{ datatype_id }}].is_public = 0;
+    {% endif %}
+
+    datatype_properties[{{ datatype_id }}].render_plugin_id = {{ datatype_meta.renderPlugin.id }};
+    datatype_properties[{{ datatype_id }}].render_plugin_name = "{{ datatype_meta.renderPlugin.pluginName }}";
+    datatype_properties[{{ datatype_id }}].render_plugin_classname = "{{ datatype_meta.renderPlugin.pluginClassName }}";
+
+    {#console.log('datatype ' + {{ datatype_id }}, datatype_properties[{{ datatype_id }}]);#}
+</script>
 {% endspaceless %}
