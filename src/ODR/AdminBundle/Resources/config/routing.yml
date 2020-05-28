@@ -484,6 +484,18 @@ odr_design_get_datafield_properties:
     requirements:
         datafield_id:  \d+
 
+odr_design_get_multi_datafield_properties:
+    path:  /design/displaytemplate/datafieldproperties/get/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getmultiplefieldproperties }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_save_multi_datafield_properties:
+    path:  /design/displaytemplate/datafieldproperties/save/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savemultiplefieldproperties }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }

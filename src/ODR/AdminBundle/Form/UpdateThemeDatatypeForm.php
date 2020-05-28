@@ -14,6 +14,8 @@
 
 namespace ODR\AdminBundle\Form;
 
+// Entities
+use ODR\AdminBundle\Entity\ThemeDataType;
 // ODR
 use ODR\AdminBundle\Form\Type\DatatypeType;
 use ODR\AdminBundle\Form\Type\ThemeElementType;
@@ -38,13 +40,13 @@ class UpdateThemeDatatypeForm extends AbstractType
         $multiple_allowed = $options['multiple_allowed'];
 
         $display_choices = array(
-            'Accordion' => '0',
-            'Tabbed' => '1',
-            'Select Box' => '2',
-            'List' => '3'
+            'Accordion' => ThemeDataType::ACCORDION_HEADER,
+            'Tabbed' => ThemeDataType::TABBED_HEADER,
+            'Select Box' => ThemeDataType::DROPDOWN_HEADER,
+            'List' => ThemeDataType::LIST_HEADER,
         );
         if (!$multiple_allowed)
-            $display_choices['Hide Header'] = 4;
+            $display_choices['Hide Header'] = ThemeDataType::NO_HEADER;
 
         $builder->add(
             'dataType',

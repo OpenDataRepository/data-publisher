@@ -886,9 +886,9 @@ class ODRRenderService
 
 
         // Find the ThemeDatatype entry that contains the child/linked datatype getting reloaded
-        $is_link = 0;          // default to "not linked"
-        $display_type = 1;     // default to "accordion"
-        $multiple_allowed = 1; // default to "multiple allowed"
+        $is_link = 0;
+        $display_type = 0;
+        $multiple_allowed = 0;
 
         $tdt = null;
         foreach ($theme_array[$parent_theme->getId()]['themeElements'] as $num => $te) {

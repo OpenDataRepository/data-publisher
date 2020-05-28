@@ -67,6 +67,7 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class DisplaytemplateController extends ODRCustomController
@@ -2200,7 +2201,7 @@ class DisplaytemplateController extends ODRCustomController
 
     /**
      * Loads/saves a DataType properties Form, and also loads the related Datatree and ThemeDataType
-     * properties forms as well.
+     * properties forms as well when $datatype_id is a child of, or linked to by, $parent_datatype_id
      *
      * @param integer $datatype_id The database id of the Datatype that is being modified
      * @param mixed $parent_datatype_id Either the id of the Datatype of the parent of $datatype_id, or the empty string
@@ -2288,10 +2289,17 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            // Ensure user has permissions to be doing this
+            // Intentionally checking permissions against $grandparent_datatype here...users that aren't
+            //  admins of linked datatypes still need to be able to view the Datatree and ThemeDatatype
+            //  forms that describe the link to the remote datatype
             if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // The dialog to change searchable/public status for multiple datafields at once depends
+            //  on whether the user can make changes to the datatype in question...NOT whatever is
+            //  in $grandparent_datatype
+            $can_open_multi_df_dialog = $pm_service->isDatatypeAdmin($user, $datatype);
 
 
             // If $parent_datatype_id is set, locate the datatree and theme_datatype entities
@@ -2360,7 +2368,14 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_form->handleRequest($request);
 
             if ($datatype_form->isSubmitted()) {
-                // This is a POST request attempting to save changes
+                // This is a POST request attempting to save changes...the user needs to be an
+                //  admin of the datatype they're trying to save to in order to continue
+                // The related Datatree and ThemeDatatype forms are handled by other controller
+                //  actions, and therefore aren't blocked by this
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                    throw new ODRForbiddenException();
+
+
                 // Verify that the submitted data makes sense
 
                 // ----------------------------------------
@@ -2719,6 +2734,7 @@ class DisplaytemplateController extends ODRCustomController
                         'datatype_form' => $datatype_form->createView(),
                         'site_baseurl' => $site_baseurl,
                         'is_top_level' => $is_top_level,
+                        'can_open_multi_df_dialog' => $can_open_multi_df_dialog,
 
                         'datatree' => $datatree,
                         'datatree_form' => $datatree_form,              // not creating view here because form could be legitimately null
@@ -4180,6 +4196,268 @@ if ($debug)
         }
         catch (\Exception $e) {
             $source = 0x9f58b300;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders and returns a form to change the searchable and public status properties for
+     * multiple datafields at the same time.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getmultiplefieldpropertiesAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Ensure that the searchable/public_status values have the correct number of datafields
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
+            $df_array = $datatype_array[$datatype_id]['dataFields'];
+
+            // Generate a csrf token
+            $token_key = 'Form_';
+            foreach ($df_array as $df_id => $df)
+                $token_key .= $df_id.'_';
+            $token_key .= 'Datafields';
+            $token = $token_manager->getToken($token_key)->getValue();
+
+            // Sort the datafields by name so they're easier to locate in the list
+            uasort($df_array, function ($a, $b) {
+                return strcmp($a['dataFieldMeta']['fieldName'], $b['dataFieldMeta']['fieldName']);
+            });
+
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Displaytemplate:multi_datafield_properties_dialog_form.html.twig',
+                    array(
+                        'datafields' => $df_array,
+                        'token' => $token,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0xe7659339;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Validates and saves a form to change the searchable and public status properties for
+     * multiple datafields at the same time.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function savemultiplefieldpropertiesAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Ensure required variables exist
+            $post = $request->request->all();
+            if ( !isset($post['_token']) || !isset($post['searchable']) || !isset($post['public_status']) )
+                throw new ODRBadRequestException();
+
+            foreach ($post['searchable'] as $df_id => $val)
+                $post['searchable'][$df_id] = intval($val);
+            foreach ($post['public_status'] as $df_id => $val)
+                $post['public_status'][$df_id] = intval($val);
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Ensure that all datafields of this datatype are in the post
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
+            $df_array = $datatype_array[$datatype_id]['dataFields'];
+
+            if ( count($post['searchable']) !== count($df_array) || count($post['public_status']) !== count($df_array) )
+                throw new ODRBadRequestException();
+
+            // Ensure that the provided datafields match the datatype
+            foreach ($df_array as $df_id => $df) {
+                // Verify that a datafield entry for both of these properties exist...
+                if ( !isset($post['searchable'][$df_id]) || !isset($post['public_status'][$df_id]) )
+                    throw new ODRBadRequestException();
+
+                // Verify that the public status is a boolean
+                $public_status = $post['public_status'][$df_id];
+                if ( $public_status !== 0 && $public_status !== 1 )
+                    throw new ODRBadRequestException();
+
+                // Verify that the searchable status isn't something silly
+                $searchable = $post['searchable'][$df_id];
+                if ( $searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY )
+                    throw new ODRBadRequestException();
+
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                switch ($typeclass) {
+                    case 'DecimalValue':
+                    case 'IntegerValue':
+                    case 'LongText':
+                    case 'LongVarchar':
+                    case 'MediumVarchar':
+                    case 'ShortVarchar':
+                    case 'Radio':
+                    case 'Tag':
+                        // All of these fieldtypes can have any value for searchable
+                        break;
+
+                    case 'Image':
+                    case 'File':
+                    case 'Boolean':
+                    case 'DatetimeValue':
+                        // General search is meaningless for these fieldtypes, so they can only
+                        //  be searched via advanced search
+                        if ($searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH)
+                            $post['searchable'][$df_id] = DataFields::ADVANCED_SEARCH_ONLY;
+                        break;
+
+                    default:
+                        // No other fieldtypes can be searched
+                        $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
+                        break;
+                }
+            }
+
+            // Verify the csrf token
+            $token_key = 'Form_';
+            foreach ($df_array as $df_id => $df)
+                $token_key .= $df_id.'_';
+            $token_key .= 'Datafields';
+            $token = $token_manager->getToken($token_key)->getValue();
+
+            if ( $token !== $post['_token'] )
+                throw new ODRBadRequestException();
+
+
+            // ----------------------------------------
+            // Now that the form is valid, update all the datafields
+            foreach ($df_array as $df_id => $df) {
+                /** @var DataFields $datafield */
+                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                // Datafield already exists...otherwise it wouldn't be in the cached datatype array,
+                //  and therefore the earlier validation would've failed
+
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+                if ( $post['public_status'][$df_id] === 1 )
+                    $public_date = new \DateTime();
+
+                $properties = array(
+                    'searchable' => $post['searchable'][$df_id],
+                    'publicDate' => $public_date,
+                );
+                $emm_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
+            }
+
+            // Changes made, flush the database
+            $em->flush();
+
+            // Mark the datatype as updated
+            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+
+
+            // ----------------------------------------
+            // Clear relevant cache entries
+            $cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+            $cache_service->delete('cached_search_template_dt_'.$datatype->getId().'_datafields');
+
+            // Due to the possibility of multiple datafields changing their public status, the
+            //  entire childtype may need to get reloaded
+            $reload_child = true;
+
+            $return['d'] = array(
+                'reload_child' => $reload_child
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x96406f68;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

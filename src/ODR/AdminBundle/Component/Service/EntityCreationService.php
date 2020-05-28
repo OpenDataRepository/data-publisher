@@ -1839,7 +1839,7 @@ class EntityCreationService
         $theme_datatype->setThemeElement($theme_element);
         $theme_datatype->setChildTheme($child_theme);
 
-        $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
+        $theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
         $theme_datatype->setHidden(0);
 
         $theme_datatype->setCreatedBy($user);

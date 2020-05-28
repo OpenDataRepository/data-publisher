@@ -13,6 +13,8 @@
 
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
+// Entities
+use ODR\AdminBundle\Entity\DataFields;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Exceptions
@@ -778,7 +780,7 @@ class SearchKeyService
                             $searchable = $df_data['searchable'];
                             $typeclass = $df_data['typeclass'];
 
-                            if ($searchable == '1' || $searchable == '2') {
+                            if ( $searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH ) {
                                 switch ($typeclass) {
                                     case 'Boolean':
                                         // Excluding because a Boolean's value has a different
@@ -1395,7 +1397,7 @@ class SearchKeyService
                         $searchable = $df_data['searchable'];
                         $typeclass = $df_data['typeclass'];
 
-                        if ($searchable == '1' || $searchable == '2') {
+                        if ( $searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH ) {
                             switch ($typeclass) {
                                 case 'Boolean':
                                     // Excluding because a Boolean's value has a different

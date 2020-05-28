@@ -891,8 +891,8 @@ class CloneThemeService
             //  some remote datatype), so just create a new ThemeDatatype entry
             $new_theme_datatype = new ThemeDataType();
 
-            $new_theme_datatype->setDisplayType(0);    // Default to accordion layout
-            $new_theme_datatype->setHidden(0);         // Default to "not-hidden"
+            $new_theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
+            $new_theme_datatype->setHidden(0);    // Default to "not-hidden"
 
             $logger_msg = 'created new';
         }

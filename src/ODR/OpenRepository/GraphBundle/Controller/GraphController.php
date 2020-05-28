@@ -16,6 +16,7 @@
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
 
+use ODR\AdminBundle\Entity\ThemeDataType;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
@@ -153,7 +154,7 @@ class GraphController extends ODRCustomController
                 //  only telling the graph plugin to render/save a graph
                 'is_top_level' => $is_top_level,
                 'is_link' => 0,
-                'display_type' => 0,
+                'display_type' => ThemeDataType::ACCORDION_HEADER,
                 'theme_type' => 'master',
             );
 

@@ -1,0 +1,208 @@
+{% spaceless %}
+
+<!-- Multiple Datafield Properties Edit Dialog Form -->
+<script>
+
+    var multiple_datafield_properties_dialog_wrapper = '<div id="ODRMultiDatafieldPropertiesDialogWrapper" class="ODRHidden"> </div>';
+
+    /**
+     * Opens ODR's modal and loads a form to change searchable/public status for multiple datafields
+     * at the same time.
+     *
+     * @param {number} datatype_id
+     */
+    function openMultipleDatafieldPropertiesDialog(datatype_id) {
+        var modal_options = {
+            title: 'Multiple Datafield Properties Dialog',
+            loading: true,
+            body: multiple_datafield_properties_dialog_wrapper,
+            buttons: [
+                {
+                    id: 'ODRMultipleProperties_save',
+                    text: 'Save'
+                },
+                {
+                    id: 'ODRMultipleProperties_close',
+                    secondary: true,
+                    text: 'Cancel'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadMultipleDatafieldPropertiesDialog(datatype_id);
+
+        // Attach event handlers to the buttons
+        $("#ODRMultipleProperties_save").unbind('click').click(function() {
+            saveMultipleDatafieldPropertiesDialog(datatype_id);
+        });
+        $("#ODRMultipleProperties_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
+    }
+
+    /**
+     * loads a form to change searchable/public status for multiple datafields at the same time.
+     *
+     * @param {number} datatype_id
+     */
+    function loadMultipleDatafieldPropertiesDialog(datatype_id) {
+
+        var url = '{{ path('odr_design_get_multi_datafield_properties', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += datatype_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRMultiDatafieldPropertiesDialogWrapper").html( data.d.html );
+
+                initMultiDatafieldPropertiesDialog();
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('250', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRMultiDatafieldPropertiesDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves a form to change searchable/public status for multiple datafields at the same time.
+     *
+     * @param {number} datatype_id
+     */
+    function saveMultipleDatafieldPropertiesDialog(datatype_id) {
+
+        var url = '{{ path('odr_design_save_multi_datafield_properties', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += datatype_id;
+
+        var post_data = $("#ODRMultipleDatafieldPropertiesForm").serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            data: post_data,
+            dataType: "json",
+            success: function(data) {
+                // Multiple datafields could have had their public status changed...
+                if ( data.d.reload_child )
+                    ReloadChild(datatype_id);
+
+                // Don't need this open anymore
+                closeODRRemodal();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Attaches click handlers to the form buttons.
+     */
+    function initMultiDatafieldPropertiesDialog() {
+        $(".ODRMultiDatafield_public").unbind('click').click(function () {
+            var image = $(this).children('i').first();
+            var span = $(this).children('span').first();
+            var df_id = $(this).attr('rel');
+            var input = $("#ODRMultiDatafield_" + df_id + "_publicStatus");
+
+            var is_public = false;
+            if ( $(image).hasClass('ODRActiveIcon') )
+                is_public = true;
+
+            if ( is_public ) {
+                $(image).removeClass('ODRActiveIcon');
+                $(span).html('Not Public');
+                $(input).val(0);
+            }
+            else {
+                $(image).addClass('ODRActiveIcon');
+                $(span).html('Public');
+                $(input).val(1);
+            }
+        });
+
+        $("#ODRMultiDatafield_all_public").unbind('click').click(function () {
+            $(".ODRMultiDatafield_public").each(function() {
+                var is_public = false;
+                if ( $(this).children('i').first().hasClass('ODRActiveIcon') )
+                    is_public = true;
+
+                if ( !is_public )
+                    $(this).trigger('click');
+            });
+        });
+        $("#ODRMultiDatafield_all_nonpublic").unbind('click').click(function () {
+            $(".ODRMultiDatafield_public").each(function() {
+                var is_public = false;
+                if ( $(this).children('i').first().hasClass('ODRActiveIcon') )
+                    is_public = true;
+
+                if ( is_public )
+                    $(this).trigger('click');
+            });
+        });
+
+        $("#ODRMultiDatafield_all_searchable").unbind('click').click(function () {
+            $(".ODRMultiDatafield_searchable").each(function() {
+                var selection = $(this).children('option:selected').val();
+                if ( selection == 0 )
+                    $(this).val(2);
+            });
+        });
+        $("#ODRMultiDatafield_all_nonsearchable").unbind('click').click(function () {
+            $(".ODRMultiDatafield_searchable").each(function() {
+                var selection = $(this).children('option:selected').val();
+                if ( selection != 0 )
+                    $(this).val(0);
+            });
+        });
+    }
+</script>
+
+<!-- End of Multiple Datafield Properties Edit Dialog Form -->
+
+{% endspaceless %}

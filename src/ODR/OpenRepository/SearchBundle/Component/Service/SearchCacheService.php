@@ -51,9 +51,9 @@ class SearchCacheService
     /**
      * SearchCacheService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param CacheService $cacheService
-     * @param SearchService $searchService
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param SearchService $search_service
      * @param Logger $logger
      */
     public function __construct(

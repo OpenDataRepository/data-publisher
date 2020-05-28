@@ -22,7 +22,7 @@
                         {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'pure-u-1 required ODRDatasetName', 'data-error-type': 'inline' } }) }}
                     </div>
                 </div>
-            {% else  %}
+            {% else %}
                 <div class="pure-control-group">
                     <label class="ODRFieldLabel" for="{{ datatype_form.long_name.vars.id }}">
                         {{ datatype_form.long_name.vars.label }}
@@ -167,19 +167,6 @@
         </div>
         {% endif %}
 
-        {% if is_top_level == true %}
-        {# since only datatype admins can get this far, the user always can view permissions #}
-        <div class="pure-control-group">
-            <label>Datatype Permissions</label>
-            <span>&nbsp;
-                <a target="_blank" class="address"
-                   href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;"
-                   title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i>
-                </a>
-            </span>
-        </div>
-        {% endif %}
-
         {# render all hidden fields, and anything else that's necessary #}
         <div style="display: none">
             {{ form_rest(datatype_form) }}
@@ -189,6 +176,33 @@
 {% endif %}
 
 {{ form_end(datatype_form) }}
+
+<div style="margin:5px;">
+{% if is_top_level == true %}
+    {# since only datatype admins can get this far, the user always can view permissions #}
+    <div style="margin:5px;">
+        <label>Datatype Permissions</label>
+        <span>&nbsp;
+            <a target="_blank" class="address"
+               href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;"
+               title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i>
+            </a>
+        </span>
+    </div>
+{% endif %}
+
+{% if can_open_multi_df_dialog %}
+    <div style="margin:5px;">
+        <label>Datafield Properties</label>
+        <span>&nbsp;
+            <a target="_blank" class="address" style="color:black;"
+               onclick="openMultipleDatafieldPropertiesDialog({{ datatype.id }});"
+               title="Manage Datafield properties for this Datatype..."><i class="fa fa-cog fa-lg"></i>
+            </a>
+        </span>
+    </div>
+{% endif %}
+</div>
 
 {% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
     {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with {

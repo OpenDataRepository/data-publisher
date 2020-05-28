@@ -988,7 +988,7 @@ class DefaultController extends Controller
 
 
             $searchable = $datafield->getSearchable();
-            if ($searchable === 0 || $searchable === 1) {
+            if ( $searchable === DataFields::NOT_SEARCHED || $searchable === DataFields::GENERAL_SEARCH ) {
                 // Don't attempt to re-render the datafield if it's either "not searchable" or
                 //  "general search only"
                 $return['d'] = array(
