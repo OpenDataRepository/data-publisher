@@ -1,9 +1,12 @@
 {% spaceless %}
 
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
+{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
     <span id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
         <span rel="{{ datatype.id }}">
             {% set class_str = "tooltip fa fa-globe Cursor" %}

@@ -1,5 +1,10 @@
 {% spaceless %}
 
+{% set NOT_SEARCHED = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHED') %}
+{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
+{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
+{% set ADVANCED_SEARCH_ONLY = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH_ONLY') %}
+
 <div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
     <div class="pure-u-1">
         <button id="ODRMultiDatafield_all_public" class="pure-button">Make all fields Public</button>
@@ -29,6 +34,7 @@
                 {% for df_id, df in datafields %}
                     {% set datafield_meta = df.dataFieldMeta %}
                     {% set typeclass = datafield_meta.fieldType.typeClass %}
+                    {% set searchable = datafield_meta.searchable %}
 
                     {% if typeclass != "Markdown" %}
                     <tr>
@@ -46,13 +52,13 @@
                         </td>
                         <td>
                             <select class="ODRMultiDatafield_searchable" name="searchable[{{ df_id }}]" {% if typeclass == "Markdown" %}disabled title="Markdown fields can't be searched"{% endif %}>
-                                <option value="0" {% if datafield_meta.searchable == 0 %}selected{% endif %}>No</option>
+                                <option value="{{ NOT_SEARCHED }}" {% if searchable == NOT_SEARCHED %}selected{% endif %}>No</option>
                                 {% if typeclass != 'Image' and typeclass != 'File' and typeclass != 'Boolean' and typeclass != 'DatetimeValue' %}
                                     {# These typeclasses don't have a meaningful "general" search #}
-                                <option value="1" {% if datafield_meta.searchable == 1 %}selected{% endif %}>General Only</option>
+                                <option value="{{ GENERAL_SEARCH }}" {% if searchable == GENERAL_SEARCH %}selected{% endif %}>General Only</option>
                                 {% endif %}
-                                <option value="2" {% if datafield_meta.searchable == 2 %}selected{% endif %}>Advanced</option>
-                                <option value="3" {% if datafield_meta.searchable == 3 %}selected{% endif %}>Advanced Only</option>
+                                <option value="{{ ADVANCED_SEARCH }}" {% if searchable == ADVANCED_SEARCH %}selected{% endif %}>Advanced</option>
+                                <option value="{{ ADVANCED_SEARCH_ONLY }}" {% if searchable == ADVANCED_SEARCH_ONLY %}selected{% endif %}>Advanced Only</option>
                             </select>
                         </td>
                     </tr>

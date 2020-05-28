@@ -1,5 +1,9 @@
 {% spaceless %}
 
+{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
+{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
+{% set ADVANCED_SEARCH_ONLY = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH_ONLY') %}
+
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[target_datatype.id] is defined and datatype_permissions[target_datatype.id]['dt_admin'] is defined %}
     {% set is_datatype_admin = true %}
@@ -10,7 +14,7 @@
 {% set can_use_general_search = false %}
 {% for df_id, datafield in datatype['dataFields'] %}
     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-    {% if searchable == 1 or searchable == 2 %}
+    {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
         {% set can_use_general_search = true %}
     {% endif %}
 {% endfor %}
@@ -94,7 +98,7 @@
                     <div class="ODRAdvSearch_default">
                         {% for datafield in datatype['dataFields'] %}
                             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                            {% if searchable == 2 or searchable == 3 %}
+                            {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                                 <div class="ODRAdvSearch_datafield pure-u-1">
                                     {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                         'search_params': search_params,
@@ -125,7 +129,7 @@
                     {% set can_search_child_datatype = false %}
                     {% for datafield in child_datatype['dataFields'] %}
                         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                        {% if searchable == 2 or searchable == 3 %}
+                        {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                             {% set can_search_child_datatype = true %}
                         {% endif %}
                     {% endfor %}
@@ -139,7 +143,7 @@
                             <div class="ODRAdvSearch_content pure-u-1">
                                 {% for datafield in child_datatype['dataFields'] %}
                                     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                    {% if searchable == 2 or searchable == 3 %}
+                                    {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                                         <div class="ODRAdvSearch_datafield pure-u-1">
                                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                                 'search_params': search_params,
@@ -172,7 +176,7 @@
                     {% set can_search_linked_datatype = false %}
                     {% for datafield in linked_datatype['dataFields'] %}
                         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                        {% if searchable == 2 or searchable == 3 %}
+                        {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                             {% set can_search_linked_datatype = true %}
                         {% endif %}
                     {% endfor %}
@@ -186,7 +190,7 @@
                             <div class="ODRAdvSearch_content pure-u-1">
                                 {% for datafield in linked_datatype['dataFields'] %}
                                     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                    {% if searchable == 2 or searchable == 3 %}
+                                    {% if searchable == ADVANCED_SEARCH or searchable == ADVANCED_SEARCH_ONLY %}
                                         <div class="ODRAdvSearch_datafield pure-u-1">
                                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                                 'search_params': search_params,

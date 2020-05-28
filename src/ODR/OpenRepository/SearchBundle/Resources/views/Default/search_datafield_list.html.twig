@@ -1,11 +1,14 @@
 {% spaceless %}
 
+{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
+{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
+
 {% set datatype = datatype_array[target_datatype.id] %}
 
 {% set can_search_target_datatype = false %}
 {% for datafield in datatype['dataFields'] %}
     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-    {% if searchable == 1 or searchable == 2 %}
+    {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
         {% set can_search_target_datatype = true %}
     {% endif %}
 {% endfor %}
@@ -19,7 +22,7 @@
 
         {% for datafield in datatype['dataFields'] %}
             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-            {% if searchable == 1 or searchable == 2 %}
+            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
                 <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
             {% endif %}
         {% endfor %}
@@ -33,7 +36,7 @@
         {% set can_search_child_datatype = false %}
         {% for datafield in child_datatype['dataFields']  %}
             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-            {% if searchable == 1 or searchable == 2 %}
+            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
                 {% set can_search_child_datatype = true %}
             {% endif %}
         {% endfor %}
@@ -43,9 +46,9 @@
 
             {% for datafield in child_datatype['dataFields']  %}
                 {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                    {% if searchable == 1 or searchable == 2 %}
-                        <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
-                    {% endif %}
+                {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
+                    <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
+                {% endif %}
             {% endfor %}
         {% endif %}
 

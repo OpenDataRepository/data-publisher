@@ -1,5 +1,8 @@
 {% spaceless %}
 
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -59,7 +62,7 @@ is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
 --------------------</br>
 #}
 
-{% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
+{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
     {% if not datarecord_is_fake %}
     <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
         {% if is_link == 1 %}
@@ -101,7 +104,7 @@ is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
         {% endif %}
     </div>
     {% else %}    {# datarecord_is_fake == true #}
-        {% if display_type == 2 %}    {# dropdown display type #}
+        {% if display_type == DROPDOWN_HEADER %}
         <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
             <span>
                 <i
