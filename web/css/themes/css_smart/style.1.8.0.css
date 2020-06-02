@@ -1300,14 +1300,6 @@ h3.ODRFieldSelected .ODRSortHandle {
     left: -10px;
 }
 
-#ThemeDesignForm .ODRRadioOptionName {
-    width: 160px;
-}
-
-#ThemeDesignForm .ODRDeleteRadioOption {
-    margin-left: 12px;
-}
-
 #ThemeDesignForm .ODRFieldWrapper {
     margin-left: 0;
 }
@@ -1397,18 +1389,6 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 #ThemeDesignArea .ODRDataField select {
     margin-left: 6px !important;
     width: 90%;
-}
-
-.ODRAddRadioOption {
-    margin-left: 6px !important;
-}
-
-.ODRRadioOptionListWrapper {
-    max-height: 590px;
-    overflow: auto;
-    margin-bottom: 4px;
-    position: relative;
-
 }
 
 #ODRDatatypeToolsBlock a {
@@ -1518,16 +1498,11 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     background-color: rgba(111,165,199, 0.6) !important;
 }
 
-.ODRAddRadioOptionList {
-    margin-left: 10px;
-}
-
 .ODRRadioOptionListImport td {
     width: 100%;
 }
 .ODRRadioOptionListImport textarea {
-    min-width: 250px;
-    min-height: 300px;
+    height: 500px;
 }
 
 #odr_tag_design_modal {

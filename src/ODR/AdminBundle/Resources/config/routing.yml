@@ -539,58 +539,6 @@ odr_design_copy_datafield:
         theme_element_id:  \d+
         datafield_id:  \d+
 
-odr_design_get_radio_options:
-    path:  /design/displaytemplate/getradiooptions/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:getradiooptions }
-    requirements:
-        datafield_id: \d+
-
-odr_design_save_radio_option_name:
-    path:  /design/displaytemplate/saveradiooptionname/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionname }
-    methods: [ POST ]
-    requirements:
-        radio_option_id: \d+
-
-odr_design_save_radio_option_order:
-    path:  /design/displaytemplate/saveradiooptionorder/{datafield_id}/{alphabetical_sort}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionorder }
-    methods: [ POST ]
-    requirements:
-        datafield_id: \d+
-        alphabetical_sort: 0|1
-
-odr_design_save_radio_option_list:
-    path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:saveradiooptionlist }
-    methods: [ POST ]
-    requirements:
-        datafield_id:  \d+
-
-odr_design_add_radio_option:
-    path:  /design/displaytemplate/addradiooption/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooption }
-    requirements:
-        datafield_id:  \d+
-
-odr_design_add_radio_option_from_list:
-    path:  /design/displaytemplate/addradiooptionfromlist/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooptionfromlist }
-    requirements:
-        datafield_id:  \d+
-
-odr_design_default_radio_option:
-    path:  /design/displaytemplate/defaultradiooption/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:defaultradiooption }
-    requirements:
-        radio_option_id:  \d+
-
-odr_design_delete_radio_option:
-    path:  /design/displaytemplate/deleteradiooption/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
-    requirements:
-        radio_option_id:  \d+
-
 odr_design_public_datatype:
     path:  /design/displaytemplate/publicdatatype/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
@@ -770,6 +718,55 @@ odr_check_fake_record_field_uniqueness:
     methods: [ POST ]
     requirements:
         datafield_id: \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Radio Options Controller
+odr_design_get_radio_options:
+    path:  /design/displaytemplate/getradiooptions/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:getradiooptionlist }
+    requirements:
+        datafield_id: \d+
+
+odr_design_add_radio_option:
+    path:  /design/displaytemplate/addradiooption/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:addradiooption }
+    requirements:
+        datafield_id:  \d+
+
+odr_design_delete_radio_option:
+    path:  /design/displaytemplate/deleteradiooption/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:deleteradiooption }
+    requirements:
+        radio_option_id:  \d+
+
+odr_design_save_radio_option_name:
+    path:  /design/displaytemplate/saveradiooptionname/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:saveradiooptionname }
+    methods: [ POST ]
+    requirements:
+        radio_option_id: \d+
+
+odr_design_default_radio_option:
+    path:  /design/displaytemplate/defaultradiooption/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:defaultradiooption }
+    requirements:
+        radio_option_id:  \d+
+
+odr_design_save_radio_option_order:
+    path:  /design/displaytemplate/saveradiooptionorder/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:saveradiooptionorder }
+    methods: [ POST ]
+    requirements:
+        datafield_id: \d+
+
+odr_design_save_radio_option_list:
+    path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:saveradiooptionlist }
+    methods: [ POST ]
+    requirements:
+        datafield_id:  \d+
 
 #-----------------------------------------
 

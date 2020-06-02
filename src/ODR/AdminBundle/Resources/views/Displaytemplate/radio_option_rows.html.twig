@@ -1,0 +1,46 @@
+{% spaceless %}
+
+{% set sort_by_name = datafield.dataFieldMeta.radio_option_name_sort %}
+
+{% for display_order, ro in radio_options %}
+    {% set ro_meta = ro.radioOptionMeta %}
+
+    <div id="radio_option_{{ ro.id }}" class="ODRRadioOption_div">
+
+        {% if sort_by_name == false %}
+            <span class="ODRRadioOptionAnchor"><i class="fa fa-arrows Pointer"></i></span>
+        {% endif %}
+
+        <span class="ODRDeleteRadioOption" rel="{{ ro.id }}"><i class="fa fa-trash Pointer"></i></span>
+
+        <input id="radio_option_{{ ro.id }}_name"
+               class="ODRRadioOptionName"
+               type="text"
+               name="option_name"
+               value="{{ ro_meta.optionName }}"
+               data-old-value="{{ ro_meta.optionName }}"
+               size="100"
+               maxlength="255"
+               rel="{{ ro.id }}"
+        />
+
+        <span title="Option is selected by default when a new Record is created">
+            <input class="ODRDefaultRadioOption"
+                   rel="{{ ro.id }}"
+                   type="checkbox"
+               {% if ro_meta.isDefault %}
+                   checked
+               {% endif %}
+            />
+            &nbsp;Default?
+        </span>
+
+        <span class="ODRInputError">
+            &nbsp;&nbsp;<i class="fa fa-warning"></i>
+            <span>Duplicate Option name</span>
+        </span>
+
+    </div>
+{% endfor %}
+
+{% endspaceless %}

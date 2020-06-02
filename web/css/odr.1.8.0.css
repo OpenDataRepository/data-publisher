@@ -3799,6 +3799,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 
+/* Radio Option Modal CSS */
+.ODRRadioOptionWrapper_design {
+    padding-left: 15px;
+    text-align: left;
+    color: #555;
+}
+.ODRDeleteRadioOption, .ODRRadioOptionAnchor, .ODRDefaultRadioOption {
+    min-width: 22px;
+    display: inline-block;
+}
+
 /* Base Tag CSS */
 .ODRTagWrapper li {
     list-style-type: none;

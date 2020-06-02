@@ -807,6 +807,8 @@ class SortService
      *
      * @param ODRUser $user
      * @param Datafields $datafield
+     *
+     * @return bool
      */
     public function sortRadioOptionsByName($user, $datafield)
     {
@@ -852,6 +854,8 @@ class SortService
         // Flush now that all changes have been made
         if ($changes_made)
             $this->em->flush();
+
+        return $changes_made;
     }
 
 

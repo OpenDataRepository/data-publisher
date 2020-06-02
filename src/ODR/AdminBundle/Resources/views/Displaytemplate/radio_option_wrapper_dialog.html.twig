@@ -1,0 +1,95 @@
+{% spaceless %}
+
+<!-- Radio Option Edit Dialog Form -->
+
+<script>
+
+    var radio_option_edit_body = '<div id="ODRRadioOptionEditDialogWrapper"> </div>';
+
+    /**
+     * Opens ODR's modal to create/import/edit/move Radio Options in the given datafield.
+     *
+     * @param {number} datafield_id
+     */
+    function openRadioOptionEditDialog(datafield_id) {
+        // open dialog
+        modal_options = {
+            title: 'Radio Option Design',
+            loading: true,
+            body: radio_option_edit_body,
+            buttons: [
+                {
+                    id: 'ODRRadioOptionEdit_close',
+                    text: 'Close'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadRadioOptionEditDialog(datafield_id);
+
+        // Attach an event handler to the close button
+        $("#ODRRadioOptionEdit_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
+    }
+
+    /**
+     * Loads the contents of ODR's modal to create/import/edit/move Radio Options in the given datafield.
+     *
+     * @param {number} datafield_id
+     * @param {number} [radio_option_id]
+     */
+    function loadRadioOptionEditDialog(datafield_id, radio_option_id = undefined) {
+
+        $(".ODRRemodalLoading").show();
+        $("#ODRRadioOptionEditDialogWrapper").hide().html("");
+
+        var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRRadioOptionEditDialogWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRRadioOptionEditDialogWrapper").show();
+
+                    resetRemodalInnerHeight();
+
+                    if ( radio_option_id !== undefined )
+                        $("#radio_option_" + radio_option_id).effect("highlight", {}, 2000);
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+<!-- End of Radio Option Edit Dialog Form -->
+
+{% endspaceless %}
