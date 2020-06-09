@@ -121,30 +121,61 @@ class DefaultController extends Controller
                 }
             }
 
+
+            // ----------------------------------------
             // Now that a search slug is guaranteed to exist, locate the desired datatype
+
+            /** @var DataType $target_datatype */
+            $target_datatype = null;
+
             /** @var DataTypeMeta $meta_entry */
-            $meta_entry = $em
-                ->getRepository('ODRAdminBundle:DataTypeMeta')
-                ->findOneBy(
+            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+                array(
+                    'searchSlug' => $search_slug
+                )
+            );
+            if ( is_null($meta_entry) ) {
+                // Couldn't find a datatypeMeta entry with that search slug, so check whether the
+                //  search slug is actually a database uuid instead
+                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                     array(
-                        'searchSlug' => $search_slug
+                        'unique_id' => $search_slug
                     )
                 );
-            if ($meta_entry == null)	
-                throw new ODRNotFoundException('Datatype');
 
-            // Check if this is a database properties database
-            if($meta_entry->getDataType()->getMetadataFor() != null) {
-                $target_datatype = $meta_entry->getDataType()->getMetadataFor();
+                if ( is_null($target_datatype) ) {
+                    // $search_slug is neither a search slug nor a database uuid...give up
+                    throw new ODRNotFoundException('Datatype');
+                }
+                else {
+                    // Redirect so the page uses the search slug instead of the uuid
+                    return $this->redirectToRoute(
+                        'odr_search',
+                        array(
+                            'search_slug' => $target_datatype->getSearchSlug()
+                        )
+                    );
+                }
             }
             else {
+                // Found a matching datatypeMeta entry
                 $target_datatype = $meta_entry->getDataType();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
             }
 
-            if ($target_datatype == null)
-                throw new ODRNotFoundException('Datatype');
+            // If this is a metadata datatype...
+            if ( !is_null($target_datatype->getMetadataFor()) ) {
+                // ...only want to run searches on "real" datatypes
+                $target_datatype = $target_datatype->getMetadataFor();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+
+                // ...pretty sure redirecting to the "real" datatype is undesirable here
+            }
 
 
+            // ----------------------------------------
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
             if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {

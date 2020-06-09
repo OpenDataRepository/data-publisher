@@ -1701,7 +1701,6 @@ class DisplaytemplateController extends ODRCustomController
                         UpdateThemeDatatypeForm::class,
                         $theme_datatype,
                         array(
-                            'is_master_theme' => true,      // this is only called from a master theme
                             'multiple_allowed' => $datatree->getMultipleAllowed(),
                         )
                     )->createView();

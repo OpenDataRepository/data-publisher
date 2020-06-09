@@ -301,7 +301,7 @@ class PlugExtension extends \Twig_Extension
 
                     // Note: Display mode won't pass this check if the child datatype doesn't have any child/linked datarecords for this datatype
                     //  Edit mode will apparently always pass this check
-                    if ( $tdt['hidden'] == 0 && isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
+                    if ( isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
 
                         $child_datatype_id = $tdt['dataType']['id'];
 

@@ -1,23 +1,16 @@
 {% spaceless %}
 
-<span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools ODRHidden">
-    {#<i id="ODRDatatype_{{ datatype.id }}_properties" class="Pointer tooltip fa fa-info-circle ODRDatatypeProperties" title="DataType Properties" rel="{{ datatype.id }}"></i>#}
+{% set datatype_id = datatype.id %}
 
-    {# fake a form so it looks nicer when theme_ajax.html.twig copies this to the left side of the screen #}
-    <form class="pure-form">
-        <fieldset>
-            <div class="pure-control-group pure-u-1">
-                <span class="ODRDatafieldName">
-                    {{ datatype.dataTypeMeta.shortName }}
-                </span>
-            </div>
-            <div class="pure-control-group pure-u-1">
-{#            {% if is_link == 0 %}#}
-                <i id="ODRDatatype_{{ datatype.id }}_addTE" class="Pointer tooltip fa fa-edit ODRAddThemeElement" title="Add Group Box" rel="{{ theme_id }}"></i>
-{#            {% endif %}#}
-            </div>
-        </fieldset>
-    </form>
-</span>
+{# Convert this to JSON Data so we can use it in the toolbox #}
+<script>
+    if (datatype_properties === undefined)
+        var datatype_properties = [];
+
+    datatype_properties[{{ datatype_id }}] = {};
+    datatype_properties[{{ datatype_id }}].theme_id = {{ theme_id }};
+
+    {#console.log('datatype ' + {{ datatype_id }}, datatype_properties[{{ datatype_id }}]);#}
+</script>
 
 {% endspaceless %}

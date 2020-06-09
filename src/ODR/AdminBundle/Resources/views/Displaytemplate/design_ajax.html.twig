@@ -118,8 +118,8 @@
                     </div>
                     <div class="pure-u-1"></div>
                     <div class="pure-u-24-24"><h3 class="ODRHeader">Element Settings</h3></div>
-                    <div id="ThemeDesignForm">
-                    </div>
+                    <div id="ThemeDesignForm"></div>
+                    <div id="ThemeDatafieldDesignForm" class="ODRHidden"></div>
                 </div>
             </div>
         </div>
@@ -203,64 +203,92 @@
         $.jGrowl('SAVED');
     }
 
-    // TODO - test this?
-    function SubmitThemeDesignForm() {
-        var tdf = jQuery("#ThemeDesignForm form");
-        jQuery.ajax({
-            type: "POST",
-            url: tdf.attr('action'),
-            data: tdf.serialize(),
-            dataType: 'json',
-            success: function(data) {
-                console.log('SubmitThemeDesignForm() success:', data);
+    /**
+     * Loads the properties form for the given theme_element.
+     *
+     * @param {number} theme_element_id
+     */
+    function LoadThemeElementForm(theme_element_id) {
+        var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
+        url = url.substr(0, url.length-1);
+        url += theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                $("#ThemeDesignForm").html(data.d);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
             }
         });
     }
 
-    function LoadThemeElementForm(theme_element_id) {
-        var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
-        url = url.substr(0, url.length-1);
-        jQuery.getJSON(
-            url + theme_element_id,
-            function(data) {
-                jQuery("#ThemeDesignForm").html(data.d);
-                // console.log('LoadThemeElementForm()', data);
-            }
-        )
-    }
+    /**
+     * Loads the properties form for the given theme_datafield.
+     *
+     * @param {number} theme_element_id
+     * @param {number} datafield_id
+     */
+    function LoadThemeDatafieldForm(theme_element_id, datafield_id) {
+        // console.log ('LoadThemeDatafieldForm() called with datafield: ' + datafield_id + ' theme_element: ' + theme_element_id);
 
-    function LoadDatafieldForm(theme_element_id, datafield_id) {
+        // Delay the loading of this themeDatafield entry until after any call to SaveDatafieldOrder()
+        //  is completed
+        var key = datafield_id + '_' + theme_element_id;
+        if ( load_themeDatafield_delay[key] !== undefined && load_themeDatafield_delay[key] !== null ) {
+            // console.log('LoadThemeDatafieldForm() delay');
+            setTimeout(function() {
+                LoadThemeDatafieldForm(theme_element_id, datafield_id)
+            }, 500);
+            return;
+        }
+
         var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
         url = url.substr(0, url.length-3);
-        jQuery.getJSON(
-            url + theme_element_id + "/" + datafield_id,
-            function(data) {
-                jQuery("#ThemeDesignForm").html(data.d);
-                var update_tdf_form_hidden = jQuery("#UpdateThemeDatafieldForm_hidden");
-                update_tdf_form_hidden.unbind('change');
-                update_tdf_form_hidden.change(function() {
-                    var datafield_id = jQuery("#UpdateThemeDatafieldForm_dataField").val();
-                    if(update_tdf_form_hidden.find(":selected").val() === 1) {
-                        if(jQuery("#ODRThemeShowHidden").is(":checked")) {
-                            jQuery("#Field_" + datafield_id).addClass("ODRThemeVisibleHiddenElement")
-                        }
-                        else {
-                            jQuery("#Field_" + datafield_id).addClass("ODRThemeHiddenElement")
-                        }
-                    }
-                    else {
-                        jQuery("#Field_" + datafield_id)
-                            .removeClass("ODRThemeVisibleHiddenElement")
-                            .removeClass("ODRThemeHiddenElement")
-                    }
-                    // Submit State Change
-                    SubmitThemeDesignForm()
-                });
+        url += theme_element_id + "/" + datafield_id
 
-                // Setup Radio Options
-                console.log('loading datafield options');
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                $("#ThemeDatafieldDesignForm").html(data.d);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
             }
-        )
+        });
     }
 
     function clearAllFields(reset_opacity) {
@@ -268,13 +296,11 @@
         if(reset_opacity === undefined)
             reset_opacity = true;
 
-        console.log('Clear all fields');
+        // console.log('Clear all fields');
         // Remove Existing Selectors and Highlights
-        $(".ODRFieldSelected")
-            .removeClass('ODRFieldSelected')
-            .each(function(elem) {
-                clearResizeable(elem);
-            });
+        $(".ODRFieldSelected").removeClass('ODRFieldSelected').each(function(elem) {
+            clearResizeable(elem);
+        });
 
         $(".ODRDragHandle").remove();
         $(".ODRSortHandle").remove();
@@ -327,14 +353,14 @@
             $(elem).hasClass('ODRDataField')  // Data fields
             || $(elem).parent().hasClass('ODRDataType')  // Child or linked data types
         ) {
-            console.log('datafield selected');
+            // console.log('datafield selected');
             // Set opacity to this TED to 1
             clearAllFields(false);
             var isChildOrLink = true;
 
             top_level_teds.each(function() {
                 if($(this).attr('id') === $(elem).parent().parent().attr('id')) {
-                    console.log('datafield not in child or link.');
+                    // console.log('datafield not in child or link.');
                     isChildOrLink = false;
                 }
             });
@@ -348,13 +374,13 @@
                     top_level_teds.each(function () {
                         if ($(this).attr('id') === parent_element.attr('id')) {
                             actual_parent = parent_element;
-                            console.log('actual_parent id', actual_parent.attr('id'));
+                            // console.log('actual_parent id', actual_parent.attr('id'));
                         }
                     });
                 });
 
                 if(actual_parent !== null) {
-                    console.log('fading teds...');
+                    // console.log('fading teds...');
                     top_level_teds.each(function() {
                         if ($(this).attr('id') !== actual_parent.attr('id')) {
                             $(this).fadeTo(200, '0.25');
@@ -364,13 +390,13 @@
                     actual_parent.fadeTo(200, 1);
                 }
                 else {
-                   console.log("No valid parent found!");
+                   // console.log("No valid parent found!");
                 }
             }
             else {
                 top_level_teds.each(function() {
                     if ($(this).attr('id') !== $(elem).parent().parent().attr('id')) {
-                        console.log('datafield not in child or link.');
+                        // console.log('datafield not in child or link.');
                         $(this).fadeTo(200, '0.25');
                     }
                 });
@@ -378,7 +404,7 @@
             }
         }
         else {
-            console.log('opacity switch');
+            // console.log('opacity switch');
             clearAllFields(false);
             $(elem).fadeTo(100, '1.0');
 
@@ -393,7 +419,7 @@
                     top_level_teds.each(function () {
                         if ($(this).attr('id') === parent_element.attr('id')) {
                             actual_parent = parent_element;
-                            console.log('actual_parent id', actual_parent.attr('id'));
+                            // console.log('actual_parent id', actual_parent.attr('id'));
                         }
                     });
                 });
@@ -436,8 +462,9 @@
     function ResetToolSet() {
         // Clear the theme form
         $("#ThemeDesignForm").html("");
+        $("#ThemeDatafieldDesignForm").html("");
 
-        console.log('Resetting tool set');
+        // console.log('Resetting tool set');
 
         var tools = [];
         tools.add_te     = $("#ODRDatatype_addTE");
@@ -481,7 +508,7 @@
         tools.copy_df.attr('title', 'Copy Field');
 
         // Hide the datafield copy
-        console.log('hiding copy df');
+        // console.log('hiding copy df');
         tools.copy_df.parent().hide();
         tools.add_df.parent().show();
 
@@ -1144,7 +1171,7 @@
     }
 
     function sidebarDefaultClick() {
-        console.log('default click');
+        // console.log('default click');
         $.jGrowl('You must first select an element from the page to modify its settings.');
     }
 
@@ -1419,9 +1446,9 @@
 
     $.fn.isOverflowHiddenY = function(container) {
         var element = $(this);
-        console.log(element.offset());
-        console.log(container.prop('scrollHeight'));
-        console.log(container.height());
+        // console.log(element.offset());
+        // console.log(container.prop('scrollHeight'));
+        // console.log(container.height());
         return (element.offset().top > container.height());
     };
 
@@ -1675,8 +1702,8 @@
 
 
             // Reset the theme design form prior to reloading its contents
-            var tdf = $("#ThemeDesignForm");
-            tdf.hide().html("");
+            var form_div = $("#ThemeDesignForm");
+            $(form_div).hide().html("");
 
             var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0, 'theme_element_id': 0 } ) }}';
             url = url.substring(0, (url.length - 5));
@@ -1691,10 +1718,10 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    tdf.html(data.d);
+                    $(form_div).html(data.d);
 
                     // Prepend the DataTypeTools
-                    tdf.fadeIn('fast');
+                    $(form_div).fadeIn('fast');
                     // InitDatatypeTools();
                     InitDatatypePropertiesForm();
                 },
@@ -1870,9 +1897,7 @@
         url = url.substring(0, (url.length - 1));
         url += datafield_id;
 
-        // TODO need to send the TED id if this
-
-        var tdf = $("#ThemeDesignForm");
+        var form_div = $("#ThemeDesignForm");
         var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
         $.ajax({
             type: 'POST',
@@ -1883,8 +1908,8 @@
                 notifySaved();
 
                 if (data.d.force_slideout_reload === true) {
-                    tdf.fadeOut('slow').html("");
-                    tdf.html(data.d.html).fadeIn('slow');
+                    $(form_div).fadeOut('slow').html("");
+                    $(form_div).html(data.d.html).fadeIn('slow');
 
                     InitDatafieldPropertiesForm();
                 }
@@ -1897,13 +1922,13 @@
                     // ...otherwise, since the datafield isn't being reloaded, ensure that the
                     //  javascript always has the most recent state of what can be done to the datafield
                     var tmp = data.d.datafield_properties;
-                    datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                    datafield_properties[datafield_id] = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
                     // console.log("new datafield properties", datafield_properties);
                 }
             },
             error: function() {
                 // Forcibly reload object properties panel
-                tdf.html("");
+                $(form_div).html("");
                 $("#Field_" + datafield_id).trigger('click');
             },
             complete: function(jqXHR) {
@@ -1936,13 +1961,14 @@
         url = url.substring(0, url.length-3);
         url += theme_element_id + '/' + datafield_id;
 
-        var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id).serialize();
+        var form_element = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id);
+        var post_data = $(form_element).serialize();
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
-            success: function() {
+            success: function(data) {
                 notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -2003,10 +2029,11 @@
                 return;
             }
 
+            var form_div = $("#ThemeDesignForm");
+
             // Check if this field is already loaded
-            var tdf = $("#ThemeDesignForm");
             var form_id = "";
-            var form = tdf.find("form.ODRDatafieldPropertiesForm");
+            var form = $(form_div).find("form.ODRDatafieldPropertiesForm");
             if (form.length > 0) {
                 var form_id_data = form.attr("id").split(/_/);
                 form_id = form_id_data[1];
@@ -2016,7 +2043,7 @@
             if (form_id !== datafield_id) {
                 // Don't attempt to load the properties form for a datafield the user can't view
                 // This will prevent an unecessary error message from popping up...
-                tdf.html('').fadeIn('fast');
+                $(form_div).html('').fadeIn('fast');
                 if ( $(this).hasClass('ODRForbidden') )
                     return;
 
@@ -2035,7 +2062,7 @@
                     url: url,
                     dataType: "json",
                     success: function(data) {
-                        tdf.html(data.d.html).fadeIn('fast');
+                        $(form_div).html(data.d.html).fadeIn('fast');
                         InitDatafieldPropertiesForm();
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
@@ -2066,7 +2093,7 @@
      * Attaches event handlers to the various elements in a datfield properties form.
      */
     function InitDatafieldPropertiesForm() {
-        var tdf = $("#ThemeDesignForm");
+        var form_div = $("#ThemeDesignForm");
         var tdf_odpf = $("#ThemeDesignForm .ODRDatafieldPropertiesForm");
 
         // Init Field Properties forms
@@ -2085,7 +2112,7 @@
             openTagEditDialog(datafield_id);
         });
 
-        tdf.find(".ODRDeleteField").each(function() {
+        $(form_div).find(".ODRDeleteField").each(function() {
             var datafield_id_data = $(this).attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
 
@@ -2099,7 +2126,7 @@
             });
         });
 
-        tdf.find(".ODRCopyField").each(function() {
+        $(form_div).find(".ODRCopyField").each(function() {
             var datafield_id_data = $(this).attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
             var datafield_name = $("#ODRDatafield_" + datafield_id + "_name").text();
@@ -2317,7 +2344,7 @@
             });
         });
 
-        tdf.fadeIn('fast');
+        $(form_div).fadeIn('fast');
     }
 
     var SaveDataTypeInterval = [];
@@ -2509,13 +2536,22 @@
     }
 
     /**
+     * When a datafield is moved to a different themeElement, the server needs to create a new
+     * themeDatafield entry...but due to the asynchronous nature of the UI, the browser could end up
+     * requesting that themeDatafield entry before it actually gets created, in which case the user
+     * will see an error popup even though technically nothing is wrong.
+     */
+    var load_themeDatafield_delay = {};
+
+    /**
      * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
      *
      * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
-     * @param {string} source_theme_element_id - The id of the theme_element that the moved datafield started in
-     * @param {string} dest_theme_element_id - The id of the theme_element that the moved datafield ended in
+     * @param {number} datafield_id - The id of the datafield that triggered this function by being moved
+     * @param {number} source_theme_element_id - The id of the theme_element that the moved datafield started in
+     * @param {number} dest_theme_element_id - The id of the theme_element that the moved datafield ended in
      */
-    function SaveDatafieldOrder(container, source_theme_element_id, dest_theme_element_id) {
+    function SaveDatafieldOrder(container, datafield_id, source_theme_element_id, dest_theme_element_id) {
 
         var i = 0;
         var datafield_ids = {};
@@ -2524,6 +2560,8 @@
             datafield_ids[i] = id_data[1];
             i++;
         });
+
+        // console.log('SaveDatafieldOrder(), datafield_id: ' + datafield_id + ' source theme_element: ' + source_theme_element_id + ' dest theme_element: ' + dest_theme_element_id);
 
         // Get the id numbers of the passed-in theme elements
         var theme_element = source_theme_element_id.split(/_/);
@@ -2534,6 +2572,19 @@
         var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
         url = url.substring(0, url.length-3);
         url += initial_theme_element_id + '/' + ending_theme_element_id;
+
+        // If the datafield got moved to a new theme element...
+        if ( initial_theme_element_id !== ending_theme_element_id ) {
+            // ...then any attempt to load the datafield's themeDatafield entry needs to wait until
+            //  this ajax function finishes
+            var key = datafield_id + '_' + ending_theme_element_id;
+            load_themeDatafield_delay[key] = 1;
+            // console.log('need themeDatafield delay', load_themeDatafield_delay);
+
+            // Also throw up an overlay so the user can't attempt to resize a datafield until the
+            //  themeDatafield entry exists
+            insertLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
+        }
 
         $.ajax({
             cache: false,
@@ -2562,6 +2613,17 @@
                 // Don't need to do anything specific on an error
             },
             complete: function(jqXHR) {
+                // If this ajax request was for a datafield being moved into a different themeElement...
+                var key = datafield_id + '_' + ending_theme_element_id;
+                if ( load_themeDatafield_delay[key] !== undefined && load_themeDatafield_delay[key] !== null ) {
+                    // ...then delete the delay entry because the themeDatafield entry exists now
+                    delete load_themeDatafield_delay[key];
+                    // console.log('SaveDatafieldOrder() complete', load_themeDatafield_delay);
+
+                    // Also get rid of the overlay div
+                    removeLoadingDiv( $("#ThemeElement_" + ending_theme_element_id) );
+                }
+
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2771,7 +2833,7 @@
                 // Save the theme_element.....
                 var theme_element = $("#Field_" + datafield_id).closest('.ODRThemeElement');
                 var id_data = $(theme_element).attr('id').split(/_/);
-                theme_element_id = id_data[1];
+                var theme_element_id = id_data[1];
 
                 // Don't want the datafield or its associated properties panel html anymore
                 $("#Field_" + datafield_id).remove();
@@ -2806,10 +2868,17 @@
         });
     }
 
-    // Called in ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig
+    /**
+     * Reloads all ThemeElements on the page that belong to the given datatype.
+     *
+     * @param {number} datatype_id
+     */
     function ReloadChild(datatype_id) {
+        // Called in ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig
+
         // Find all theme elements that contain the given datatype on the page...they all need to
-        //  be reloaded
+        //  be reloaded.  Can't just use the id selector, since there could be multiples of the same
+        //  linked datatype on the page.
         var theme_element_ids = [];
         $(".ODRDataType").each(function() {
             var dt_id = 'DataType_' + datatype_id;
@@ -2852,10 +2921,7 @@
             element = $(theme_element).parent();
         }
 
-        // Create a loading div to block off the datafield
-        var datafield_css_selector = "#ThemeElement_" + theme_element_id;
-        var loading_div_selector = "ThemeElement_" + theme_element_id;
-        insertLoadingDiv(datafield_css_selector, loading_div_selector);
+        insertLoadingDiv(theme_element);
 
         $.ajax({
             cache: false,
@@ -2920,20 +2986,33 @@
     /**
      * Covers the requested HTML element with an overlay div so click events don't work on it.
      *
-     * @param {string} css_selector
-     * @param {string} loading_div_selector
+     * @param {HTMLElement} target_div
      */
-    function insertLoadingDiv(css_selector, loading_div_selector) {
+    function insertLoadingDiv(target_div) {
         // Need dimensions of parent div...
-        var element = $(css_selector);
-        var height = $(element).css('height');
-        var width = $(element).css('width');
+        var height = $(target_div).css('height');
+        var width = $(target_div).css('width');
+
+        var loading_div_id = $(target_div).attr('id') + '_loading_div';
 
         // Create a loading div
-        $(element).prepend("<div id=\"" + loading_div_selector + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
+        $(target_div).prepend("<div id=\"" + loading_div_id + "\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
 
         // Apply dimensions of parent div to loading div
-        $("#" + loading_div_selector + "_loading_div").css({"height": height, "line-height": height, "width": width});
+        $("#" + loading_div_id).css({"height": height, "line-height": height, "width": width});
     }
 
+    /**
+     * Removes an overlay div from the requested HTML element.
+     *
+     * @param {HTMLElement} target_div
+     */
+    function removeLoadingDiv(target_div) {
+        // Locate loading div...
+        var loading_div_id = $(target_div).attr('id') + '_loading_div';
+        var loading_div = $("#" + loading_div_id);
+
+        if ( $(loading_div).length > 0 )
+            $(loading_div).remove();
+    }
 </script>

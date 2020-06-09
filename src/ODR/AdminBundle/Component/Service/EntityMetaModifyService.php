@@ -1778,7 +1778,6 @@ class EntityMetaModifyService
         $changes_made = false;
         $existing_values = array(
             'display_type' => $theme_datatype->getDisplayType(),
-            'hidden' => $theme_datatype->getHidden(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1813,8 +1812,6 @@ class EntityMetaModifyService
         // Set any new properties
         if (isset($properties['display_type']))
             $new_theme_datatype->setDisplayType( $properties['display_type'] );
-        if (isset($properties['hidden']))
-            $new_theme_datatype->setHidden( $properties['hidden'] );
 
         $new_theme_datatype->setUpdatedBy($user);
 

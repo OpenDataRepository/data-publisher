@@ -46,7 +46,6 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\Form\FormError;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -346,6 +345,208 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xd67b2938;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the hidden status of a ThemeElement.
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function hiddenthemeelementAction($theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( !is_null($datatype->getDeletedAt()) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            // If user didn't create the theme, don't allow them to change shared status
+            if ($theme->getCreatedBy()->getId() !== $user->getId())
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Not allowed to make themeElements hidden on master themes
+            if ( $theme->getThemeType() === 'master' )
+                throw new ODRBadRequestException();
+
+
+            // Toggle the hidden status of the specified theme_element
+            if ( $theme_element->getHidden() ) {
+                $properties = array(
+                    'hidden' => false,
+                );
+                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+            }
+            else {
+                $properties = array(
+                    'hidden' => true,
+                );
+                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0xd43cc3b9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the hidden status of a ThemeDatafield.
+     *
+     * @param integer $theme_element_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function hiddenthemedatafieldAction($theme_element_id, $datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ( is_null($datafield) )
+                throw new ODRNotFoundException('Datafield');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                array(
+                    'themeElement' => $theme_element_id,
+                    'dataField' => $datafield_id,
+                )
+            );
+            if ( is_null($theme_datafield) )
+                throw new ODRNotFoundException('ThemeDatafield');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            // If user didn't create the theme, don't allow them to change shared status
+            if ($theme->getCreatedBy()->getId() !== $user->getId())
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Not allowed to make themeDatafields hidden on master themes
+            if ( $theme->getThemeType() === 'master' )
+                throw new ODRBadRequestException();
+
+
+            // Toggle the hidden status of the specified theme_datafield
+            if ( $theme_datafield->getHidden() ) {
+                $properties = array(
+                    'hidden' => false,
+                );
+                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+            else {
+                $properties = array(
+                    'hidden' => true,
+                );
+                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0x1dbd0605;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1030,6 +1231,14 @@ class ThemeController extends ODRCustomController
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
+            // Locate the ThemeDatafield entity
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                array('dataField' => $datafield->getId(), 'themeElement' => $theme_element->getId())
+            );
+            if ( is_null($theme_datafield) )
+                throw new ODRNotFoundException('ThemeDatafield');
+
 
             // Need to ensure that all of these entities exist...
             $theme = $theme_element->getTheme();
@@ -1085,21 +1294,7 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Locate the ThemeDatafield entity
-            /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array('dataField' => $datafield->getId(), 'themeElement' => $theme_element->getId())
-            );
-            if ($theme_datafield == null)
-                throw new ODRNotFoundException('ThemeDatafield');
-
-
-            // Form contents change slightly depending on whether this is a master theme or not
-            $is_master_theme = false;
-            if ($theme->getThemeType() == 'master')
-                $is_master_theme = true;
-
-            // Create the ThemeDatatype form object
+            // Create the ThemeDatafield form object
             $theme_datafield_form = $this->createForm(
                 UpdateThemeDatafieldForm::class,
                 $theme_datafield,
@@ -1110,8 +1305,7 @@ class ThemeController extends ODRCustomController
                             'theme_element_id' => $theme_element_id,
                             'datafield_id' => $datafield_id
                         )
-                    ),
-                    'is_master_theme' => $is_master_theme,
+                    )
                 )
             )->createView();
 
@@ -1122,9 +1316,6 @@ class ThemeController extends ODRCustomController
                 array(
                     'theme_datafield' => $theme_datafield,
                     'theme_datafield_form' => $theme_datafield_form,
-
-                    'is_master_theme' => $is_master_theme,
-                    'datafield_name' => $datafield->getFieldName(),
                 )
             );
         }
@@ -1246,19 +1437,11 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Form contents change slightly depending on whether this is a master theme or not
-            $is_master_theme = false;
-            if ($theme->getThemeType() == 'master')
-                $is_master_theme = true;
-
             // Populate new ThemeDataField form
             $submitted_data = new ThemeDataField();
             $theme_datafield_form = $this->createForm(
                 UpdateThemeDatafieldForm::class,
-                $submitted_data,
-                array(
-                    'is_master_theme' => $is_master_theme,
-                )
+                $submitted_data
             );
 
             $theme_datafield_form->handleRequest($request);
@@ -1276,7 +1459,7 @@ class ThemeController extends ODRCustomController
 //                        'displayOrder' => $submitted_data->getDisplayOrder(),    // Not allowed to change this value through this controller action
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
-                        'hidden' => $submitted_data->getHidden(),
+//                        'hidden' => $submitted_data->getHidden(),    // Not allowed to change this value through this controller action
                     );
                     $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
 
@@ -1402,13 +1585,6 @@ class ThemeController extends ODRCustomController
             }
             // --------------------
 
-
-            // Form contents change slightly depending on whether this is a master theme or not
-            $is_master_theme = false;
-            if ($theme->getThemeType() == 'master')
-                $is_master_theme = true;
-
-
             // Check if multiple child/linked datarecords are allowed for datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
@@ -1427,7 +1603,6 @@ class ThemeController extends ODRCustomController
                             'datatype_id' => $datatype_id,
                         )
                     ),
-                    'is_master_theme' => $is_master_theme,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             )->createView();
@@ -1561,7 +1736,6 @@ class ThemeController extends ODRCustomController
 
 
             // Populate new ThemeDataType form
-            /** @var ThemeDataType $submitted_data */
             $submitted_data = new ThemeDataType();
 
             // Check if multiple child/linked datarecords are allowed for datatype
@@ -1570,18 +1744,11 @@ class ThemeController extends ODRCustomController
                 array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
             );
 
-            // Form contents change slightly depending on whether this is a master theme or not
-            $is_master_theme = false;
-            if ($theme->getThemeType() == 'master')
-                $is_master_theme = true;
-
-
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $submitted_data,
                 array(
-                    'is_master_theme' => $is_master_theme,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             );
@@ -1590,14 +1757,9 @@ class ThemeController extends ODRCustomController
             if ($theme_datatype_form->isSubmitted()) {
 
                 if ($theme_datatype_form->isValid()) {
-                    // Don't allow a themeDatatype belonging to a master theme to be hidden
-                    if ($theme->getThemeType() == 'master')
-                        $submitted_data->setHidden(0);
-
                     // Save all changes made via the form
                     $properties = array(
                         'display_type' => $submitted_data->getDisplayType(),
-                        'hidden' => $submitted_data->getHidden(),
                     );
                     $emm_service->updateThemeDatatype($user, $theme_datatype, $properties);
 
@@ -1932,19 +2094,11 @@ class ThemeController extends ODRCustomController
 //            if ($theme->getThemeType() == 'table')
 //                throw new \Exception('Not allowed to change properties of a theme element belonging to a table theme');
 
-            // Form contents change slightly depending on whether the theme is master or not
-            $is_master_theme = false;
-            if ($theme->getThemeType() == 'master')
-                $is_master_theme = true;
-
             // Populate new ThemeElement form
             $submitted_data = new ThemeElementMeta();
             $theme_element_form = $this->createForm(
                 UpdateThemeElementForm::class,
-                $submitted_data,
-                array(
-                    'is_master_theme' => $is_master_theme,
-                )
+                $submitted_data
             );
 
             $theme_element_form->handleRequest($request);
@@ -1987,7 +2141,6 @@ class ThemeController extends ODRCustomController
                                 'theme_element_id' => $theme_element_id
                             )
                         ),
-                        'is_master_theme' => $is_master_theme,
                     )
                 );
 

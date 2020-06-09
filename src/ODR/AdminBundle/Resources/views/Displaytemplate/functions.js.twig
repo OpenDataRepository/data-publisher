@@ -6,11 +6,10 @@
  * @param {HTMLElement} elem
  */
 function setupResizeable(elem) {
-    var datafield_id;
-    var theme_element_id;
-    var element_type;
-
     // Only run when element is a ThemeElement or a Datafield
+    var theme_element_id;
+    var datafield_id;
+    var element_type;
     if ( jQuery(elem).hasClass('ODRThemeElement') )
         element_type = 'theme_element';
     else if ( jQuery(elem).hasClass('ODRDataField') )
@@ -18,7 +17,7 @@ function setupResizeable(elem) {
     else
         return;
 
-    // console.log('setupResizeable()', elem);
+    {#console.log('setupResizeable()', elem);#}
 
     var handles;
     var handle_e = '<span class="ODRDragHandle ODRDragHandleTEEast ui-resizeable-handle ui-resizeable-e">&esdot;</span>';
@@ -35,7 +34,7 @@ function setupResizeable(elem) {
             };
 
             // Load the properties form before any resizing is performed
-            var theme_element_id = jQuery(elem).attr('id').replace('ThemeElement_', '');
+            theme_element_id = jQuery(elem).attr('id').replace('ThemeElement_', '');
             LoadThemeElementForm(theme_element_id);
 
             break;
@@ -54,9 +53,9 @@ function setupResizeable(elem) {
             };
 
             // Load the properties form before any resizing is performed
-            var datafield_id = jQuery(elem).attr('id').replace('Field_', '');
-            var theme_element_id = jQuery(elem).parents('.ODRThemeElement').first().attr('id').replace('ThemeElement_', '');
-            LoadDatafieldForm(theme_element_id, datafield_id);
+            datafield_id = jQuery(elem).attr('id').replace('Field_', '');
+            theme_element_id = jQuery(elem).parents('.ODRThemeElement').first().attr('id').replace('ThemeElement_', '');
+            LoadThemeDatafieldForm(theme_element_id, datafield_id);
 
             break;
     }
@@ -75,20 +74,6 @@ function setupResizeable(elem) {
             // console.log('grid:', jQuery(elem).parent().parent().width()/24);
             // console.log('parent width:', jQuery(elem).parent().parent().width());
             // console.log('element width:', jQuery(elem).width());
-            {#
-            switch(element_type) {
-                case 'theme_element':
-                    theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '');
-                    LoadThemeElementForm(theme_element_id);
-                    break;
-
-                default:
-                    datafield_id = ui.originalElement.attr('id').replace('Field_', '');
-                    theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '');
-                    LoadDatafieldForm(theme_element_id, datafield_id);
-                    break;
-            }
-            #}
         },
         stop: function( event, ui ) {
             // Refactor all widths for all elements in array to be f/24
@@ -230,7 +215,8 @@ function setupSortableDatafields(elem) {
     if ( !jQuery(elem).hasClass('ODRDataField') )
         return;
 
-    {#console.log('setupSortableDatafields()', elem);#}
+    var datafield_id = jQuery(elem).attr('id').replace('Field_', '');
+    {#console.log('setupSortableDatafields()', elem, datafield_id);#}
 
     // Restrict sortable to only same level theme elements
     // i.e. theme elements that have the same field area as a parent
@@ -273,7 +259,7 @@ function setupSortableDatafields(elem) {
                 // If the datafield ended up in the same fieldarea...
                 if (starting_fieldarea === ending_fieldarea) {
                     // Update the order of the datafields in the destination theme element
-                    SaveDatafieldOrder( jQuery(ui.item).parent(), starting_theme_element, ending_theme_element );
+                    SaveDatafieldOrder( jQuery(ui.item).parent(), datafield_id, starting_theme_element, ending_theme_element );
                 }
                 else {
                     // ...if not, don't save the change and revert the layout

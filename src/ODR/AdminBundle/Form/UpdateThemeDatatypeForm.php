@@ -25,7 +25,6 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 
 class UpdateThemeDatatypeForm extends AbstractType
@@ -36,7 +35,6 @@ class UpdateThemeDatatypeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-        $is_master_theme = $options['is_master_theme'];
         $multiple_allowed = $options['multiple_allowed'];
 
         $display_choices = array(
@@ -57,30 +55,6 @@ class UpdateThemeDatatypeForm extends AbstractType
             'themeElement',
             ThemeElementType::class
         );
-
-        if (!$is_master_theme) {
-            $builder->add(
-                'hidden',
-                ChoiceType::class,
-                array(
-                    'choices' => array(
-                        'Show' => '0',
-                        'Hide' => '1',
-                    ),
-                    'choices_as_values' => true,
-                    'label' => 'Visiblity',
-                    'expanded' => false,
-                    'multiple' => false,
-                    'placeholder' => false
-                )
-            );
-        }
-        else {
-            $builder->add(
-                'hidden',
-                HiddenType::class
-            );
-        }
 
         $builder->add(
             'display_type',
@@ -133,7 +107,6 @@ class UpdateThemeDatatypeForm extends AbstractType
         );
 
         // Required options shouldn't have their defaults set
-        $resolver->setRequired('is_master_theme');
         $resolver->setRequired('multiple_allowed');
     }
 }

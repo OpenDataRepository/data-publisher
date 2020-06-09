@@ -37,6 +37,8 @@ class MigrationController extends ODRCustomController
      * 2) users with ROLE_SUPER_ADMIN are removed from all groups they were divviously members of
      * 3) "Edit All" and "Admin" groups receive the "can_change_public_status" permission
      * 4) Update the description for the "Edit All" group
+     * 5) Since there's only at most one themeDatatype entry per themeElement, turn all
+     *    instances of a "hidden" themeDatatype into a "hidden" themeElement instead
      *
      * @param Request $request
      *
@@ -198,6 +200,43 @@ class MigrationController extends ODRCustomController
             $ret .= '</div>';
             $ret .= '<br>----------------------------------------<br>';
 
+            // ----------------------------------------
+            // 5) Since there's only at most one themeDatatype entry per themeElement, turn all
+            //    instances of a "hidden" themeDatatype into a "hidden" themeElement instead
+            $ret .= '<div>Preparation for removing the "hidden" attribute from themeDatatype entities:<br>';
+
+            // Doctrine can't do multi-table updates, so need to find all the themeElements with
+            //  "hidden" themeDatatypes beforehand...
+            $query = $em->createQuery(
+               'SELECT te.id
+                FROM ODRAdminBundle:ThemeDataType AS tdt
+                JOIN ODRAdminBundle:ThemeElement AS te WITH tdt.themeElement = te
+                WHERE tdt.hidden = 1
+                AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $theme_element_ids = array();
+            foreach ($results as $result)
+                $theme_element_ids[] = $result['id'];
+
+            // Update the meta entries for each themeElement to make them "hidden" now
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeElementMeta AS tem
+                SET tem.hidden = 1
+                WHERE tem.themeElement IN (:theme_elements)
+                AND tem.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'theme_elements' => $theme_element_ids
+                )
+            );
+            $rows = $query->execute();
+
+            $ret .= '<br> ** Updated '.$rows.' themeElements total';
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
 
             // ----------------------------------------
             // Done with the changes
