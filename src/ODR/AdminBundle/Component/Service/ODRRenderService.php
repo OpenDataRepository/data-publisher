@@ -22,15 +22,16 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Form\UpdateThemeForm;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\Form\FormFactory;
 
 
 class ODRRenderService
@@ -87,6 +88,11 @@ class ODRRenderService
     private $emm_service;
 
     /**
+     * @var FormFactory
+     */
+    private $form_factory;
+
+    /**
      * @var EngineInterface
      */
     private $templating;
@@ -110,6 +116,7 @@ class ODRRenderService
      * @param CloneThemeService $clone_theme_service
      * @param CloneTemplateService $clone_template_service
      * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param FormFactory $form_factory
      * @param EngineInterface $templating
      * @param Logger $logger
      */
@@ -124,6 +131,7 @@ class ODRRenderService
         CloneThemeService $clone_theme_service,
         CloneTemplateService $clone_template_service,
         EntityMetaModifyService $entity_meta_modify_service,
+        FormFactory $form_factory,
         EngineInterface $templating,
         Logger $logger
     ) {
@@ -137,6 +145,7 @@ class ODRRenderService
         $this->clone_theme_service = $clone_theme_service;
         $this->clone_template_service = $clone_template_service;
         $this->emm_service = $entity_meta_modify_service;
+        $this->form_factory = $form_factory;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -215,12 +224,52 @@ class ODRRenderService
      *
      * @param ODRUser $user
      * @param Theme $theme
+     * @param string $search_key
      *
      * @return string
      */
-    public function getThemeDesignHTML($user, $theme)
+    public function getThemeDesignHTML($user, $theme, $search_key = '')
     {
-        throw new ODRNotImplementedException();
+        $datatype = $theme->getDataType();
+        $datarecord = null;
+
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
+
+        // ----------------------------------------
+        // Store whether this is a "short" form or not...
+        // TODO - wasn't this distinction supposed to be removed in the near future?
+        $is_short_form = in_array($theme->getThemeType(), ($this->theme_service)::SHORT_FORM_THEMETYPES);
+
+        // Build the Form to save changes to the Theme's name/description
+        $theme_meta = $theme->getThemeMeta();
+        $theme_form = $this->form_factory->create(
+            UpdateThemeForm::class,
+            $theme_meta,
+            array(
+                'is_short_form' => $is_short_form,
+            )
+        );
+
+        // ----------------------------------------
+        $template_name = 'ODRAdminBundle:Theme:theme_ajax.html.twig';
+        $extra_parameters = array(
+//            'display_mode' => "wizard",
+            'display_mode' => 'edit',
+            'search_key' => $search_key,
+
+            'is_datatype_admin' => $is_datatype_admin,
+
+            'is_short_form' => $is_short_form,
+            'theme_form' => $theme_form->createView(),
+            'theme' => $theme,    // Needed for ODRAdminBundle:Theme:theme_properties_form.html.twig
+        );
+
+        // TODO - is this needed?  I'm guessing it'll never actually do something unless somebody else is modifying the master theme at the same time...
+        // Ensure all relevant themes are in sync before rendering the end result
+        $parent_theme = $theme->getParentTheme();
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
+
+        return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
 

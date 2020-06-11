@@ -38,7 +38,6 @@ use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
@@ -139,7 +138,7 @@ class ThemeController extends ODRCustomController
 
     /**
      * Saves changes made to a theme's name/description.  Loading the form is automatically done
-     * inside self::DisplayTheme()
+     * inside ODRRenderService::getThemeDesignHTML()
      *
      * @param int $theme_id
      * @param Request $request
@@ -1046,6 +1045,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1061,6 +1062,10 @@ class ThemeController extends ODRCustomController
                 throw new ODRNotFoundException('Theme');
 
             if ($theme->getDataType()->getId() !== $datatype->getId())
+                throw new ODRBadRequestException();
+
+            // Don't allow on a child/linked theme
+            if ($theme->getParentTheme()->getId() !== $theme->getId())
                 throw new ODRBadRequestException();
 
             // Don't allow on a 'master' theme
@@ -1086,7 +1091,7 @@ class ThemeController extends ODRCustomController
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => self::DisplayTheme($datatype, $theme, 'edit', $search_key)
+                'html' => $odr_render_service->getThemeDesignHTML($user, $theme, $search_key),
             );
 
         }
@@ -1101,98 +1106,6 @@ class ThemeController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Renders and returns the HTML to modify a non-master Theme for a Datatype.
-     *
-     * @param DataType $datatype The datatype that originally requested this Theme rendering
-     * @param Theme $theme The theme to render
-     * @param string $display_mode Determines what messaging to display in editor.
-     * @param string $search_key
-     *
-     * @throws \Exception
-     *
-     * @return string
-     */
-    private function DisplayTheme($datatype, $theme, $display_mode = "wizard", $search_key = '')
-    {
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-
-        // ----------------------------------------
-        // Determine whether the user is an admin of this datatype
-        /** @var ODRUser $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
-        $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
-
-
-        // ----------------------------------------
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
-        $theme_array = $theme_service->getThemeArray($theme->getId());
-
-        // Delete everything from the datatype array that the user isn't allowed to see
-        $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-        // "Inflate" the currently flattened datatype and theme arrays
-        $stacked_datatype_array[ $datatype->getId() ] =
-            $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-        $stacked_theme_array[ $theme->getId() ] =
-            $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-        // ----------------------------------------
-        // Store whether this is a "short" form or not...
-        // TODO - wasn't this distinction supposed to be removed in the near future?
-        $is_short_form = in_array($theme->getThemeType(), $theme_service::SHORT_FORM_THEMETYPES);
-
-        // Build the Form to save changes to the Theme's name/description
-        $theme_meta = $theme->getThemeMeta();
-        $theme_form = $this->createForm(
-            UpdateThemeForm::class,
-            $theme_meta,
-            array(
-                'is_short_form' => $is_short_form,
-            )
-        );
-
-        // ----------------------------------------
-        // Render the required version of the page
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            'ODRAdminBundle:Theme:theme_ajax.html.twig',
-            array(
-                'datatype_array' => $stacked_datatype_array,
-                'theme_array' => $stacked_theme_array,
-
-                'initial_datatype_id' => $datatype->getId(),
-
-                'theme_datatype' => $datatype,
-                'theme' => $theme,
-                'theme_form' => $theme_form->createView(),
-
-                'datatype_permissions' => $datatype_permissions,
-                'is_datatype_admin' => $is_datatype_admin,
-
-                'display_mode' => $display_mode,
-
-                'is_short_form' => $is_short_form,
-                'search_key' => $search_key,
-            )
-        );
-
-        return $html;
     }
 
 
