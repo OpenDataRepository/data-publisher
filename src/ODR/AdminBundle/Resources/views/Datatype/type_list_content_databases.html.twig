@@ -8,6 +8,14 @@
             >
                 <i class="fa fa-lg fa-plus"></i> New Database
             </a>
+        {% if is_granted("ROLE_SUPER_ADMIN") %}
+            <a id="ODRDatatypeList_copyDatatype"
+               class="pure-button pure-button-primary ODRCopyDatatype"
+               href="#{{ path('odr_list_copy_databases') }}"
+            >
+                <i class="fa fa-lg fa-clone"></i> Copy Database
+            </a>
+        {% endif %}
         </div>
     </div>
 

@@ -953,9 +953,10 @@ class ThemeController extends ODRCustomController
 
             // Check if this is a master template based datatype that is still in the creation
             //  process.  If so, redirect to progress system.
-            if ($datatype->getSetupStep() == DataType::STATE_INITIAL
-                && $datatype->getIsMasterType() == 0
-            ) {
+            if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
+                throw new ODRException('Cloning failure, please contact the ODR team');
+            }
+            else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getIsMasterType() == 0) {
                 // Return creating datatype template
                 $templating = $this->get('templating');
                 $return['d']['html'] = $templating->render(

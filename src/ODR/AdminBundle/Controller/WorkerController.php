@@ -1950,7 +1950,7 @@ $ret .= '  Set current to '.$count."\n";
             foreach ($all_datatypes as $dt) {
                 $current_setup_step = $dt->getSetupStep();
 
-                if ($current_setup_step !== DataType::STATE_INITIAL && $current_setup_step !== DataType::STATE_OPERATIONAL) {
+                if ($current_setup_step == "incomplete") {
                     $dt->setSetupStep(DataType::STATE_OPERATIONAL);
                     $em->persist($dt);
 
@@ -2005,9 +2005,9 @@ $ret .= '  Set current to '.$count."\n";
             $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
 
             $use_shortname = array(
-                29, 108, 220, 225, 253,
-                308, 342, 384, 391, 392,
-                397
+//                29, 108, 220, 225, 253,
+//                308, 342, 384, 391, 392,
+//                397
             );
 
             print '<table border="1">';
@@ -2045,7 +2045,7 @@ $ret .= '  Set current to '.$count."\n";
                         $em->persist( $dt->getDataTypeMeta() );
                     }
 
-                    print '<b>set long_name to "'.$dt->getLongName().'"</b>';
+                    print '<b>set short_name to "'.$dt->getLongName().'"</b>';
                 }
                 print '</td>';
             }

@@ -34,6 +34,7 @@ use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -41,6 +42,7 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use FOS\UserBundle\Doctrine\UserManager;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Component\Form\FormError;
@@ -49,6 +51,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class DatatypeController extends ODRCustomController
@@ -217,7 +220,10 @@ class DatatypeController extends ODRCustomController
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
             // TODO Change the checker to re-route to landing when complete? not sure
-            if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
+            if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
+                throw new ODRException('Cloning failure, please contact the ODR team');
+            }
+            else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $templating = $this->get('templating');
                 $return['t'] = "html";
@@ -467,7 +473,10 @@ class DatatypeController extends ODRCustomController
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
             // TODO Change the checker to re-route to landing when complete? not sure
-            if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
+            if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
+                throw new ODRException('Cloning failure, please contact the ODR team');
+            }
+            else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $templating = $this->get('templating');
                 $return['t'] = "html";
@@ -1884,6 +1893,313 @@ class DatatypeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x40a08257;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders and returns a list of databases that can be copied into a new database.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function listcopydatabasesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+
+
+            // ----------------------------------------
+            /** @var ODRUser $admin */
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Need to locate all users currently in ODR...
+            $user_list = $user_manager->findUsers();    // twig filters out deleted users
+
+            // Order by name so it's easier to locate people
+            usort($user_list, function($a, $b) {
+                /** @var ODRUser $a */
+                /** @var ODRUser $b */
+                return strcasecmp($a->getUserString(), $b->getUserString());
+            });
+
+            // Also need to load all top-level datatypes that are not templates or metadata...
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+
+            $query = $em->createQuery(
+               'SELECT dt, dtm, dt_cb,
+                        master_dt, meta_dt, meta_master_dt
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.createdBy AS dt_cb
+
+                LEFT JOIN dt.masterDataType AS master_dt
+                LEFT JOIN dt.metadata_datatype AS meta_dt
+                LEFT JOIN meta_dt.masterDataType AS meta_master_dt
+
+                WHERE dt.id IN (:datatypes) AND dt.is_master_type = :is_master_type
+                AND dt.unique_id = dt.template_group
+                AND dt.setup_step IN (:setup_steps) AND dt.metadata_for IS NULL
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatypes' => $top_level_datatypes,
+                    'is_master_type' => false,
+                    'setup_steps' => DataType::STATE_VIEWABLE
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // Flatten the returned array slightly
+            $datatypes = array();
+            foreach ($results as $result) {
+                $dt_id = $result['id'];
+
+                $datatypes[$dt_id] = $result;
+                $datatypes[$dt_id]['dataTypeMeta'] = $result['dataTypeMeta'][0];
+                $datatypes[$dt_id]['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
+            }
+
+            // Sort the datatypes by name so they're easier to locate...
+            uasort($datatypes, function ($a, $b) {
+                return strnatcasecmp($a['dataTypeMeta']['shortName'], $b['dataTypeMeta']['shortName']);
+            });
+
+
+            // ----------------------------------------
+            // Generate a CSRF token from the combined data
+            $csrf_token = $token_generator->getToken('CopyDatatypeForm_'.$admin->getId())->getValue();
+
+            // Render and return the html for the datatype list
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Datatype:type_list_copy_databases.html.twig',
+                    array(
+                        'admin' => $admin,
+
+                        'user_list' => $user_list,
+                        'datatypes' => $datatypes,
+                        'csrf_token' => $csrf_token,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x5f3c0ce1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Copies a non-template database.  The new database does not reference the original...datatypes
+     * and datafields don't reference the original database via template_uuids, and radio/tags have
+     * brand-new uuids.
+     *
+     * As such, copying a database that is itself derived from a template is probably not a good idea.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function copynormaldatabaseAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+
+            // Need to have 'odr_tab_id', 'datatype_id', and either 'datafields' or 'public_status'
+            // Otherwise, throw an exception
+            if ( !isset($post['_token']) || !isset($post['datatype_id']) || !isset($post['user_id']) )
+                throw new ODRBadRequestException();
+
+            $datatype_id = $post['datatype_id'];
+            $user_id = $post['user_id'];
+            $token = $post['_token'];
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneMasterDatatypeService $cmd_service */
+            $cmd_service = $this->container->get('odr.clone_master_datatype_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ( is_null($source_datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+            if ( !is_null($source_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Not allowed to copy Metadata datatypes with this');
+            if ( $source_datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Not allowed to copy master templates with this');
+            if ( $source_datatype->getGrandparent()->getId() !== $source_datatype->getId() )
+                throw new ODRBadRequestException('Not allowed to copy child datatypes with this');
+            if ( $source_datatype->getSetupStep() !== DataType::STATE_OPERATIONAL )
+                throw new ODRBadRequestException('Not allowed to copy a non-operational datatype');
+
+            /** @var ODRUser $user */
+            $user = $user_manager->findUserBy( array('id' => $user_id) );
+            if ( is_null($user) )
+                throw new ODRNotFoundException('User');
+
+
+            // ----------------------------------------
+            /** @var ODRUser $admin */
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Only allow super admins to do this...
+            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            $expected_token = $token_generator->getToken('CopyDatatypeForm_'.$admin->getId())->getValue();
+            if ( $token !== $expected_token )
+                throw new ODRBadRequestException();
+
+
+            // ----------------------------------------
+            // Nothing created during the copy (datatypes, datafields, options/tags, etc) should
+            //  retain any connection to the "master template" datatype afterwards
+            $clone_from_template = false;
+
+
+            // Create the skeletal datatype that will be copied into
+            $new_dt = $ec_service->createDatatype($user, 'Copy of '.$source_datatype->getShortName(), true);    // don't flush immediately...
+            // The new datatype needs to treat the source datatype as its "master template" in order
+            //  for the copying process to work...
+            $new_dt->setMasterDataType($source_datatype);
+            $em->persist($new_dt);
+
+            // If the datatype being copied has a metadata datatype...
+            $new_metadata_dt = null;
+            if ( !is_null($source_datatype->getMetadataDatatype()) ) {
+                // ...then might as well copy that too
+                $new_metadata_dt = $ec_service->createDatatype($user, $source_datatype->getMetadataDatatype()->getShortName(), true);    // don't flush immediately...
+                $new_metadata_dt->setMasterDataType($source_datatype->getMetadataDatatype());
+
+                // Need to ensure the skeletal datatype knows about its metadata datatype
+                $new_dt->setMetadataDatatype($new_metadata_dt);
+                $em->persist($new_dt);
+                $new_metadata_dt->setMetadataFor($new_dt);
+                $em->persist($new_metadata_dt);
+            }
+
+            // Need to flush before copying takes place
+            $em->flush();
+
+            // If a metadata datatype needs to be copied...
+            if ( !is_null($new_metadata_dt) ) {
+                // ...then the original datatype needs to be flushed first so it has a uuid, so
+                //  the new metadata datatype can be added to the correct template group
+                $new_metadata_dt->setTemplateGroup($new_dt->getUniqueId());
+                $em->persist($new_metadata_dt);
+                $em->flush();
+            }
+
+
+            // ----------------------------------------
+            // Shouldn't need to use a background job for this
+//            $cmd_service->createDatatypeFromMaster(
+//                $new_dt->getId(),
+//                $admin->getId(),
+//                $new_dt->getUniqueId(),
+//                $clone_from_template
+//            );
+
+            $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $priority = 1024;   // should be roughly default priority
+            $delay = 0;
+
+            // If the datatype being copied has a metadata datatype...
+            if ( !is_null($source_datatype->getMetadataDatatype()) ) {
+                // ...then ensure it gets copied first to avoid it get cached incorrectly
+                $payload = json_encode(
+                    array(
+                        "user_id" => $user->getId(),
+                        "datatype_id" => $new_metadata_dt->getId(),
+                        "template_group" => $new_dt->getUniqueId(),
+                        "preserve_uuids" => $clone_from_template,
+
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "api_key" => $api_key,
+                    )
+                );
+                $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
+            }
+
+            // Copy the desired datatype
+            $payload = json_encode(
+                array(
+                    "user_id" => $user->getId(),
+                    "datatype_id" => $new_dt->getId(),
+                    "template_group" => $new_dt->getUniqueId(),
+                    "preserve_uuids" => $clone_from_template,
+
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "api_key" => $api_key,
+                )
+            );
+            $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
+
+
+            // ----------------------------------------
+            // Redirect the user to what will be the new datatype's landing page
+            $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $new_dt->getId()), false);
+            $return['d'] = array('redirect_url' => $url);
+
+        }
+        catch (\Exception $e) {
+            $source = 0xb16e5336;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

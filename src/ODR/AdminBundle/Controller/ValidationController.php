@@ -37,10 +37,13 @@ use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -1622,6 +1625,9 @@ class ValidationController extends ODRCustomController
             'RadioOptions',
             'Tags',
             'ImageSizes',
+
+            'RadioSelection',
+            'TagSelection'
         );
         print "The process of deleting datafields/datarecords currently ignores these entities...\n";
         foreach ($storage_entities as $key => $classname) {
@@ -1635,6 +1641,14 @@ class ValidationController extends ODRCustomController
             }
             if ( isset($query_targets[$classname]['dataRecord']) ) {
                 unset( $query_targets[$classname]['dataRecord'] );
+                print '>> ignoring undeleted '.$classname.' entities that reference deleted dataRecords'."\n";
+            }
+            if ( isset($query_targets[$classname]['radioSelection']) ) {
+                unset( $query_targets[$classname]['radioSelection'] );
+                print '>> ignoring undeleted '.$classname.' entities that reference deleted dataRecords'."\n";
+            }
+            if ( isset($query_targets[$classname]['tagSelection']) ) {
+                unset( $query_targets[$classname]['tagSelection'] );
                 print '>> ignoring undeleted '.$classname.' entities that reference deleted dataRecords'."\n";
             }
         }
@@ -2481,5 +2495,144 @@ class ValidationController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
         return $response;
+    }
+
+
+    /**
+     * Returns a page that displays the cached array version of two datatypes side by side
+     *
+     * @param $left_datatype_id
+     * @param $right_datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function comparedatatypesAction($left_datatype_id, $right_datatype_id, Request $request)
+    {
+        $ret = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $site_baseurl = $this->getParameter('site_baseurl');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            /** @var DataType $left_datatype */
+            $left_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($left_datatype_id);
+            if ( is_null($left_datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataType $right_datatype */
+            $right_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($right_datatype_id);
+            if ( is_null($right_datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+            if ( $left_datatype->getGrandparent()->getId() !== $left_datatype->getId() )
+                throw new ODRBadRequestException();
+            if ( $right_datatype->getGrandparent()->getId() !== $right_datatype->getId() )
+                throw new ODRBadRequestException();
+
+            // Load the array version of both datatypes
+            $left = $dti_service->getDatatypeArray($left_datatype->getId());
+            $right = $dti_service->getDatatypeArray($right_datatype->getId());
+
+            // Get rid of the masterDataType and masterDataField entries since they cause mis-alignments
+            self::inflateTemplateInfo($left);
+            self::inflateTemplateInfo($right);
+
+            $left = self::removeDates($left);
+            $right = self::removeDates($right);
+
+            $ret = '
+<html>
+    <head>
+        <script src="'.$site_baseurl.'/js/bundle.js"></script>
+        <link rel="stylesheet" href="'.$site_baseurl.'/css/external/pure-grids-responsive-min.css">
+        <link href="'.$site_baseurl.'/css/odr.1.8.0.css" type="text/css" rel="stylesheet">
+        <link href="'.$site_baseurl.'/css/themes/css_smart/style.1.8.0.css" type="text/css" rel="stylesheet">
+    </head>
+    <body class="pure-skin-odr">
+        <div class="pure-g">
+            <div class="pure-u-1-2">
+                <pre>'.print_r($left, true).'</pre>
+            </div>
+            <div class="pure-u-1-2">
+                <pre>'.print_r($right, true).'</pre>
+            </div>
+        </div>
+    </body>
+</html>';
+
+        }
+        catch (\Exception $e) {
+            $source = 0x4d2e246e;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response($ret);
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Adds entries to masterDataType and masterDataField properties so they line up better
+     *
+     * @param array &$array @see DatatypeInfoService::buildDatatypeData()
+     */
+    private function inflateTemplateInfo(&$array) {
+        foreach ($array as $dt_id => $dt) {
+            if ( !isset($dt['masterDataType']) )
+                $array[$dt_id]['masterDataType'] = array('id' => '', 'unique_id' => '');
+
+            if ( !isset($dt['masterDataType']['id']) )
+                $array[$dt_id]['masterDataType']['id'] = '';
+            if ( !isset($dt['masterDataType']['unique_id']) )
+                $array[$dt_id]['masterDataType']['unique_id'] = '';
+
+            if ( isset($dt['dataFields']) && is_array($dt['dataFields']) ) {
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    if ( !isset($df['masterDataField']) )
+                        $array[$dt_id]['dataFields'][$df_id]['masterDataField'] = array('id' => '');
+
+                    if ( !isset($df['masterDataField']['id']) )
+                        $array[$dt_id]['dataFields'][$df_id]['masterDataField']['id'] = '';
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Gets old seeing all the full DateTime objects in the array output...
+     *
+     * @param array $src
+     *
+     * @return array
+     */
+    private function removeDates($src) {
+
+        $dest = array();
+
+        foreach ($src as $key => $value) {
+            if ( is_array($value) )
+                $dest[$key] = self::removeDates($value);
+            elseif ( $key === 'created' || $key === 'updated' || $key === 'publicDate' )
+                $dest[$key] = date_format($value, "Y-m-d H:i:s");
+            elseif ( $key !== 'deletedAt' )
+                $dest[$key] = $value;
+        }
+
+        return $dest;
     }
 }

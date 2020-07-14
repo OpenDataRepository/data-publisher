@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -64,14 +65,13 @@ class DatatypeCreateService
 
 
     /**
-     * DatatypeInfoService constructor.
-     *
      * DatatypeCreateService constructor.
+     *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param CloneMasterDatatypeService $cdm_service
-     * @param DatatypeInfoService $uuid_service
-     * @param $odr_web_dir
+     * @param CloneMasterDatatypeService $clone_master_datatype_service
+     * @param UUIDService $uuid_service
+     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -123,7 +123,7 @@ class DatatypeCreateService
             /** @var PermissionsManagementService $pm_service */
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
-            /** @var User $admin */
+            /** @var ODRUser $admin */
             if($admin === null) {
                 throw new ODRNotFoundException('User');
             }
@@ -317,6 +317,8 @@ class DatatypeCreateService
                         "user_id" => $admin->getId(),
                         "datatype_id" => $datatype->getId(),
                         "template_group" => $unique_id,
+                        "preserve_uuids" => true,
+
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "api_key" => $api_key,
                     );

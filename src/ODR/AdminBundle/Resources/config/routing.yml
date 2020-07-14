@@ -298,6 +298,15 @@ odr_add_blank_metadata_datatype:
     requirements:
         datatype_id: \d+
 
+odr_list_copy_databases:
+    path:  /admin/type/copy/list
+    defaults: { _controller: ODRAdminBundle:Datatype:listcopydatabases }
+
+odr_copy_normal_database:
+    path:  /admin/type/copy/start
+    defaults: { _controller: ODRAdminBundle:Datatype:copynormaldatabase }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1461,6 +1470,13 @@ odr_check_fieldtype_table:
 odr_update_datatype_names:
     path:  /admin/update_datatype_names
     defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }
+
+odr_compare_datatypes:
+    path:  /admin/type/compare/{left_datatype_id}/{right_datatype_id}
+    defaults: { _controller:  ODRAdminBundle:Validation:comparedatatypes }
+    requirements:
+        left_datatype_id: \d+
+        right_datatype_id: \d+
 
 #-----------------------------------------
 

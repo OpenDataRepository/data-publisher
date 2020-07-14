@@ -494,7 +494,7 @@ class DatatypeInfoService
 
                 dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
 
-                df, dfm, ft,
+                df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
 
                 ro, rom, t, tm,
@@ -614,6 +614,12 @@ class DatatypeInfoService
                 // Flatten tags if they exist
                 $tag_list = array();
                 foreach ($df['tags'] as $t_num => $t) {
+                    if ( count($t['tagMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and
+                        //  also requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for tag '.$t['id']);
+                    }
+
                     $tag_id = $t['id'];
                     $tag_list[$tag_id] = $t;
                     $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];

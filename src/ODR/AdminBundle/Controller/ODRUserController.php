@@ -944,7 +944,7 @@ class ODRUserController extends ODRCustomController
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser[] $user_list */
-            $user_list = $user_manager->findUsers();    // twig filters out disabled users if needed
+            $user_list = $user_manager->findUsers();    // twig will filter out deleted users, if needed
 
             // Render the list of users
             $templating = $this->get('templating');
@@ -1005,7 +1005,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             // Grab all the users
-            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
+            $users = $user_manager->findUsers();    // twig will filter out deleted users
 
             // Determine whether the Jupyterhub role needs to be displayed
             $using_jupyterhub = false;
@@ -1232,7 +1232,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Update the user list
-            $user_manager->findUsers();    // twig filters out disabled users if needed
+            $user_manager->findUsers();
 
             // Generate a redirect to the user list
             /** @var Router $router */
@@ -1299,7 +1299,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Update the user list
-            $user_manager->findUsers();    // twig filters out disabled users if needed
+            $user_manager->findUsers();
 
             // Generate a redirect to the user list
             /** @var Router $router */

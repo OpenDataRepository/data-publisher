@@ -32,6 +32,10 @@ class DataType
     // Convenience state so controllers can filter out datatypes that aren't ready for general use yet
     const STATE_VIEWABLE = array(/*self::STATE_INCOMPLETE,*/ self::STATE_OPERATIONAL);
 
+    // Datatypes in this state encountered some sort of error while cloning, and pretty much need
+    //  manual intervention to be fixed...
+    const STATE_CLONE_FAIL = "clone_fail";
+
 
     /**
      * @var integer

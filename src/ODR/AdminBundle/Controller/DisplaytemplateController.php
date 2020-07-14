@@ -233,7 +233,11 @@ class DisplaytemplateController extends ODRCustomController
             // Check if this is a master template based datatype that is still in the creation process...
             $templating = $this->get('templating');
             $return['t'] = "html";
-            if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
+
+            if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
+                throw new ODRException('Cloning failure, please contact the ODR team');
+            }
+            else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $return['d'] = array(
                     'html' => $templating->render(
@@ -329,7 +333,10 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
-            if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
+            if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
+                throw new ODRException('Cloning failure, please contact the ODR team');
+            }
+            else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $templating = $this->get('templating');
                 $return['t'] = "html";

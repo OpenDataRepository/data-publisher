@@ -1648,8 +1648,8 @@ class LinkController extends ODRCustomController
             /** @var DataType $remote_datatype */
 
             // Ensure the remote datatype has a suitable theme...
-            if ($remote_datatype->getSetupStep() == DataType::STATE_INITIAL)
-                throw new ODRBadRequestException('Remote Datatype is still being created');
+            if ($remote_datatype->getSetupStep() != DataType::STATE_OPERATIONAL)
+                throw new ODRBadRequestException('Unable to link to Remote Datatype');
 
             // Since the above statement didn't throw an exception, the one below shouldn't either...
             $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');

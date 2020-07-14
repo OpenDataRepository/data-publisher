@@ -448,6 +448,7 @@ class EditController extends ODRCustomController
             $conn->beginTransaction();
 
             // TODO - delete datarecordfield entries as well?
+            // TODO - delete radio/tagSelection entries as well?
 
             // ...delete all linked_datatree entries that reference these datarecords
             $query = $em->createQuery(
