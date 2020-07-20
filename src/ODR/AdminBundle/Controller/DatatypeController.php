@@ -2146,7 +2146,7 @@ class DatatypeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Shouldn't need to use a background job for this
+            // Copying takes long enough that a background job is needed for this...
 //            $cmd_service->createDatatypeFromMaster(
 //                $new_dt->getId(),
 //                $admin->getId(),

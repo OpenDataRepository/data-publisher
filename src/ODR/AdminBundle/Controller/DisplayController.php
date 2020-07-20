@@ -19,9 +19,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Theme;
@@ -963,13 +961,12 @@ class DisplayController extends ODRCustomController
      * Creates and renders an HTML list of all files/images that the user is allowed to see in the given datarecord
      *
      * @param integer $grandparent_datarecord_id
-     * @param integer $datarecord_id
-     * @param integer $datafield_id
+     * @param boolean $group_by_datafield
      * @param Request $request
      *
      * @return Response
      */
-    function listallfilesAction($grandparent_datarecord_id, $datarecord_id, $datafield_id, Request $request)
+    function listallfilesAction($grandparent_datarecord_id, $group_by_datafield, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -992,43 +989,13 @@ class DisplayController extends ODRCustomController
 
             /** @var DataRecord $grandparent_datarecord */
             $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
-            if ($grandparent_datarecord == null)
+            if ( is_null($grandparent_datarecord) )
                 throw new ODRNotFoundException('Grandparent Datarecord');
 
             $grandparent_datatype = $grandparent_datarecord->getDataType();
             if ($grandparent_datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Grandparent Datarecord');
-
-            if ( ($datarecord_id === 0 && $datafield_id !== 0) || ($datarecord_id !== 0 && $datafield_id === 0) )
-                throw new ODRBadRequestException('Must specify either a datarecord or a datafield id');
-
-
-            /** @var DataType $datatype */
-            $datatype = null;
-
-            /** @var DataRecord|null $datarecord */
-            $datarecord = null;
-            if ($datarecord_id !== 0) {
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-                if ($datarecord == null)
-                    throw new ODRNotFoundException('Datarecord');
-
-                $datatype = $datarecord->getDataType();
-                if ($datatype->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datatype');
-            }
-
-            /** @var DataFields|null $datafield */
-            $datafield = null;
-            if ($datafield_id !== 0) {
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-                if ($datafield == null)
-                    throw new ODRNotFoundException('Datafield');
-
-                $datatype = $datafield->getDataType();
-                if ($datatype->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datatype');
-            }
+            $grandparent_datatype_id = $grandparent_datatype->getId();
 
 
             // ----------------------------------------
@@ -1037,109 +1004,57 @@ class DisplayController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            // Ensure the user can view the grandparent datarecord/datatype first...
+            // Ensure the user can view the grandparent datarecord/datatype
             if ( !$pm_service->canViewDatatype($user, $grandparent_datatype)
                 || !$pm_service->canViewDatarecord($user, $grandparent_datarecord)
             ) {
                 throw new ODRForbiddenException();
             }
-
-            // If they requested all files in a datarecord, ensure they can view the datarecord
-            if ($datarecord != null) {
-                if ( !$pm_service->canViewDatarecord($user, $datarecord) )
-                    throw new ODRForbiddenException();
-            }
-
-            // If they requested all files in a datafield, ensure they can view the datafield
-            if ($datafield != null) {
-                if ( !$pm_service->canViewDatafield($user, $datafield) )
-                    throw new ODRForbiddenException();
-            }
             // ----------------------------------------
 
 
             // ----------------------------------------
-            // Get all Datarecords and Datatypes that are associated with the datarecord...need to render an abbreviated view in order to select files
+            // Get all Datarecords and Datatypes that are associated with the datarecord...need to
+            //  render an abbreviated view in order to select files
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
             $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-            // Get rid of all non-file/image datafields while the datarecord array is still "deflated"
-            $datafield_ids = array();
-            $datatype_ids = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-                    if ( count($drf['file']) == 0 /*&& count($drf['image']) == 0*/ )    // TODO - download images in zip too?
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-                    else {
-                        $datafield_ids[] = $df_id;
-                        $datatype_ids[] = $dr['dataType']['id'];
-                    }
-                }
-            }
-            $datafield_ids = array_unique($datafield_ids);
-            $datatype_ids = array_unique($datatype_ids);
+            // Extracts the entity "names" of the datatypes/datarecords/datafields that will be
+            //  displayed...and also filters out all array entries that aren't relevant to files/images
+            $entity_names = self::extractEntityNames($datatype_array, $datarecord_array);
 
-            // Faster/easier to query the database again to store datafield names
-            $query = $em->createQuery(
-               'SELECT df.id, dfm.fieldName
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                WHERE df.id IN (:datafield_ids)
-                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-            )->setParameters( array('datafield_ids' => $datafield_ids) );
-            $results = $query->getArrayResult();
+            // Extract the filenames from the cached data arrays, organizing them by user request
+            $file_array = array();
+            if ( !$group_by_datafield )
+                $file_array = self::groupFilesByDatarecord($grandparent_datarecord_id, $entity_names, $datarecord_array);
+            else
+                $file_array = self::groupFilesByDatafield($grandparent_datatype_id, $entity_names, $datatype_array, $datarecord_array);
 
-            $datafield_names = array();
-            foreach ($results as $result) {
-                $df_id = $result['id'];
-                $df_name = $result['fieldName'];
+            // If no files/images have been uploaded to the grandparent datarecord or any of its
+            //  descendants, then completely erase the array so the templating files can correctly
+            //  display
+            $key = $grandparent_datarecord_id;
+            if ( $group_by_datafield )
+                $key = $grandparent_datatype_id;
 
-                $datafield_names[$df_id] = $df_name;
-            }
-
-            // Faster/easier to query the database again to store datatype names
-            $query = $em->createQuery(
-               'SELECT dt.id, dtm.shortName
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                WHERE dt.id IN (:datatype_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatype_ids) );
-            $results = $query->getArrayResult();
-
-            $datatype_names = array();
-            foreach ($results as $result) {
-                $dt_id = $result['id'];
-                $dt_name = $result['shortName'];
-
-                $datatype_names[$dt_id] = $dt_name;
-            }
+            if ( empty($file_array[$key]['datafields']) && empty($file_array[$key]['child_datatypes']) )
+                $file_array = array();
 
 
             // ----------------------------------------
-            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $grandparent_datarecord->getId() ]
-                = $dri_service->stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
-//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
-
-            $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
-            $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
-//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
-
+            // Render and return a tree structure of data
             $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
                 array(
-                    'datarecord_id' => $grandparent_datarecord_id,
+                    'file_array' => $file_array,
+                    'entity_names' => $entity_names,
 
-                    'datarecord_array' => $stacked_datarecord_array,
-                    'datafield_names' => $datafield_names,
-                    'datatype_names' => $datatype_names,
-
-                    'is_top_level' => true,
+                    'grandparent_datarecord_id' => $grandparent_datarecord_id,
+                    'group_by_datafield' => $group_by_datafield,
                 )
             );
 
@@ -1159,49 +1074,216 @@ class DisplayController extends ODRCustomController
 
 
     /**
-     * Recursively goes through an "inflated" datarecord array entry and deletes all (child) datarecords that don't have files/images.
-     * Assumes that all non-file/image datafields have already been deleted out of the "inflated" array prior to calling this function, so the recursive logic is somewhat simplified.
-     * @see parent::stackDatarecordArray()
+     * Extracts the names of the Datatypes, Datafields, and Datarecords from the given cached
+     * arrays.  Also removes all non-file/image datafields from the cached arrays so later functions
+     * don't have to do that check...
      *
-     * @param array $dr_array         An already "inflated" array of all datarecord entries for this datatype
-     * @param integer $datarecord_id  The specific datarecord to check
+     * @param array $datatype_array
+     * @param array $datarecord_array
      *
-     * @return null|array
+     * @return array
      */
-    private function locateFilesforDownloadAll($dr_array, $datarecord_id)
+    private function extractEntityNames(&$datatype_array, &$datarecord_array)
     {
-        // Probably going to be deleting entries from $dr_array, so make a copy for looping purposes
-        $dr = $dr_array[$datarecord_id];
+        $entity_names = array(
+            'datatypes' => array(),
+            'datafields' => array(),
+            'datarecords' => array()
+        );
 
-        if ( count($dr['children']) > 0 ) {
-            foreach ($dr['children'] as $child_dt_id => $child_datarecords) {
+        foreach ($datatype_array as $dt_id => $dt) {
+            // Always want to save the datatype's name, since it might be used during rendering
+            $entity_names['datatypes'][$dt_id] = $dt['dataTypeMeta']['shortName'];
 
-                foreach ($child_datarecords as $child_dr_id => $child_dr) {
-                    // Determine whether this child datarecord has files/images, or has (grand)children with files/images
-                    $ret = self::locateFilesforDownloadAll($child_datarecords, $child_dr_id);
+            foreach ($dt['dataFields'] as $df_id => $df) {
+                $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                if ( $typename === 'File' /*|| $typename !== 'Image'*/ ) {
+                    // Probably going to display this datafield, save the name
+                    $entity_names['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+                }
+                else {
+                    // Don't want this datafield in the array
+                    unset( $datatype_array[$dt_id]['dataFields'][$df_id] );
+                }
+            }
+        }
+        // Not unsetting any datatype entries here because they may be required for stacking
 
-                    if ( is_null($ret) ) {
-                        // This child datarecord didn't have any files/images, and also didn't have any children of its own with files/images...don't want to see it later
-                        unset( $dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id] );
+        foreach ($datarecord_array as $dr_id => $dr) {
+            // Always want to save the datarecord's name, since it might be used during rendering
+            $entity_names['datarecords'][$dr_id] = $dr['nameField_value'];
 
-                        // If this datarecord has no child datarecords of this child datatype with files/images, then get rid of the entire array entry for the child datatype
-                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id]) == 0 )
-                            unset( $dr_array[$datarecord_id]['children'][$child_dt_id] );
+            // Only interested in this datarecord if it has at least one file/image field...
+            $dt_id = $dr['dataType']['id'];
+            if ( isset($entity_names['datatypes'][$dt_id]) ) {
+                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                    // Only interested in the contents of this datafield when it's a file/image field
+                    if ( !isset($entity_names['datafields'][$df_id]) ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
                     }
-                    else {
-                        // Otherwise, save the (probably) modified version of the datarecord entry
-                        $dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id] = $ret;
+                }
+            }
+
+            // Not unsetting any datarecord entries here because they may be required for stacking
+        }
+
+        // Done filtering the cached arrays
+        return $entity_names;
+    }
+
+
+    /**
+     * Recursively traverses the cached data arrays in order to build/return an array for selecting
+     * files to download.  This version is organized to make it easier to download all data from
+     * a specific child/linked datarecord.
+     *
+     * @param integer $current_datarecord_id
+     * @param array $entity_names
+     * @param array $datarecord_array
+     *
+     * @return array
+     */
+    private function groupFilesByDatarecord($current_datarecord_id, $entity_names, $datarecord_array)
+    {
+        $file_array = array(
+            'datafields' => array(),
+            'child_datatypes' => array(),
+        );
+
+        $dr = $datarecord_array[$current_datarecord_id];
+
+        // If this datarecord has file/image fields...
+        foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+            // ...and they have files/images uploaded into them...
+            if ( !empty($drf['file']) ) {
+                $file_array['datafields'][$df_id] = array();
+                foreach ($drf['file'] as $num => $file) {
+                    // ...then store the file_id and the filename
+                    $file_id = $file['id'];
+                    $file_array['datafields'][$df_id][$file_id] = $file['fileMeta']['originalFileName'];
+                }
+            }
+        }
+
+        // If this datarecord has child/linked datarecords...
+        foreach ($dr['children'] as $child_dt_id => $child_dr_list) {
+
+            // ...sort array of child datarecords by their respective sortvalue...
+            $sorted_dr_list = array();
+            foreach ($child_dr_list as $num => $child_dr_id) {
+                // User may not have permission to see the child/linked datarecord...
+                if ( isset($datarecord_array[$child_dr_id]) )
+                    $sorted_dr_list[$child_dr_id] = $datarecord_array[$child_dr_id]['sortField_value'];
+            }
+
+            if ( !empty($sorted_dr_list) ) {
+                uasort($sorted_dr_list, function ($a, $b) {
+                    return strnatcmp($a, $b);
+                });
+            }
+
+            foreach ($sorted_dr_list as $child_dr_id => $sort_value) {
+                // ...then determine if the child/linked datarecord has any files
+                $tmp = self::groupFilesByDatarecord($child_dr_id, $entity_names, $datarecord_array);
+
+                // Only store the data for the child/linked datarecord if it has files, or has some
+                //  descendant that has files
+                if ( !empty($tmp[$child_dr_id]['datafields']) || !empty($tmp[$child_dr_id]['child_datatypes']) ) {
+                    if ( !isset($file_array['child_datatypes'][$child_dt_id]) )
+                        $file_array['child_datatypes'][$child_dt_id] = array();
+
+                    $file_array['child_datatypes'][$child_dt_id][$child_dr_id] = $tmp[$child_dr_id];
+                }
+            }
+        }
+
+        return array($current_datarecord_id => $file_array);
+    }
+
+
+    /**
+     * Recursively traverses the cached data arrays in order to build/return an array for selecting
+     * files to download.  This version is organized to make it easier to download all files/images
+     * that have been uploaded to a specific datafield.
+     *
+     * @param integer $current_datatype_id
+     * @param array $entity_names
+     * @param array $datatype_array
+     * @param array $datarecord_array
+     *
+     * @return array
+     */
+    private function groupFilesByDatafield($current_datatype_id, $entity_names, $datatype_array, $datarecord_array)
+    {
+        $file_array = array(
+            'datafields' => array(),
+            'child_datatypes' => array(),
+        );
+
+        $dt = $datatype_array[$current_datatype_id];
+
+        // Don't want to have to sort the same list of datarecords more than once...
+        $sorted_dr_list = array();
+        foreach ($datarecord_array as $dr_id => $dr) {
+            if ( $dr['dataType']['id'] === $current_datatype_id )
+                $sorted_dr_list[$dr_id] = $dr['sortField_value'];
+        }
+
+        if ( !empty($sorted_dr_list) ) {
+            uasort($sorted_dr_list, function ($a, $b) {
+                return strnatcmp($a, $b);
+            });
+        }
+
+
+        // If this datatype has file/image fields...
+        foreach ($dt['dataFields'] as $df_id => $df) {
+            // ...then determine whether any datarecords of this datatype have files/images uploaded
+            //  into this datafield...
+            foreach ($sorted_dr_list as $dr_id => $sort_value) {
+                $dr = $datarecord_array[$dr_id];
+
+                // ...then ensure there's a datafield entry in this array...
+                if ( isset($dr['dataRecordFields'][$df_id]) && !empty($dr['dataRecordFields'][$df_id]['file']) ) {
+                    if (!isset($file_array['datafields'][$df_id]))
+                        $file_array['datafields'][$df_id] = array();
+
+                    // ...create an entry for this datarecord...
+                    if (!isset($file_array['datafields'][$df_id][$dr_id]))
+                        $file_array['datafields'][$df_id][$dr_id] = array();
+
+                    // ...and then create entries for all files that this datarecord has for this
+                    //  datafield
+                    foreach ($datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'] as $num => $file) {
+                        $file_id = $file['id'];
+                        $file_array['datafields'][$df_id][$dr_id][$file_id] = $file['fileMeta']['originalFileName'];
                     }
                 }
             }
         }
 
-        if ( count($dr_array[$datarecord_id]['children']) == 0 && count($dr_array[$datarecord_id]['dataRecordFields']) == 0 )
-            // If the datarecord has no child datarecords, and doesn't have any files/images, return null
-            return null;
-        else
-            // Otherwise, return the (probably) modified version of the datarecord entry
-            return $dr_array[$datarecord_id];
+        // If this datatype has child/linked datatypes...
+        if ( isset($dt['descendants']) ) {
+            foreach ($dt['descendants'] as $child_dt_id => $child_dt_props) {
+                // User may not have permission to view the child/linked datatype...
+                if ( !isset($datatype_array[$child_dt_id]) )
+                    continue;
+
+                // ...then determine if the child/linked datatype has any files
+                $tmp = self::groupFilesByDatafield($child_dt_id, $entity_names, $datatype_array, $datarecord_array);
+
+                // Only store the data for the child/linked datarecord if it has files, or has some
+                //  descendant that has files
+                if ( !empty($tmp[$child_dt_id]['datafields']) || !empty($tmp[$child_dt_id]['child_datatypes']) ) {
+                    if (!isset($file_array['child_datatypes'][$child_dt_id]))
+                        $file_array['child_datatypes'][$child_dt_id] = array();
+
+                    $file_array['child_datatypes'][$child_dt_id] = $tmp[$child_dt_id];
+                }
+            }
+        }
+
+        return array($current_datatype_id => $file_array);
     }
 
 
@@ -1331,6 +1413,7 @@ class DisplayController extends ODRCustomController
             }
 
             // TODO - do the same for image names?
+            // TODO - only one file with a given name can be in an archive...duplicates are ignored...
 /*
 print '<pre>'.print_r($file_list, true).'</pre>';
 print '<pre>'.print_r($image_list, true).'</pre>';

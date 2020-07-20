@@ -1,71 +1,51 @@
 {% spaceless %}
 
-{% set datarecord = datarecord_array[datarecord_id] %}
+<div class="pure-u-1 ODRContentWrapper">
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
+            <div class="ODRMarkdownContent">
+                <p>
+                    This dialog allows you to select which files you want to download as a zip archive.
+                    The file are currently grouped by which{% if group_by_datafield %} datafield {% else %} datarecord {% endif %}they have been uploaded to.
+                </p>
+                <p>
+                    {# can't use <button>...can't seem to prevent it from triggering some kind of form submit #}
+                    <a class="pure-button {% if not group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="0">Group by Datarecord</a>
+                    <a class="pure-button {% if group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="1">Group by Datafield</a>
+                </p>
+            </div>
+        </div>
+    </div>
 
-{% if datarecord is null %}
-<h1 style="margin-left: 15px">No files are available to download</h1>
-{% else %}
-{#{% if not is_top_level %}#}
-<ul id="FileList_{{ datarecord_id }}">
-    <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ datarecord['nameField_value'] }}
-{#{% endif %}#}
-        <ul>
-        {% if datarecord['dataRecordFields'] is defined and datarecord['dataRecordFields']|length > 0 %}
-            {% for df_id, drf in datarecord['dataRecordFields'] %}
-                <li id="FileList_{{ datarecord_id }}_{{ df_id }}"><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ datafield_names[df_id] }}
-                    <ul>
-                    {% if drf['file']|length > 0 %}
-                        {% for num, file in drf['file'] %}
-                            <li>
-                                <span class="ODRTristateCheckbox binary">
-                                    <i class="fa"></i>
-                                    <input type="hidden" value="{{ file['id'] }}" name="files[]" disabled />
-                                </span>
-                                {{ file['fileMeta']['originalFileName'] }}
-                            </li>
-                        {% endfor %}
-                    {% endif %}
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
+            {% if group_by_datafield %}
+                {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datafield.html.twig' with {
+                    'file_array': file_array,
+                    'entity_names': entity_names,
 
-                    {% if drf['image']|length > 0 %}
-                        {% for num, image in drf['image'] %}
-                            <li>
-                                <span class="ODRTristateCheckbox binary">
-                                    <i class="fa"></i>
-                                    <input type="hidden" value="{{ image['parent']['id'] }}" name="images[]" disabled />
-                                </span>
-                                {{ image['parent']['imageMeta']['originalFileName'] }}
-                            </li>
-                        {% endfor %}
-                    {% endif %}
-                    </ul>
-                </li>
-            {% endfor %}
-        {% endif %}
+                    'grandparent_datarecord_id': grandparent_datarecord_id,
+                } %}
+            {% else %}
+                {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datarecord.html.twig' with {
+                    'file_array': file_array,
+                    'entity_names': entity_names,
+                } %}
+            {% endif %}
+        </div>
+    </div>
+</div>
 
-        {% if datarecord['children'] is defined and datarecord['children']|length > 0 %}
-            {% for child_dt_id, child_dr_list in datarecord['children'] %}
-                {% if datatype_names[child_dt_id] is defined %}
-                    <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ datatype_names[child_dt_id] }}
-                    {% for child_dr_id, child_dr in child_dr_list %}
-                        {% include 'ODRAdminBundle:Default:file_download_dialog_form.html.twig' with {
-                            'datarecord_id': child_dr_id,
+<script>
+    $(function() {
+        $(".ODRToggleFileGrouping").unbind('click').click(function(event) {
+            event.stopImmediatePropagation();
 
-                            'datarecord_array': child_dr_list,
-                            'datafield_names': datafield_names,
-                            'datatype_names': datatype_names,
+            var grandparent_datarecord_id = '{{ grandparent_datarecord_id }}';
+            var group_by_datafield = $(this).attr('rel');
 
-                            'is_top_level': false,
-                        } %}
-                    {% endfor %}
-                    </li>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-        </ul>
-{#{% if not is_top_level %}#}
-    </li>
-</ul>
-{#{% endif %}#}
-{% endif %}
-
+            loadFileData(grandparent_datarecord_id, group_by_datafield);
+        });
+    });
+</script>
 {% endspaceless %}

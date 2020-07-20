@@ -1,0 +1,56 @@
+{% spaceless %}
+
+{% if file_array|length == 0 %}
+<div class="ODRMarkdownContent">
+    <p>No Files are available for downloading</p>
+</div>
+{% endif %}
+
+{% for dt_id, dt in file_array %}
+<ul>
+    <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{% if grandparent_datarecord_id != 0 %}{{ entity_names['datarecords'][grandparent_datarecord_id] }}{% else %}{{ entity_names['datatypes'][dt_id] }}{% endif %}
+
+    {% if dt['datafields'] is defined and dt['datafields']|length > 0 %}
+        <ul>
+        {% for df_id, dr_list in dt['datafields'] %}
+            <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id] }}
+            {% if dr_list|length > 0 %}
+                <ul>
+                {% for dr_id, files in dr_list %}
+                    <li id="FileList_{{ dr_id }}_{{ df_id }}"><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datarecords'][dr_id] }}
+                    {% if files|length > 0 %}
+                        <ul>
+                        {% for file_id, filename in files %}
+                            <li>
+                                <span class="ODRTristateCheckbox binary">
+                                    <i class="fa"></i>
+                                    <input type="hidden" value="{{ file_id }}" name="files[]" disabled />
+                                </span>
+                                {{ filename }}
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                    </li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if dt['child_datatypes'] is defined and dt['child_datatypes']|length > 0 %}
+        {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datafield.html.twig' with {
+            'file_array': dt['child_datatypes'],
+            'entity_names': entity_names,
+
+            'grandparent_datarecord_id': 0,
+        } %}
+    {% endif %}
+
+    </li>
+</ul>
+{% endfor %}
+
+{% endspaceless %}

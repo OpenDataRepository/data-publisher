@@ -965,12 +965,11 @@ odr_image_download:
         image_id:  \d+
 
 odr_get_file_list:
-    path:  /view/file_list/{grandparent_datarecord_id}/{datarecord_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Display:listallfiles, datarecord_id: 0, datafield_id: 0 }
+    path:  /view/file_list/{grandparent_datarecord_id}/{group_by_datafield}
+    defaults: { _controller: ODRAdminBundle:Display:listallfiles, group_by_datafield: 0 }
     requirements:
         grandparent_datarecord_id: \d+
-        datarecord_id: \d+
-        datafield_id: \d+
+        group_by_datafield: 0|1
 
 odr_start_zip_archive_download:
     path:  /view/start_archive_build/{grandparent_datarecord_id}

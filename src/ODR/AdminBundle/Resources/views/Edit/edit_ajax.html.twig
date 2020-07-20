@@ -48,7 +48,9 @@
 {% endif %}
 
 <div id="download_files_dialog_wrapper">
-    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' with {
+        'initial_datarecord_id': initial_datarecord_id,
+    } %}
 </div>
 <div id="tag_edit_dialog_wrapper">
     {% include 'ODRAdminBundle:Edit:tag_wrapper_dialog.html.twig' with {
