@@ -66,6 +66,16 @@ class EntityMetaModifyService
     private $em;
 
     /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -74,14 +84,20 @@ class EntityMetaModifyService
     /**
      * EntityMetaModifyService constructor.
      *
-     * @param EntityManager $entityManager
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
+        CacheService $cache_service,
+        DatatreeInfoService $datatree_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
+        $this->dti_service = $datatree_info_service;
         $this->logger = $logger;
     }
 
@@ -247,12 +263,15 @@ class EntityMetaModifyService
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['publicDate']) )
             $new_datafield_meta->setPublicDate( $properties['publicDate'] );
+
+        // If the "master_revision" property is set...
         if ( isset($properties['master_revision']) ) {
+            // ...then always want to update the datafield with the provided value
             $new_datafield_meta->setMasterRevision( $properties['master_revision'] );
         }
-        // Check in case master revision needs to be updated.
-        else if ($datafield->getIsMasterField() > 0) {
-            // We always increment the Master Revision for master data fields
+        else if ( $datafield->getIsMasterField() ) {
+            // ...otherwise, ensure the "master_revision" property always gets incremented when any
+            //  change is made to a template datafield
             $new_datafield_meta->setMasterRevision($new_datafield_meta->getMasterRevision() + 1);
         }
 
@@ -282,10 +301,11 @@ class EntityMetaModifyService
 
         // All metadata changes result in a new Data Field Master Published Revision.  Revision
         // changes are picked up by derivative data types when the parent data type revision is changed.
-        if ($datafield->getIsMasterField() > 0) {
-            $datatype = $datafield->getDataType();
-            $dt_properties['master_revision'] = $datatype->getMasterRevision() + 1;
-            self::updateDatatypeMeta($user, $datatype, $dt_properties, $delay_flush);
+        if ( $datafield->getIsMasterField() ) {
+            $props = array(
+                'master_revision' => $datafield->getDataType()->getMasterRevision() + 1
+            );
+            self::updateDatatypeMeta($user, $datafield->getDataType(), $props, $delay_flush);
         }
 
         // Return the new entry
@@ -613,24 +633,52 @@ class EntityMetaModifyService
         if ( isset($properties['newRecordsArePublic']) )
             $new_datatype_meta->setNewRecordsArePublic( $properties['newRecordsArePublic'] );
 
-        if ( isset($properties['master_revision']) )
+        if ( isset($properties['master_revision']) ) {
             $new_datatype_meta->setMasterRevision( $properties['master_revision'] );
+        }
+        // TODO - why does this not match the logic of self::updateDatafieldMeta()?
+        if ($datatype->getIsMasterType()) {
+            $grandparent_datatype = $datatype->getGrandparent();
+            if ( $datatype->getId() !== $grandparent_datatype->getId() ) {
+                // This is currently a child tempate datatype...need to update its grandparent's
+                //  "master_revision" value
+                $props = array(
+                    'master_revision' => $grandparent_datatype->getMasterRevision() + 1
+                );
+                self::updateDatatypeMeta($user, $grandparent_datatype, $props, true);    // don't flush an update to this datatype immediately...
+
+                // Don't need to worry about cache clearing for this logic path
+            }
+            else {
+                // This is currently a top-level template datatype...check whether it's a linked
+                //  descendant of other template datatypes...
+                $linked_ancestors = $this->dti_service->getLinkedAncestors(array($datatype->getId()));
+                if ( !empty($linked_ancestors) ) {
+                    // ...because if it is, all linked ancestors of this datatype also need to have
+                    //  their "master_revision" value updated
+                    foreach ($linked_ancestors as $linked_ancestor_id) {
+                        /** @var DataType $linked_ancestor */
+                        $linked_ancestor = $this->em->getRepository('ODRAdminBundle:DataType')->find($linked_ancestor_id);
+                        $props = array(
+                            'master_revision' => $linked_ancestor->getMasterRevision() + 1
+                        );
+                        self::updateDatatypeMeta($user, $linked_ancestor, $props, true);    // don't flush updates to these datatypes immediately...
+
+                        // Need to independently trigger a cache clear for each of these linked
+                        //  ancestor datatypes so they report the correct version number
+                        $this->cache_service->delete('cached_datatype_'.$linked_ancestor_id);
+                    }
+                }
+            }
+        }
+
         if ( isset($properties['master_published_revision']) )
             $new_datatype_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
-        if ( isset($properties['master_published_revision']) )
+        if ( isset($properties['tracking_master_revision']) )
             $new_datatype_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
 
         $new_datatype_meta->setUpdatedBy($user);
 
-        if ($datatype->getIsMasterType()) {
-            // Update grandparent master revision
-            if ($datatype->getGrandparent()->getId() != $datatype->getId()) {
-                $grandparent_datatype = $datatype->getGrandparent();
-
-                $gp_properties['master_revision'] = $grandparent_datatype->getMasterRevision() + 1;
-                self::updateDatatypeMeta($user, $grandparent_datatype, $gp_properties, $delay_flush);
-            }
-        }
 
         // Delete the old entry if it's getting replaced
         if ($remove_old_entry) {
@@ -1181,12 +1229,12 @@ class EntityMetaModifyService
         }
 
 
-        // Master Template Data Fields must increment Master Revision
-        // on all change requests.
+        // Master Template Data Fields must increment Master Revision on all change requests.
         if ($radio_option->getDataField()->getIsMasterField()) {
-            $datafield = $radio_option->getDataField();
-            $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-            self::updateDatafieldMeta($user, $datafield, $dfm_properties, $delay_flush);
+            $props = array(
+                'master_revision' => $radio_option->getDataField()->getMasterRevision() + 1
+            );
+            self::updateDatafieldMeta($user, $radio_option->getDataField(), $props, $delay_flush);
         }
 
         // Return the new entry
@@ -1594,9 +1642,10 @@ class EntityMetaModifyService
 
         // Master Template Data Fields must increment Master Revision on all change requests.
         if ($tag->getDataField()->getIsMasterField()) {
-            $datafield = $tag->getDataField();
-            $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-            self::updateDatafieldMeta($user, $datafield, $dfm_properties, $delay_flush);
+            $props = array(
+                'master_revision' => $tag->getDataField()->getMasterRevision() + 1
+            );
+            self::updateDatafieldMeta($user, $tag->getDataField(), $props, $delay_flush);
         }
 
         // Return the new entry

@@ -219,6 +219,8 @@ services:
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $logger: "@logger"
 
     odr.entity_deletion_service:
