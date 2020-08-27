@@ -207,6 +207,15 @@ function SaveAsNew() {
     });
     if ( has_errors ) {
         alert('At least one field has a problem that must be fixed before saving.');
+
+        $(".ODRInputError").each(function(index, elem) {
+            if ( $(elem).is(':visible') ) {
+                $(elem).effect("highlight", {}, 2000, function() {
+                    $(elem).effect("highlight", {}, 2000);    {# TODO - this doesn't seem like the right way of handling this... #}
+                });
+            }
+        });
+
         return;
     }
 

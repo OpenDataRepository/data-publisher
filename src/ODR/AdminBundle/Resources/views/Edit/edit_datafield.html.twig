@@ -111,7 +111,15 @@
 
         {#<fieldset>#}
         <div class="ODRFileDatafield">
+            {% if datarecord_is_fake %}
+            <div class="pure-u-1 Info" title="Record must be saved before files can be uploaded" style="opacity: 45%;">
+            {% endif %}
+
             {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {'files': valuefield, 'datafield': datafield, 'datarecord': datarecord} %}
+
+            {% if datarecord_is_fake %}
+            </div>
+            {% endif %}
         </div>
 
         {% if not datarecord_is_fake %}
@@ -131,6 +139,11 @@
 
     {% elseif field_typename == "Image" %}
         {% set has_image = false %}
+
+        {% if datarecord_is_fake %}
+        <div class="pure-u-1 Info" title="Record must be saved before images can be uploaded">
+        {% endif %}
+
         {#<fieldset>#}
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}" style="text-align: center;">{{ datafield_meta.fieldName }}</label>
             <div class="ODRSortableImage pure-u-1">
@@ -179,6 +192,10 @@
             </div>
             {% endif %}
         {#</fieldset>#}
+
+        {% if datarecord_is_fake %}
+        </div>
+        {% endif %}
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
