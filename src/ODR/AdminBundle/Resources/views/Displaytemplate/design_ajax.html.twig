@@ -1242,10 +1242,17 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function() {
-                // The <script> tags in design_fieldarea.html.twig will update the
-                //  theme_element_properties array
-                ReloadThemeElement(theme_element_id);
+            success: function(data) {
+                if ( data.d.reload === 'theme_element' ) {
+                    // Childtype was added to the local datatype, only need to reload a single
+                    //  theme element
+                    ReloadThemeElement(data.d.id);
+                }
+                else if ( data.d.reload === 'datatype' ) {
+                    // Childtype was added to a linked datatype, might need to reload multiple
+                    //  sections of the page
+                    ReloadChild(data.d.id);
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1326,13 +1333,20 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function() {
+            success: function(data) {
                 // Clear object properties panel
                 $("#ThemeDesignForm").html("");
 
-                // The <script> tags in design_fieldarea.html.twig will update the
-                //  theme_element_properties and datafield_properties arrays
-                ReloadThemeElement(theme_element_id);
+                if ( data.d.reload === 'theme_element' ) {
+                    // Datafield was added to the local datatype, only need to reload a single
+                    //  theme element
+                    ReloadThemeElement(data.d.id);
+                }
+                else if ( data.d.reload === 'datatype' ) {
+                    // Datafield was added to a linked datatype, might need to reload multiple
+                    //  sections of the page
+                    ReloadChild(data.d.id);
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -2770,9 +2784,8 @@
      */
     function CopyDatafield(datafield_id) {
 
-        // TODO - currently blocked in the backend for linked datatypes
-
-        // Grab theme_element id
+        // Need to know which theme_element the field is in to determine whether it belongs to a
+        //  linked datatype or not
         var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);
         var theme_element_id = theme_element_id_data[1];
 
@@ -2785,14 +2798,21 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function() {
+            success: function(data) {
                  // Clear object properties panel
                 $("#ThemeDesignForm").html("");
                 ResetToolSet();
 
-                // The <script> tags in design_fieldarea.html.twig will update the
-                //  theme_element_properties array
-                ReloadThemeElement(theme_element_id);
+                if ( data.d.reload === 'theme_element' ) {
+                    // Datafield was added to the local datatype, only need to reload a single
+                    //  theme element
+                    ReloadThemeElement(data.d.id);
+                }
+                else if ( data.d.reload === 'datatype' ) {
+                    // Datafield was added to a linked datatype, might need to reload multiple
+                    //  sections of the page
+                    ReloadChild(data.d.id);
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

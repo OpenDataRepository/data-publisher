@@ -626,47 +626,126 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a Datafield into a ThemeElement that already has a child/linked Datatype');
 
 
-            // TODO - this is currently blocked...otherwise the new datafield would get attached
-            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
-            // TODO -  and synchronized to any other theme
-            // Ensure this isn't being called on a linked datatype
-            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            // Going to need these...
+            $parent_theme = $theme->getParentTheme();
+            $source_theme = $theme->getSourceTheme();
+
+            // Check whether the user is trying to add a datafield to a linked datatype...
+            $parent_theme_datatype_id = $parent_theme->getDataType()->getGrandparent()->getId();
             $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+
+            // ...because performing this action on a linked datatype is different than when adding
+            //  to the local datatype or one of its children
+            $add_to_linked_datatype = false;
             if ($grandparent_datatype_id !== $parent_theme_datatype_id)
-                throw new ODRBadRequestException('Unable to create a new Datafield inside a Linked Datatype');
+                $add_to_linked_datatype = true;
 
 
-            // ----------------------------------------
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
             $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
             /** @var RenderPlugin $render_plugin */
             $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
 
-            // Create the datafield
+            // Create the datafield...works the same whether it's for a local or a linked datatype
             $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin, true);    // Don't flush immediately...
 
-            // Tie the datafield to the theme element
+            // Don't need to worry about datafield permissions here, those are taken care of inside createDatafield()
+
+            // Tie the datafield to the specified theme element regardless of whether it's a local
+            //  or a linked datatype...the new field MUST become visible where the user expects it
+            //  to be, and using CloneThemeService::syncThemeWithSource() will instead place the
+            //  field in a hidden themeElement (although design mode ignores hidden themeElements)
             $ec_service->createThemeDatafield($user, $theme_element, $datafield, true);    // Don't flush immediately...
 
-            // A datafield was added, so any themes that use this master theme as their source
-            //  need to get updated themselves
+            if ( $add_to_linked_datatype ) {
+                // When adding to a linked datatype...at this point there's a ThemeDatafield entry
+                //  in the local datatype's copy of the linked datatype's theme.  The new datafield
+                //  also needs a ThemeDatafield entry in the linked datatype's master theme, otherwise
+                //  it won't show up there.
+                $theme_data = $theme_service->getThemeArray($source_theme->getId());
+
+                // Since there's not necessarily a correlation between the ThemeElements in the linked
+                //  datatype's master theme and the ThemeElements in the local datatype's copy of
+                //  the linked datatype's theme...
+                $added = false;
+                foreach ($theme_data[$source_theme->getId()]['themeElements'] as $te_num => $te) {
+                    if ( $te['themeElementMeta']['hidden'] == 0 ) {
+                        if ( isset($te['themeDataFields']) || !isset($te['themeDataType']) ) {
+                            // ...find and use the first visible ThemeElement that either already has
+                            //  datafields, or at least is not being used for a child/linked datatype
+                            /** @var ThemeElement $linked_theme_element */
+                            $linked_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find( $te['id'] );
+
+                            // Create a ThemeDatafield entry so the new datafield shows up in the
+                            //  ThemeElement that was just located
+                            $ec_service->createThemeDatafield($user, $linked_theme_element, $datafield, true);    // Don't flush immediately...
+
+                            // Don't need to look for another themeElement
+                            $added = true;
+                            break;
+                        }
+                    }
+                }
+
+                // The linked datatype isn't guaranteed to have a suitable ThemeElement, however...
+                if (!$added) {
+                    // ...in which case a new ThemeElement needs to get created...
+                    $new_te = $ec_service->createThemeElement($user, $source_theme, true);    // Don't flush immediately...
+                    // ...so the new datafield can be attached to it
+                    $ec_service->createThemeDatafield($user, $new_te, $datafield, true);    // Don't flush immediately...
+                }
+
+                // Increment the linked datatype's master theme's "sourceSyncVersion" property so
+                //  that all themes derived from it know they need to get updated...otherwise the
+                //  new datafield won't appear in these derived themes
+                $properties = array(
+                    'sourceSyncVersion' => $source_theme->getSourceSyncVersion() + 1
+                );
+                $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
+            }
+
+            // Increment the "sourceSyncVersion" property of the theme that just received the new
+            //  datafield, so that all derived/search results themes know they need update themselves
+            //  with the new datafield
             $properties = array(
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
             $emm_service->updateThemeMeta($user, $theme, $properties);    // Flush here
 
 
-            // design_ajax.html.twig calls ReloadThemeElement()
-
-            // Update the cached version of the datatype and the master theme
+            // ----------------------------------------
+            // Update the cached version of the datatype and its master theme
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
+
+            if ( $add_to_linked_datatype ) {
+                // If the field was added to a linked datatype, then need to also mark the linked
+                //  datatype's master theme as updated
+                $theme_service->updateThemeCacheEntry($source_theme, $user);
+            }
 
             // A couple search cache entries need cleared when a datafield is created...
             $search_cache_service->onDatafieldCreate($datafield);
 
-            // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
+
+            // ----------------------------------------
+            if ( !$add_to_linked_datatype ) {
+                // If not adding to a linked datatype, then reloading the theme element is sufficient
+                $return['d'] = array(
+                    'reload' => 'theme_element',
+                    'id' => $theme_element_id
+                );
+            }
+            else {
+                // If adding to a linked datatype, then all instances of that datatype that are
+                //  currently displayed need to be reloaded
+                $return['d'] = array(
+                    'reload' => 'datatype',
+                    'id' => $source_theme->getDataType()->getId()
+                );
+            }
+
         }
         catch (\Exception $e) {
             $source = 0x6f6cfd5d;
@@ -708,6 +787,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -760,15 +841,6 @@ class DisplaytemplateController extends ODRCustomController
             if ($theme->getThemeType() !== 'master')
                 throw new ODRBadRequestException('Unable to clone a datafield outside of a "master" theme');
 
-            // TODO - this is currently blocked...otherwise the copied datafield would get attached
-            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
-            // TODO -  and synchronized to any other theme
-            // Ensure this isn't being called on a linked datatype
-            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
-            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
-            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
-                throw new ODRBadRequestException('Unable to copy a Datafield inside a Linked Datatype');
-
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($old_datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to clone a derived field');
@@ -778,6 +850,21 @@ class DisplaytemplateController extends ODRCustomController
             $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $old_datafield->getId());
             if ( !$datafield_properties['can_copy'] )
                 throw new ODRBadRequestException('Unable to clone this field');
+
+
+            // Going to need these...
+            $parent_theme = $theme->getParentTheme();
+            $source_theme = $theme->getSourceTheme();
+
+            // Check whether the user is trying to copy a datafield in a linked datatype...
+            $parent_theme_datatype_id = $parent_theme->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+
+            // ...because copying a datafield is handled differently when it belongs to a linked
+            //  datatype
+            $add_to_linked_datatype = false;
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                $add_to_linked_datatype = true;
 
 
             // ----------------------------------------
@@ -790,7 +877,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Ensure the "in-memory" version of $datatype knows about the new datafield
             $datatype->addDataField($new_df);
-            self::persistObject($em, $new_df, $user);
+            self::persistObject($em, $new_df, $user, true);    // Don't flush immediately...
 
 
             // Clone the old datafield's meta entry...
@@ -801,13 +888,13 @@ class DisplaytemplateController extends ODRCustomController
 
             // Ensure the "in-memory" version of $new_df knows about the new meta entry
             $new_df->addDataFieldMetum($new_df_meta);
-            self::persistObject($em, $new_df_meta, $user);
+            self::persistObject($em, $new_df_meta, $user, true);    // Don't flush immediately...
 
             // Need to create the groups for the new datafield...
-            $ec_service->createGroupsForDatafield($user, $new_df);
+            $ec_service->createGroupsForDatafield($user, $new_df, true);    // Don't flush immediately...
 
 
-            // Clone the old datafield's theme_datafield entry...
+            // Clone the old datafield's ThemeDatafield entry so it shows up on the page...
             /** @var ThemeDataField $new_tdf */
             $new_tdf = clone $old_theme_datafield;
             $new_tdf->setDataField($new_df);
@@ -816,17 +903,87 @@ class DisplaytemplateController extends ODRCustomController
 
             // Ensure the "in-memory" theme_element knows about the new theme_datafield entry
             $theme_element->addThemeDataField($new_tdf);
-            self::persistObject($em, $new_tdf, $user);
+            self::persistObject($em, $new_tdf, $user, true);    // Don't flush immediately...
 
-            // design_ajax.html.twig calls ReloadThemeElement()
 
+            if ($add_to_linked_datatype) {
+                // When copying to a linked datatype...at this point there's a ThemeDatafield entry
+                //  in the local datatype's copy of the linked datatype's theme.  The new datafield
+                //  also needs a ThemeDatafield entry in the linked datatype's master theme, otherwise
+                //  it won't show up there.
+                $theme_data = $theme_service->getThemeArray($source_theme->getId());
+
+                // Might as well ensure the copied datafield appears immediately after its source
+                //  datafield in the linked datatype's theme...
+                foreach ($theme_data[$source_theme->getId()]['themeElements'] as $te_num => $te) {
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            if ( $tdf['dataField']['id'] === $old_datafield->getId() ) {
+                                /** @var ThemeDataField $linked_tdf */
+                                $linked_tdf = $em->getRepository('ODRAdminBundle:ThemeDataField')->find( $tdf['id'] );
+
+                                $new_linked_tdf = clone $linked_tdf;
+                                $new_linked_tdf->setDataField($new_df);
+                                // Intentionally not changing displayOrder...new field should appear just after the
+                                //  old datafield, in theory
+
+                                self::persistObject($em, $new_linked_tdf, $user, true);    // Don't flush immediately...
+                            }
+                        }
+                    }
+                }
+
+                // Increment the linked datatype's master theme's "sourceSyncVersion" property so
+                //  that all themes derived from it know they need to get updated...otherwise the
+                //  new datafield won't appear in these derived themes
+                $properties = array(
+                    'sourceSyncVersion' => $source_theme->getSourceSyncVersion() + 1
+                );
+                $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
+            }
+
+            // Increment the "sourceSyncVersion" property of the theme that just received the new
+            //  datafield, so that all derived/search results themes know they need update themselves
+            //  with the new datafield
+            $properties = array(
+                'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
+            );
+            $emm_service->updateThemeMeta($user, $theme, $properties);    // Flush here
+
+
+            // ----------------------------------------
             // Updated the cached version of the datatype and the master theme
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
 
-            // Since a new datafield got created as part of this copy, a few search cache entries
-            //  need to be cleared...
+            if ( $add_to_linked_datatype ) {
+                // If the field was copied to a linked datatype, then need to also mark the linked
+                //  datatype's master theme as updated
+                $theme_service->updateThemeCacheEntry($source_theme, $user);
+            }
+
+            // Since this copy created a new datafield, a few search cache entries need to be
+            //  cleared...
             $search_cache_service->onDatafieldCreate($new_df);
+
+
+            // ----------------------------------------
+            if ( !$add_to_linked_datatype ) {
+                // If not copying a field inside a linked datatype, then reloading the theme element
+                //  is sufficient
+                $return['d'] = array(
+                    'reload' => 'theme_element',
+                    'id' => $theme_element_id
+                );
+            }
+            else {
+                // If copying a field inside a linked datatype, then all instances of that datatype
+                //  that are currently displayed need to be reloaded
+                $return['d'] = array(
+                    'reload' => 'datatype',
+                    'id' => $source_theme->getDataType()->getId()
+                );
+            }
 
         }
         catch (\Exception $e) {
@@ -849,8 +1006,9 @@ class DisplaytemplateController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param mixed $obj
      * @param ODRUser $user
+     * @param bool $delay_flush If true, don't flush immediately
      */
-    private function persistObject($em, $obj, $user)
+    private function persistObject($em, $obj, $user, $delay_flush = false)
     {
         //
         if (method_exists($obj, "setCreated"))
@@ -863,8 +1021,11 @@ class DisplaytemplateController extends ODRCustomController
             $obj->setUpdatedBy($user);
 
         $em->persist($obj);
-        $em->flush();
-        $em->refresh($obj);
+
+        if ($delay_flush) {
+            $em->flush();
+            $em->refresh($obj);
+        }
     }
 
 
@@ -937,14 +1098,18 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a child Datatype into a ThemeElement that already has Datafields');
 
 
-            // TODO - this is currently blocked...otherwise the new child datatype would get attached
-            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
-            // TODO -  and synchronized to any other theme
-            // Ensure this isn't being called on a linked datatype
-            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            // Going to need these...
+            $parent_theme = $theme->getParentTheme();
+            $source_theme = $theme->getSourceTheme();
+
+            // Check whether the user is trying to add a child datatype to a linked datatype...
+            $parent_theme_datatype_id = $parent_theme->getDataType()->getGrandparent()->getId();
             $grandparent_datatype_id = $parent_datatype->getGrandparent()->getId();
+
+            // ...because adding a child datatype to a linked datatype is more complicated
+            $add_to_linked_datatype = false;
             if ($grandparent_datatype_id !== $parent_theme_datatype_id)
-                throw new ODRBadRequestException('Unable to create a new child Datatype inside a Linked Datatype');
+                $add_to_linked_datatype = true;
 
 
             // ----------------------------------------
@@ -957,7 +1122,6 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype->setTemplateGroup($parent_datatype->getTemplateGroup());
             if ($parent_datatype->getIsMasterType())
                 $child_datatype->setIsMasterType(true);
-
             $em->persist($child_datatype);
 
             // ...same for its meta entry
@@ -965,9 +1129,7 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype_meta->setSearchSlug(null);    // child datatypes don't have search slugs
             if ($child_datatype->getIsMasterType())
                 $child_datatype_meta->setMasterRevision(1);
-
             $em->persist($child_datatype_meta);
-
 
             // Create a new DataTree entry to link the new child datatype with its parent...
             $is_link = false;
@@ -975,30 +1137,71 @@ class DisplaytemplateController extends ODRCustomController
             $ec_service->createDatatree($user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed, true);    // don't flush immediately...
 
 
-            // Create a new master Theme for this child datatype...
-            $child_theme = $ec_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
-            $child_theme->setParentTheme($theme->getParentTheme());
-            $child_theme->setSourceTheme($child_theme);
+            // ----------------------------------------
+            // If the new child datatype is being added to a linked datatype...
+            $child_source_theme = null;
+            if ( $add_to_linked_datatype ) {
+                // ...then it needs to be created with two Themes...a "master" Theme belonging to
+                //  the linked datatype's master theme, and a second Theme representing a "copy" in
+                //  the local datatype theme (defined after this block)
+                $child_source_theme = $ec_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
+                $child_source_theme->setParentTheme($source_theme->getParentTheme());    // this theme belongs with the rest of the "master" themes for the linked datatype
+                $child_source_theme->setSourceTheme($child_source_theme);    // this is *the* master theme for this child datatype, so should use itself as source
+                $em->persist($child_source_theme);
 
+                // Need to inherit a few properties from its parent...
+                $child_source_theme_meta = $child_source_theme->getThemeMeta();
+                $child_source_theme_meta->setIsDefault($source_theme->isDefault());    // both of these should always be true...
+                $child_source_theme_meta->setShared($source_theme->isShared());
+                $em->persist($child_source_theme_meta);
+            }
+
+            // Create a new Theme for this child datatype, attached to the local datatype's
+            //  master Theme...
+            $child_theme = $ec_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
+            $child_theme->setParentTheme($theme->getParentTheme());    // this theme belongs with the rest of the "master" themes for the local datatype
+            if ( !$add_to_linked_datatype )
+                $child_theme->setSourceTheme($child_theme);    // not being created for a linked datatype, so should use itself as source
+            else
+                $child_theme->setSourceTheme($child_source_theme);    // being created for a linked datatype, so should use the previously created theme as source instead
             $em->persist($child_theme);
 
-            // The new theme inherits a few properties from its parent as well...
+            // Need to inherit a few properties from its parent...
             $child_theme_meta = $child_theme->getThemeMeta();
-            $child_theme_meta->setIsDefault($theme->isDefault());
+            $child_theme_meta->setIsDefault($theme->isDefault());    // both of these should always be true...
             $child_theme_meta->setShared($theme->isShared());
+            $em->persist($child_theme_meta);
 
+
+            if ( $add_to_linked_datatype ) {
+                // When adding to a linked datatype, two ThemeDatatype entries need to be created...
+                //  one for the linked datatype, and another for the local datatype (defined after
+                //  this block).  Without both of these, the new child datatype won't show up
+
+                // Don't bother looking for an empty ThemeElement, just create a new one...
+                $new_te = $ec_service->createThemeElement($user, $source_theme, true);    // Don't flush immediately...
+                // ...so the new child datatype can be attached to it
+                $ec_service->createThemeDatatype($user, $new_te, $child_datatype, $child_source_theme, true);    // Don't flush immediately...
+
+                // Increment the linked datatype's master theme's "sourceSyncVersion" property so
+                //  that all themes derived from it know they need to get updated...otherwise the
+                //  new datafield won't appear in these derived themes
+                $properties = array(
+                    'sourceSyncVersion' => $new_te->getTheme()->getSourceSyncVersion() + 1
+                );
+                $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
+            }
 
             // Create a new ThemeDatatype entry to let the renderer know it has to render a child
             //  datatype in this ThemeElement
             $ec_service->createThemeDatatype($user, $theme_element, $child_datatype, $child_theme, true);    // don't flush immediately...
-
 
             // Since a child datatype was added, any themes that use this master theme as their
             //  source need to get updated themselves
             $properties = array(
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
-            $emm_service->updateThemeMeta($user, $theme, $properties, true);
+            $emm_service->updateThemeMeta($user, $theme, $properties, true);    // don't flush immediately
 
 
             // ----------------------------------------
@@ -1023,10 +1226,35 @@ class DisplaytemplateController extends ODRCustomController
             // Don't need to delete the "associated_datatypes_for_<dt_id>" cache entry...that only
             // stores top-level datatypes, and this was a new child datatype
 
+            if ( $add_to_linked_datatype ) {
+                // If the child datatype was added to a linked datatype, then need to also mark the
+                //  linked datatype's master theme as updated
+                $theme_service->updateThemeCacheEntry($source_theme, $user);
+            }
+
             // Update the cached version of this datatype
             $dti_service->updateDatatypeCacheEntry($parent_datatype, $user);
             // Do the same for the cached version of this theme
             $theme_service->updateThemeCacheEntry($theme, $user);
+
+
+            // ----------------------------------------
+            if ( !$add_to_linked_datatype ) {
+                // If not creating a childtype inside a linked datatype, then reloading the theme
+                //  element is sufficient
+                $return['d'] = array(
+                    'reload' => 'theme_element',
+                    'id' => $theme_element_id
+                );
+            }
+            else {
+                // If creating a childtype inside a linked datatype, then all instances of that
+                //  datatype that are currently displayed need to be reloaded
+                $return['d'] = array(
+                    'reload' => 'datatype',
+                    'id' => $source_theme->getDataType()->getId()
+                );
+            }
         }
         catch (\Exception $e) {
             $source = 0xe1cadbac;
