@@ -234,6 +234,8 @@ class EntityDeletionService
             $conn = $this->em->getConnection();
             $conn->beginTransaction();
 
+            $need_flush = false;
+
             // ----------------------------------------
             // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
 /*
@@ -306,6 +308,37 @@ class EntityDeletionService
 
 
             // ----------------------------------------
+            // Need to check whether any other datatypes are using this datafield for sorting...
+            // This kinda needs to come before checking the datafield's datatype, because otherwise
+            //  the delayed flushing will create multiple DatatypeMeta entries for the previously
+            //  mentioned "other datatypes"...
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataTypeMeta AS dtm
+                JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
+                WHERE dtm.sortField = :datafield_id AND dt.id != :datatype_id
+                AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafield_id' => $datafield->getId(),
+                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it'll be taken care of next
+                )
+            );
+            $results = $query->getResult();
+
+            foreach ($results as $result) {
+                /** @var DataType $dt */
+                $dt = $result;
+
+                $props['sortField'] = null;
+                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
+
+                // Shouldn't need to clear cache entries as a result of this...
+                $need_flush = true;
+            }
+
+
+            // ----------------------------------------
             // Ensure that the datatype no longer thinks this datafield has a special purpose...
             $properties = array();
 
@@ -343,38 +376,9 @@ class EntityDeletionService
             }
 
             // Save any required changes
-            $need_flush = false;
             if ( count($properties) > 0 ) {
                 $need_flush = true;
                 $this->emm_service->updateDatatypeMeta($user, $datatype, $properties, true);    // don't flush
-            }
-
-
-            // ----------------------------------------
-            // Also need to check whether any other datatypes are using this datafield for sorting...
-            $query = $this->em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataTypeMeta AS dtm
-                JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
-                WHERE dtm.sortField = :datafield_id AND dt.id != :datatype_id
-                AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafield_id' => $datafield->getId(),
-                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it's already been taken care of
-                )
-            );
-            $results = $query->getResult();
-
-            foreach ($results as $result) {
-                /** @var DataType $dt */
-                $dt = $result;
-
-                $props['sortField'] = null;
-                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
-
-                // Shouldn't need to clear cache entries as a result of this...
-                $need_flush = true;
             }
 
 
@@ -419,6 +423,10 @@ class EntityDeletionService
 
 
             // ----------------------------------------
+            // Deleting a datafield needs to update the master_revision property of its datatype
+            if ( $datatype->getIsMasterType() )
+                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype);
+
             // Ensure that the cached tag hierarchy doesn't reference this datafield
             $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
             $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
@@ -692,6 +700,17 @@ class EntityDeletionService
 
 
             // ----------------------------------------
+            // Easier to handle updates to the "master_revision" and others before anything gets
+            //  deleted...
+            if ( $datatype->getIsMasterType() )
+                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // don't flush immediately...
+
+            // Even though it's getting deleted, mark this datatype as updated so its parents get
+            //  updated as well
+            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
+
+
+            // ----------------------------------------
             // Locate ids of all datatypes that need deletion...can't just use grandparent datatype id
             //  since this could be a child datatype
             $datatree_array = $this->dti_service->getDatatreeArray();
@@ -749,7 +768,7 @@ class EntityDeletionService
             // Need to separately locate all super_admins, since they're going to need permissions
             //  cleared too
             $query = $this->em->createQuery(
-                'SELECT u.id AS user_id
+               'SELECT u.id AS user_id
                 FROM ODROpenRepositoryUserBundle:User AS u
                 WHERE u.roles LIKE :role'
             )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
@@ -1107,6 +1126,7 @@ class EntityDeletionService
             // If a flush is needed, then only do it after the transaction is finished
             if ( $needs_flush )
                 $this->em->flush();
+
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...

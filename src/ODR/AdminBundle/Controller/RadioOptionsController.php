@@ -204,11 +204,10 @@ class RadioOptionsController extends ODRCustomController
             $option_name = "Option";
             $radio_option = $ec_service->createRadioOption($user, $datafield, $force_create, $option_name);
 
-            // Master Template Data Fields must increment Master Revision on all change requests.
-            if ( $datafield->getIsMasterField() ) {
-                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-                $emm_service->updateDatafieldMeta($user, $datafield, $dfm_properties, true);
-            }
+            // Creating a new RadioOption requires an update of the "master_revision" property of
+            //  the datafield it got added to
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
             // createRadioOption() does not automatically flush when $force_create == true
             $em->flush();
@@ -277,6 +276,8 @@ class RadioOptionsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -384,6 +385,11 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Deleting a new RadioOption requires an update of the "master_revision" property of
+            //  the datafield it got deleted from
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately
+
             // Mark this datatype as updated
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
@@ -771,7 +777,7 @@ class RadioOptionsController extends ODRCustomController
 
             // Load all RadioOption and RadioOptionMeta entities for this datafield
             $query = $em->createQuery(
-                'SELECT ro, rom
+               'SELECT ro, rom
                 FROM ODRAdminBundle:RadioOptions AS ro
                 JOIN ro.radioOptionMeta AS rom
                 WHERE ro.dataField = :datafield
@@ -941,12 +947,10 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Now that all the radio options are created...
-            // Master Template Data Fields must increment Master Revision on all change requests.
-            if ( $datafield->getIsMasterField() ) {
-                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-                $emm_service->updateDatafieldMeta($user, $datafield, $dfm_properties, true);
-            }
+            // Creating a new RadioOption requires an update of the "master_revision" property of
+            //  the datafield it got added to
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
             // createRadioOption() does not automatically flush when $force_create == true
             $em->flush();

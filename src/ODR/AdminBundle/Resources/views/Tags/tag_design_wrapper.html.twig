@@ -223,8 +223,6 @@
             clearTimeout(SaveTagPropertyInterval[tag_id]);
             SaveTagPropertyInterval[tag_id] = setTimeout("SaveTagProperty(" + tag_id + ")", SaveTimeout);
 
-            save_tag_xhr = true;
-
             FindDuplicateTagNames();
         });
     }
@@ -379,7 +377,6 @@
             $(".ODRTagCreationMode").removeClass('pure-button-disabled');
     }
 
-    var save_tag_xhr = null;
     var SaveTagPropertyInterval = [];
     function SaveTagProperty(tag_id) {
         // Clear the save timeout for this specific tag
@@ -417,6 +414,9 @@
             success: function(data) {
                 notifySaved();
 
+                {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
+                ReloadDatafield(data.d.datafield_id);
+
                 // Replace the previous "old-value" with the one that just got saved
                 $("#ODRTag_" + tag_id + "_name").data('old-value', tag_name);
             },
@@ -437,8 +437,6 @@
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-
-                save_datafield_xhr = null;
             }
         });
     }
@@ -653,8 +651,6 @@
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-
-                save_datafield_xhr = null;
             }
         });
     }

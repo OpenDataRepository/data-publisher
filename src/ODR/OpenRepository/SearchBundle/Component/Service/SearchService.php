@@ -2114,7 +2114,7 @@ class SearchService
     {
         // ----------------------------------------
         // Going to need all the datatypes related to this given datatype...
-        $related_datatypes = self::getRelatedTemplateDatatypes($template_uuid);
+        $related_datatypes = self::getRelatedTemplateDatatypesByUUID($template_uuid);
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();
@@ -2171,24 +2171,13 @@ class SearchService
      * In order for general search to be run on a template, ODR needs to have an array of template
      * uuids available for self::getSearchableTemplateDatafields() to work.
      *
-     * @param string $top_level_template_uuid
+     * @param DataType $datatype
      *
      * @return array
      */
-    public function getRelatedTemplateDatatypes($template_uuid)
+    public function getRelatedTemplateDatatypes($datatype)
     {
-        // Convert the template uuid into a datatype id if possible...
-        /** @var \ODR\AdminBundle\Entity\DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
-                'unique_id' => $template_uuid,
-                'is_master_type' => 1
-            )
-        );
-        if ($datatype == null)
-            throw new ODRNotFoundException('Datatype', false, 0x76e87ad5);
-
-        // Use that id to locate related datatypes from the cached datatree array...
+        // Locate related datatypes from the cached datatree array...
         $related_datatypes = self::getRelatedDatatypes( $datatype->getId() );
 
         // ...then get the uuids of all the related datatypes
@@ -2210,5 +2199,31 @@ class SearchService
             $dt_uuids[] = $result['dt_uuid'];
 
         return $dt_uuids;
+    }
+
+
+    /**
+     * In order for general search to be run on a template, ODR needs to have an array of template
+     * uuids available for self::getSearchableTemplateDatafields() to work.
+     *
+     * @param string $template_uuid
+     *
+     * @return array
+     */
+    public function getRelatedTemplateDatatypesByUUID($template_uuid)
+    {
+        // Convert the template uuid into a datatype id if possible...
+        /** @var DataType $datatype */
+        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array(
+                'unique_id' => $template_uuid,
+                'is_master_type' => 1
+            )
+        );
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype', false, 0x76e87ad5);
+
+        // Run the other function now that the requested datatype was located
+        return self::getRelatedTemplateDatatypes($datatype);
     }
 }

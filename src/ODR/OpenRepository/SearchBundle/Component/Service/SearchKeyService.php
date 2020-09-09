@@ -1572,7 +1572,7 @@ class SearchKeyService
         }
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
-        $criteria['all_templates'] = $this->search_service->getRelatedTemplateDatatypes($template_uuid);
+        $criteria['all_templates'] = $this->search_service->getRelatedTemplateDatatypesByUUID($template_uuid);
 
         return $criteria;
     }

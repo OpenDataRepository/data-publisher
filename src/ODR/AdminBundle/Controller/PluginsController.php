@@ -1563,30 +1563,28 @@ class PluginsController extends ODRCustomController
                 $em->flush();
 
                 if ($plugin_settings_changed) {
+                    // Some render plugins need to do stuff when their settings get changed
+                    // e.g. Graph plugins deleting cached graph images
                     $plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
 
                     /** @var DatafieldPluginInterface|DatatypePluginInterface $plugin_service */
                     $plugin_service = $this->container->get($plugin_classname);
                     $plugin_service->onSettingsChange($render_plugin_instance);   // TODO - specify which field mappings or options got changed?
+
+
+                    // Also need to ensure that changes to plugin settings update the "master_revision"
+                    //  property of template datafields/datatypes
+                    if ($local_datafield_id == 0) {
+                        if ($target_datatype->getIsMasterType())
+                            $emm_service->incrementDatatypeMasterRevision($user, $target_datatype);
+                    }
+                    else {
+                        if ($target_datafield->getIsMasterField())
+                            $emm_service->incrementDatafieldMasterRevision($user, $target_datafield);
+                    }
                 }
             }
 
-
-            // Deal with updating field & datatype
-            if ($local_datafield_id == 0) {
-                // Master Template Data Types must increment Master Revision on all change requests.
-                if ($target_datatype->getIsMasterType()) {
-                    $dtm_properties['master_revision'] = $target_datatype->getMasterRevision() + 1;
-                    $emm_service->updateDatatypeMeta($user, $target_datatype, $dtm_properties);
-                }
-            }
-            else {
-                // Master Template Data Types must increment Master Revision on all change requests.
-                if ($target_datafield->getIsMasterField()) {
-                    $dfm_properties['master_revision'] = $target_datafield->getMasterRevision() + 1;
-                    $emm_service->updateDatafieldMeta($user, $target_datafield, $dfm_properties);
-                }
-            }
 
             // ----------------------------------------
             // Now that all the database changes have been made, wipe the relevant cache entries

@@ -669,21 +669,24 @@ class DisplaytemplateController extends ODRCustomController
                 //  datatype's master theme and the ThemeElements in the local datatype's copy of
                 //  the linked datatype's theme...
                 $added = false;
-                foreach ($theme_data[$source_theme->getId()]['themeElements'] as $te_num => $te) {
-                    if ( $te['themeElementMeta']['hidden'] == 0 ) {
-                        if ( isset($te['themeDataFields']) || !isset($te['themeDataType']) ) {
-                            // ...find and use the first visible ThemeElement that either already has
-                            //  datafields, or at least is not being used for a child/linked datatype
-                            /** @var ThemeElement $linked_theme_element */
-                            $linked_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find( $te['id'] );
+                if ( !empty($theme_data) ) {    // $theme_data will be empty when $source_theme has no ThemeElements
+                    foreach ($theme_data[$source_theme->getId()]['themeElements'] as $te_num => $te) {
+                        if ( $te['themeElementMeta']['hidden'] == 0 ) {
+                            if ( isset($te['themeDataFields']) || !isset($te['themeDataType']) ) {
+                                // ...find and use the first visible ThemeElement that either already
+                                //  has datafields, or at least is not being used for a child/linked
+                                //  datatype
+                                /** @var ThemeElement $linked_theme_element */
+                                $linked_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find( $te['id'] );
 
-                            // Create a ThemeDatafield entry so the new datafield shows up in the
-                            //  ThemeElement that was just located
-                            $ec_service->createThemeDatafield($user, $linked_theme_element, $datafield, true);    // Don't flush immediately...
+                                // Create a ThemeDatafield entry so the new datafield shows up in
+                                //  the ThemeElement that was just located
+                                $ec_service->createThemeDatafield($user, $linked_theme_element, $datafield, true);    // Don't flush immediately...
 
-                            // Don't need to look for another themeElement
-                            $added = true;
-                            break;
+                                // Don't need to look for another themeElement
+                                $added = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -704,6 +707,11 @@ class DisplaytemplateController extends ODRCustomController
                 );
                 $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
+
+            // Adding a new datafield requires an update of the "master_revision" property of the
+            //  datatype it got added to
+            if ( $datatype->getIsMasterType() )
+                $emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // Don't flush immediately...
 
             // Increment the "sourceSyncVersion" property of the theme that just received the new
             //  datafield, so that all derived/search results themes know they need update themselves
@@ -872,7 +880,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var DataFields $new_df */
             $new_df = clone $old_datafield;
 
-            // TODO - clear other tracking/revision history properties?
+            // TODO - any other properties that need resetting when a copy occurs?
             $new_df->setMasterDataField(null);
 
             // Ensure the "in-memory" version of $datatype knows about the new datafield
@@ -885,6 +893,10 @@ class DisplaytemplateController extends ODRCustomController
             $new_df_meta = clone $old_datafield->getDataFieldMeta();
             $new_df_meta->setDataField($new_df);
             $new_df_meta->setFieldName('Copy of '.$old_datafield->getFieldName());
+
+            $new_df_meta->setMasterRevision(0);
+            $new_df_meta->setMasterPublishedRevision(0);
+            $new_df_meta->setTrackingMasterRevision(0);
 
             // Ensure the "in-memory" version of $new_df knows about the new meta entry
             $new_df->addDataFieldMetum($new_df_meta);
@@ -941,6 +953,11 @@ class DisplaytemplateController extends ODRCustomController
                 );
                 $emm_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
+
+            // Copying a datafield requires an update of the "master_revision" property of the
+            //  datatype it got added to
+            if ( $datatype->getIsMasterType() )
+                $emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // Don't flush immediately...
 
             // Increment the "sourceSyncVersion" property of the theme that just received the new
             //  datafield, so that all derived/search results themes know they need update themselves
@@ -1202,6 +1219,11 @@ class DisplaytemplateController extends ODRCustomController
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
             $emm_service->updateThemeMeta($user, $theme, $properties, true);    // don't flush immediately
+
+            // Adding a new child datatype requires an update of the "master_revision" property of
+            //  the datatype it got added to
+            if ( $child_datatype->getParent()->getIsMasterType() )
+                $emm_service->incrementDatatypeMasterRevision($user, $child_datatype->getParent(), true);    // don't flush immediately...
 
 
             // ----------------------------------------
@@ -1745,19 +1767,9 @@ class DisplaytemplateController extends ODRCustomController
                     if ( $submitted_data->getBackgroundImageField() !== null )
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
-                    // Master Template Data Types must increment Master Revision on all change requests.
-                    if ($datatype->getIsMasterType() > 0)
-                        $properties['master_revision'] = $datatype->getMasterRevision() + 1;
-
-
-                    // Master Template Data Types must increment parent master template
-                    // revision when changed.
-                    if (!$is_link && $datatype->getIsMasterType() > 0) {
-                        // TODO Need to update datatype revision for grandparent
-                    }
-
                     // Commit all changes to the DatatypeMeta entry to the database
                     $emm_service->updateDatatypeMeta($user, $datatype, $properties);
+                    $em->refresh($datatype);
 
 
                     // ----------------------------------------

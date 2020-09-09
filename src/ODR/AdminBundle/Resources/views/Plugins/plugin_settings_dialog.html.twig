@@ -129,7 +129,10 @@
 
                         // Do the same thing for the datafield properties
                         var tmp = data.d.datafield_properties;
-                        datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                        tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                        $.each(tmp, function(df_id, df_props) {
+                            datafield_properties[df_id] = df_props;
+                        });
                         // console.log('datafield properties', datafield_properties);
 
                         RenderToolSet(datatype_id, 'datatype');

@@ -863,7 +863,7 @@
                     else
                         tools.del_dt.find('.link-text').html('Delete Linked Field Set');
                     tools.del_dt.unbind('click').click(function () {
-                        if (confirm("This will delete the selected dataset from all layouts and will delete stored ALL data (including files and images).\n\nAre you certain you want to proceed?")) {
+                        if (confirm("This will delete the selected dataset and ALL its data (including files and images).\n\nAre you certain you want to proceed?")) {
                             DeleteDatatype(datatype_id);
                         }
                     });
@@ -2394,8 +2394,11 @@
                 // Changing several datatype properties (like external id field) can completely
                 //  change what can be done to a datafield (like deletion)
                 var tmp = data.d.datafield_properties;
-                datafield_properties = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
-                // console.log("new datafield properties", datafield_properties);
+                tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                $.each(tmp, function(df_id, df_props) {
+                    datafield_properties[df_id] = df_props;
+                });
+                // console.log("datafield properties", datafield_properties);
 
                 notifySaved();
             },

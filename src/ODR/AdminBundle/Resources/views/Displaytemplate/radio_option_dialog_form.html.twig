@@ -366,6 +366,7 @@
                 notifySaved();
 
                 // Always need to reload the datafield to ensure it's displaying the right name
+                {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
                 ReloadDatafield(data.d.datafield_id);
 
                 if ( data.d.reload_modal ) {
@@ -394,8 +395,6 @@
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-
-                save_datafield_xhr = null;
             }
         });
     }

@@ -245,10 +245,8 @@ class TagsController extends ODRCustomController
             $tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name);
 
             // Master Template Data Fields must increment Master Revision on all change requests.
-            if ( $datafield->getIsMasterField() ) {
-                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-                $emm_service->updateDatafieldMeta($user, $datafield, $dfm_properties, true);
-            }
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
             // createTag() does not automatically flush when $force_create == true
             $em->flush();
@@ -658,10 +656,8 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Now that all the tags are created...
             // Master Template Data Fields must increment Master Revision on all change requests.
-            if ( $datafield->getIsMasterField() ) {
-                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-                $emm_service->updateDatafieldMeta($user, $datafield, $dfm_properties, true);
-            }
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
             // createTag() does not automatically flush when $force_create == true
             $em->flush();
@@ -813,6 +809,8 @@ class TagsController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchService $search_service */
@@ -978,6 +976,10 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
+
             // Mark this datatype as updated
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
@@ -1437,6 +1439,12 @@ class TagsController extends ODRCustomController
 
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
+
+
+            // Get the javascript to reload the datafield
+            $return['d'] = array(
+                'datafield_id' => $datafield->getId()
+            );
 
         }
         catch (\Exception $e) {
