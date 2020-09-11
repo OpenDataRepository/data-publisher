@@ -108,8 +108,19 @@
     function ODRFileUpload_fileError(file, message, target, upload_type) {
         var id = file.uniqueIdentifier + '_' + target;
 
-        if (upload_type == 'file') {
-            $.jGrowl(message, {header: "Error", sticky: true});
+        if ( upload_type == 'file' || upload_type == 'csv' ) {
+            var error_text = '<div class="ODRNotificationHeader">Error</div>';
+            error_text += '<div class="ODRNotificationText">' + message + '</div>';
+
+            $.jGrowl(
+                error_text,
+                {
+                    theme: "ODRNotification",
+                    sticky: true,
+                    openDuration: 250,
+                    closeDuration: 250
+                }
+            );
 
             $("#" + id).remove();
         }

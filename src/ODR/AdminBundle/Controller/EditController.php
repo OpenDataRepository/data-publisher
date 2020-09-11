@@ -2358,6 +2358,7 @@ class EditController extends ODRCustomController
                 $file_list[$num] = $file;
             }
 
+
             // Render and return the HTML for the list of files
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -2366,8 +2367,9 @@ class EditController extends ODRCustomController
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-
                         'files' => $file_list,
+
+                        'datarecord_is_fake' => false,    // "Fake" records can't reach this, because they don't have a datarecord_id
                     )
                 )
             );

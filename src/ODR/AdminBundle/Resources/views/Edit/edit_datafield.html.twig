@@ -115,7 +115,13 @@
             <div class="pure-u-1 Info" title="Record must be saved before files can be uploaded" style="opacity: 45%;">
             {% endif %}
 
-            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {'files': valuefield, 'datafield': datafield, 'datarecord': datarecord} %}
+            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                'datafield': datafield,
+                'datarecord': datarecord,
+                'files': valuefield,
+
+                'datarecord_is_fake': datarecord_is_fake
+            } %}
 
             {% if datarecord_is_fake %}
             </div>
