@@ -808,13 +808,13 @@ class SortService
      * @param ODRUser $user
      * @param Datafields $datafield
      *
-     * @return bool
+     * @return bool true if any radio options had their displayOrder changed, false otherwise
      */
     public function sortRadioOptionsByName($user, $datafield)
     {
         // Don't do anything if this datafield isn't sorting its radio options by name
         if (!$datafield->getRadioOptionNameSort())
-            return;
+            return false;
 
         $query = $this->em->createQuery(
            'SELECT ro, rom
@@ -826,19 +826,17 @@ class SortService
         /** @var RadioOptions[] $results */
         $results = $query->getResult();
 
-        // Organize by the name of the radio option, and then sort the list
-        /** @var RadioOptions[] $radio_option_list */
-        $radio_option_list = array();
-        foreach ($results as $result) {
-            $option_name = $result->getOptionName();
-            $radio_option_list[$option_name] = $result;
-        }
-        ksort($radio_option_list);
+        // Sort the radio options by name
+        usort($results, function($a, $b) {    // Don't need to preserve array keys
+            /** @var RadioOptions $a */
+            /** @var RadioOptions $b */
+            return strnatcasecmp($a->getOptionName(), $b->getOptionName());
+        });
 
         // Save any changes in the sort order
         $index = 0;
         $changes_made = false;
-        foreach ($radio_option_list as $option_name => $ro) {
+        foreach ($results as $ro) {
             if ( $ro->getDisplayOrder() !== $index ) {
                 // This radio option should be in a different spot
                 $properties = array(
@@ -865,7 +863,7 @@ class SortService
      * @param ODRUser $user
      * @param DataFields $datafield
      *
-     * @return bool true if the sort order changed, false otherwise
+     * @return bool true if any tags had their displayOrder changed, false otherwise
      */
     public function sortTagsByName($user, $datafield)
     {
@@ -923,7 +921,9 @@ class SortService
         // Each "group" of tags can then be sorted individually
         foreach ($tag_groups as $parent_tag_id => $tag_group) {
             $tmp = $tag_group;
-            uasort($tmp, "self::tagSort_name");
+            uasort($tmp, function($a, $b) {    // need to preserve array keys, since they're tag ids
+                return strnatcasecmp($a, $b);
+            });
             $tag_groups[$parent_tag_id] = $tmp;
         }
 
@@ -953,19 +953,5 @@ class SortService
 
         // Return whether any changes were made
         return $changes_made;
-    }
-
-
-    /**
-     * Custom function to sort tags by name.
-     *
-     * @param string $a
-     * @param string $b
-     *
-     * @return int
-     */
-    private function tagSort_name($a, $b)
-    {
-        return strnatcasecmp($a, $b);
     }
 }
