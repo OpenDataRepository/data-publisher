@@ -287,7 +287,7 @@ services:
         class: ODR\AdminBundle\Component\Service\TrackedJobService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $logger: "@logger"
 
     odr.uuid_service:

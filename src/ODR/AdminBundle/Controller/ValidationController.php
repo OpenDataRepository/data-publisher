@@ -569,7 +569,7 @@ class ValidationController extends ODRCustomController
                     $dtm->setDataType($dt);
                     $dtm->setRenderPlugin($default_render_plugin);
 
-                    $dtm->setSearchSlug($dt_id);
+                    $dtm->setSearchSlug($dt->getUniqueId());
                     $dtm->setShortName("New Datatype");
                     $dtm->setLongName("New Datatype");
                     $dtm->setDescription("New DataType Description");

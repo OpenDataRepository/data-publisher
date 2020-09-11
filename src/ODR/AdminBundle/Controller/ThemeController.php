@@ -985,7 +985,7 @@ class ThemeController extends ODRCustomController
                     // Everywhere that creates a new datatype should be also be setting a default
                     //  search_slug for the datatype, but make doubly sure one exists...
                     if ( is_null($datatype->getSearchSlug()) || $datatype->getSearchSlug() == '' )
-                        $datatype->getDataTypeMeta()->setSearchSlug( $datatype->getId() );
+                        $datatype->getDataTypeMeta()->setSearchSlug( $datatype->getUniqueId() );
 
                     // This datatype now has a "search_results" theme, so it's no longer "incomplete"
                     $datatype->setSetupStep(DataType::STATE_OPERATIONAL);

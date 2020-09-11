@@ -38,7 +38,7 @@ class TrackedJobService
     private $em;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -69,13 +69,16 @@ class TrackedJobService
      * TrackedJobService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param Logger $logger
      */
-    public function __construct(EntityManager $entity_manager, DatatypeInfoService $datatype_info_service, Logger $logger)
-    {
+    public function __construct(
+        EntityManager $entity_manager,
+        DatatreeInfoService $datatree_info_service,
+        Logger $logger
+    ) {
         $this->em = $entity_manager;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->logger = $logger;
     }
 
@@ -213,7 +216,9 @@ class TrackedJobService
             $job['eta'] = '...';
 
             $additional_data = $tracked_job->getAdditionalData();
-            $job['description'] = $additional_data['description'];
+            $job['description'] = '';
+            if ( isset($additional_data['description']) )
+                $job['description'] = $additional_data['description'];
             $job['can_delete'] = false;
 
             $top_level_datatype_id = $this->dti_service->getGrandparentDatatypeId($datatype_id);

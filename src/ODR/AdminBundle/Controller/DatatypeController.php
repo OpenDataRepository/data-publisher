@@ -1540,7 +1540,7 @@ class DatatypeController extends ODRCustomController
                         $submitted_data->setDescription('');
 
                     // Default search slug to Dataset ID
-                    $submitted_data->setSearchSlug($datatype->getId());
+                    $submitted_data->setSearchSlug($datatype->getUniqueId());
                     $submitted_data->setXmlShortName('');
 
                     // Master Template Metadata
@@ -1617,7 +1617,7 @@ class DatatypeController extends ODRCustomController
                         $em->persist($datatype);
 
                         // Set search slug
-                        $metadata_datatype_meta->setSearchSlug($metadata_datatype->getId());
+                        $metadata_datatype_meta->setSearchSlug($metadata_datatype->getUniqueId());
                         $em->persist($metadata_datatype_meta);
                         $em->flush();
 

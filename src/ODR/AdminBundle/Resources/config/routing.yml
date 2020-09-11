@@ -851,12 +851,18 @@ odr_tag_selection:
 
 #-----------------------------------------
 # Link Controller
-odr_design_get_link_templates:
-    path:  /design/displaytemplate/getlinktemplates/{datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Link:getlinkabletemplates }
+odr_design_get_clone_link_templates:
+    path:  /design/displaytemplate/getclonelinktemplates/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:getclonelinktemplates }
     requirements:
         datatype_id:  \d+
         theme_element_id:  \d+
+
+odr_design_clone_and_link_datatype:
+    path:  /design/clone_and_link
+    defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
+    methods: [ POST ]
+
 
 odr_design_get_link_datatypes:
     path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
@@ -879,10 +885,6 @@ odr_design_quicklink_datatype:
         remote_datatype_id:  \d+
         theme_element_id:  \d+
 
-odr_design_clone_and_link_datatype:
-    path:  /design/clone_and_link
-    defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
-    methods: [ POST ]
 
 odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_theme_id}/{search_key}

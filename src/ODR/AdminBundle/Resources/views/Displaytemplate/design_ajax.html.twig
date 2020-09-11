@@ -146,8 +146,8 @@
     <div id="link_datatype_dialog_wrapper">
         {% include 'ODRAdminBundle:Link:link_type_dialog.html.twig' %}
     </div>
-    <div id="link_from_template_dialog_wrapper">
-        {% include 'ODRAdminBundle:Link:link_from_template_dialog.html.twig' %}
+    <div id="clone_link_template_dialog_wrapper">
+        {% include 'ODRAdminBundle:Link:clone_link_template_dialog.html.twig' %}
     </div>
     <div id="plugin_settings_dialog_wrapper">
         {% include 'ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig' %}
@@ -1185,8 +1185,8 @@
         var local_datatype = $('#ThemeElement_' + theme_element_id).parents('.ODRDataType').first().attr('id').split(/_/);
         var local_datatype_id = local_datatype[1];
 
-        {# defined in Link::link_from_template_dialog.html.twig #}
-        openLinkFromTemplateDialog(local_datatype_id, theme_element_id);
+        {# defined in Link::clone_link_template_dialog.html.twig #}
+        openCloneLinkTemplateDialog(local_datatype_id, theme_element_id);
     }
 
     /**

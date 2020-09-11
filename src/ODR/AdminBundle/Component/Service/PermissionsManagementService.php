@@ -492,7 +492,7 @@ class PermissionsManagementService
     }
 
 
-    // TODO - implement a permission specifically for linking datarecords?  or modify linking datarecords to use the "can_add/delete_datarecord" permissions?
+    // TODO - implement a permission specifically for linking datarecords?
 
     // TODO - implement the "can_design_datatype" permission?  it's currently controlled by the "is_datatype_admin" permission...
 

@@ -24,7 +24,7 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 // Symfony
@@ -86,6 +86,16 @@ class JobController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Mark a collection of jobs as "viewed", so they no longer appear as "unviewed" in the
+     * notifications area.
+     *
+     * @param string $job_ids
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
     public function viewedAction($job_ids, Request $request)
     {
         $return = array();
@@ -129,11 +139,13 @@ class JobController extends ODRCustomController
         return $response;
     }
 
+
     /**
      * Delete a job after completeion or user aknowledgement.
      *
-     * @param $job_id
+     * @param int $job_id
      * @param Request $request
+     *
      * @return JsonResponse
      */
     public function deleteAction($job_id, Request $request)
@@ -177,7 +189,6 @@ class JobController extends ODRCustomController
     /**
      * Get a user's jobs for tracking and messaging purposes.
      *
-     * @param $tracked_job_id
      * @param Request $request
      * @return Response
      */
@@ -203,7 +214,7 @@ class JobController extends ODRCustomController
             $return['d'] = $tracked_jobs;
         }
         catch (\Exception $e) {
-            $source = 0x070b08bb;
+            $source = 0xf8e0ca69;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -213,6 +224,7 @@ class JobController extends ODRCustomController
         $response = new JsonResponse($return);
         return $response;
     }
+
 
     /**
      * Reloads job data...either for all active jobs of a given type, or for a specific job.
@@ -284,8 +296,8 @@ class JobController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tj_service */

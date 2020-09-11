@@ -5,6 +5,13 @@
 <script>
     var link_datatype_dialog_body = '<div id="ODRLinkDatatypeFormWrapper" class="ODRHidden"> </div>';
 
+    /**
+     * Opens ODR's modal and loads valid datatypes/templates that can be cloned/linked to by the
+     * local datatype/template.
+     *
+     * @param {number} local_datatype_id
+     * @param {number} theme_element_id
+     */
     function openLinkDatatypeDialog(local_datatype_id, theme_element_id) {
         // open dialog
         var modal_options = {
@@ -25,6 +32,13 @@
         loadLinkData(local_datatype_id, theme_element_id);
     }
 
+    /**
+     * loads and displays valid datatypes/templates that can be cloned/linked to by the local
+     * datatype/template.
+     *
+     * @param {number} local_datatype_id
+     * @param {number} theme_element_id
+     */
     function loadLinkData(local_datatype_id, theme_element_id) {
 
         var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
@@ -74,7 +88,9 @@
         });
     }
 
-
+    /**
+     * Submits a form that links/unlinks the selected datatype/template.
+     */
     function submitLinkDatatypeForm() {
         // If the button got clicked, and the selection matches the current remote datatype, then
         //  the user wants to break the link
@@ -93,22 +109,11 @@
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 // Reload ThemeElement
-                var linked_datatype_id = data.d.linked_datatype_id;
                 var theme_element_id = data.d.element_id;
 
-                if (data.d.using_linked_type === 1) {  // there is now a linked datatype in this theme element
-                    // console.log('TED = ' + theme_element_id)
-                    ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
-                }
-                else {
-                    // Delete the removed linked datatype html
-                    $("#DataType_" + linked_datatype_id).remove();
-                    // Reload TED?
-                    ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
-                    // console.log('TED 2 = ' + theme_element_id)
-
-                    // Unmute the other icons
-                }
+                // Need to reload the theme element so the linked datatype/template displays properly,
+                //  and so icons are properly muted
+                ReloadThemeElement(theme_element_id);
 
                 // Reset icons - nothing selected
                 ResetToolSet();
@@ -116,7 +121,8 @@
                 closeODRRemodal();
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

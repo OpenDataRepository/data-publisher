@@ -103,11 +103,6 @@
                     $("#ODRLinkDatatypeFormSubmit").html('Link to Selected {% if local_datatype.isMasterType %}Template{% else %}Database{% endif %}');
             }
         });
-
-        {% if prevent_unlinking %}
-        $("#selected_datatype").prop('disabled', true);
-        $("#ODRLinkDatatypeFormSubmit").prop('disabled', true);
-        {% endif %}
     });
 </script>
 

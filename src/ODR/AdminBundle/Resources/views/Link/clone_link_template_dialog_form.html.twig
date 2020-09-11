@@ -1,0 +1,62 @@
+{% spaceless %}
+
+<!-- Clone/Link Template Dialog Form -->
+<form class="pure-form pure-form-aligned" id="ODRCloneLinkTemplateForm" action="{{ path('odr_design_clone_and_link_datatype') }}" method="post">
+
+    <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
+    <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
+
+    <fieldset style="margin-top: 5px;">
+        <div class="pure-control-group">
+            <label for="selected_datatype">
+                <strong>Template Name:</strong>
+            </label>
+            <select name="selected_datatype" id="selected_datatype">
+                <option value=""></option>
+                {% for dt in cloneable_templates %}
+                    <option value="{{ dt.id }}">{{ dt.dataTypeMeta.shortName }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </fieldset>
+</form>
+
+<div class="pure-u-md-1-6 pure-u-2-24"></div>
+<div id="ODRLinkDetails_wrapper" class="pure-u-md-2-3 pure-u-20-24">
+    {% for dt in cloneable_templates %}
+    <div id="ODRLinkDetails_{{ dt.id }}" class="ODRLinkDetails pure-control-group">
+        <div>
+            <label class="ODRLinkDetailsHeader" for="created_by_{{ dt.id }}">Created By:</label>
+            <div class="ODRLinkDetailsContent" id="created_by_{{ dt.id }}">{{ dt.createdBy|user_string }}</div>
+        </div>
+
+        <div>
+            <label class="ODRLinkDetailsHeader" for="desc_{{ dt.id }}">Description:</label>
+            <div class="ODRLinkDetailsContent" id="desc_{{ dt.id }}">{{ dt.dataTypeMeta.description }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="pure-u-md-1-6 pure-u-2-24"></div>
+
+<script>
+    $(function() {
+        $(".ODRLinkDetails").hide();
+
+        $("#selected_datatype").unbind('change').change(function() {
+            var selected_id = $(this).val();
+
+            $(".ODRLinkDetails").hide();
+            $("#ODRLinkDetails_" + selected_id).show();
+
+            if ( selected_id === '' ) {
+                $("#ODRCloneLinkTemplateFormSubmit").prop('disabled', true);
+            }
+            else {
+                $("#ODRCloneLinkTemplateFormSubmit").prop('disabled', false);
+            }
+        });
+    });
+</script>
+
+{% endspaceless %}
