@@ -1821,6 +1821,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
 
@@ -1915,8 +1917,9 @@ class EditController extends ODRCustomController
 
                         // If the datafield is marked as unique...
                         if ( $datafield->getIsUnique() ) {
-                            // ...determine whether the new value is a duplicate of a value that already exists
-                            if ( self::valueAlreadyExists($datafield, $new_value) )
+                            // ...determine whether the new value is a duplicate of a value that
+                            //  already exists, ignoring the current datarecord
+                            if ( $search_service->valueAlreadyExists($datafield, $new_value, $datarecord) )
                                 throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
                         }
 
@@ -2036,34 +2039,6 @@ class EditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Returns whether the given value already exists in the given datafield.
-     *
-     * Changes made here should also be made in FakeEditController::valueAlreadyExists()
-     *
-     * @param DataFields $datafield
-     * @param string $value
-     *
-     * @return bool
-     */
-    private function valueAlreadyExists($datafield, $value)
-    {
-        // Want to perform an exact search for this value
-        // This is allowed because currently only text and number fields are allowed to be unique
-        $value = '"'.$value.'"';
-
-        /** @var SearchService $search_service */
-        $search_service = $this->container->get('odr.search_service');
-        $search_results = $search_service->searchTextOrNumberDatafield($datafield, $value);
-
-        // If the search returned anything, then the value already exists
-        if ( count($search_results['records']) > 0 )
-            return true;
-        else
-            return false;
     }
 
 

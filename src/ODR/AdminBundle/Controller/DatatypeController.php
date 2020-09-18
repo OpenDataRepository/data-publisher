@@ -439,7 +439,7 @@ class DatatypeController extends ODRCustomController
      * Renders and returns the HTML for a datatype's "landing" page...has links for administration
      * and for listing related datatypes.
      *
-     * @param $datatype_id
+     * @param integer $datatype_id
      * @param Request $request
      *
      * @return Response

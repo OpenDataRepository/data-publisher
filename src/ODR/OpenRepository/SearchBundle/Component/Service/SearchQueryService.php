@@ -1775,15 +1775,27 @@ class SearchQueryService
         // Strings tend to match numerical values of zero in the backend database
         if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' ) {
             foreach ($pieces as $num => $piece) {
-                // Ignore the logical operators
-                if ( self::isLogicalOperator($piece) || self::isInequality($piece) )
+                if ( self::isLogicalOperator($piece) || self::isInequality($piece) ) {
+                    // Ignore the logical operators
                     continue;
-                // Allow the empty string
-                else if ( $piece === '""' )
+                }
+                else if ( $piece === '""' ) {
+                    // Allow the empty string...it'll get interpreted as searching for records where
+                    //  the integer/decimal value is null
                     continue;
-                // Unset any remaining piece that isn't numeric, since it'll never match anything
-                else if ( !is_numeric($piece ) )
-                    unset( $pieces[$num] );
+                }
+                else {
+                    // Double-quotes are legal if they're the first and the last characters in the
+                    //  provided string...it'll get interpreted as searching for an exact match
+                    $fragment = $piece;
+                    if ( $piece[0] === '"' && $piece[-1] === '"' )
+                        $fragment = substr($piece, 1, -1);
+
+                    // ...but any piece that isn't numeric needs to be removed, since it'll never
+                    //  match any legitimate integer/decimal value
+                    if ( !is_numeric($fragment) )
+                        unset( $pieces[$num] );
+                }
             }
 
             // Redo array indices since values might have been deleted

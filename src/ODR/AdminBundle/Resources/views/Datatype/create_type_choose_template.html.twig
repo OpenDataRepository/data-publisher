@@ -97,7 +97,27 @@
 
 <script>
     $(function() {
-        setupAccordions();
+        $(".ODRFormAccordion").children("h3").each(function() {
+            $(this).unbind('click').click(function() {
+                $(this).parent().children(".accordion-content").each(function() {
+                    if(!$(this).is(":hidden")) {
+                        $(this).hide();
+                    }
+                    $(this).prev().removeClass('ODRAccordionSelected');
+                });
+                $(this).next().fadeIn();
+                {#ODR_scrollIntoView( $(this).next() );#}
+                $(this).addClass('ODRAccordionSelected');
+
+                // setupAccordionHighlights();
+                // Resize any elements that were revealed
+                // onWindowResize();
+            });
+        });
+
+        // Hide all template descriptions, only show the final one
+        $(".ODRFormAccordion").children("h3").next().hide();
+        $(".ODRFormAccordion").children("h3:last").next().show();
     });
 </script>
 

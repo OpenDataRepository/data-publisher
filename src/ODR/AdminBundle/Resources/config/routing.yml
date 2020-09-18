@@ -355,14 +355,6 @@ odr_delete_custom_theme:
     requirements:
         theme_id:  \d+
 
-# This route locates the default 'search_results' theme for the datatype, and then redirects to the
-#  'odr_modify_theme' route...if the default doesn't exist, it is created
-odr_design_derivative_themes:
-    path:  /design/searchtemplate/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Theme:design }
-    requirements:
-        datatype_id:  \d+
-
 odr_modify_theme:
     path:  /design/modify_view/{datatype_id}/{theme_id}/{search_key}
     defaults: { _controller: ODRAdminBundle:Theme:modifytheme, search_key: '' }
@@ -735,11 +727,12 @@ odr_save_fake_record:
     methods: [ POST ]
 
 odr_check_fake_record_field_uniqueness:
-    path:  /edit/check_fake_record/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:FakeEdit:checkfakerecordfieldunique }
+    path:  /edit/check_fake_record/{datafield_id}/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:FakeEdit:checkfakerecordfieldunique, datarecord_id: '' }
     methods: [ POST ]
     requirements:
         datafield_id: \d+
+        datarecord_id: \d+
 
 #-----------------------------------------
 

@@ -118,7 +118,7 @@ class ThemeController extends ODRCustomController
                     'selected_theme_id' => $selected_theme_id,
 
                     'user' => $user,
-                    'datatype_admin' => $is_datatype_admin
+                    'is_datatype_admin' => $is_datatype_admin
                 )
             );
         }
@@ -186,16 +186,12 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
-                // If this is a 'master' theme, then require the user to be a datatype admin
+            // If this is a 'master' theme, then require the user to be a datatype admin
+            if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
-            }
-            else if ($theme->getThemeType() !== 'master'
-                && $theme->getCreatedBy()->getId() !== $user->getId()
-            ) {
-                // If this isn't a 'master' theme, then require the user to have created the theme
+            // If this isn't a 'master' theme, then require the user to have created the theme
+            if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
                 throw new ODRForbiddenException();
-            }
             // --------------------
 
 
@@ -303,14 +299,17 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // If user didn't create the theme, don't allow them to change shared status
-            if ($theme->getCreatedBy()->getId() !== $user->getId())
+            // If this is a 'master' theme, then require the user to be a datatype admin
+            if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // If this isn't a 'master' theme, then require the user to have created the theme
+            if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // If the theme is a 'master' theme, then don't allow it to be set to "not shared"
-            if ($theme->getThemeType() == 'master' && $theme->isShared())
+            if ($theme->getThemeType() === 'master' && $theme->isShared())
                 throw new ODRBadRequestException("A datatype's 'master' theme must always be shared");
 
             // If the theme is currently a "default" theme for the datatype, then it also needs
@@ -408,14 +407,18 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // If user didn't create the theme, don't allow them to change shared status
-            if ($theme->getCreatedBy()->getId() !== $user->getId())
+            // If this is a 'master' theme, then require the user to be a datatype admin
+            if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // If this isn't a 'master' theme, then require the user to have created the theme
+            if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Not allowed to make themeElements hidden on master themes
-            if ( $theme->getThemeType() === 'master' )
-                throw new ODRBadRequestException();
+            // Users need to be able to change the "hidden" property on a "master" theme...while the
+            //  Display/SearchResults pages respect this property, most other pages do not
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException(""Unable to change hidden status of ThemeElements on a datatype's master theme");
 
 
             // Toggle the hidden status of the specified theme_element
@@ -517,14 +520,18 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // If user didn't create the theme, don't allow them to change shared status
-            if ($theme->getCreatedBy()->getId() !== $user->getId())
+            // If this is a 'master' theme, then require the user to be a datatype admin
+            if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // If this isn't a 'master' theme, then require the user to have created the theme
+            if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Not allowed to make themeDatafields hidden on master themes
-            if ( $theme->getThemeType() === 'master' )
-                throw new ODRBadRequestException();
+            // Users need to be able to change the "hidden" property on a "master" theme...while the
+            //  Display/SearchResults pages respect this property, most other pages do not
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException(""Unable to change hidden status of ThemeDatafields on a datatype's master theme");
 
 
             // Toggle the hidden status of the specified theme_datafield
@@ -559,8 +566,7 @@ class ThemeController extends ODRCustomController
 
 
     /**
-     * Sets a view to be the database master view.  User must be owner of new view
-     * and an admin on the database.
+     * Sets a view to be the database master view.  User must be an admin of the database to do this.
      *
      * @param integer $theme_id
      * @param Request $request
@@ -715,7 +721,8 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // If user is not a super admin and didn't create the theme, don't allow them to delete
+            // Users are allowed to delete their own themes...super admins are allowed to delete any
+            //  theme that isn't blocked below
             if ( !$user->hasRole('ROLE_SUPER_ADMIN')
                 && $theme->getCreatedBy()->getId() !== $user->getId()
             ) {
@@ -725,7 +732,7 @@ class ThemeController extends ODRCustomController
 
 
             // If the theme is a 'master' theme, then nobody is allowed to delete it
-            if ($theme->getThemeType() == 'master')
+            if ($theme->getThemeType() === 'master')
                 throw new ODRBadRequestException('Unable to delete a "master" Theme');
 
             // If the theme is currently marked as a default for the datatype, don't delete it
@@ -836,15 +843,16 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // If a theme is shared...
-            if ($theme->isShared()) {
-                // ...allow anybody to copy it
-            }
-            else if ( !$pm_service->isDatatypeAdmin($user, $datatype)
-                && $theme->getCreatedBy()->getId() !== $user->getId()
+
+            if ( $theme->isShared()
+                || $theme->getCreatedBy()->getId() === $user->getId()
+                || $pm_service->isDatatypeAdmin($user, $datatype)
             ) {
-                // User has to be a datatype admin or the creator of the theme to be allowed to
-                //  copy a non-shared theme
+                // If a theme is shared, or the user created this theme, or the user is an admin of
+                //  this datatype...then they're allowed to make a copy of this theme
+            }
+            else {
+                // Otherwise, this user can't copy this theme
                 throw new ODRForbiddenException();
             }
             // --------------------
@@ -887,132 +895,6 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x4391891a;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Loads and returns the default 'search_results' Theme for the datatype, creating it if it
-     * doesn't already exist.
-     *
-     * @param integer $datatype_id   The database id of the DataType to be rendered.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function designAction($datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = array();
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var CloneThemeService $clone_theme_service */
-            $clone_theme_service = $this->container->get('odr.clone_theme_service');
-
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
-                throw new ODRNotFoundException("Datatype");
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // TODO - pretty sure custom themes can't use this...
-
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-
-            // Check if this is a master template based datatype that is still in the creation
-            //  process.  If so, redirect to progress system.
-            if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
-                throw new ODRException('Cloning failure, please contact the ODR team');
-            }
-            else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getIsMasterType() == 0) {
-                // Return creating datatype template
-                $templating = $this->get('templating');
-                $return['d']['html'] = $templating->render(
-                    'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                    array("datatype" => $datatype)
-                );
-            }
-            else {
-                // Ensure a default 'search_results' theme exists for this datatype
-                $theme = $theme_service->getDatatypeDefaultTheme($datatype->getId(), 'search_results');
-                if ($theme == null) {
-                    // Load this datatype's 'master' Theme
-                    $master_theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
-
-                    // Make a copy of the 'master' Theme
-                    $theme = $clone_theme_service->cloneSourceTheme($user, $master_theme, 'search_results');
-
-                    // Since this is the first 'search_results' theme, it should get marked as
-                    //  both 'shared' and 'default'
-                    $properties = array(
-                        'shared' => true,
-                        'isDefault' => true,
-                    );
-                    $emm_service->updateThemeMeta($user, $theme, $properties);
-
-                    // Everywhere that creates a new datatype should be also be setting a default
-                    //  search_slug for the datatype, but make doubly sure one exists...
-                    if ( is_null($datatype->getSearchSlug()) || $datatype->getSearchSlug() == '' )
-                        $datatype->getDataTypeMeta()->setSearchSlug( $datatype->getUniqueId() );
-
-                    // This datatype now has a "search_results" theme, so it's no longer "incomplete"
-                    $datatype->setSetupStep(DataType::STATE_OPERATIONAL);
-                    $em->persist($datatype);
-                    $em->flush();
-                    $em->refresh($datatype);
-
-                    // Delete the cached version of this datatype
-                    $cache_service->delete('cached_datatype_'.$datatype->getId());
-                    // Delete the cached list of top-level themes
-                    $cache_service->delete('top_level_themes');
-
-
-                    // Redirect to the search page for this datatype
-                    $url = $this->getParameter('site_baseurl');
-                    $url .= $this->generateUrl(
-                        'odr_search',
-                        array(
-                            'search_slug' => $datatype->getSearchSlug(),
-                        )
-                    );
-                    $return['d'] = array('url' => $url);
-                }
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0x239a544e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1070,7 +952,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Don't allow on a 'master' theme
-//            if ($theme->getThemeType() == 'master')
+//            if ($theme->getThemeType() === 'master')
 //                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
 
 
@@ -1085,7 +967,11 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            if ($theme->getCreatedBy()->getId() !== $user->getId())
+            // If this is a 'master' theme, then require the user to be a datatype admin
+            if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // If this isn't a 'master' theme, then require the user to have created the theme
+            if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1193,7 +1079,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -1336,7 +1222,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -1365,7 +1251,7 @@ class ThemeController extends ODRCustomController
 
                 if ($theme_datafield_form->isValid()) {
                     // Don't allow a themeDatafield belonging to a master theme to be hidden
-                    if ($theme->getThemeType() == 'master')
+                    if ($theme->getThemeType() === 'master')
                         $submitted_data->setHidden(0);
 
                     // Save all changes made via the submitted form
@@ -1485,7 +1371,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -1634,7 +1520,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -1734,7 +1620,7 @@ class ThemeController extends ODRCustomController
             $theme = $theme_element->getTheme();
             if ( !is_null($theme->getDeletedAt()) )
                 throw new ODRNotFoundException('Theme');
-            if ($theme->getThemeType() == 'master')
+            if ($theme->getThemeType() === 'master')
                 throw new ODRBadRequestException("Not allowed to re-render something that belongs to the master Theme");
 
 
@@ -1757,7 +1643,7 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -1860,7 +1746,7 @@ class ThemeController extends ODRCustomController
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -1990,7 +1876,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -2022,7 +1908,7 @@ class ThemeController extends ODRCustomController
 
                 if ($theme_element_form->isValid()) {
                     // Not allowed to mark ThemeElements from 'master' themes as 'hidden'
-                    if ($theme->getThemeType() == 'master')
+                    if ($theme->getThemeType() === 'master')
                         $submitted_data->setHidden(0);
 
                     // If a value in the form changed, create a new ThemeElementMeta entity to store the change
@@ -2151,7 +2037,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -2286,7 +2172,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
@@ -2422,7 +2308,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
 
-            if ($theme->getThemeType() == 'master') {
+            if ($theme->getThemeType() === 'master') {
                 // If this is a 'master' theme, then require the user to be an admin of the
                 //  datatype that "owns" the theme_element
                 if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )

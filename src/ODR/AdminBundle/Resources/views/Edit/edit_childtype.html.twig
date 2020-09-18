@@ -59,6 +59,11 @@ is_link: {{ is_link }}</br>
 display_type: {{ display_type }}</br>
 ----------</br>
 #}
+        {% set dr_is_fake = false %}
+        {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+            {% set dr_is_fake = true %}
+        {% endif %}
+
         {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
             'datarecord': datarecord,
             'datatype': datatype,
@@ -73,7 +78,7 @@ display_type: {{ display_type }}</br>
             'display_type': display_type
         } %}
 
-        <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+        <div class="ODRFieldArea accordion-content pure-u-1{% if dr_is_fake %} ODRFakeRecord{% endif %}" id="FieldArea_{{ datarecord.id }}">
             {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'datarecord': datarecord,

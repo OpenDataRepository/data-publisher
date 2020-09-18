@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\Tags;
@@ -186,6 +187,8 @@ class FakeEditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -214,9 +217,10 @@ class FakeEditController extends ODRCustomController
             // Easier on the database to get the cache entry
             foreach ($datatype_array[$datatype->getId()]['dataFields'] as $df_id => $df) {
                 // Verify that a fields marked as unique has a value
+                $datafield_name = $df['dataFieldMeta']['fieldName'];
                 if ( $df['dataFieldMeta']['is_unique'] === true ) {
                     if ( !isset($datafields[$df_id]) )
-                        throw new ODRBadRequestException();
+                        throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" must have a value');
                 }
 
                 // Otherwise, only care about the field if it has a value in it...
@@ -230,7 +234,7 @@ class FakeEditController extends ODRCustomController
 
                     // Verify that the CSRF token for this field was submitted with the form...
                     if ( !isset($csrf_tokens[$df_id]) )
-                        throw new ODRBadRequestException();
+                        throw new ODRBadRequestException('Invalid CSRF Token');
 
                     // ...and that it's valid
                     $check_token = $token_manager->getToken($token_id)->getValue();
@@ -250,19 +254,19 @@ class FakeEditController extends ODRCustomController
                         case 'ShortVarchar':
                         case 'DatetimeValue':
                             if ( !self::isValidValue($typeclass, $value) )
-                                throw new ODRBadRequestException('Invalid value');
+                                throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" has an invalid value');
                             break;
 
                         // Radio options need a different validation
                         case 'Radio':
                             if ( !ValidUtility::areValidRadioOptions($df, $value) )
-                                throw new ODRBadRequestException('Invalid value');
+                                throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" has an invalid value');
                             break;
 
                         // Tags also need a different validation
                         case 'Tag':
                             if ( !ValidUtility::areValidTags($df, $value) )
-                                throw new ODRBadRequestException('Invalid value');
+                                throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" has an invalid value');
                             break;
 
                         // The rest of the typeclasses aren't valid
@@ -270,7 +274,7 @@ class FakeEditController extends ODRCustomController
                         case 'Image':
                         case 'Markdown':
                         default:
-                            throw new ODRBadRequestException('Invalid typeclass');
+                            throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" is not a valid typeclass');
                     }
                 }
             }
@@ -308,12 +312,12 @@ class FakeEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If any of the fields are unique, then need to verify that a non-unique value isn't
-            //  going to get saved
+            // Need to verify that the values getting saved won't cause uniqueness conflicts with
+            //  any of the existing datarecords
             foreach ($datafields as $df_id => $value) {
                 $df = $df_mapping[$df_id];
                 if ( $df->getIsUnique() ) {
-                    if ( self::valueAlreadyExists($df, $value) )
+                    if ( $search_service->valueAlreadyExists($df, $value) )
                         throw new ODRConflictException('A Datarecord already has the value "'.$value.'" stored in the "'.$df->getFieldName().'" Datafield.');
                 }
             }
@@ -438,44 +442,17 @@ class FakeEditController extends ODRCustomController
 
 
     /**
-     * Returns whether the given value already exists in the given datafield.
-     *
-     * Changes made here should also be made in EditController::valueAlreadyExists()
-     *
-     * @param DataFields $datafield
-     * @param string $value
-     *
-     * @return bool
-     */
-    private function valueAlreadyExists($datafield, $value)
-    {
-        // Want to perform an exact search for this value
-        // This is allowed because currently only text and number fields are allowed to be unique
-        $value = '"'.$value.'"';
-
-        /** @var SearchService $search_service */
-        $search_service = $this->container->get('odr.search_service');
-        $search_results = $search_service->searchTextOrNumberDatafield($datafield, $value);
-
-        // If the search returned anything, then the value already exists
-        if ( count($search_results['records']) > 0 )
-            return true;
-        else
-            return false;
-    }
-
-
-    /**
      * Checks whether the given value for the given datafield is unique or not...it's easier for the
      * javascript to throw up warnings about uniqueness conflicts when it only has to check a
      * single datafield at a time.
      *
      * @param int $datafield_id
+     * @param int $datarecord_id
      * @param Request $request
      *
      * @return Response
      */
-    public function checkfakerecordfielduniqueAction($datafield_id, Request $request)
+    public function checkfakerecordfielduniqueAction($datafield_id, $datarecord_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -491,6 +468,7 @@ class FakeEditController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Don't know exactly which typeclass this'll be...
+            $error_type = '';
             $value = '';
             foreach ($post as $typeclass => $form_data) {
                 // ...but it should have these two keys in the array
@@ -498,6 +476,8 @@ class FakeEditController extends ODRCustomController
                     throw new ODRBadRequestException();
 
                 $value = trim($form_data['value']);
+                if ( isset($form_data['error_type']) )
+                    $error_type = $form_data['error_type'];
             }
 
 
@@ -506,6 +486,8 @@ class FakeEditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
 
 
             /** @var DataFields $datafield */
@@ -517,6 +499,15 @@ class FakeEditController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            $datarecord = null;
+            if ( $datarecord_id !== '' ) {
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+                if ($datarecord == null)
+                    throw new ODRNotFoundException('Datarecord');
+                if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
+                    throw new ODRBadRequestException();
+            }
 
             // --------------------
             // Determine user privileges
@@ -529,13 +520,33 @@ class FakeEditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-
             // Datafield needs to be unique for this to make sense
             if ( !$datafield->getIsUnique() )
                 throw new ODRBadRequestException();
 
-            if ( self::valueAlreadyExists($datafield, $value) )
-                throw new ODRConflictException('A Datarecord already has the value "'.$value.'" stored in the "'.$datafield->getFieldName().'" Datafield.');
+
+            // Determine whether the given value is a duplicate of a value that already exists
+            $is_duplicate = $search_service->valueAlreadyExists($datafield, $value, $datarecord);
+            $error_str = 'A Datarecord already has the value "'.$value.'" stored in the "'.$datafield->getFieldName().'" Datafield.';
+
+            if ( $error_type === 'json' ) {
+                // Need to return JSON so the jQuery Validate plugin works properly...so according
+                //  to https://jqueryvalidation.org/remote-method/ ...return a string describing the
+                //  error when the value is a duplicate, or return the string "true" when the value
+                //  isn't a duplicate
+                $response = new Response();
+                if ($is_duplicate)
+                    $response->setContent(json_encode($error_str));
+                else
+                    $response->setContent(json_encode("true"));
+
+                $response->headers->set('Content-Type', 'application/json');
+                return $response;
+            }
+            else if ( $is_duplicate ) {
+                // Don't need to return JSON, so throw an exception when the value is a duplicate
+                throw new ODRConflictException($error_str);
+            }
 
         }
         catch (\Exception $e) {

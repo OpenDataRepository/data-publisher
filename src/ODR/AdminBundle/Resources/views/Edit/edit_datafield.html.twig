@@ -70,13 +70,11 @@
 {% endif %}
 
     <form
-        {% if is_link > 0 %} autocomplete="off"{% endif %}
-        {% if datarecord_is_fake %}
-            action="{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}"
-        {% else %}
+        {% if is_link %} autocomplete="off"{% endif %}
+        {% if not datarecord_is_fake %}
             action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
         {% endif %}
-        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %} {% if datafield_meta.is_unique %}ODRUniqueField{% endif %}"
+        class="pure-u-1{% if is_link %} ODRLinkLookupForm{% endif %} {% if datarecord_is_fake and datafield_meta.is_unique %}ODRUniqueField{% endif %}"
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
@@ -191,7 +189,7 @@
                     {% if datafield_meta.allow_multiple_uploads == 1 %}
                         {% set single_file = false %}
                     {% endif %}
-                    {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
+                    {% set callback = 'ReloadEditDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
                     {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
                 {% endif %}
@@ -214,7 +212,7 @@
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
                     id="{{ input_id }}"
-                    class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
+                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
                     {% if datafield_meta.required == 1 %}required="required"{% endif %}
                     data-error-type="inline"
@@ -236,7 +234,7 @@
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                     type="text"
                     id="{{ input_id }}"
-                    class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
+                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
@@ -426,37 +424,55 @@
         });
 
         $("#EditForm_{{ unique_id }}").validate({
-        {% if field_typename == "Integer" %}
             rules: {
                 "{{ input_name }}": {
-                    ODRInteger: {}  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                {% if field_typename == "Integer" %}
+                    ODRInteger: {},  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                {% elseif field_typename == "Decimal" %}
+                    ODRDecimal: {},  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
+                {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+                    maxlength: {{ max_length }},
+                {% endif %}
+
+                {% if datafield_meta.is_unique and not is_link %}
+                    required: true,
+                {% endif %}
+
+                {% if datafield_meta.is_unique and (not is_link or not datarecord_is_fake) %}
+                    {# field needs to be unique, and record needs to not be simultaneously a link and a "fake" for this rule to play nice with the rest of ODR #}
+                    remote: {
+                        {% if not datarecord_is_fake %}
+                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id, 'datarecord_id': datarecord.id }) }}",
+                        {% else %}
+                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}",
+                        {% endif %}
+                        type: "post",
+                        data: {
+                            {# The form's value is automatically inserted by jQuery validate #}
+                            "{{ field_typeclass }}Form[_token]": function () {
+                                return $("#EditForm_{{ unique_id }}").find("input[type=hidden]").val();
+                            },
+                            "{{ field_typeclass }}Form[error_type]": "json",
+                        }
+                    }
+                {% endif %}
                 }
             },
-        {% elseif field_typename == "Decimal" %}
-            rules: {
-                "{{ input_name }}": {
-                    ODRDecimal: {}  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
-                }
-            },
-        {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-            rules: {
-                "{{ input_name }}": {
-                    maxlength: {{ max_length }}
-                }
-            },
-            messages: {
-                "{{ input_name }}": {
-                    maxlength: "{{ max_length }} characters max"
-                }
-            },
-        {% endif %}
             submitHandler: function(form) {
+            {% if not datarecord_is_fake %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }}
                 );
+            {% else %}
+                // "Fake" records don't have an equivalent to SaveRecordData(), so probably should
+                //   clear the timeout here
+                clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {% endif %}
 
-                {% if not datarecord_is_fake %}
+            {% if not datarecord_is_fake %}
+                {# TODO - this is not the correct way of saving changes to these properties... #}
+                {# TODO - the server needs to automatically run these so loss of network won't leave the database out of sync with its metadata #}
                 // Need to check if this is a datatype properties value
                 var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
                 switch(field_reference) {
@@ -481,10 +497,16 @@
                         break;
 
                 }
-                {% endif %}
+            {% endif %}
             }
             // focusInvalid: false
         });
+
+        {% if datarecord_is_fake and not is_link %}
+        // Ensure required fields are immediately highlighted when a user is trying to create a new
+        //  top-level record
+        $("#EditForm_{{ unique_id }}").valid();
+        {% endif %}
     </script>
     {% endif %}
 

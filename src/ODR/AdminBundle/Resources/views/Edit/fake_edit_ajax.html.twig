@@ -84,22 +84,7 @@ function initPage() {
         event.preventDefault();
     });
 
-    $(".ODRUniqueField").each(function(index, elem) {
-        var input_div = $(elem).find('div.ODRFieldWrapper');
-        var input_id = $(input_div).find('input').attr('id');
-
-        $(elem).addClass('ODRInputError');
-        var label = $("<label>", {
-            "id": input_id + '-error',
-            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-            "for": input_id,
-            "html": "This field must have a value"
-        });
-        $(input_div).append( $(label) );
-        // console.log('created warning for ' + $(elem).attr('id') );
-    });
-
-    console.log('Init page done.');
+    // console.log('Init page done.');
 }
 
 {# None of these should be accessible, but just incase... #}
@@ -112,92 +97,13 @@ function AddLinkedRecord(parent_datatype_id, child_datatype_id, fake_dr_id) {
 function OpenLinkSearchPage(child_datatype_id, fake_dr_id) {
     alert('Record must be saved before it can be linked to other records');
 }
-
-function SaveRecordData(form_id, interval) {
-    // Clear the save timeout for this specific datafield
-    clearTimeout(interval);
-
-    // For FakeEdit, only want to actually execute this on unique datafields
-    if ( !$(form_id).hasClass('ODRUniqueField') )
-        return;
-
-    // Determine save type
-    var post_data = $(form_id).serialize();
-    var url = $(form_id).attr('action');
-
-    // console.log('Check Form: ', form_id);
-    $(form_id).find('.ODRSaveIndicator').fadeIn('50');
-
-    // May need these in case of errors
-    var input_div = $(form_id).find('div.ODRFieldWrapper');
-    var input = $(input_div).find('input');
-    var input_id = $(input).attr('id');
-
-    $.ajax({
-        type: 'POST',
-        url: url,
-        dataType: "json",
-        data: post_data,
-        success: function(data, textStatus, xhr) {
-            // Remove any warnings about uniqueness conflicts
-            $(form_id).removeClass('ODRInputError');
-            // Could potentially be a jquery validate error message in here too...since the save
-            //  finished successfully, remove all warning labels
-            $(input_div).children('label').remove();
-
-            // Ensure the field complains if it's empty
-            if ( $(input).val().trim() === '' ) {
-                // Add a new warning label to the field
-                $(form_id).addClass('ODRInputError');
-                var label = $("<label>", {
-                    "id": input_id + '-error',
-                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-                    "for": input_id,
-                    "html": "This field must have a value"
-                });
-                $(input_div).append( $(label) );
-            }
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            if ( jqXHR.status !== 409 ) {
-                // Shouldn't run into something other than a conflict error for this action
-                // Can't reload the datafield anyways
-            }
-            else {
-                // Otherwise, conflict error...don't want to reload the field because that tends to
-                //  completely disrupts users that are trying to enter correct values
-
-                // Remove any existing warning label in the field
-                $('#' + input_id + '-error').remove();
-
-                // Add a new warning label to the field
-                $(form_id).addClass('ODRInputError');
-                var label = $("<label>", {
-                    "id": input_id + '-error',
-                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-                    "for": input_id,
-                    "html": "This value is a duplicate in a field that requires unique values"
-                });
-                $(input_div).append( $(label) );
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-            $(form_id).find('.ODRSaveIndicator').fadeOut('350');
-        }
-    });
+function CheckRecordData(form_id, interval) {
+    alert('Changes do not automatically save');
 }
 
+/**
+ * Saves the data on the FakeEdit page as a new record.
+ */
 function SaveAsNew() {
     // Only save if there are no input errors...
     var has_errors = false;
@@ -209,11 +115,8 @@ function SaveAsNew() {
         alert('At least one field has a problem that must be fixed before saving.');
 
         $(".ODRInputError").each(function(index, elem) {
-            if ( $(elem).is(':visible') ) {
-                $(elem).effect("highlight", {}, 2000, function() {
-                    $(elem).effect("highlight", {}, 2000);    {# TODO - this doesn't seem like the right way of handling this... #}
-                });
-            }
+            if ( $(elem).is(':visible') )
+                $(elem).effect("highlight", {}, 2000).effect("highlight", {}, 2000);
         });
 
         return;

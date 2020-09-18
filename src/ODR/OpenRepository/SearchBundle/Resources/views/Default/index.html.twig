@@ -3,8 +3,10 @@
 {# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
 
 {% set site_baseurl = site_baseurl %}
+{% set logged_in = false %}
 {% set current_user = '' %}
 {% if user != 'anon.' %}
+    {% set logged_in = true %}
     {% set current_user = user.getuserstring %}
 {% endif %}
 
@@ -51,7 +53,7 @@
     <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide">
         {% include 'ODROpenRepositorySearchBundle:Default:search.html.twig' %}
     </div>
-    {% set logged_in = false %} {# prevent dashboard from loading automatically #}
+
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
     {{ js.write(logged_in) }}
 {% endblock %}

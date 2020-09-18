@@ -85,7 +85,6 @@
                     {% else %}
                         <a id="ODRDatarecordList_{{ datatype.id }}_search"
                            href="{{ datatype_baseurl }}"
-                           title="Search {{ datatype_meta.shortName }} DataRecords"
                         >
                             <i class="fa fa-lg fa-search"></i>&nbsp;Search
                         </a>
@@ -100,8 +99,7 @@
                             or (not is_metadata_datatype)
                         %}
                         <a id="ODRDatarecordList_{{ datatype.id }}_add"
-                           class="Pointer"
-                           onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"
+                           href="{{ datatype_baseurl }}#{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id }) }}"
                         >
                             <i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record
                         </a>
@@ -180,7 +178,7 @@
                 <div>
                     <a id="ODRDatatypeList_{{ datatype.id }}_delete"
                        class="Pointer"
-                       onclick="deleteDataType({{ datatype.id }});"
+                       onclick="deleteDatatype_landing({{ datatype.id }});"
                     >
                         <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
                     </a>
@@ -248,15 +246,12 @@
             $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});
         });
 
-        function addDataRecord(urlpath, datatype_id) {
-            var url = '{{ path('odr_edit_fake_record', { 'datatype_id': 0 }) }}';
-            url = url.substring(0, (url.length - 1));
-            url += datatype_id;
-
-            UpdateURL(url);
-        }
-
-        function deleteDataType(datatype_id) {
+        /**
+         * Deletes a top-level datatype from the landing page.
+         *
+         * @param {number} datatype_id
+         */
+        function deleteDatatype_landing(datatype_id) {
             var datatype_name = $("#ODRDatarecordList_" + datatype_id + "_name").html();
 
             if (confirm("Are you sure you want to delete the \"" + datatype_name + "\" database and all associated records?")) {

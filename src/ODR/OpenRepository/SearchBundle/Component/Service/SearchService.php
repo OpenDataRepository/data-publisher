@@ -19,6 +19,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -90,6 +91,69 @@ class SearchService
         $this->th_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
+    }
+
+
+    /**
+     * Returns true when the given value has already been saved to an instance of the given
+     * datafield, and false otherwise.  If a datarecord is specified, this function will still return
+     * true even if that one datarecord has the given value.
+     *
+     * For example...let datarecord 1 has value "123" in df, datarecord 2 has value "456" in df
+     * * valueAlreadyExists(df, "123") => true
+     * * valueAlreadyExists(df, "789") => false
+     * * valueAlreadyExists(df, "456", dr_1) => true, because dr_2 already has "456"
+     * * valueAlreadyExists(df, "456", dr_2) => false, because dr_2 is allowed to have "456"
+     *
+     * @param DataFields $datafield
+     * @param string $value
+     * @param DataRecord|null $datarecord
+     *
+     * @return bool
+     */
+    public function valueAlreadyExists($datafield, $value, $datarecord = null)
+    {
+        // ----------------------------------------
+        // Don't continue if called on a datafield that can't be unique
+        if ( !$datafield->getFieldType()->getCanBeUnique() )
+            throw new ODRBadRequestException('valueAlreadyExists() called with '.$datafield->getFieldType()->getTypeName().' datafield', 0xdd175c30);
+
+        // Also don't continue if the datafield and the datarecord don't belong to the same datatype
+        if ( !is_null($datarecord) && $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
+            throw new ODRBadRequestException("Datafield and Datarecord don't belong to the same Datatype", 0xdd175c30);
+
+
+        // ----------------------------------------
+        // Want to perform an exact search for this value...this only works because it's a text/number
+        //  datafield...other fieldtypes with more complicated searches can't be unique
+        if ( $value[0] !== '"' && $value[-1] !== '"' ) {
+            // Only put quotes around the given value if it's not already quoted
+            $value = '"'.$value.'"';
+        }
+        $search_results = self::searchTextOrNumberDatafield($datafield, $value);
+
+
+        // ----------------------------------------
+        // If the search didn't return anything, then no datarecord has this value
+        if ( count($search_results['records']) === 0 ) {
+            return false;
+        }
+        else {
+            // Otherwise, behavior depends on whether a datarecord was specified...
+            if ( is_null($datarecord) ) {
+                // ...no datarecord specified, so this is likely a request from a fake record...having
+                // anything in the search results means the fake record should not be saved
+                return true;
+            }
+            else {
+                // ...datarecord was specified, so this is likely a request from a regular record...
+                //  exactly one search result that points to this datarecord is still acceptable
+                if ( isset($search_results['records'][$datarecord->getId()]) )
+                    return false;
+                else
+                    return true;
+            }
+        }
     }
 
 

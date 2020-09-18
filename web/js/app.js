@@ -47,6 +47,10 @@ var SaveTimeout = 2000;
         },
     });
 
+    // Change default error message for a validation method: https://stackoverflow.com/a/2457053
+    jQuery.extend(jQuery.validator.messages, {
+        "maxlength": jQuery.validator.format("{0} characters max.")
+    });
 
     // NOTE - This is required...not sure exactly where, why, or how
     // from plugins.js line 158

@@ -147,7 +147,7 @@
     <script src="{{ site_baseurl }}/js/mylibs/number-functions.js"></script>
 
     <!-- Forms -->
-    <script src="{{ site_baseurl }}/js/libs/plugins/jquery.validate.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/plugins/validate/jquery.validate.min.js"></script>
 
     <!-- Fullstats -->
     <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.css-transform.js"></script>
@@ -201,7 +201,7 @@
                 <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
                     {% block navigation_top %}{% endblock %}
                 </li>
-                <li id="ODRDatabaseLanding" class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Dashboard</span></li>
+                <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link">Dashboard</a></li>
             {% endif %}
 
             {% if header_middle_title != '' %}
