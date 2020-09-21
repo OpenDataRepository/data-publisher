@@ -1780,8 +1780,9 @@ class DisplaytemplateController extends ODRCustomController
                     //  search results as a result of changes to the DatatypeMeta entry...
                     if ( $old_external_id_field !== $new_external_id_field
                         || $old_namefield !== $new_namefield
+                        || $old_sortfield !== $new_sortfield
                     ) {
-                        // ...but changes to these two fields require rebuilding cached datarecord
+                        // ...but changes to these three fields require rebuilding cached datarecord
                         //  entries, since the values in these fields are stored in those entries
 
                         // Not using $grandparent_datatype because the user could be directly editing

@@ -809,7 +809,7 @@ class DatatypeInfoService
      */
     public function resetDatatypeSortOrder($datatype_id)
     {
-        // Delete the cached
+        // Delete the cached default ordering of records in this datatype
         $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
 
         // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
