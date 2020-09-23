@@ -29,6 +29,7 @@ use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
+use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
@@ -268,37 +269,11 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Locate the array version of the new tag
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-
-            $df_array = null;
-            $tag_array = null;
-            foreach ($datatype_array as $dt_id => $dt) {
-                foreach ($dt['dataFields'] as $df_id => $df) {
-                    if ($df_id === $datafield->getId() ){
-                        $df_array = $df;
-                        if ( isset($df['tags']) ) {   // should always be true
-                            $tag_array = $df['tags'][$tag->getId()];
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if ( is_null($df_array) || is_null($tag_array) )
-                throw new ODRException('Could not find newly created tag?');
-
-
-            // Render the HTML for the new tag so the entire page doesn't have to reload
-            $templating = $this->get('templating');
+            // Instruct the page to reload to get the updated HTML
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:Tags:tag.html.twig',
-                    array(
-                        'datafield' => $df_array,
-                        'tag' => $tag_array,
-                    )
-                )
+                'datafield_id' => $datafield->getId(),
+                'reload_datafield' => true,
+                'tag_id' => $tag->getId(),
             );
         }
         catch (\Exception $e) {
@@ -819,6 +794,8 @@ class TagsController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var TagHelperService $th_service */
             $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TrackedJobService $tj_service */
+            $tj_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var Tags $tag */
@@ -867,6 +844,10 @@ class TagsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to delete tags from a derived field');
 
+            // Also prevent a tag from being deleted if certain jobs are in progress by throwing
+            //  an error
+            $restricted_jobs = array('mass_edit', /*'migrate',*/ 'csv_export', 'csv_import_validate', 'csv_import');
+            $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to delete this tag");
 
             // As nice as it would be to delete any/all tags derived from a template tag here, the
             //  template synchronization needs to tell the user what will be changed, or changes
@@ -1009,6 +990,12 @@ class TagsController extends ODRCustomController
 
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
+
+            // ----------------------------------------
+            // Need to let the browser know which datafield to reload
+            $return['d'] = array(
+                'datafield_id' => $datafield->getId()
+            );
 
         }
         catch (\Exception $e) {
@@ -1329,11 +1316,9 @@ class TagsController extends ODRCustomController
                 }
             }
 
-            // Inform the javascript whether any changes were made
-            $changes_made = $tag_hierarchy_changed || $tag_sort_order_changed;
-            $return['d'] = array(
-                'changes_made' => $changes_made
-            );
+            // Don't need to return anything, the javascript on the page already has all the data
+            //  it needs
+
         }
         catch (\Exception $e) {
             $source = 0xec51b8f8;
@@ -1376,6 +1361,8 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1384,6 +1371,10 @@ class TagsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
+            /** @var TrackedJobService $tj_service */
+            $tj_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var Tags $tag */
@@ -1426,12 +1417,22 @@ class TagsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to rename a tag for a derived field');
 
+            // Also prevent a tag from being renamed if certain jobs are in progress
+            $restricted_jobs = array(/*'mass_edit',*/ /*'migrate',*/ 'csv_export', 'csv_import_validate', 'csv_import');
+            $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to rename this tag");
 
+
+            // ----------------------------------------
             // Update the tag's name
             $properties = array(
                 'tagName' => trim($post['tag_name'])
             );
             $emm_service->updateTagMeta($user, $tag, $properties);
+
+            // If the datafield is being sorted by name, then also update the displayOrder
+            $changes_made = false;
+            if ( $datafield->getRadioOptionNameSort() )
+                $changes_made = $sort_service->sortTagsByName($user, $datafield);
 
 
             // Update the cached version of the datatype...
@@ -1440,10 +1441,28 @@ class TagsController extends ODRCustomController
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
 
+            // Locate all datarecords that could display this tag...
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            $results = $query->getArrayResult();
 
+            foreach ($results as $result) {
+                // Need to delete the cached datarecord...it has the tagName property
+                $cache_service->delete('cached_datarecord_'.$result['dr_id']);
+
+                // Tags can't be displayed in table layouts, so no sense deleting those cache entries
+            }
+
+
+            // ----------------------------------------
             // Get the javascript to reload the datafield
             $return['d'] = array(
-                'datafield_id' => $datafield->getId()
+                'reload_modal' => $changes_made,
+                'datafield_id' => $datafield->getId(),
+                'tag_id' => $tag->getId(),
             );
 
         }

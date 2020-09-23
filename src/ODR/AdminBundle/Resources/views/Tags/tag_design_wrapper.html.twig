@@ -47,7 +47,7 @@
                     </label>
                     <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter" class="ODRDelimiterField" maxlength="3" size="4" />
                     &nbsp;
-                    <span class="ODRInputError ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
+                    <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
                 </fieldset>
                 {% else %}
                 <fieldset style="margin-bottom: 10px;">
@@ -169,6 +169,9 @@
         initTags();
     });
 
+    /**
+     * Initializes the tag modal.
+     */
     function initTags() {
         $(".ODRTagAnchor").unbind('click').click(function(event) {
             // Don't want #odr_tag_design_modal click event to fire
@@ -228,6 +231,11 @@
     }
 
     var reordering_tags = false;
+
+    /**
+     * Removes the border highlights around tags in the modal so users can tell where a tag is
+     * going to get moved to.
+     */
     function clearTagHighlights() {
         reordering_tags = false;
         $(".ODRTagHighlight").each(function() {
@@ -241,21 +249,12 @@
 
 {# inverse of allow_multiple_levels == false and sort_by_name == true #}
 {% if allow_multiple_levels == true or sort_by_name == false %}
-    function ensureTagVisibility(element) {
-        var pageTop = $('#ODRTagForm').offset().top;
-        var pageBottom = pageTop + $('#ODRTagForm').height();
-        var elementTop = $(element).offset().top;
-        var elementBottom = elementTop + $(element).height();
-
-        if ( (elementTop > pageBottom) || (elementBottom < pageTop) ) {
-            $("#ODRTagForm").scrollTo(
-                $(element),      // target
-                250,             // duration
-                {margin: 'true'} // options...get scrollTo() to consider margin when scrolling
-            );
-        }
-    }
-
+    /**
+     * Moves a tag element around the tag modal based on which key the user pushed.
+     *
+     * @param {HTMLElement} tag_item
+     * @param {number} which
+     */
     function handleTagMovement(tag_item, which) {
         var parent_tag_group = $(tag_item).parent();
         var prev_tag = $(tag_item).prev();
@@ -347,6 +346,9 @@
     }
 {% endif %}
 
+    /**
+     * Locates and highlights tags in the modal that do not have unique names.
+     */
     function FindDuplicateTagNames() {
         $(".ODRInputError").not(".ODRAlwaysShow").hide();
         var has_duplicates = false;
@@ -378,6 +380,12 @@
     }
 
     var SaveTagPropertyInterval = [];
+
+    /**
+     * Saves changes to a tag's name.
+     *
+     * @param {number} tag_id
+     */
     function SaveTagProperty(tag_id) {
         // Clear the save timeout for this specific tag
         clearTimeout(SaveTagPropertyInterval[tag_id]);
@@ -401,8 +409,7 @@
         url = url.substring(0, (url.length - 1));
         url += tag_id;
 
-        // alert(url);
-        // return;
+        // alert(url);  return;
 
         var post_data = $("#ODRTagForm").find("#ODRTag_" + tag_id + "_name").serialize();    // only want one tag
 
@@ -414,11 +421,18 @@
             success: function(data) {
                 notifySaved();
 
+                // Always need to reload the datafield to ensure it's displaying the right name
                 {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
-                ReloadDatafield(data.d.datafield_id);
+                ReloadTagDatafield(data.d.datafield_id);
 
-                // Replace the previous "old-value" with the one that just got saved
-                $("#ODRTag_" + tag_id + "_name").data('old-value', tag_name);
+                if ( data.d.reload_modal ) {
+                    // ...also reload the list of radio options
+                    loadTagEditDialog(data.d.datafield_id, tag_id);
+                }
+                else {
+                    // Replace the previous "old-value" with the one that just got saved
+                    $("#ODRTag_" + tag_id + "_name").data('old-value', tag_name);
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Revert back to the old value on an error
@@ -441,6 +455,11 @@
         });
     }
 
+    /**
+     * Sends a list of tags in the modal to the server for validation purposes.
+     *
+     * @param {number} datafield_id
+     */
     function ValidateTags(datafield_id) {
         if ( $("#tag_list").val() === '' ) {
             alert('no tags given');
@@ -489,6 +508,11 @@
         });
     }
 
+    /**
+     * Creates a new tag.
+     *
+     * @param {number} datafield_id
+     */
     function AddTag(datafield_id) {
         var url = '{{ path('odr_create_tag', { 'datafield_id': 0 }) }}';
         // Load display template menu
@@ -504,12 +528,9 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                //
-                $(".ODRTopLevelTagGroup").append(data.d.html);
-
-                // Ensure the new tags respond to events
-                initTags();
-                FindDuplicateTagNames();
+                // Reload parts of the page so that the new radio option shows up
+                ReloadTagDatafield(data.d.datafield_id);
+                loadTagEditDialog(data.d.datafield_id, data.d.tag_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -531,9 +552,14 @@
         });
     }
 
+    /**
+     * Deletes a tag.
+     *
+     * @param {number} tag_id
+     */
     function DeleteTag(tag_id) {
         var delete_question = 'Are you sure you want to delete this tag?';
-        if ( $("#ODRTag_" + tag_id + "_name").parent().children(".ODRTagGroup").find('input').length > 0 )
+        if ( $("#ODRTag_" + tag_id + "_name").closest(".ODRTagItem").children(".ODRTagGroup").find('input').length > 0 )
             delete_question = 'Are you sure you want to delete this tag and its children?';
 
         if ( !confirm(delete_question) )
@@ -544,8 +570,7 @@
         url = url.substring(0,(url.length - 1));
         url += tag_id;
 
-        // alert(url);
-        // return;
+        // alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -553,8 +578,13 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                // TODO
-                window.location.reload();
+                // Remove the option from this modal
+                $("#ODRTag_" + tag_id + "_name").closest(".ODRTagItem").remove();
+                clearTagHighlights();
+                initTags();
+
+                // Also reload the datafield on the page so it no longer displays the deleted tag
+                ReloadTagDatafield(data.d.datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -576,6 +606,11 @@
         });
     }
 
+    /**
+     * Saves the order of tags in the modal.
+     *
+     * @param {HTMLElement} item
+     */
     function SaveTagPosition(item) {
 
         // Remove any pre-existing input elements added by this function
@@ -615,24 +650,22 @@
         // Duplicate tag names shouldn't prevent this, but should be mentioned
         FindDuplicateTagNames();
 
-        // alert(url);
-        // return;
+        // alert(url);  return;
 
         var post_data = $("#ODRTagPositionForm").serialize();
-        // $("#ODRTagPositionForm").children('input').each(function() {
-        //     console.log( $(this).get(0) );
-        // });
-        // console.log('returning without saving...');
-        // return;
-
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
             success: function(data) {
-                if ( data.d.changes_made === true)
-                    notifySaved();
+                notifySaved();
+
+                // The controller may have made a lot of changes...just reload the datafield on the page
+                {% if sort_by_name %}
+                loadTagEditDialog(datafield_id);
+                {% endif %}
+                ReloadTagDatafield(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Forcibly reload on error

@@ -404,6 +404,7 @@ class RadioOptionsController extends ODRCustomController
             $search_cache_service->onDatafieldModify($datafield);
 
 
+            // ----------------------------------------
             // Need to let the browser know which datafield to reload
             $return['d'] = array(
                 'datafield_id' => $datafield->getId()
@@ -532,25 +533,35 @@ class RadioOptionsController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Determine whether cached entries for table themes need to get deleted...
+            $delete_table_data = false;
             $typename = $datafield->getFieldType()->getTypeName();
-            if ($typename == 'Single Radio' || $typename == 'Single Select') {
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $datatype->getId()) );
-                $results = $query->getArrayResult();
+            if ($typename == 'Single Radio' || $typename == 'Single Select')
+                $delete_table_data = true;
 
-                foreach ($results as $result) {
-                    // Both of these cache entries need to get deleted so they can get rebuilt with the new radio option name
-                    $cache_service->delete('cached_datarecord_'.$result['dr_id']);
+            // Locate all datarecords that could display this radio option...
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                // Always need to delete the cached datarecord...it has the optionName property
+                $cache_service->delete('cached_datarecord_'.$result['dr_id']);
+
+                // Only need to delete the cached table data if the datafield was a single radio or
+                //  a single select
+                if ($delete_table_data)
                     $cache_service->delete('cached_table_data_'.$result['dr_id']);
-                }
             }
 
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
 
+
+            // ----------------------------------------
+            // Get the javascript to reload the datafield
             $return['d'] = array(
                 'reload_modal' => $changes_made,
                 'datafield_id' => $datafield->getId(),

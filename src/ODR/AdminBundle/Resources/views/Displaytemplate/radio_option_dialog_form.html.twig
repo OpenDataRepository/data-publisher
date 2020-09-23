@@ -3,8 +3,6 @@
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set sort_by_name = datafield_meta.radio_option_name_sort %}
 
-{% set radio_options = datafield.radioOptions %}
-
 <div id="odr_radio_option_design_modal">
     <div class="ODRThemeElement">
         <button class="ODRAddRadioOption pure-button pure-button-primary">Create single radio option</button>
@@ -31,8 +29,7 @@
             {# this form is for renaming radio options #}
             <form id="ODRRadioOptionForm" rel="{{ datafield.id }}">
                 {% include 'ODRAdminBundle:Displaytemplate:radio_option_rows.html.twig' with {
-                    'datafield' : datafield,
-                    'radio_options': radio_options,
+                    'datafield' : datafield
                 } %}
             </form>
         </div>

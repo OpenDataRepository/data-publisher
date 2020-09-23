@@ -6,6 +6,11 @@
 
     var tag_edit_body = '<div id="ODRTagEditDialogWrapper" class="ODRHidden"> </div>';
 
+    /**
+     * Opens ODR's modal to create/import/edit/move Tags in the given datafield.
+     *
+     * @param {number} datafield_id
+     */
     function openTagEditDialog(datafield_id) {
         // open dialog
         modal_options = {
@@ -30,13 +35,23 @@
             clearTagHighlights();
 
             closeODRRemodal();
-            {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
-            ReloadDatafield(datafield_id);
             $("#ThemeDesignForm").html('').fadeIn('fast');
+            ReloadSearchOverlayDatafield(datafield_id);
         });
     }
 
-    function loadTagEditDialog(datafield_id) {
+    /**
+     * Loads the contents of ODR's modal to create/import/edit/move Tags in the given datafield.
+     *
+     * If a tag id is provided, the modal will highlight the specified tag
+     *
+     * @param {number} datafield_id
+     * @param {number} [tag_id]
+     */
+    function loadTagEditDialog(datafield_id, tag_id = undefined) {
+
+        $(".ODRRemodalLoading").show();
+        $("#ODRTagEditDialogWrapper").hide().html("");
 
         var url  = '{{ path('odr_get_tag_modal', {'datafield_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
@@ -69,6 +84,11 @@
 
                     // Set the max height of the tag form so it doesn't have a vertical scroll bar
                     $("#ODRTagForm").css('max-height', max_height);
+
+                    if ( tag_id !== undefined ) {
+                        ensureTagVisibility( $("#ODRTag_" + tag_id + "_name") );
+                        $("#ODRTag_" + tag_id + "_name").effect("highlight", {}, 2000);
+                    }
                 });
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -89,6 +109,108 @@
                 }
             }
         });
+    }
+
+    /**
+     * Scrolls to the requested tag in the modal.
+     *
+     * @param {HTMLElement} element
+     */
+    function ensureTagVisibility(element) {
+        var pageTop = $('#ODRTagForm').offset().top;
+        var pageBottom = pageTop + $('#ODRTagForm').height();
+        var elementTop = $(element).offset().top;
+        var elementBottom = elementTop + $(element).height();
+
+        if ( (elementTop > pageBottom) || (elementBottom < pageTop) ) {
+            $("#ODRTagForm").scrollTo(
+                $(element),      // target
+                250,             // duration
+                {margin: 'true'} // options...get scrollTo() to consider margin when scrolling
+            );
+        }
+    }
+
+    /**
+     * Reloads the HTML for this datafield on the search sidebar.
+     *
+     * @param {number} datafield_id
+     */
+    function ReloadSearchOverlayDatafield(datafield_id) {
+        // This should always exist by now, but just in case...
+        if ( $(".ODRSearchToggle").length > 0 ) {
+            var url  = '{{ path('odr_reload_search_overlay_datafield', {'datafield_id': 0} ) }}';
+            url = url.substring(0,(url.length-1));
+            url += datafield_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    // Only update this datafield's HTML element on the search sidebar if it exists
+                    if ( data.d.needs_update === true )
+                        $("#Input_" + datafield_id + ".ODRTagSearchDiv").parent().html( data.d.html );
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Close the dialog so it's not in some half-initialized state
+                    closeODRRemodal();
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * The function for reloading datafields is different depending on whether this is being called
+     * from Displaytemplate or from Edit...this function determines and calls the correct one.
+     *
+     * @param {number} datafield_id
+     */
+    function ReloadTagDatafield(datafield_id) {
+    {% if display == 'design' %}
+        ReloadDatafield(datafield_id);
+    {% elseif display == 'edit' %}
+        // Need to locate the datafield's datatype...
+        var dt_id = null;
+        $(".ODRTagsEdit").each(function(index, elem) {
+            var df_id = $(elem).attr('rel');
+            if ( datafield_id == df_id ) {
+                dt_id = $(elem).closest(".ODRDataType").attr('id').split(/_/)[1];
+                return;
+            }
+        });
+
+        // The datatype could be on the page more than once...
+        $(".ODRDataType").each(function(index, elem) {
+            var child_datatype_id = $(elem).attr('id').split(/_/)[1];
+            if ( dt_id == child_datatype_id ) {
+                if ( $(elem).parent().hasClass("ODRChildDatatype") ) {
+                    // This is a child/linked datarecord
+                    var parent_datarecord_id = $(elem).parent().attr('id').split(/_/)[2];
+                    ReloadEditChild(child_datatype_id, parent_datarecord_id);
+                }
+                else {
+                    // This is a top-level datarecord
+                    var datarecord_id = $(elem).children().first().children(".ODRFieldArea").first().attr('id').split(/_/)[1];
+                    ReloadEditDatafield(datarecord_id, datafield_id);
+                }
+            }
+        });
+    {% endif %}
     }
 </script>
 
