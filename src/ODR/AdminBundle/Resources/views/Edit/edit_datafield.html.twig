@@ -69,6 +69,11 @@
     {% set datarecord_is_fake = true %}
 {% endif %}
 
+{% set inline_search_link = false %}
+{% if datarecord_is_fake and is_link %}
+    {% set inline_search_link = true %}
+{% endif %}
+
     <form
         {% if is_link %} autocomplete="off"{% endif %}
         {% if not datarecord_is_fake %}
@@ -250,6 +255,10 @@
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
+            {% if inline_search_link %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be changed" style="opacity: 45%;">
+            {% endif %}
+
             <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% set print_null_option = false %}
@@ -275,7 +284,14 @@
                     {% if print_null_option == true %}
                         {% set print_null_option = false %}
                         <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
-                            <input id="{{ input_id }}_0" type="radio" name="RadioGroup_{{ unique_id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
+                            <input
+                                id="{{ input_id }}_0"
+                                type="radio"
+                                name="RadioGroup_{{ unique_id }}"
+                                {% if has_selection == false %}checked{% endif %}
+                                class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}"
+                                {% if inline_search_link %}disabled{% endif %}
+                            />
                             No Option Selected
                         </label>
                     {% endif %}
@@ -290,6 +306,7 @@
                             name="RadioGroup_{{ unique_id }}"
                             {% if is_selected == 1 %}checked{% endif %}
                             class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}"
+                            {% if inline_search_link %}disabled{% endif %}
                         />
                     {% else %}
                         <input
@@ -299,6 +316,7 @@
                             name="RadioGroup_{{ unique_id }}"
                             {% if is_selected == 1 %}checked{% endif %}
                             class="MultipleRadioGroup"
+                            {% if inline_search_link %}disabled{% endif %}
                         />
                     {% endif %}
 
@@ -308,11 +326,18 @@
                 </div>
             {% endif %}
 
+            {% if inline_search_link %}
+            </div>
+            {% endif %}
         </fieldset>
 
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
+            {% if inline_search_link %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be changed" style="opacity: 45%;">
+            {% endif %}
+
             <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             <select
@@ -320,6 +345,7 @@
                 id="{{ input_id }}"
                 class="pure-u-24-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}"
                 {% if field_typename == "Multiple Select" %}multiple{% endif %}
+                {% if inline_search_link %}disabled{% endif %}
             >
 
             {% if datafield.radioOptions is defined %}
@@ -338,13 +364,20 @@
             {% endif %}
             </select>
 
+            {% if inline_search_link %}
+            </div>
+            {% endif %}
         </fieldset>
 
     {% elseif field_typename == "Tags" %}
         <fieldset>
+            {% if inline_search_link %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be changed" style="opacity: 45%;">
+            {% endif %}
+
             <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
                 {{ datafield_meta.fieldName }}
-                {% if datafield_meta.tags_allow_non_admin_edit or is_datatype_admin %}
+                {% if not datarecord_is_fake and (datafield_meta.tags_allow_non_admin_edit or is_datatype_admin) %}
                 <span class="ODRTagsEdit" rel="{{ datafield.id }}"><i class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i></span>
                 {% endif %}
             </label>
@@ -355,7 +388,13 @@
 
                     'drf': datarecordfield,
                     'stacked_tags': datafield.tags,
+
+                    'inline_search_link': inline_search_link
                 } %}
+            {% endif %}
+
+            {% if inline_search_link %}
+            </div>
             {% endif %}
         </fieldset>
 

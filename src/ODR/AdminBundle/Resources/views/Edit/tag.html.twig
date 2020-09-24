@@ -24,7 +24,13 @@
     <label class="ODRTagLabel">{{ tag.tagMeta.tagName|markdown }}</label>
 {% else %}
     <label for="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagLabel">
-        <input id="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagEdit" type="checkbox" {% if is_selected == 1 %}checked{% endif %} />&nbsp;
+        <input
+            id="TagForm_{{ unique_id }}_{{ tag.id }}"
+            class="ODRTagEdit"
+            type="checkbox"
+            {% if is_selected == 1 %}checked{% endif %}
+            {% if inline_search_link %}disabled{% endif %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+        />&nbsp;
         {{ tag.tagMeta.tagName|markdown }}
     </label>
 {% endif %}
@@ -37,6 +43,8 @@
 
                 'tag_selections': tag_selections,
                 'tag': child_tag,
+
+                'inline_search_link': inline_search_link
             } %}
         {% endfor %}
     </ul>

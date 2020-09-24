@@ -565,6 +565,8 @@ function initPage() {
                                 // Set this here so that we can be sure a non-empty search value exists
                                 form_obj.ajax_request = true;
                             }
+
+                            // TODO - modify so the search also submits radio options and tags?
                         });
 
                         // console.log('form obj: ', form_obj);
@@ -653,7 +655,7 @@ function initPage() {
 
                                     $(form).validate().showErrors(error_obj);
                                 }
-                                else if (val !== '' ) {
+                                else if (val !== '' ) {    // TODO - modify so radio options and tags get submitted?
                                     // Otherwise, don't submit empty values...
                                     var id_data = form_id.split(/_/);
                                     form_data.datarecord_id = id_data[1];

@@ -782,7 +782,7 @@ class DefaultController extends Controller
      *
      * @return Response
      */
-    public function inlinelinkAction(Request $request)
+    public function inlinelinksearchAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -831,6 +831,7 @@ class DefaultController extends Controller
                 if ( !is_numeric($key) )
                     throw new ODRBadRequestException();
 
+                // TODO - modify so the search can handle radio options and tags?
                 $search_params[ intval($key) ] = trim($value);
             }
 
