@@ -1291,7 +1291,11 @@ class ThemeController extends ODRCustomController
 
     /**
      * Loads a ThemeDatatype properties form.
-     * TODO - could this be entirely replaced by DisplaytemplateController::datatypepropertiesAction()?
+     *
+     * This is kept separate from DisplaytemplateController::datatypepropertiesAction() because that
+     * controller action needs to combine the Datatype/Datatree/ThemeDatatype forms into a single
+     * unit for the purposes of designing a "master" theme...however, for any other theme, the
+     * ThemeDatatype form is the only one that makes sense to change.
      *
      * @param integer $theme_element_id The id of the theme element holding the child/linked datatype
      * @param integer $datatype_id The id of the child/linked datatype itself
@@ -1343,6 +1347,15 @@ class ThemeController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
 
+            // Also need this in order to render the form, though it can't be changed from here
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
+            );
+            if ( $datatree == null )
+                throw new ODRNotFoundException('Datatree');
+
+
             // The provided datatype/theme_element may be referencing a "copy" of the master theme
             //  for a linked (remote) datatype...these copies exist specifically to allow users to be
             //  able to change how a "remote" datatype looks from the context of the "local" datatype.
@@ -1385,11 +1398,6 @@ class ThemeController extends ODRCustomController
             }
             // --------------------
 
-            // Check if multiple child/linked datarecords are allowed for datatype
-            /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
-            );
 
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
