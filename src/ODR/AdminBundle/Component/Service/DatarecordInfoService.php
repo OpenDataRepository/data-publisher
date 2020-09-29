@@ -13,7 +13,9 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -42,6 +44,11 @@ class DatarecordInfoService
     private $cache_service;
 
     /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
+
+    /**
      * @var TagHelperService
      */
     private $th_service;
@@ -62,6 +69,7 @@ class DatarecordInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
@@ -69,15 +77,156 @@ class DatarecordInfoService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
         CsrfTokenManager $token_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
+    }
+
+
+    /**
+     * Attempts to locate and return a datarecord with the given external id.
+     *
+     * @param DataFields $external_id_field
+     * @param string $external_id_value
+     *
+     * @return DataRecord|null
+     */
+    public function getDatarecordByExternalId($external_id_field, $external_id_value)
+    {
+        // Verify that the field can actually be an external id field before searching...
+        if ( !$external_id_field->getIsUnique() )
+            throw new ODRBadRequestException('getDatarecordByExternalId() called with non-unique datafield', 0x3cff5d01);
+
+        // Attempt to locate the datarecord using the given external id
+        $query = $this->em->createQuery(
+           'SELECT dr
+            FROM ODRAdminBundle:'.$external_id_field->getFieldType()->getTypeClass().' AS e
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            WHERE e.dataField = :datafield AND e.value = :datafield_value
+            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datafield' => $external_id_field->getId(),
+                'datafield_value' => $external_id_value
+            )
+        );
+        $results = $query->getResult();
+
+        // Return the datarecord if it exists
+        $datarecord = null;
+        if ( isset($results[0]) )
+            $datarecord = $results[0];
+
+        return $datarecord;
+    }
+
+
+    /**
+     * Attempts to locate and return a child datarecord from both its external id and its parent
+     * datarecord's external id.
+     *
+     * @param DataFields $child_external_id_field
+     * @param string $child_external_id_value
+     * @param DataFields $parent_external_id_field
+     * @param string $parent_external_id_value
+     *
+     * @return DataRecord|null
+     */
+    public function getChildDatarecordByExternalId($child_external_id_field, $child_external_id_value, $parent_external_id_field, $parent_external_id_value)
+    {
+        // Verify that both fields can actually be external id fields before searching...
+        if ( !$child_external_id_field->getIsUnique() )
+            throw new ODRBadRequestException('getChildDatarecordByExternalId() called with non-unique child datafield', 0xe0ae9098);
+        if ( !$parent_external_id_field->getIsUnique() )
+            throw new ODRBadRequestException('getChildDatarecordByExternalId() called with non-unique parent datafield', 0xe0ae9098);
+
+        // Attempt to locate the datarecord using the given external id
+        $query = $this->em->createQuery(
+           'SELECT dr
+            FROM ODRAdminBundle:'.$child_external_id_field->getFieldType()->getTypeClass().' AS e_1
+            JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
+            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+            JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
+            JOIN ODRAdminBundle:'.$parent_external_id_field->getFieldType()->getTypeClass().' AS e_2 WITH e_2.dataRecordFields = drf_2
+            WHERE dr.id != parent.id
+            AND e_1.dataField = :child_datafield AND e_2.dataField = :parent_datafield
+            AND e_1.value = :child_datafield_value AND e_2.value = :parent_datafield_value
+            AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL
+            AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'child_datafield' => $child_external_id_field->getId(),
+                'child_datafield_value' => $child_external_id_value,
+                'parent_datafield' => $parent_external_id_field->getId(),
+                'parent_datafield_value' => $parent_external_id_value
+            )
+        );
+        $results = $query->getResult();
+
+        // Return the datarecord if it exists
+        $datarecord = null;
+        if ( isset($results[0]) )
+            $datarecord = $results[0];
+
+        return $datarecord;
+    }
+
+
+    /**
+     * Attempts to locate and return a single child datarecord based on its parent's external id.
+     *
+     * If more than one child datarecord exists, the function returns null.
+     *
+     * @param DataType $child_datatype
+     * @param DataFields $parent_external_id_field
+     * @param string $parent_external_id_value
+     *
+     * @return DataRecord|null
+     */
+    public function getSingleChildDatarecordByParent($child_datatype, $parent_external_id_field, $parent_external_id_value)
+    {
+        // Verify that the field can actually be an external id field before searching...
+        if ( !$parent_external_id_field->getIsUnique() )
+            throw new ODRBadRequestException('getChildDatarecordByParent() called with non-unique datafield', 0x5c705932);
+
+        // Attempt to locate the datarecord using the given external id
+        $query = $this->em->createQuery(
+           'SELECT dr
+            FROM ODRAdminBundle:DataRecord AS dr
+            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = parent
+            JOIN ODRAdminBundle:'.$parent_external_id_field->getFieldType()->getTypeClass().' AS e WITH e.dataRecordFields = drf
+            WHERE dr.dataType = :child_datatype_id AND e.dataField = :parent_datafield
+            AND e.value = :parent_datafield_value
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL
+            AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'child_datatype_id' => $child_datatype->getId(),
+                'parent_datafield_value' => $parent_external_id_value,
+                'parent_datafield' => $parent_external_id_field->getId()
+            )
+        );
+        $results = $query->getResult();
+
+        // Return the datarecord if it exists, and also return null if there's more than one...the
+        //  function is called to determine whether the parent datarecord has a single child datarecord
+        //  that it can overwrite during importing
+        $datarecord = null;
+        if ( isset($results[0]) && count($results) == 1 )
+            $datarecord = $results[0];
+
+        return $datarecord;
     }
 
 
@@ -101,7 +250,7 @@ class DatarecordInfoService
             // Need to locate all linked datarecords for the provided datarecord
             $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$grandparent_datarecord_id);
             if ($associated_datarecords == false) {
-                $associated_datarecords = self::getAssociatedDatarecords(array($grandparent_datarecord_id));
+                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($grandparent_datarecord_id);
 
                 // Save the list of associated datarecords back into the cache
                 $this->cache_service->set('associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords);
@@ -126,90 +275,6 @@ class DatarecordInfoService
         }
 
         return $datarecord_array;
-    }
-
-
-    /**
-     * @deprecated replace with DatatreeInfoService::getAssociatedDatarecords()
-     *
-     * This function locates all datarecords whose grandparent id is in $grandparent_datarecord_ids,
-     * then calls self::getLinkedDatarecords() to locate all datarecords linked to by these datarecords,
-     * which calls this function again to locate any datarecords that are linked to by those
-     * linked datarecords...
-     *
-     * The end result is an array of top-level datarecord ids.  Due to recursive shennanigans,
-     * these functions don't attempt to cache the results.
-     *
-     * @param int[] $grandparent_datarecord_ids
-     *
-     * @return int[]
-     */
-    public function getAssociatedDatarecords($grandparent_datarecord_ids)
-    {
-        $this->logger->debug('DatarecordInfoService: getAssociatedDatarecords: ' . $grandparent_datarecord_ids[0]);
-
-        // Locate all datarecords that are children of the datarecords listed in $grandparent_datarecord_ids
-        $query = $this->em->createQuery(
-           'SELECT dr.id AS id
-            FROM ODRAdminBundle:DataRecord AS dr
-            LEFT JOIN dr.grandparent AS grandparent
-            WHERE grandparent.id IN (:grandparent_ids)
-            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('grandparent_ids' => $grandparent_datarecord_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $datarecord_ids = array();
-        foreach ($results as $result)
-            $datarecord_ids[] = $result['id'];
-
-        // Locate all datarecords that are linked to by the datarecords listed in $grandparent_datarecord_ids
-        $linked_datarecord_ids = self::getLinkedDatarecords($datarecord_ids);
-
-        // Don't want any duplicate datarecord ids...
-        $associated_datarecord_ids = array_unique( array_merge($grandparent_datarecord_ids, $linked_datarecord_ids) );
-
-        $this->logger->debug('DatarecordInfoService: getAssociatedDatarecords: ' . var_export($associated_datarecord_ids, 1));
-        return $associated_datarecord_ids;
-    }
-
-
-    /**
-     * @deprecated
-     *
-     * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
-     *
-     * @param int[] $ancestor_ids
-     *
-     * @return int[]
-     */
-    public function getLinkedDatarecords($ancestor_ids)
-    {
-        // Locate all datarecords that are linked to from any datarecord listed in $datarecord_ids
-        $query = $this->em->createQuery(
-           'SELECT descendant.id AS descendant_id
-            FROM ODRAdminBundle:LinkedDataTree AS ldt
-            JOIN ldt.ancestor AS ancestor
-            JOIN ldt.descendant AS descendant
-            WHERE ancestor.id IN (:ancestor_ids)
-            AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        )->setParameters( array('ancestor_ids' => $ancestor_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $linked_datarecord_ids = array();
-        foreach ($results as $result)
-            $linked_datarecord_ids[] = $result['descendant_id'];
-
-        // If there were datarecords found, get all of their associated child/linked datarecords
-        $associated_datarecord_ids = array();
-        if ( count($linked_datarecord_ids) > 0 )
-            $associated_datarecord_ids = self::getAssociatedDatarecords($linked_datarecord_ids);
-
-        // Don't want any duplicate datarecord ids...
-        $linked_datarecord_ids = array_unique( array_merge($linked_datarecord_ids, $associated_datarecord_ids) );
-
-        return $linked_datarecord_ids;
     }
 
 

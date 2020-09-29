@@ -161,6 +161,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
             $token_manager: "@security.csrf.token_manager"
             $logger: "@logger"
@@ -207,6 +208,7 @@ services:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $cache_service: "@odr.cache_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"

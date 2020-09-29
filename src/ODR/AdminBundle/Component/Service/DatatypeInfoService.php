@@ -186,7 +186,7 @@ class DatatypeInfoService
     public function getGrandparentDatatypeId($initial_datatype_id, $datatree_array = null)
     {
         if ( is_null($datatree_array) )
-            $datatree_array = self::getDatatreeArray();
+            $datatree_array = $this->dti_service->getDatatreeArray();
 
         $grandparent_datatype_id = $initial_datatype_id;
         while (
@@ -415,7 +415,7 @@ class DatatypeInfoService
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this
-        $datatree_array = self::getDatatreeArray();
+        $datatree_array = $this->dti_service->getDatatreeArray();
 
         // Going to need any tag hierarchy data for this datatype
         $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);

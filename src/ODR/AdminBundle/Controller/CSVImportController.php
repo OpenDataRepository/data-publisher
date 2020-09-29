@@ -1888,6 +1888,10 @@ class CSVImportController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
@@ -1935,7 +1939,7 @@ class CSVImportController extends ODRCustomController
 
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
-                $dr = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
+                $dr = $dri_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
 
                 // If a parent with this external id does not exist, warn the user (the row will be ignored)
                 // Don't want to throw an error here (which will prevent the import from happening)
@@ -1998,7 +2002,7 @@ class CSVImportController extends ODRCustomController
 
                 if ($import_into_top_level) {
                     // Importing into top-level datatype...attempt to locate the top-level datarecord
-                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
+                    $dr = $dri_service->getDatarecordByExternalId($external_id_field, $value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
 
@@ -2006,7 +2010,7 @@ class CSVImportController extends ODRCustomController
                 }
                 else if ($import_as_linked_datatype) {
                     // Importing into linked datatype...attempt to locate the remote datarecord
-                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
+                    $dr = $dri_service->getDatarecordByExternalId($external_id_field, $value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
 
@@ -2024,7 +2028,7 @@ class CSVImportController extends ODRCustomController
                 else if ($import_into_child_datatype) {
                     // Importing into child datatype...attempt to locate the child datarecord
                     $parent_external_id = trim( $line[$parent_external_id_column] );
-                    $dr = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $value, $parent_datatype->getExternalIdField()->getId(), $parent_external_id);
+                    $dr = $dri_service->getChildDatarecordByExternalId($external_id_field, $value, $parent_datatype->getExternalIdField(), $parent_external_id);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
 
@@ -2062,7 +2066,7 @@ class CSVImportController extends ODRCustomController
 
                 // Doesn't make sense to locate something in a multiple-allowed child datatype that doesn't have an external ID...
                 if ($datatree->getMultipleAllowed() == false) {
-                    $dr = parent::getChildDatarecordByParent($em, $datatype->getId(), $parent_external_id_field->getId(), $parent_external_id_value);
+                    $dr = $dri_service->getSingleChildDatarecordByParent($datatype, $parent_external_id_field, $parent_external_id_value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
                 }
@@ -3520,10 +3524,12 @@ print_r($new_mapping);
                 /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
+                if ($parent_external_id_field == null)
+                    throw new ODRException('Parent datatype does not have an external id field');
 
                 // Since this is importing into a child datatype, parent datarecord must exist
                 // csvvalidateAction() purposely only gives a warning so the user is not prevented from importing the rest of the file
-                $parent_datarecord = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
+                $parent_datarecord = $dri_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
                 if ($parent_datarecord == null)
                     throw new ODRException('Parent Datarecord pointed to by datafield '.$parent_external_id_field->getId().', value "'.$parent_external_id_value.'" does not exist');
 
@@ -3555,7 +3561,7 @@ print_r($new_mapping);
                     }
 
                     // Have an external ID field, so attempt to locate a top-level datarecord
-                    $datarecord = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
+                    $datarecord = $dri_service->getDatarecordByExternalId($external_id_field, $external_id_value);
                 }
                 else {
                     // Otherwise, no external ID...leave $datarecord as null so a new datarecord gets created
@@ -3571,14 +3577,13 @@ print_r($new_mapping);
                     }
 
                     // Have an external ID field, so attempt to locate the child datarecord with the parent
-                    $datarecord = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value, $parent_external_id_field->getId(), $parent_external_id_value);
+                    $datarecord = $dri_service->getChildDatarecordByExternalId($external_id_field, $external_id_value, $parent_external_id_field, $parent_external_id_value);
                 }
                 else {
                     // Otherwise, no external ID...
                     if (!$multiple_allowed) {
                         // ...if only a single child datarecord is allowed for this datatype, attempt to locate it
-                        $child_datatype_id = $datatype->getId();
-                        $datarecord = parent::getChildDatarecordByParent($em, $child_datatype_id, $parent_external_id_field->getId(), $parent_external_id_value);
+                        $datarecord = $dri_service->getSingleChildDatarecordByParent($datatype, $parent_external_id_field, $parent_external_id_value);
                     }
                     else {
                         // ...otherwise, multiple child datarecords are allowed...don't attempt to locate a child datarecord here so the import process always creates a new child datarecord
@@ -4457,11 +4462,11 @@ exit();
             // Locate "local" and "remote" datarecords
             $local_external_id_field = $parent_datatype->getExternalIdField();
             $local_external_id = trim( $line[$parent_external_id_column] );
-            $local_datarecord = parent::getDatarecordByExternalId($em, $local_external_id_field->getId(), $local_external_id);
+            $local_datarecord = $dri_service->getDatarecordByExternalId($local_external_id_field, $local_external_id);
 
             $remote_external_id_field = $datatype->getExternalIdField();
             $remote_external_id = trim( $line[$remote_external_id_column] );
-            $remote_datarecord = parent::getDatarecordByExternalId($em, $remote_external_id_field->getId(), $remote_external_id);
+            $remote_datarecord = $dri_service->getDatarecordByExternalId($remote_external_id_field, $remote_external_id);
 
 
             // ----------------------------------------
