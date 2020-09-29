@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set child_datatype = datafield.getdatatype %}
+{% set top_level_datatype = child_datatype.grandparent %}
 <h2>List of duplicate values for the Datafield "{{ datafield.fieldname }}" of the Child Datatype "{{ child_datatype.shortname }}", within the top-level Datatype "{{ top_level_datatype.shortname }}"</h2>
 
 {% if duplicate_values | length == 0 %}
@@ -16,30 +17,36 @@
             </tr>
         </thead>
         <tbody>
-            {% set row_num = 1 %}
-            {% for parent_id,data in duplicate_values %}
+        {% set row_num = 1 %}
+        {% for grandparent_dr_id,grandparent_dr_data in duplicate_values %}
             <tr>
                 <td>
-                    <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': grandparent_list[parent_id]}) }}">{{ parent_id }}</a>
+                    <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': grandparent_dr_id}) }}">{{ grandparent_dr_data['dr_name'] }}</a>
                 </td>
-                <td>{{ data|length }}</td>
+                {% for parent_id,parent_dr_data in grandparent_dr_data['parent_ids'] %}
+                <td>{{ parent_dr_data|length }}</td>
                 <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ row_num }}"></i></td>
+                {% endfor %}
             </tr>
             {% set row_num = row_num + 1 %}
-            {% endfor %}
+        {% endfor %}
         </tbody>
     </table>
 </div>
 <div class="pure-u-1-24"></div>
 
 {% set row_num = 1 %}
-{% for parent_id,data in duplicate_values %}
+{% for grandparent_dr_id,grandparent_dr_data in duplicate_values %}
 <div id="datarecord_list_{{ row_num }}" class="ODRDatarecordList pure-u-11-24">
-    <div class="pure-u-1 ODRDatarecordListHeader">Duplicated values</div>
-    {% for duplicated_value,tmp in data %}
-    <div class="pure-u-1-5">
-        "{{ duplicated_value }}"
+    <div class="pure-u-1 ODRDatarecordListHeader">
+        Duplicated values
     </div>
+    {% for parent_id,parent_dr_data in grandparent_dr_data['parent_ids'] %}
+        {% for duplicated_value,duplicated_count in parent_dr_data %}
+        <div class="pure-u-1-5">
+            "{{ duplicated_value }}": {{ duplicated_count }} {% if duplicated_count == 1 %}time{% else %}times{% endif %}
+        </div>
+        {% endfor %}
     {% endfor %}
 </div>
 {% set row_num = row_num + 1 %}

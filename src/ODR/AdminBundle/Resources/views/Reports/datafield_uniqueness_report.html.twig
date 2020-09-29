@@ -34,9 +34,9 @@
 {% for value,data in duplicate_values %}
 <div id="datarecord_list_{{ row_num }}" class="ODRDatarecordList pure-u-11-24">
     <div class="pure-u-1 ODRDatarecordListHeader">Datarecords with duplicated value</div>
-    {% for dr_id in data['dr_list'] %}
+    {% for dr_id,dr_name in data['dr_list'] %}
     <div class="pure-u-1-5">
-        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_name }}</a>
     </div>
     {% endfor %}
 </div>
