@@ -150,6 +150,7 @@ function initPage() {
                     // Otherwise, just hide the icon indicating this group doesn't have the permission
                     $(element).children('.fa-ban').hide();
                 }
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -201,6 +202,7 @@ function initPage() {
                     $(element).children('.fa-ban').first().show();
                 else
                     $(element).children('.fa-ban').first().hide();
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -252,6 +254,7 @@ function initPage() {
                     $(element).children('.fa-ban').first().show();
                 else
                     $(element).children('.fa-ban').first().hide();
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -303,6 +306,7 @@ function initPage() {
                     $(element).children('.fa-ban').first().show();
                 else
                     $(element).children('.fa-ban').first().hide();
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -354,6 +358,7 @@ function initPage() {
                     $(element).children('.fa-ban').first().show();
                 else
                     $(element).children('.fa-ban').first().hide();
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -401,6 +406,7 @@ function initPage() {
             success: function(data) {
                 // Just reload the entire permissions UI area...easier that way
                 $("#edit_group_" + group_id).trigger('click');
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

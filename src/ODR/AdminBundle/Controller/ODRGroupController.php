@@ -83,11 +83,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
-            //  from their parent
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -98,6 +93,11 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Modification of groups should only be performed through top-level datatypes
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Group management interface only works from top-level datatypes');
+
 
             // Render and return the wrapper HTML
             $templating = $this->get('templating');
@@ -156,10 +156,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -170,6 +166,10 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Modification of groups should only be performed through top-level datatypes
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Group management interface only works from top-level datatypes');
 
 
             // Load all groups for this Datatype
@@ -249,11 +249,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
-            //  from their parent
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -264,6 +259,11 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to add a group to a child datatype');
 
 
             // Create a new group
@@ -326,10 +326,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups to delete, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -341,8 +337,14 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Unable to delete a group from a child datatype');
+
             if ($group->getPurpose() !== '')
                 throw new ODRBadRequestException('Not allowed to delete a default group');
+
 
             // Get all users that are going to be affected by this
             $query = $em->createQuery(
@@ -461,10 +463,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -475,6 +473,12 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // This shouldn't happen since $group->getDatatype() should always return a top-level
+            //  datatype...but be thorough
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Invalid Group configuration');
+
 
             // Prevent users from changing this group if it's one of the default groups for the datatype
             $prevent_all_changes = true;
@@ -580,10 +584,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -594,6 +594,11 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // This shouldn't happen since $group->getDatatype() should always return a top-level
+            //  datatype...but be thorough
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Invalid Group configuration');
 
 
             // Get all users who are members of this group...twig will print a blurb about super-admins
@@ -671,10 +676,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Determine user privileges
@@ -685,6 +686,10 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Modification of groups should only be performed through top-level datatypes
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Group management interface only works from top-level datatypes');
 
 
             // Get a list of all users for all groups of this datatype
@@ -780,7 +785,7 @@ class ODRGroupController extends ODRCustomController
 
 
             // --------------------
-            // Ensure user has permissions to be doing this
+            // Ensure calling user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
@@ -796,6 +801,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Verify the target user can have their permissions modified
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ( $user == null || !$user->isEnabled() )
@@ -955,10 +961,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups of their own, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -970,6 +972,10 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // This shouldn't happen since $group->getDatatype() should always return a top-level
+            //  datatype...but be thorough
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Invalid Group configuration');
 
             if ( $user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRBadRequestException('Unable to change group membership for a Super-Admin.');
@@ -1128,10 +1134,6 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
-            // Child datatypes shouldn't have any groups to view, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
-
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1142,6 +1144,11 @@ class ODRGroupController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // This shouldn't happen since $group->getDatatype() should always return a top-level
+            //  datatype...but be thorough
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Invalid Group configuration');
 
 
             // Get the html for assigning datafield permissions
@@ -1210,18 +1217,9 @@ class ODRGroupController extends ODRCustomController
             if ($group->getPurpose() !== '')
                 throw new ODRBadRequestException('Unable to change Datatype permissions for a default group');
 
-            /** @var GroupDatatypePermissions $gdtp */
-            $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy( array('group' => $group->getId(), 'dataType' => $datatype->getId()) );
-            if ($gdtp == null)
-                throw new ODRNotFoundException('Permissions Entity');
-
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
-
-            // Child datatypes shouldn't have any groups of their own, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -1230,12 +1228,27 @@ class ODRGroupController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
-            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Ensure that the given datatype and the given group are related to each other
+            if ( $group->getDataType()->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Datatype is not related to Group');
 
-            // The 'can_view_datatype' permission should remain true for a top-level datatype...there's no point to the group if not having this permission means they can't view the datatype
+            /** @var GroupDatatypePermissions $gdtp */
+            $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy(
+                array(
+                    'group' => $group->getId(),
+                    'dataType' => $datatype->getId()
+                )
+            );
+            if ($gdtp == null)
+                throw new ODRNotFoundException('GroupDatatypePermissions');
+
+            // The 'can_view_datatype' permission should remain true for a top-level datatype...
+            //  there's no point to the group if not having this permission means they can't view
+            //  the datatype
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if ($permission == 'dt_view' && in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Unable to change the "can_view_datatype" permission on a top-level datatype');
@@ -1243,7 +1256,8 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to change the "is_datatype_admin" permission on a child datatype');
 
 
-            // If the group has the "is_datatype_admin" permission, then only allow the user to remove the "is_datatype_admin"
+            // If the group has the "is_datatype_admin" permission, then it must have all other
+            //  permissions as well
             if ( $gdtp->getIsDatatypeAdmin() && $permission != 'dt_admin' )
                 throw new ODRBadRequestException('Unable to change other permissions since this group has the "is_datatype_admin" permission');
 
@@ -1438,7 +1452,6 @@ class ODRGroupController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
@@ -1447,18 +1460,9 @@ class ODRGroupController extends ODRCustomController
             if ($group->getPurpose() !== '')
                 throw new ODRBadRequestException('Unable to change Datafield permissions for a default group');
 
-            /** @var GroupDatafieldPermissions $gdfp */
-            $gdfp = $em->getRepository('ODRAdminBundle:GroupDatafieldPermissions')->findOneBy( array('group' => $group->getId(), 'dataField' => $datafield->getId()) );
-            if ($gdfp == null)
-                throw new ODRNotFoundException('Permissions Entity');
-
             // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
-
-            // Child datatypes shouldn't have any groups of their own, but make sure nothing happens
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Unable to modify groups for a child Datatype');
 
 
             // --------------------
@@ -1467,14 +1471,35 @@ class ODRGroupController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
-            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Ensure that the given datatype and the given group are related to each other
+            if ( $group->getDataType()->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Datatype is not related to Group');
 
-            // If the group has the "is_datatype_admin" permission, then don't allow the user to change the any datafield permissions away from can-view/can-edit
+            /** @var GroupDatafieldPermissions $gdfp */
+            $gdfp = $em->getRepository('ODRAdminBundle:GroupDatafieldPermissions')->findOneBy(
+                array(
+                    'group' => $group->getId(),
+                    'dataField' => $datafield->getId()
+                )
+            );
+            if ($gdfp == null)
+                throw new ODRNotFoundException('GroupDatafieldPermissions');
+
+            // If the group has the "is_datatype_admin" permission, then it must have all other
+            //  permissions as well
             /** @var GroupDatatypePermissions $gdtp */
-            $gdtp = $gdfp->getGroup()->getGroupDatatypePermissions()->first();
+            $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy(
+                array(
+                    'group' => $group->getId(),
+                    'dataType' => $datatype->getId()
+                )
+            );
+            if ($gdtp == null)
+                throw new ODRNotFoundException('GroupDatatypePermissions');
             if ($gdtp->getIsDatatypeAdmin())
                 throw new ODRBadRequestException('Unable to change other permissions since this group has the "is_datatype_admin" permission');
 
