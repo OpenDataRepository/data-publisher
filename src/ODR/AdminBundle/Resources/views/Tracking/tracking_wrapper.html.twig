@@ -1,0 +1,257 @@
+{% spaceless %}
+
+<div id="tracking_dialog_wrapper">
+    {% include 'ODRAdminBundle:Tracking:tracking_dialog.html.twig' %}
+</div>
+
+<div class="ODRContentWrapper">
+    <div class="ODRThemeElement pure-u-1">
+        <h3 class="ODRHeader">ODR Activity Viewer</h3>
+        <div class="ODRInnerBox">
+            <input id="prev_start_date" type="hidden" value="{{ month_ago }}"/>
+            <input id="prev_end_date" type="hidden" value="{{ today }}"/>
+
+            <form id="ODRTrackingForm" class="pure-form ODRBodyContent" method="POST" action="{{ path('odr_track_changes') }}">
+                <input id="target_user_ids" type="hidden" name="target_user_ids" value="{% if target_user_id is defined %}{{ target_user_id }}{% endif %}"/>
+                <input id="target_datafield_ids" type="hidden" name="target_datafield_ids" value="{% if target_datafield_ids is defined %}{{ target_datafield_ids }}{% endif %}"/>
+                <input id="target_datarecord_id" type="hidden" name="target_datarecord_id" value="{% if target_datarecord_id is defined %}{{ target_datarecord_id }}{% endif %}"/>
+                <input id="target_search_key" type="hidden" name="target_search_key" value="{% if search_key is defined %}{{ search_key }}{% endif %}"/>
+
+                <fieldset>
+                    <label for="start_date">Date Range:</label>
+                    <input id="start_date" class="ODRInput ODRDatePicker Pointer" type="text" name="start_date" value="{{ month_ago }}"/>
+                    <label for="end_date">&nbsp;--&nbsp;</label>
+                    <input id="end_date" class="ODRInput ODRDatePicker Pointer" type="text" name="end_date" value="{{ today }}"/>
+                    <button id="ODRTrackingForm_month_changes" type="button" class="pure-button pure-button-secondary">Display changes in the last month</button>
+                    <button id="ODRTrackingForm_all_changes" type="button" class="pure-button pure-button-secondary">Display changes from all time</button>
+                </fieldset>
+
+                <fieldset>
+                    <input id="datatype_id_restriction" type="hidden" value="{% if datatype_id_restriction is defined %}{{ datatype_id_restriction }}{% endif %}"/>
+                    <label for="selected_datarecords">Datarecords:</label>
+                    <span id="selected_datarecords">
+                    {% if target_datarecord_name is defined %}
+                        <span class="ODRTracking_criteria Cursor">{{ target_datarecord_name }}</span>
+                    {% elseif readable_search_key is defined %}
+                        {% if readable_search_key|length == 0 %}
+                            <span class="ODRTracking_placeholder Cursor">Any</span>
+                        {% else %}
+                            {% for key,value in readable_search_key %}
+                                {% if value is not iterable %}
+                                <span class="ODRTracking_criteria Cursor">{{ key }}: {{ value }}</span>
+                                {% else %}
+                                    {% for num,entity_value in value %}
+                                        <span class="ODRTracking_criteria Cursor">{{ key }}: {{ entity_value }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% else %}
+                        <span class="ODRTracking_placeholder Cursor">Any</span>
+                    {% endif %}
+                    </span>
+                    <div>
+                        <button id="ODRTrackingForm_datarecordlist" type="button" class="pure-button pure-button-secondary">Clear</button>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <label for="selected_datatypes">Datatypes:</label>
+                    <span id="selected_datatypes">
+                    {% if target_datatype_name is defined %}
+                        <span class="ODRTracking_criteria Cursor">{{ target_datatype_name }}</span>
+                    {% else %}
+                        <span class="ODRTracking_placeholder Cursor">Any</span>
+                    {% endif %}
+                    </span>
+                    <div>
+                        <button id="ODRTrackingForm_datafieldlist" type="button" class="pure-button pure-button-secondary">Change Fields</button>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <label for="selected_users">Users:</label>
+                    <span id="selected_users">
+                    {% if target_user_name is defined %}
+                        <span class="ODRTracking_criteria Cursor">{{ target_user_name }}</span>
+                    {% else %}
+                        <span class="ODRTracking_placeholder Cursor">Any</span>
+                    {% endif %}
+                    </span>
+                    <div>
+                        <button id="ODRTrackingForm_userlist" type="button" class="pure-button pure-button-secondary">Change Users</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+
+    <div id="ODRTrackingData_rows_warning" class="ODRThemeElement pure-u-1 ODRHidden">
+        <div class="ODRInnerBox">
+            <div class="ODRBodyContent">
+                <i class="fa fa-warning ODRInputError"></i>&nbsp;NOTE - Your current criteria matches too many rows.  Please narrow your criteria.
+            </div>
+        </div>
+    </div>
+
+    <div id="ODRTrackingData_loading" class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox">
+            <div class="ODRBodyContent ODRTrackingData_loading">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox">
+            <div id="ODRTrackingData" class="ODRBodyContent"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        window.scrollTo(0,0);
+
+        $(".ODRDatePicker").datepicker({
+            showOtherMonths: true,
+            selectOtherMonths: true,
+            changeMonth: true,
+            changeYear: true,
+            dateFormat: 'yy-mm-dd',
+            yearRange: '2010:+0',
+
+            onSelect: function (dateText, inst) {
+                var start_date = $("#start_date");
+                var end_date = $("#end_date");
+
+                var start_date_value = $(start_date).val();
+                var end_date_value = $(end_date).val();
+
+                if (end_date_value !== '' && start_date_value !== '') {
+                    if (start_date_value > end_date_value)
+                        $(end_date).datepicker("setDate", start_date_value);
+                    else if (end_date_value < start_date_value)
+                        $(start_date).datepicker("setDate", end_date_value);
+
+                    $(start_date).datepicker("option", "maxDate", end_date_value);
+                    $(end_date).datepicker("option", "minDate", start_date_value);
+                }
+                else if (start_date_value === '') {
+                    $(start_date).datepicker("option", "maxDate", end_date_value);
+                    $(end_date).datepicker("option", "minDate", null);
+                }
+                else if (end_date_value === '') {
+                    $(start_date).datepicker("option", "maxDate", null);
+                    $(end_date).datepicker("option", "minDate", start_date_value);
+                }
+            },
+            onClose: function (dateText, inst) {
+                if (dateText === "") {
+                    // User tried to enter empty string, forcibly revert to previous value
+                    if ( $(this).attr('id') === 'start_date' )
+                        $("#start_date").val( $("#prev_start_date").val() );
+                    else if ( $(this).attr('id') === 'end_date' )
+                        $("#end_date").val( $("#prev_end_date").val() );
+                }
+                $(this).blur();
+
+                // Immediately reload the tracking data with the new criteria
+                reloadTrackingData();
+            },
+            beforeShow: function (input, inst) {
+            },
+            onSelect: function(dateText, inst) {
+                if ( $(this).attr('id') === 'start_date' )
+                    $("#prev_start_date").val(dateText);
+                else if ( $(this).attr('id') === 'end_date' )
+                    $("#prev_end_date").val(dateText);
+            }
+        });
+
+        $("#ODRTrackingForm_all_changes").unbind('click').click(function() {
+            $("#start_date").val("2010-01-01");
+            $("#end_date").val("{{ today }}");
+            reloadTrackingData();
+        });
+        $("#ODRTrackingForm_month_changes").unbind('click').click(function() {
+            $("#start_date").val("{{ month_ago }}");
+            $("#end_date").val("{{ today }}");
+            reloadTrackingData();
+        });
+
+        $("#ODRTrackingForm_datarecordlist").unbind('click').click(function() {
+            $("#target_datarecord_id").val('');
+            $("#target_search_key").val('');
+            $("#datatype_id_restriction").val('');
+
+            $("#selected_datarecords").html('');
+            $("<span>", {
+                "class": "ODRTracking_placeholder Cursor",
+                "html": "Any",
+            }).appendTo("#selected_datarecords");
+
+            reloadTrackingData();
+        });
+        $("#ODRTrackingForm_datafieldlist").unbind('click').click(function() {
+            var datatype_id_restriction = '';
+            if ( $("#datatype_id_restriction").length > 0 )
+                datatype_id_restriction = $("#datatype_id_restriction").val();
+
+            openTrackingDialog("datafield", datatype_id_restriction);
+        });
+        $("#ODRTrackingForm_userlist").unbind('click').click(function() {
+            openTrackingDialog("user");
+        });
+
+        // Immediately load some tracking data after setting up the page
+        reloadTrackingData();
+    });
+
+    /**
+     * Submits the data currently in the tracking form so the change history gets reloaded.
+     */
+    function reloadTrackingData() {
+        var url = $("#ODRTrackingForm").attr('action');
+        var form_data = $("#ODRTrackingForm").serialize();
+
+        $("#ODRTrackingData_rows_warning").addClass('ODRHidden');
+        $("#ODRTrackingData_loading").show();
+        $("#ODRTrackingData").parent().parent().hide();
+        $("#ODRTrackingData").html('');
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: form_data,
+            success: function (data, textStatus, jqXHR) {
+                $("#ODRTrackingData_loading").hide();
+                $("#ODRTrackingData").html(data.d.html);
+                $("#ODRTrackingData").parent().parent().show();
+
+                if ( data.d.rows_exceeded )
+                    $("#ODRTrackingData_rows_warning").removeClass('ODRHidden');
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+{% endspaceless %}

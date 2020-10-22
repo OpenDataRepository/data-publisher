@@ -30,6 +30,10 @@ ODR\AdminBundle\Entity\Boolean:
             type: datetime
             nullable: true
 
+    indexes:
+        boolean_created:
+            columns: ["created"]
+
     manyToOne:
         dataField:
             targetEntity: DataFields

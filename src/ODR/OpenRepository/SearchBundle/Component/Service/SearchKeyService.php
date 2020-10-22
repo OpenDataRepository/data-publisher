@@ -15,7 +15,9 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
+use FOS\UserBundle\Doctrine\UserManager;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -39,6 +41,11 @@ class SearchKeyService
     private $search_service;
 
     /**
+     * @var UserManager
+     */
+    private $user_manager;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -50,17 +57,21 @@ class SearchKeyService
     /**
      * SearchKeyService constructor.
      *
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param SearchService $searchService
+     * @param DatatypeInfoService $datatype_info_service
+     * @param SearchService $search_service
+     * @param UserManager $user_manager
      * @param Logger $logger
      */
     public function __construct(
         DatatypeInfoService $datatype_info_service,
         SearchService $search_service,
+        UserManager $user_manager,
         Logger $logger
     ) {
         $this->dti_service = $datatype_info_service;
         $this->search_service = $search_service;
+        $this->user_manager = $user_manager;
+
         $this->logger = $logger;
     }
 
@@ -1575,5 +1586,218 @@ class SearchKeyService
         $criteria['all_templates'] = $this->search_service->getRelatedTemplateDatatypesByUUID($template_uuid);
 
         return $criteria;
+    }
+
+
+    /**
+     * Converts a search key into an array that's more human readable.
+     *
+     * @param string $search_key
+     *
+     * @return array
+     */
+    public function getReadableSearchKey($search_key)
+    {
+        // Search key is assumed to be valid, so it should always have a dataype id in it
+        $search_params = self::decodeSearchKey($search_key);
+        $dt_id = $search_params['dt_id'];
+
+        // ----------------------------------------
+        // Use the datatype id to load the cached datatype array...
+        $dt_array = $this->dti_service->getDatatypeArray($dt_id);    // may need linked data
+        // ...and then extract the relevant datatype/datafield data from it
+        $dt_lookup = array();
+        $df_lookup = array();
+        foreach ($dt_array as $dt_id => $dt_data) {
+            // Need to store some data for the datatypes that could show up in the search key...
+            $dt_lookup[$dt_id] = $dt_data['dataTypeMeta']['shortName'];
+
+            foreach ($dt_data['dataFields'] as $df_id => $df_data) {
+                // No sense having markdown fields in this
+                if ( $df_data['dataFieldMeta']['fieldType']['typeClass'] !== 'Markdown' ) {
+                    // Need to store some data for any datafield that could show up in the
+                    //  search key...
+                    $df_lookup[$df_id] = array(
+                        'fieldName' => $df_data['dataFieldMeta']['fieldName'],
+                        'typeClass' => $df_data['dataFieldMeta']['fieldType']['typeClass'],
+                    );
+                    // Also need to store radio/tag names if they exist...
+                    $key = '';
+                    if ( $df_lookup[$df_id]['typeClass'] === 'Radio' )
+                        $key = 'radioOptions';
+                    else if ( $df_lookup[$df_id]['typeClass'] === 'Tag' )
+                        $key = 'tags';
+                    else
+                        continue;
+
+                    $df_lookup[$df_id][$key] = array();
+                    foreach ($df_data[$key] as $num => $entity) {
+                        $id = $entity['id'];
+                        if ( $key === 'radioOptions' )
+                            $df_lookup[$df_id][$key][$id] = $entity['optionName'];
+                        else
+                            $df_lookup[$df_id][$key][$id] = $entity['tagName'];
+                    }
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        $readable_search_key = array();
+        foreach ($search_params as $key => $value) {
+            // Ignore these keys
+            if ( $key === 'dt_id' || $key === 'sort_by' )
+                continue;
+
+            if ( $key === 'gen' ) {
+                // Don't do anything if this key is empty
+                if ($value === '')
+                    continue;
+
+                $readable_search_key['General Search'] = $value;
+            }
+            else if ( is_numeric($key) ) {
+                $df_name = $df_lookup[$key]['fieldName'];
+                $df_typeclass = $df_lookup[$key]['typeClass'];
+
+                switch ($df_typeclass) {
+                    case 'Boolean':
+                        if ($value == 0)
+                            $value = 'unselected';
+                        else
+                            $value = 'selected';
+                        break;
+                    case 'Radio':
+                    case 'Tag':
+                        $value = explode(',', $value);
+                        break;
+                    default:
+                        // Don't need to do anything for the text/number/file/image fields
+                        break;
+                }
+
+                if ( is_array($value) ) {
+                    // When dealing with radio/tags...
+                    $readable_search_key[$df_name] = array();
+
+                    $entity_key = 'radioOptions';
+                    if ( $df_typeclass === 'Tag' )
+                        $entity_key = 'tags';
+
+                    foreach ($value as $num => $entity_id) {
+                        $selected = 'selected';
+                        if ( $entity_id{0} === '-' ) {
+                            $entity_id = substr($entity_id, 1);
+                            $selected = 'unselected';
+                        }
+
+                        $entity_name = $df_lookup[$key][$entity_key][$entity_id];
+                        $readable_search_key[$df_name][$entity_id] = $entity_name.' '.$selected;
+                    }
+                }
+                else {
+                    // Store a more human-readable version of the data
+                    if ( $value === '""' ) {
+                        if ( $df_typeclass === 'File' || $df_typeclass === 'Image' )
+                            $value = '<no '.lcfirst($df_typeclass).'s uploaded>';
+                        else
+                            $value = '<empty>';
+                    }
+                    else if ( $value === '!""' ) {
+                        if ( $df_typeclass === 'File' || $df_typeclass === 'Image' )
+                            $value = '<has '.lcfirst($df_typeclass).'s uploaded>';
+                        else
+                            $value = '<not empty>';
+                    }
+
+                    $readable_search_key[$df_name] = $value;
+                }
+            }
+            else {
+                $pieces = explode('_', $key);
+
+                if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
+                    // This is a DatetimeValue field...locate/deal with both possible pieces at once
+                    $df_name = $df_lookup[$pieces[0]]['fieldName'];
+
+                    $start_key = $pieces[0].'_s';
+                    $start = null;
+                    if ( isset($search_params[$start_key]) )
+                        $start = $search_params[$start_key];
+                    unset( $search_params[$start_key] );
+
+                    $end_key = $pieces[0].'_e';
+                    $end = null;
+                    if ( isset($search_params[$end_key]) )
+                        $end = $search_params[$end_key];
+                    unset( $search_params[$end_key] );
+
+                    if ( !is_null($start) && !is_null($end) )
+                        $readable_search_key[$df_name] = 'Between "'.$start.'" and "'.$end.'"';
+                    else if ( !is_null($start) )
+                        $readable_search_key[$df_name] = 'After "'.$start.'"';
+                    else
+                        $readable_search_key[$df_name] = 'Before "'.$end.'"';
+                }
+                else if ( count($pieces) === 3 ) {
+                    $dt_name = $dt_lookup[ $pieces[1] ];
+
+                    // $key is the public status entry
+                    if ( intval($value) === 1 )
+                        $readable_search_key[$dt_name]['pub'] = 'Public records';
+                    else
+                        $readable_search_key[$dt_name]['pub'] = 'Non-public records';
+                }
+                else if ( $pieces[3] === 'by' ) {
+                    $dt_name = $dt_lookup[ $pieces[1] ];
+
+                    // $key is either createdBy or modifiedBy
+                    $type = 'Created';
+                    $sub_key = 'c_by';
+                    if ( $pieces[2] === 'm' ) {
+                        $type = 'Modified';
+                        $sub_key = 'm_by';
+                    }
+
+                    /** @var ODRUser $user */
+                    $user = $this->user_manager->findUserBy(array('id' => $value));
+                    $user_name = $user->getUserString();
+                    $readable_search_key[$dt_name][$sub_key] = $type.' by '.$user_name;
+                }
+                else {
+                    $dt_name = $dt_lookup[ $pieces[1] ];
+
+                    // $key is either created or modified
+                    $type = 'Created';
+                    $sub_key = 'c';
+                    if ( $pieces[2] === 'm' ) {
+                        $type = 'Modified';
+                        $sub_key = 'm';
+                    }
+
+                    $start_key = $pieces[0].'_'.$pieces[1].'_'.$pieces[2].'_s';
+                    $start = null;
+                    if ( isset($search_params[$start_key]) )
+                        $start = $search_params[$start_key];
+                    unset( $search_params[$start_key] );
+
+                    $end_key = $pieces[0].'_'.$pieces[1].'_'.$pieces[2].'_e';
+                    $end = null;
+                    if ( isset($search_params[$end_key]) )
+                        $end = $search_params[$end_key];
+                    unset( $search_params[$end_key] );
+
+                    if ( !is_null($start) && !is_null($end) )
+                        $readable_search_key[$dt_name][$sub_key] = $type.' between "'.$start.'" and "'.$end.'"';
+                    else if ( !is_null($start) )
+                        $readable_search_key[$dt_name][$sub_key] = $type.' after "'.$start.'"';
+                    else
+                        $readable_search_key[$dt_name][$sub_key] = $type.' before "'.$end.'"';
+                }
+            }
+        }
+
+        return $readable_search_key;
     }
 }

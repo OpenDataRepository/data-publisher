@@ -53,6 +53,8 @@ ODR\AdminBundle\Entity\FileMeta:
             nullable: true
 
     indexes:
+        filemeta_created:
+            columns: ["created"]
         filemeta_ofn_fulltext:
             columns: ["original_file_name"]
             flags: fulltext

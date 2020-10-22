@@ -1,9 +1,10 @@
 {% spaceless %}
 
 <div class="content">
-<div class="header">
-    <h2>User List</h2>
-</div>
+    <div class="header">
+        <h2>User List</h2>
+    </div>
+
     {% if is_granted("ROLE_SUPER_ADMIN") %}
         {# Only super admins can see deleted users #}
         <button type="button" id="deleted_user_toggle" class="pure-button" onclick="toggleDeletedUsers();" rel="Hide">Show deleted users</button>
@@ -22,6 +23,7 @@
                     <th>Institution</th>
                     <th>Edit Profile</th>
                     <th>Manage Groups</th>
+                    <th>View Activity</th>
                     <th>Delete User</th>
                 </tr></thead>
                 <tbody>
@@ -36,37 +38,51 @@
 
                     {% if user.enabled == 1 %}
                         <td class="center">
-                            {% if user.id == admin_user.id %}
-                                {# Calling user is always able to edit their own profile #}
-                                <a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
-                            {% elseif is_granted("ROLE_SUPER_ADMIN") %}
-                                {# Calling user is only able to edit other users' profiles if they're a super admin #}
-                                <a class="address" href="#{{ path('odr_profile_edit', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
-                            {% endif %}
+                        {% if user.id == admin_user.id %}
+                            {# Calling user is always able to edit their own profile #}
+                            <a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
+                        {% elseif is_granted("ROLE_SUPER_ADMIN") %}
+                            {# Calling user is only able to edit other users' profiles if they're a super admin #}
+                            <a class="address" href="#{{ path('odr_profile_edit', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
+                        {% endif %}
                         </td>
 
                         <td class="center">
-                            {% if target_is_super_admin == true %}
-                                {# target has all permissions by definition...do nothing #}
-                            {% elseif user == admin_user %}
-                                {# users are unable to modify their own group membership #}
-                            {% elseif is_datatype_admin %}
-                                {# calling user can modify permissions for at least one datatype, so let them reach the group membership page for this user #}
-                                <a class="address" href="#{{ path('odr_manage_user_groups', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Groups</a>
-                            {% endif %}
+                        {% if target_is_super_admin == true %}
+                            {# target has all permissions by definition...do nothing #}
+                        {% elseif user == admin_user %}
+                            {# users are unable to modify their own group membership #}
+                        {% elseif is_datatype_admin %}
+                            {# calling user can modify permissions for at least one datatype, so let them reach the group membership page for this user #}
+                            <a class="address" href="#{{ path('odr_manage_user_groups', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Groups</a>
+                        {% endif %}
                         </td>
 
                         <td class="center">
-                            {% if is_granted("ROLE_SUPER_ADMIN") and user.id != admin_user.id %}
-                                {# Users are only allowed to delete other users if they're a super admin #}
-                                <a style="cursor:pointer;" onclick="deleteUser({{ user.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete User</a>
-                            {% endif %}
+                        {% if is_granted("ROLE_SUPER_ADMIN") or can_edit_datatype %}
+                            {# calling user has edit permissions for at least one datatype, so let them view the tracking page #}
+                            <a class="address" href="#{{ path('odr_track_user_changes', { 'target_user_id': user.id } ) }}"><i class="fa fa-lg fa-camera"></i>&nbsp;View Activity</a>
+                        {% endif %}
+                        </td>
+
+                        <td class="center">
+                        {% if is_granted("ROLE_SUPER_ADMIN") and user.id != admin_user.id %}
+                            {# Users are only allowed to delete other users if they're a super admin #}
+                            <a style="cursor:pointer;" onclick="deleteUser({{ user.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete User</a>
+                        {% endif %}
                         </td>
 
                     {% else %}
                         {# User is deleted #}
                         <td class="center"></td>
                         <td class="center"></td>
+                        <td class="center">
+                        {% if is_granted("ROLE_SUPER_ADMIN") or can_edit_datatype %}
+                            {# viewing changes made by deleted users is permissible #}
+                            {# calling user has edit permissions for at least one datatype, so let them view the tracking page #}
+                            <a class="address" href="#{{ path('odr_track_user_changes', { 'target_user_id': user.id } ) }}"><i class="fa fa-lg fa-camera"></i>&nbsp;View Activity</a>
+                        {% endif %}
+                        </td>
                         <td class="center">
                         {% if is_granted("ROLE_SUPER_ADMIN") %}
                             {# Only able to undelete a user if calling user is a super admin #}

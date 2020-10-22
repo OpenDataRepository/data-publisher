@@ -695,14 +695,21 @@
         });
     }
 
-    function resetRemodalInnerHeight() {
+    /**
+     * Resizes the currently open modal.
+     *
+     * @param {boolean} ignore_content_height if true, modal attempts to take up the entire window regardless of content size
+     *
+     * @returns {number}
+     */
+    function resetRemodalInnerHeight(ignore_content_height = false) {
         var modal = $("#ODRRemodal");
         var modal_inner = modal.find(".ODRRemodalInner");
         var modal_inner_content = modal.find(".ODRRemodalInnerContent");
 
         // Get Scroll height of inner, plus some extra for the scrollbars
         var content_height = modal_inner_content.prop('scrollHeight') + 50;
-        // console.log('h1: ' + content_height);
+        // console.log('content_height: ' + content_height);
 
         var modal_height =  $(window).height()
             - modal.find(".ODRRemodalButtons").height()
@@ -710,17 +717,18 @@
 
         if ( $(window).width() >= 568 )
             modal_height -= 30;
-        // console.log('mh0: ' + modal_height);
+        // console.log('modal_height: ' + modal_height);
 
         // Just show content if smaller than window height
-        if (content_height < modal_height)
+        if (!ignore_content_height && content_height < modal_height)
             modal_height = content_height;
-        // console.log('mh1: ' + modal_height);
+        // console.log('adjusted_height: ' + modal_height);
 
         // Ensure it looks okay
         modal_height -= 40;
         if (modal_height < 200)
             modal_height = 200;
+        // console.log('final_height: ' + modal_height);
 
         modal_inner.animate(
             {height: modal_height},

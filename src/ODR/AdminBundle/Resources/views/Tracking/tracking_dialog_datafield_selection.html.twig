@@ -1,0 +1,223 @@
+{% spaceless %}
+
+<div class="pure-u-1">
+    <button type="button" id="ODRTracking_select_all" class="pure-button" rel="Hide">Select all fields</button>
+    <button type="button" id="ODRTracking_deselect_all" class="pure-button" rel="Hide">Deselect all fields</button>
+    <div class="pure-u-1-24"></div>
+    <button type="button" id="ODRTracking_show_all" class="pure-button" rel="Hide">Show all fields</button>
+    <button type="button" id="ODRTracking_hide_all" class="pure-button" rel="Hide">Hide all fields</button>
+</div>
+
+{% if datatype_restriction is defined and datatype_restriction is not null %}
+<div class="ODRTrackingDatafieldList_spacer"></div>
+<div>
+    <i class="fa fa-info-circle"></i>&nbsp;The list is only displaying Datafields of the "{{ datatype_restriction.getlongname }}" Datatype because the criteria includes a Datarecord.
+</div>
+{% endif %}
+
+{% set prev_letter = '' %}
+<div class="pure-u-1-24"></div>
+<div id="ODRTrackingDatafieldList" class="pure-u-22-24">
+{% for top_level_dt_name,dt_list in list %}
+    <ul>
+        {% if top_level_dt_name|first|lower != prev_letter %}
+            {% set prev_letter = top_level_dt_name|first|lower %}
+            <li class="ODRTrackingDatafieldList_spacer"></li>
+        {% endif %}
+        <li class="ODRTrackingDatafieldList_dt_container ODRTrackingdatafieldList_top_level">
+            <div class="ODRTrackingDatafieldList_dt_header">
+                <span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>
+                <span class="ODRTrackingDatafieldList_dt_name">{{ top_level_dt_name }}</span>
+                <span class="FRight"><i class="fa fa-caret-right"></i></span>
+            </div>
+            <ul class="ODRHidden">
+            {% for dt_name,df_list in dt_list %}
+                {% if dt_name == top_level_dt_name %}
+                    {% for df_id,df_name in df_list %}
+                    <li>
+                        <span class="ODRTristateCheckbox binary" rel="{{ df_id }}">
+                            <i class="fa"></i>
+                        </span>
+                        <span class="Cursor">{{ df_name }}</span>
+                    </li>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+            {% for dt_name,df_list in dt_list %}
+                {% if dt_name != top_level_dt_name %}
+                    <li class="ODRTrackingDatafieldList_dt_container">
+                        <div class="ODRTrackingDatafieldList_dt_header">
+                            <span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>
+                            {{ dt_name }}
+                            <span class="FRight"><i class="fa fa-caret-down"></i></span>
+                        </div>
+                        <ul>
+                        {% for df_id,df_name in df_list %}
+                            <li>
+                                <span class="ODRTristateCheckbox binary" rel="{{ df_id }}">
+                                    <i class="fa"></i>
+                                </span>
+                                <span class="Cursor">{{ df_name }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            </ul>
+        </li>
+    </ul>
+{% endfor %}
+</div>
+<div class="pure-u-1-24"></div>
+
+<script>
+    $(function() {
+
+        $("#ODRTracking_select_all").unbind('click').click(function() {
+            $(".ODRTristateCheckbox").each(function(index,elem) {
+                $(elem).children('i').removeClass('partial').addClass('fa-check');
+            });
+        });
+        $("#ODRTracking_deselect_all").unbind('click').click(function() {
+            $(".ODRTristateCheckbox").each(function(index,elem) {
+                $(elem).children('i').removeClass('fa-check partial');
+            });
+        });
+
+        $("#ODRTracking_show_all").unbind('click').click(function() {
+            $(".ODRTrackingDatafieldList_dt_header").each(function(index,elem) {
+                if ( $(elem).next().hasClass('ODRHidden') )
+                    $(elem).trigger('click');
+            });
+        });
+        $("#ODRTracking_hide_all").unbind('click').click(function() {
+            $(".ODRTrackingDatafieldList_dt_header").each(function(index,elem) {
+                if ( !$(elem).next().hasClass('ODRHidden') )
+                    $(elem).trigger('click');
+            });
+        });
+
+        $(".ODRTrackingDatafieldList_dt_header").unbind('click').click(function(event) {
+            // Don't trigger this event if the user was trying to click inside the checkbox
+            if ( $(event.target).hasClass('ODRTristateCheckbox') )
+                return;
+            if ( $(event.target).parent().hasClass('ODRTristateCheckbox') )
+                return;
+
+            if ( $(this).next().hasClass('ODRHidden') ) {
+                $(this).next().removeClass('ODRHidden');
+                $(this).children('span.FRight').children('i').removeClass('fa-caret-right').addClass('fa-caret-down');
+            }
+            else {
+                $(this).next().addClass('ODRHidden');
+                $(this).children('span.FRight').children('i').removeClass('fa-caret-down').addClass('fa-caret-right');
+            }
+        });
+
+        $(".ODRTristateCheckbox").unbind('click').click(function() {
+            var icon_div = $(this).children('.fa').first();
+
+            if ( $(this).hasClass('binary') ) {
+                // This is a datafield-level checkbox
+                if ( $(icon_div).hasClass('fa-check') ) {
+                    // Datafield currently selected, mark as unselected
+                    $(icon_div).removeClass('fa-check');
+                }
+                else {
+                    // Datafield currently unselected, mark as selected
+                    $(icon_div).addClass('fa-check');
+                }
+            }
+            else {
+                // This is a datatype-level checkbox
+                if ( $(icon_div).hasClass('fa-check') ) {
+                    if ( $(icon_div).hasClass('partial') ) {
+                        // Currently has some descendants selected...select this datatype and all descendants
+                        $(this).parent().parent().find('.ODRTristateCheckbox .fa').addClass('fa-check').removeClass('partial');
+                    }
+                    else {
+                        // Currently has all descendants selected...deselect this datatype and all descendants
+                        $(this).parent().parent().find('.ODRTristateCheckbox .fa').removeClass('fa-check partial');
+                    }
+                }
+                else {
+                    // Currently has no descendants selected...select this datatype and all descendants
+                    $(this).parent().parent().find('.ODRTristateCheckbox .fa').addClass('fa-check').removeClass('partial');
+                }
+            }
+
+            // Update classes for parent elements
+            applyToParents( $(this) );
+        });
+
+        selectDatafields();
+    });
+
+    /**
+     * Selects the checkbox for each datafield that the tracking page is already filtering by.
+     */
+    function selectDatafields() {
+        var target_datafield_ids = $("#target_datafield_ids").val();
+        if (target_datafield_ids !== '') {
+            target_datafield_ids = target_datafield_ids.split(',');
+
+            $(".ODRTristateCheckbox.binary").each(function(index, elem) {
+                var df_id = $(elem).attr('rel');
+                if ( target_datafield_ids.includes(df_id) ) {
+                    $(elem).trigger('click');
+                    $(elem).parents('ul').first().removeClass('ODRHidden');
+                }
+            });
+        }
+    }
+
+    /**
+     * Updates the state of the tri-state checkboxes going up the tree.
+     *
+     * @param {HTMLElement} source_element
+     */
+    function applyToParents(source_element) {
+
+        var parent_list_element = null;
+        if ( $(source_element).parent().hasClass('ODRTrackingDatafieldList_dt_header') ) {
+            if ( $(source_element).parent().parent().parent().parent().attr('id') === 'ODRTrackingDatafieldList' ) {
+                // source_element is a top-level datatype...do nothing
+                return;
+            }
+            else {
+                // source_element is a child datatype...
+                parent_list_element = $(source_element).parent().parent().parent().parent();
+            }
+        }
+        else {
+            // source_element is a datafield...
+            parent_list_element = $(source_element).parent().parent().parent();
+        }
+
+        var parent_checkbox_element = $(parent_list_element).children('div').children('.ODRTristateCheckbox').first();
+
+        var selected_count = $(parent_list_element).children('ul').find('.binary').children('.fa-check').length;
+        var total_count = $(parent_list_element).children('ul').find('.binary').children('.fa').length;
+
+        // console.log(selected_count);
+        // console.log(total_count);
+
+        if (selected_count == 0) {
+            // No children selected, so this one should be unselected too
+            $(parent_checkbox_element).children('i').removeClass('fa-check partial');
+        }
+        else if (selected_count == total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_element).children('i').addClass('fa-check').removeClass('partial');
+        }
+        else {
+            // Some children selected, so this one should be partially selected
+            $(parent_checkbox_element).children('i').addClass('fa-check partial');
+        }
+
+        applyToParents(parent_checkbox_element);
+    }
+</script>
+
+{% endspaceless %}

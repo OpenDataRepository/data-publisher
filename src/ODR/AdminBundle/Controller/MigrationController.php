@@ -39,6 +39,7 @@ class MigrationController extends ODRCustomController
      * 4) Update the description for the "Edit All" group
      * 5) Since there's only at most one themeDatatype entry per themeElement, turn all
      *    instances of a "hidden" themeDatatype into a "hidden" themeElement instead
+     * 6) Delete ancient/unused database tables
      *
      * @param Request $request
      *
@@ -105,11 +106,16 @@ class MigrationController extends ODRCustomController
                 }
             }
 
+            // Need to delete soft-deleted group membership too
+            $em->getFilters()->disable('softdeleteable');
+
             $query = $em->createQuery(
                'DELETE FROM ODRAdminBundle:UserGroup AS ug
                 WHERE ug.user IN (:user_list)'
             )->setParameters( array('user_list' => $super_admins) );
             $rows = $query->execute();
+
+            $em->getFilters()->enable('softdeleteable');
 
             $ret .= '<br>** Deleted '.$rows.' rows total';
 
@@ -234,6 +240,40 @@ class MigrationController extends ODRCustomController
             $rows = $query->execute();
 
             $ret .= '<br> ** Updated '.$rows.' themeElements total';
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
+
+            // ----------------------------------------
+            // 6) Delete ancient/unused database tables
+            $ret .= '<div>Dropping unused database tables:<br>';
+
+            // odr_layout is the only table that has foreign key issues...solved by having it after
+            //  the rest of the tables with 'layout' in their name
+            $old_tables = array(
+                'odr_checkbox',
+                'odr_file_storage',
+                'odr_image_storage',
+                'odr_layout_meta',
+                'odr_layout_data',
+                'odr_user_layout_preferences',
+                'odr_layout',
+                'odr_radio',
+                'odr_theme_element_field',
+                'odr_user_field_permissions',
+                'odr_user_permissions',
+                'odr_xyz_value',
+            );
+
+            $conn = $em->getConnection();
+            foreach ($old_tables as $table_name) {
+                $ret .= '<br> attempting to drop table "'.$table_name.'"...';
+
+                $query = 'DROP TABLE IF EXISTS '.$table_name.';';
+                $conn->executeQuery($query);
+
+                $ret .= 'success';
+            }
 
             $ret .= '</div>';
             $ret .= '<br>----------------------------------------<br>';

@@ -33,6 +33,8 @@ ODR\AdminBundle\Entity\ShortVarchar:
             nullable: true
 
     indexes:
+        shortvarchar_created:
+            columns: ["created"]
         shortvarchar_fulltext:
             columns: ["value"]
             flags: fulltext

@@ -53,6 +53,7 @@ services:
         arguments:
             $datatype_info_service: "@odr.datatype_info_service"
             $search_service: "@odr.search_service"
+            $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
 
     odr.search_service:

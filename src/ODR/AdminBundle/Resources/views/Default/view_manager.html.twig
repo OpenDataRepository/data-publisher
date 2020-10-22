@@ -50,6 +50,10 @@
     {% set display_csv_export = true %}
 {% endif %}
 
+{% set display_tracking = false %}
+{% if can_edit_datatype == true %}
+    {% set display_tracking = true %}
+{% endif %}
 
 {% if notitle is defined %}
 {% else %}
@@ -100,6 +104,14 @@
                 </label>
             </li>
         {% endif %}
+
+        {% if display_tracking %}
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRTracking" class="pure-button">
+                    View Recent Changes
+                </label>
+            </li>
+        {% endif %}
         </ul>
 {#
     {% if display_export_options is defined and display_export_options == true and intent == 'searching' and has_datarecords %}
@@ -142,6 +154,13 @@
 {% if display_csv_export %}
         $("#ODRCSVExport").unbind('click').click(function() {
             var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
+            UpdateURL(url);
+        });
+{% endif %}
+
+{% if display_tracking %}
+        $("#ODRTracking").unbind('click').click(function() {
+            var url = '{{ path('odr_track_search_result_changes', { 'search_key': search_key }) }}';
             UpdateURL(url);
         });
 {% endif %}

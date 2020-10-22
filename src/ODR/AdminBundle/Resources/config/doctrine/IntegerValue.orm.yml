@@ -31,6 +31,10 @@ ODR\AdminBundle\Entity\IntegerValue:
             type: datetime
             nullable: true
 
+    indexes:
+        integervalue_created:
+            columns: ["created"]
+
     manyToOne:
         dataField:
             targetEntity: DataFields

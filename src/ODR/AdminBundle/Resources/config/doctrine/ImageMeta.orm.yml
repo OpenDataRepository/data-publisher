@@ -57,6 +57,8 @@ ODR\AdminBundle\Entity\ImageMeta:
             nullable: true
 
     indexes:
+        imagemeta_created:
+            columns: ["created"]
         imagemeta_ofn_fulltext:
             columns: ["original_file_name"]
             flags: fulltext

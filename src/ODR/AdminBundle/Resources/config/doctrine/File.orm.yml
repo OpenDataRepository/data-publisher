@@ -4,9 +4,7 @@ ODR\AdminBundle\Entity\File:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
-    indexes:
-        uuid_index:
-            columns: [ unique_id ]
+
     fields:
         id:
             id: true
@@ -69,6 +67,14 @@ ODR\AdminBundle\Entity\File:
         deletedAt:
             type: datetime
             nullable: true
+
+    indexes:
+        file_created:
+            columns: ["created"]
+        file_deleted:
+            columns: ["deletedAt"]
+        uuid_index:
+            columns: [ unique_id ]
 
     oneToMany:
         fileChecksum:

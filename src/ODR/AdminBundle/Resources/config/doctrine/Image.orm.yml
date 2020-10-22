@@ -4,9 +4,7 @@ ODR\AdminBundle\Entity\Image:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
-    indexes:
-        uuid_index:
-            columns: [ unique_id ]
+
     fields:
         id:
             id: true
@@ -75,6 +73,14 @@ ODR\AdminBundle\Entity\Image:
         deletedAt:
             type: datetime
             nullable: true
+
+    indexes:
+        image_created:
+            columns: ["created"]
+        image_deleted:
+            columns: ["deletedAt"]
+        uuid_index:
+            columns: [ unique_id ]
 
     oneToMany:
         children:

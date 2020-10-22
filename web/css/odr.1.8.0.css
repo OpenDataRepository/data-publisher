@@ -4254,3 +4254,67 @@ i {
     padding-right: 6px;
 }
 
+
+#ODRTrackingForm > fieldset {
+    margin: 10px;
+}
+.ODRTracking_placeholder {
+    color: white;
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    background: rgb(150, 150, 150);
+    padding: 5px 7px;
+    margin: 5px;
+}
+.ODRTracking_criteria {
+    color: white;
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    background: rgb(66, 184, 221);
+    padding: 5px 7px;
+    margin: 5px;
+}
+
+.ODRTrackingData_loading {
+    text-align: center;
+    font-size: 1.25em;
+}
+
+#ODRTrackingUserList {
+    color: #555;
+}
+.strikethrough {
+    text-decoration: line-through;
+}
+
+#ODRTrackingDatafieldList {
+    text-align: left;
+    color: #555;
+}
+#ODRTrackingDatafieldList ul {
+    list-style: none;
+    padding-left: 25px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+#ODRTrackingDatafieldList li {
+    list-style-type: none;
+    margin: 3px;
+}
+.ODRTrackingDatafieldList_dt_header,
+.ODRTrackingDatafieldList_dt_container {
+    /*padding: 7px;*/
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+}
+.ODRTrackingDatafieldList_dt_header {
+    padding: 7px;
+    cursor: Pointer;
+    background-color: #6fa5c7;
+    color: #ffffff;
+}
+.ODRTrackingDatafieldList_spacer {
+    min-height: 10px;
+}

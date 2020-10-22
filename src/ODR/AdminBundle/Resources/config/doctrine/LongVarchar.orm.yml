@@ -33,6 +33,8 @@ ODR\AdminBundle\Entity\LongVarchar:
             nullable: true
 
     indexes:
+        longvarchar_created:
+            columns: ["created"]
         longvarchar_fulltext:
             columns: ["value"]
             flags: fulltext

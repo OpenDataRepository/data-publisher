@@ -64,6 +64,8 @@
         {% endif %}
 
         <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
+
+        <button type="button" class="pure-button pure-button-primary" onclick="trackDatarecordChanges( {{ datarecord.id }} );">View Recent Changes</button>
     </div>
 </div>
 
@@ -178,6 +180,13 @@
     }
 {% endif %}
 
+    function trackDatarecordChanges(datarecord_id) {
+        var url = "{{ path('odr_track_datarecord_changes', {'datarecord_id': 0}) }}";
+        url = url.substring(0, (url.length - 1));
+        url += datarecord_id;
+
+        UpdateURL(url);
+    }
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

@@ -170,6 +170,18 @@
                 {% endif %}
                 </div>
 
+                {# History tracking link for this datatype #}
+                <div>
+                {% if can_edit_datarecord %}
+                    <a id="ODRDatatypeList_{{ datatype.id }}_track_changes"
+                       class="address"
+                       href="{{ datatype_baseurl }}#{{ path('odr_track_datatype_changes', { 'datatype_id': datatype.id }) }}"
+                    >
+                        <i class="fa fa-lg fa-camera"></i>&nbsp;View Recent Changes
+                    </a>
+                {% endif %}
+                </div>
+
             {% if is_datatype_admin and not is_metadata_datatype %}
                 {# spacer div so it's harder to unintentionally click on the deletion link #}
                 <div>&nbsp;</div>

@@ -23,7 +23,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -77,7 +77,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -380,7 +380,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -513,7 +513,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -627,7 +627,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -729,7 +729,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -866,7 +866,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -984,7 +984,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             if ( $user === 'anon.' ) {
@@ -1118,7 +1118,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 

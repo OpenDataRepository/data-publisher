@@ -928,10 +928,11 @@ class ODRUserController extends ODRCustomController
             // All users have permissions to view the user list
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
+            // --------------------
+
 
             // Determine whether the user is an admin for any datatype
-            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
-
             $is_datatype_admin = false;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 ) {
@@ -940,6 +941,17 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
+            // Determine whether the user can edit any datatype
+            $can_edit_datatype = false;
+            foreach ($datatype_permissions as $dt_id => $dt_permission) {
+                if ( isset($dt_permission['dr_edit']) && $dt_permission['dr_edit'] == 1 ) {
+                    $can_edit_datatype = true;
+                    break;
+                }
+            }
+
+
+            // ----------------------------------------
             // Grab all the users
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
@@ -955,7 +967,8 @@ class ODRUserController extends ODRCustomController
                         'users' => $user_list,
 
                         'admin_user' => $admin_user,
-                        'is_datatype_admin' => $is_datatype_admin
+                        'is_datatype_admin' => $is_datatype_admin,
+                        'can_edit_datatype' => $can_edit_datatype,
                     )
                 )
             );

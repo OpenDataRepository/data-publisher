@@ -1,0 +1,176 @@
+{% spaceless %}
+
+<!-- Tracking Dialog Form -->
+
+<script>
+    var tracking_dialog_body = '<div id="ODRTrackingDialogFormWrapper" class="ODRHidden pure-form"> </div>';
+
+    /**
+     * Opens the modal dialog to view/change criteria used by ODR's tracking page.
+     *
+     * @param {string} focus
+     * @param {string} datatype_id_restriction
+     */
+    function openTrackingDialog(focus, datatype_id_restriction = '') {
+        // open dialog
+        modal_options = {
+            title: 'Tracking Critera selection',
+            loading: true,
+            body: tracking_dialog_body,
+            buttons: [
+                {
+                    id: 'ODRTrackingDialogFormSubmit',
+                    text: 'Reload',
+                    // secondary: true,
+                    disabled: false
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadTrackingFilter(focus, datatype_id_restriction);
+    }
+
+    /**
+     * Loads the contents for the tracking modal.
+     *
+     * @param {string} focus
+     * @param {string} datatype_id_restriction
+     */
+    function loadTrackingFilter(focus, datatype_id_restriction = '') {
+
+        var url = '';
+        if ( focus === 'datafield' ) {
+            url = '{{ path('odr_track_get_datafield_selector') }}';
+            if (datatype_id_restriction !== '')
+                url += '/' + datatype_id_restriction;
+        }
+        else if ( focus === 'user' ) {
+            url = '{{ path('odr_track_get_user_selector') }}';
+        }
+        else {
+            alert('loadTrackingFilter(): invalid focus "' + focus + '"');
+            return;
+        }
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRTrackingDialogFormWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRTrackingDialogFormWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up as much space as it can
+                    var ignore_content_height = true;
+                    resetRemodalInnerHeight(ignore_content_height);
+
+                    // Setup submit handler
+                    $('#ODRTrackingDialogFormSubmit').unbind('click').click(function() {
+                        if (focus === 'datafield') {
+                            // Clear the div showing which datatypes have been selected
+                            $("#selected_datatypes").html('');
+
+                            var target_datatype_names = {};
+                            var target_datafield_ids = '';
+                            $(".ODRTristateCheckbox.binary").each(function(index, elem) {
+                                if ( $(elem).children('i').hasClass('fa-check') ) {
+                                    var df_id = $(elem).attr('rel');
+                                    if (target_datafield_ids === '')
+                                        target_datafield_ids = df_id;
+                                    else
+                                        target_datafield_ids += ',' + df_id;
+
+                                    var top_level_dt_name = $(elem).parents(".ODRTrackingdatafieldList_top_level").first().find(".ODRTrackingDatafieldList_dt_name").html();
+                                    target_datatype_names[top_level_dt_name] = 1;
+                                }
+                            });
+                            // Update the form contents
+                            $("#target_datafield_ids").val(target_datafield_ids);
+
+                            // Display a notification about which top-level datatypes have fields
+                            //  selected as criteria
+                            jQuery.each(target_datatype_names, function(dt_name, obj) {
+                                $("<span>", {
+                                    "class": "ODRTracking_criteria Cursor",
+                                    "html": dt_name,
+                                }).appendTo("#selected_datatypes");
+                            });
+
+                            // If no fields were selected, insert a placeholder instead
+                            if ( $("#selected_datatypes").html() === '' ) {
+                                $("<span>", {
+                                    "class": "ODRTracking_placeholder Cursor",
+                                    "html": "Any",
+                                }).appendTo("#selected_datatypes");
+                            }
+                        }
+                        else {
+                            // Clear the div showing which users have been selected
+                            $("#selected_users").html('');
+
+                            // Determine which users have been selected
+                            var target_user_ids = '';
+                            $(".ODRTrackingUser_checkbox").each(function(index, elem) {
+                                if ( $(elem).is(':checked') ) {
+                                    var user_id = $(elem).attr('rel');
+                                    if (target_user_ids === '')
+                                        target_user_ids = user_id;
+                                    else
+                                        target_user_ids += ',' + user_id;
+
+                                    var user_name = $(elem).parent().next().html();
+                                    $("<span>", {
+                                        "class": "ODRTracking_criteria Cursor",
+                                        "html": user_name,
+                                    }).appendTo("#selected_users");
+                                }
+                            });
+                            // Update the form contents
+                            $("#target_user_ids").val(target_user_ids);
+
+                            // If no users are selected, insert a placeholder instead
+                            if (target_user_ids === '') {
+                                $("<span>", {
+                                    "class": "ODRTracking_placeholder Cursor",
+                                    "html": "Any",
+                                }).appendTo("#selected_users");
+                            }
+                        }
+
+                        // No longer want the modal open
+                        closeODRRemodal();
+                        // Redo the search
+                        reloadTrackingData();
+                    });
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+<!--  End of Tracking Dialog Form -->
+
+{% endspaceless %}
