@@ -177,6 +177,8 @@ security:
         - { path: ^/admin/massedit, role: ROLE_USER }             # Mass Edit
         - { path: ^/admin/csvexport, role: ROLE_USER }            # CSV Download
 
+        - { path: ^/admin/track, role: ROLE_USER }                # History Tracking
+
 ##########
         - { path: ^/admin/type/list/templates, role: ROLE_SUPER_ADMIN }  # can see page that provides links to modify master templates
 

@@ -1862,49 +1862,49 @@ odr_migrate_1.0:
 #-----------------------------------------
 # Tracking Controller
 #odr_track_datafield_changes:
-#    path:  /admin/track_datafield/{datafield_id}
+#    path:  /admin/track/datafield/{datafield_id}
 #    defaults: { _controller: ODRAdminBundle:Tracking:trackdatafieldchanges }
 #    requirements:
 #        datafield_id: \d+
 
 odr_track_datarecord_changes:
-    path: /admin/track_datarecord/{datarecord_id}
+    path: /admin/track/datarecord/{datarecord_id}
     defaults: { _controller: ODRAdminBundle:Tracking:trackdatarecordchanges }
     requirements:
         datarecord_id: \d+
 
 odr_track_search_result_changes:
-    path: /admin/track_search/{search_key}
+    path: /admin/track/search/{search_key}
     defaults: { _controller: ODRAdminBundle:Tracking:tracksearchresultchanges }
     requirements:
         search_key: '[^\/]*'
 
 odr_track_datatype_changes:
-    path:  /admin/track_datatype/{datatype_id}
+    path:  /admin/track/datatype/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Tracking:trackdatatypechanges }
     requirements:
         datatype_id: \d+
 
 odr_track_user_changes:
-    path: /admin/track_user/{target_user_id}
+    path: /admin/track/user/{target_user_id}
     defaults: { _controller: ODRAdminBundle:Tracking:trackuserchanges }
     requirements:
         target_user_id: \d+
 
 
 odr_track_changes:
-    path: /admin/track_changes
+    path: /admin/track/changes
     defaults: { _controller: ODRAdminBundle:Tracking:trackchanges }
     methods: [POST]
 
 
 odr_track_get_datafield_selector:
-    path: /admin/track_datafield/list/{datatype_id_restriction}
+    path: /admin/track/datafield_list/{datatype_id_restriction}
     defaults: { _controller: ODRAdminBundle:Tracking:getdatafieldselector, datatype_id_restriction: '' }
     requirements:
         datatype_id_restriction: \d+
 
 odr_track_get_user_selector:
-    path: /admin/track_user/list
+    path: /admin/track/user_list
     defaults: { _controller: ODRAdminBundle:Tracking:getuserselector }
 #-----------------------------------------
