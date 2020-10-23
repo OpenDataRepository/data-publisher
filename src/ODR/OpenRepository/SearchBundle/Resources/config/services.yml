@@ -26,6 +26,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"
+            $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
 
     odr.search_api_service:

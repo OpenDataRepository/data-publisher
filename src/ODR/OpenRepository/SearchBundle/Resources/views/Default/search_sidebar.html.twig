@@ -203,7 +203,14 @@
                                 {% endfor %}
 
                                 {# created/modified by, created/modified date, public status of datarecord #}
-                                {# don't display metadata for linked datatypes...for now... #}
+                                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                                    'search_params': search_params,
+
+                                    'datatype_id': linked_datatype.id,
+                                    'user_list': user_list,
+                                    'datatype_permissions': datatype_permissions,
+                                    'is_top_level': 0
+                                } %}
                             </div>
                         </fieldset>
                     {% endif %}

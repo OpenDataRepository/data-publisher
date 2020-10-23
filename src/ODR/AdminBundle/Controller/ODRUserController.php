@@ -22,7 +22,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // ODR
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;

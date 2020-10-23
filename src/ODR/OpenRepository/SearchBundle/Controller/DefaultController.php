@@ -207,7 +207,7 @@ class DefaultController extends Controller
             // Need to build everything used by the sidebar...
             $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
             $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user);
+            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
 
 
             // ----------------------------------------
@@ -1131,7 +1131,7 @@ class DefaultController extends Controller
                 // Need to build everything used by the sidebar...
                 $datatype_array = $ssb_service->getSidebarDatatypeArray($user, $target_datatype->getId());
                 $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
-                $user_list = $ssb_service->getSidebarUserList($user);
+                $user_list = $ssb_service->getSidebarUserList($user, $datatype_array);
 
                 $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
 

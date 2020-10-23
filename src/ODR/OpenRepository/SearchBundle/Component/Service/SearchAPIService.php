@@ -231,9 +231,19 @@ class SearchAPIService
                     // $key is one of the modified/created/modifiedBy/createdBy/publicStatus entries
                     $dt_id = intval($pieces[1]);
 
-                    if ( isset($searchable_datafields[$dt_id]) ) {
-                        // User can search on this datatype
-                        $filtered_search_params[$key] = $value;
+                    if ( isset($user_permissions['datatypes'][$dt_id]) ) {
+                        // User needs to be able to either edit, create new, or delete existing
+                        //  datarecords in order to be able to search these entries
+                        $dt_permissions = $user_permissions['datatypes'][$dt_id];
+                        if ( isset($dt_permissions['dr_edit'])
+                            || isset($dt_permissions['dr_add'])
+                            || isset($dt_permissions['dr_delete'])
+                        ) {
+                            if ( isset($searchable_datafields[$dt_id]) ) {
+                                // User can search on this datatype
+                                $filtered_search_params[$key] = $value;
+                            }
+                        }
                     }
                 }
             }
