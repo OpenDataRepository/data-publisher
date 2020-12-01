@@ -55,12 +55,13 @@
 
     <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
-    {% set render_plugin_id = 1 %}
+    {% set render_plugin_classname = "odr_plugins.base.default" %}
     {% if bypass_render_plugin is not defined or not bypass_render_plugin %}
-        {% set render_plugin_id = datafield_meta.renderPlugin.id %}
+        {% set render_plugin_classname = datafield_meta.renderPlugin.pluginClassName %}
     {%  endif %}
 
-    {% if render_plugin_id != 1 %}
+    {% if render_plugin_classname != "odr_plugins.base.default" %}
+        {# TODO - ...require the render plugin to also handle the <form> element? #}
         {{ datafield|datafield_plugin(datarecord, datafield_meta.renderPlugin)|raw }}
 
     {% elseif field_typename == "Boolean" %}

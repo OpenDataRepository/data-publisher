@@ -47,6 +47,13 @@
 </div>
 
 <script>
+{# Only want to trigger the metadata guidance when the wizard is active #}
+{% if wizard > 0 %}
+    $(function() {
+        if ( typeof ODR_startMetadataGuidance === "function" )
+            ODR_startMetadataGuidance();
+    });
+{% endif %}
 
     function saveDatatypeMeta(field_type, field_value) {
         // Post to ajax with CSRF protection

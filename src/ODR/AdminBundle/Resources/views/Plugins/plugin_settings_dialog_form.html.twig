@@ -1,45 +1,66 @@
 {% spaceless %}
 
-    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="pure-form pure-form-aligned" id="ODRRenderPluginSettingsForm">
+<form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="pure-form pure-form-aligned" id="ODRRenderPluginSettingsForm">
 
-        <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
-        {% if local_datafield == null %}
-            <input type="hidden" name="local_datafield_id" value="0" />
-            <input type="hidden" name="previous_render_plugin" value="{{ local_datatype.renderplugin.id }}" />
-        {% else %}
-            <input type="hidden" name="local_datafield_id" value="{{ local_datafield.id }}" />
-            <input type="hidden" name="previous_render_plugin" value="{{ local_datafield.renderplugin.id }}" />
-        {% endif %}
-        <input type="hidden" name="render_plugin_instance_id" value="{% if render_plugin_instance != null %}{{ render_plugin_instance.id }}{% endif %}" />
+    <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
+    {% if local_datafield == null %}
+        <input type="hidden" name="local_datafield_id" value="0" />
+        <input type="hidden" name="previous_render_plugin" value="{{ local_datatype.renderplugin.id }}" />
+    {% else %}
+        <input type="hidden" name="local_datafield_id" value="{{ local_datafield.id }}" />
+        <input type="hidden" name="previous_render_plugin" value="{{ local_datafield.renderplugin.id }}" />
+    {% endif %}
+    <input type="hidden" name="render_plugin_instance_id" value="{% if render_plugin_instance != null %}{{ render_plugin_instance.id }}{% endif %}" />
 
-        <fieldset>
-            <div class="pure-control-group">
-                <label for="selected_render_plugin">
-                    <strong>Render Plugin: </strong>
-                </label>
-                <select name="selected_render_plugin" id="selected_render_plugin" onchange="updatePluginData();">
-                {% for render_plugin in render_plugins %}
-                    <option value="{{ render_plugin.id }}"
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="selected_render_plugin">
+                <strong>Render Plugin: </strong>
+            </label>
 
-                    {% if local_datafield == null %}
-                        {% if local_datatype.renderplugin.id == render_plugin.id %}
-                            selected
-                        {% endif %}
-                    {% else %}
-                        {% if local_datafield.renderplugin.id == render_plugin.id %}
-                            selected
-                        {% endif %}
+            {% set selected_plugin_id = '' %}
+            {% if local_datafield == null %}
+                {% set selected_plugin_id = local_datatype.dataTypeMeta.renderplugin.id %}
+            {% else %}
+                {% set selected_plugin_id = local_datafield.dataFieldMeta.renderplugin.id %}
+            {% endif %}
+
+            <select name="selected_render_plugin" id="selected_render_plugin" onchange="updatePluginData();">
+            {# Print out the default render plugin separately, so it's always at the top of the list #}
+                <optgroup label="Default">
+                    <option value="{{ default_render_plugin.id }}" {% if default_render_plugin.id == selected_plugin_id %}selected{% endif %}>
+                        {{ default_render_plugin.pluginname }}
+                    </option>
+                </optgroup>
+
+            {% set prev_category = '' %}
+            {% for render_plugin in render_plugins %}
+                {% if render_plugin.category != prev_category %}
+                    {# If this isn't the first render plugin category encountered, then close out the previous category's <optgroup> tag #}
+                    {% if prev_category != '' %}
+                    </optgroup>
                     {% endif %}
 
-                    >{{ render_plugin.pluginname }}</option>
-                {% endfor %}
-                </select>
-            </div>
-        </fieldset>
+                    {# Start a new <optgroup> with the current plugin's category #}
+                    {% set prev_category = render_plugin.category %}
+                    <optgroup label="{{ prev_category }}">
+                {% endif %}
 
-        <div id="ODRRenderPluginData" class="pure-control-group"></div>
+                        <option value="{{ render_plugin.id }}" {% if render_plugin.id == selected_plugin_id %}selected{% endif %}>
+                            {{ render_plugin.pluginname }}
+                        </option>
+            {% endfor %}
 
-    </form>
+                    {# Close out the last remaining <optgroup> tag #}
+                    </optgroup>
+
+            </select>
+        </div>
+    </fieldset>
+
+    <div id="ODRRenderPluginData" class="pure-control-group"></div>
+
+</form>
 
 <script>
     $( function() {

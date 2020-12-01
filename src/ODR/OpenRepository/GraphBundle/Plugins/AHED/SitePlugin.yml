@@ -1,7 +1,8 @@
 odr_plugins.ahed.site:
     name: Site Identifier Plugin
+    category: AHED
     datatype: true
-    version: 1.00
+    version: 1.0.1
     override_fields: false
     override_child: false
     description: The Site Identifier Plugin characterizes a site or location where a sample was collected.

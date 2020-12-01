@@ -1,0 +1,10 @@
+services:
+    # Datatype plugins
+    odr_plugins.metadata.ahed_properties_core:
+        class: '%odr_plugin_base_classpath%\Metadata\AHEDPropertiesCorePlugin'
+        arguments:
+            $templating: "@templating"
+    odr_plugins.metadata.ahed_properties_person:
+        class: '%odr_plugin_base_classpath%\Metadata\AHEDPropertiesPersonPlugin'
+        arguments:
+            $templating: "@templating"

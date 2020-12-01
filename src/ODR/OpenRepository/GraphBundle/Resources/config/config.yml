@@ -2,6 +2,7 @@ imports:
     - { resource: "../../Plugins/Base/config.yml" }
     - { resource: "../../Plugins/Chemin/config.yml" }
     - { resource: "../../Plugins/AHED/config.yml" }
+    - { resource: "../../Plugins/Metadata/config.yml" }
 
 parameters:
     # This should point to the base directory for the render plugin yml and php files...used to

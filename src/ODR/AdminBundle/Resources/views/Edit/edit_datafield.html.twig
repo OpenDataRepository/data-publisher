@@ -74,6 +74,8 @@
     {% set inline_search_link = true %}
 {% endif %}
 
+    {# TODO - enable datafield render plugins?  they're going to completely interfere with edit functionality... #}
+
     <form
         {% if is_link %} autocomplete="off"{% endif %}
         {% if not datarecord_is_fake %}

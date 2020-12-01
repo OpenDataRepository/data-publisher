@@ -122,10 +122,6 @@ class PluginsController extends ODRCustomController
 
                             // Store the filepath in case of later duplicates
                             $available_plugins[$plugin_classname]['filepath'] = $abbreviated_config_path;
-
-                            // Store a group name for the plugin to assist in sorting
-                            $tmp = explode('.', $plugin_classname);
-                            $available_plugins[$plugin_classname]['group'] = ucfirst( $tmp[1] );
                         }
                     }
                     catch (ParseException $e) {
@@ -166,6 +162,7 @@ class PluginsController extends ODRCustomController
         // All plugins must define these configuration options
         $required_keys = array(
             'name',
+            'category',
             'datatype',
             'version',
             'override_fields',
@@ -286,6 +283,9 @@ class PluginsController extends ODRCustomController
 
             if ( $plugin_data['description'] !== $plugin_config['description'] )
                 $plugins_needing_updates[$plugin_classname][] = 'description';
+
+            if ( $plugin_data['category'] !== $plugin_config['category'] )
+                $plugins_needing_updates[$plugin_classname][] = 'category';
 
             if ( $plugin_data['overrideChild'] !== $plugin_config['override_child'] )
                 $plugins_needing_updates[$plugin_classname][] = 'override_child';
@@ -512,6 +512,7 @@ class PluginsController extends ODRCustomController
             $render_plugin = new RenderPlugin();
             $render_plugin->setPluginName( $plugin_data['name'] );
             $render_plugin->setDescription( $plugin_data['description'] );
+            $render_plugin->setCategory( $plugin_data['category'] );
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
@@ -660,6 +661,7 @@ class PluginsController extends ODRCustomController
             // Update the existing RenderPlugin entry from the config file data
             $render_plugin->setPluginName( $plugin_data['name'] );
             $render_plugin->setDescription( $plugin_data['description'] );
+            $render_plugin->setCategory( $plugin_data['category'] );
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
@@ -927,11 +929,11 @@ class PluginsController extends ODRCustomController
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
                     WHERE rp.plugin_type IN (:plugin_types)
-                    AND rp.deletedAt IS NULL'
+                    AND rp.deletedAt IS NULL
+                    ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
                     array(
                         'plugin_types' => array(
-                            RenderPlugin::DEFAULT_PLUGIN,
                             RenderPlugin::DATATYPE_PLUGIN,
                         )
                     )
@@ -941,7 +943,12 @@ class PluginsController extends ODRCustomController
 
                 // Attempt to grab the field mapping between this render plugin and this datatype
                 /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $current_render_plugin, 'dataType' => $datatype) );
+                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(
+                    array(
+                        'renderPlugin' => $current_render_plugin,
+                        'dataType' => $datatype
+                    )
+                );
             }
             else {
                 // ...otherwise, this is a render plugin for a datafield
@@ -952,11 +959,11 @@ class PluginsController extends ODRCustomController
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
                     WHERE rp.plugin_type IN (:plugin_types)
-                    AND rp.deletedAt IS NULL'
+                    AND rp.deletedAt IS NULL
+                    ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
                     array(
                         'plugin_types' => array(
-                            RenderPlugin::DEFAULT_PLUGIN,
                             RenderPlugin::DATAFIELD_PLUGIN,
                         )
                     )
@@ -965,10 +972,24 @@ class PluginsController extends ODRCustomController
                 $render_plugins = $query->getResult();
 
                 /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $current_render_plugin, 'dataField' => $datafield) );
+                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(
+                    array(
+                        'renderPlugin' => $current_render_plugin,
+                        'dataField' => $datafield
+                    )
+                );
             }
 
+            // Also need the default render plugin
+            /** @var RenderPlugin $default_render_plugin */
+            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy(
+                array(
+                    'pluginClassName' => 'odr_plugins.base.default'
+                )
+            );
 
+
+            // ----------------------------------------
             // Get Templating Object
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -978,6 +999,8 @@ class PluginsController extends ODRCustomController
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
                         'render_plugins' => $render_plugins,
+                        'default_render_plugin' => $default_render_plugin,
+
                         'render_plugin_instance' => $render_plugin_instance
                     )
                 )

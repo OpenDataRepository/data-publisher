@@ -27,9 +27,8 @@
         {% for plugin_classname,plugin_data in available_plugins %}
             <tr {% if installed_plugins[plugin_classname] is not defined %}class="ODRNotInstalledPlugin"{% endif %}>
                 <td>{{ plugin_classname }}</td>
-                <td>{{ plugin_data['group'] }}</td>
+                <td>{{ plugin_data['category'] }}</td>
                 <td>{{ plugin_data['name'] }}</td>
-
                 <td>{{ plugin_data['description'] }}</td>
 
                 <td>

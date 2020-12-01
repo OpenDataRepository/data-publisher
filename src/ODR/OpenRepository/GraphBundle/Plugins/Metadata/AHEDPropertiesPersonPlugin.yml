@@ -1,0 +1,11 @@
+odr_plugins.metadata.ahed_properties_person:
+    name: AHED Properties - Person
+    category: Metadata
+    datatype: true
+    version: 1.0.0
+    override_fields: false
+    override_child: true
+    description: TODO
+    required_fields:
+        # TODO - should anything go in here?
+    config_options:

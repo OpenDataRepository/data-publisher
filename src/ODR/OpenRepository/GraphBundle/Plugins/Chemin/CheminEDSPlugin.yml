@@ -1,7 +1,8 @@
 odr_plugins.chemin.chemineds:
     name: Chemin EDS Plugin
+    category: Chemin
     datatype: true
-    version: 1.00
+    version: 1.0.1
     override_fields: false
     override_child: true
     description: Plugin to display Chemin EDS Data
