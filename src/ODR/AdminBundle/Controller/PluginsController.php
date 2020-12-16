@@ -115,6 +115,11 @@ class PluginsController extends ODRCustomController
                         $yaml = Yaml::parse(file_get_contents($plugin_directory.'/'.$config_filename));
 
                         foreach ($yaml as $plugin_classname => $plugin_config) {
+                            // Don't display the plugin in this list when the service isn't defined
+                            if ( !$this->container->has($plugin_classname) )
+                                continue;
+
+                            // Don't allow duplicate plugin definitions
                             if ( isset($available_plugins[$plugin_classname] ) )
                                 throw new ODRException('RenderPlugin config file "'.$abbreviated_config_path.'" attempts to redefine the RenderPlugin "'.$plugin_classname.'", previously defined in "'.$available_plugins[$plugin_classname]['filepath'].'"');
 
@@ -270,6 +275,7 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         $plugins_needing_updates = array();
         foreach ($installed_plugins as $plugin_classname => $plugin_data) {
+            // Complain when an "installed" plugin appears to not be available
             if ( !isset($available_plugins[$plugin_classname]) )
                 throw new ODRException('The render plugin "'.$plugin_classname.'" "'.$plugin_data['pluginName'].'" is missing its config file on the server');
 
@@ -594,6 +600,7 @@ class PluginsController extends ODRCustomController
     /**
      * Updates the database entries for a specified plugin to match the config file.
      * TODO - versioning?
+     * TODO - disabling an active plugin?
      *
      * @param Request $request
      *
@@ -924,7 +931,7 @@ class PluginsController extends ODRCustomController
                 // If datafield id isn't defined, this is a render plugin for a datatype
                 $current_render_plugin = $datatype->getRenderPlugin();
 
-                // Load all available render plugins for this datatype
+                // Load all available datatype render plugins, including the disabled ones
                 $query = $em->createQuery(
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
@@ -954,7 +961,7 @@ class PluginsController extends ODRCustomController
                 // ...otherwise, this is a render plugin for a datafield
                 $current_render_plugin = $datafield->getRenderPlugin();
 
-                // Load all available render plugins for this datafield
+                // Load all available datafield render plugins, including the disabled ones
                 $query = $em->createQuery(
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp

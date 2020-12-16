@@ -9,7 +9,7 @@
 {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
 
 {% set can_execute_plugin = false %}
-{% if render_plugin.pluginClassName != "odr_plugins.base.default" %}
+{% if render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
     {% set can_execute_plugin = render_plugin|can_execute_plugin(datatype, rendering_options) %}
 {% endif %}
 #}

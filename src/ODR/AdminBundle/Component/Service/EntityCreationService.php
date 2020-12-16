@@ -238,6 +238,7 @@ class EntityCreationService
         $datarecord->setParent($datarecord);
         $datarecord->setGrandparent($datarecord);
 
+        // TODO - the part about "most areas" is not correct, it's currently only checked in EditController::editAction()
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
         $datarecord->setUniqueId( $this->uuid_service->generateDatarecordUniqueId() );
 

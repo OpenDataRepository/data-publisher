@@ -120,12 +120,14 @@
             <div class="pure-u-1 Info" title="Record must be saved before files can be uploaded" style="opacity: 45%;">
             {% endif %}
 
+            {# Don't want to execute anything special after a file gets deleted #}
+{#            {% set file_delete_callback = 'function() {}' %}#}
             {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
                 'datafield': datafield,
                 'datarecord': datarecord,
                 'files': valuefield,
 
-                'datarecord_is_fake': datarecord_is_fake
+                'datarecord_is_fake': datarecord_is_fake,
             } %}
 
             {% if datarecord_is_fake %}
@@ -143,7 +145,15 @@
             {% endif %}
             {% set callback = 'ReloadFileDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                'target': target,
+                'single_file': single_file,
+                'upload_type': 'file',
+                'datatype_id': datatype.id,
+                'datarecord_id': datarecord.id,
+                'datafield_id': datafield.id,
+                'callback': callback
+            } %}
         </div>
         {% endif %}
         {#</fieldset>#}

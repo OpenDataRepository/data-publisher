@@ -1,0 +1,10 @@
+{% spaceless %}
+
+<div class="ODRThemeElement pure-u-1 pure-u-md-1 pure-u-xl-1">
+    <div class="ODRInnerBox ODRThemeVisibleHiddenElement" style="padding:10px">
+        The currently uploaded AMC File has a problem, and the values of the other datafields can't be derived from it.
+        {% if can_edit_relevant_datafield %}<br>Please download the AMC File, fix the errors in it, and then upload a corrected version.{% endif %}
+    </div>
+</div>
+
+{% endspaceless %}

@@ -68,8 +68,8 @@ class PermissionsManagementService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param SearchAPIService $searchAPIService
+     * @param DatatypeInfoService $datatype_info_service
+     * @param SearchAPIService $search_api_service
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */

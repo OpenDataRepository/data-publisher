@@ -1,0 +1,79 @@
+odr_plugins.rruff.amcsd:
+    name: AMCSD Plugin
+    category: RRUFF
+    datatype: true
+    version: 1.0.0
+    override_fields: true
+    override_child: false
+    description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).
+
+    ##### IMPORTANT #####
+    # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
+    # AMCSDPlugin.php, AMCSDFileEventSubscriber.php, and twig files for this plugin use them to match renderplugin fields to actual datafields
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
+    #####################
+
+    required_fields:
+        fileno:
+            name: fileno
+            description:
+            type: IntegerValue
+        database_code:
+            name: database_code_amcsd
+            description:
+            type: ShortVarchar
+        authors:
+            name: Authors
+            description:
+            type: LongText
+        contents:
+            name: File Contents
+            description:
+            type: LongText
+
+        amc_file:
+            name: AMC File
+            description:
+            type: File
+        cif_file:
+            name: CIF File
+            description:
+            type: File
+        dif_file:
+            name: DIF File
+            description:
+            type: File
+
+        mineral_name:
+            name: Mineral
+            description:
+            type: MediumVarchar
+        a:
+            name: a
+            description:
+            type: DecimalValue
+        b:
+            name: b
+            description:
+            type: DecimalValue
+        c:
+            name: c
+            description:
+            type: DecimalValue
+        alpha:
+            name: alpha
+            description:
+            type: DecimalValue
+        beta:
+            name: beta
+            description:
+            type: DecimalValue
+        gamma:
+            name: gamma
+            description:
+            type: DecimalValue
+        space_group:
+            name: Space Group
+            description:
+            type: ShortVarchar
+    config_options:

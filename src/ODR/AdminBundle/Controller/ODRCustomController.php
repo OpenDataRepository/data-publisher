@@ -31,10 +31,12 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedError;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Events
+use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -48,6 +50,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -64,7 +67,7 @@ class ODRCustomController extends Controller
      * @param array $datarecords  The unfiltered list of datarecord ids that need rendered...this should contain EVERYTHING
      * @param DataType $datatype  Which datatype the datarecords belong to
      * @param Theme $theme        Which theme to use for rendering this datatype
-     * @param User $user          Which user is requesting this list
+     * @param ODRUser $user       Which user is requesting this list
      * @param string $path_str
      *
      * @param string $intent      "searching" if searching from frontpage, or "linking" if searching for datarecords to link
@@ -730,7 +733,7 @@ class ODRCustomController extends Controller
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user              The user to use if a new TrackedJob is to be created
+     * @param ODRUser $user           The user to use if a new TrackedJob is to be created
      * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
      * @param string $target_entity   Which entity this job is operating on
      * @param array $additional_data  Additional data related to the TrackedJob
@@ -844,7 +847,7 @@ class ODRCustomController extends Controller
         /** @var UUIDService $uuid_service */
         $uuid_service = $this->container->get('odr.uuid_service');
 
-        /** @var User $user */
+        /** @var ODRUser $user */
         $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
         /** @var DataRecordFields $drf */
         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
@@ -1004,6 +1007,33 @@ class ODRCustomController extends Controller
             $em->flush();
             $em->refresh($my_obj);
 
+
+            // ----------------------------------------
+            // Now that the File (mostly) exists, should fire off the FilePreEncrypt event
+            // Since the File isn't encrypted, several properties don't exactly work the same as they
+            //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new FilePreEncryptEvent($my_obj);
+                $dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // TODO - do something here?
+            }
+
+            // NOTE - the event is dispatched prior to the file encryption so that file encryption
+            //  doesn't have to become a TrackedJob...which would also require the page would to
+            //  check for and handle the event dispatching completion...
+
+            // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+
+
             // ----------------------------------------
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files
             $pheanstalk = $this->get('pheanstalk');
@@ -1048,7 +1078,7 @@ class ODRCustomController extends Controller
      * NOTE: all thumbnails for the provided image will have their decrypted version deleted off the server...if for some reason you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
      *
      * @param Image $my_obj The Image that was just uploaded.
-     * @param User $user    The user requesting this action
+     * @param ODRUser $user The user requesting this action
      *
      */
     public function resizeImages(\ODR\AdminBundle\Entity\Image $my_obj, $user)
@@ -1298,7 +1328,7 @@ class ODRCustomController extends Controller
      *  a datafield/datatype that the user can't view due to permissions.
      *
      * @param Theme $theme
-     * @param User $user
+     * @param ODRUser $user
      *
      * @return bool
      */

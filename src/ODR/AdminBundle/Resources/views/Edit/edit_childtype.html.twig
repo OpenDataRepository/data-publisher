@@ -9,7 +9,7 @@
 
 {# Don't attempt to execute the default render_plugin #}
 {% set can_execute_plugin = false %}
-{% if render_plugin.pluginClassName != "odr_plugins.base.default" %}
+{% if render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
     {% set can_execute_plugin = render_plugin|can_execute_plugin(datatype, rendering_options) %}
 {% endif %}
 
@@ -55,7 +55,7 @@
             <div class="ODRFieldArea accordion-content pure-u-1{% if dr_is_fake %} ODRFakeRecord{% endif %}" id="FieldArea_{{ datarecord.id }}">
 
                 {% set content = '' %}
-                {% if can_execute_plugin and (render_plugin.overrideChild or render_plugin.overrideFields) %}
+                {% if not dr_is_fake and can_execute_plugin and (render_plugin.overrideChild or render_plugin.overrideFields) %}
                     {# [datarecord] converts datarecord into a single-element array #}
                     {% set content = [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
                     {% if content|length > 0 %}

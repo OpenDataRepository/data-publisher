@@ -154,12 +154,24 @@ class FakeEditController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
+            // Ensure the post data is valid...
             if ( !isset($post['datatype_id'])
                 || !isset($post['datarecord_id'])
                 || !isset($post['datafields'])
                 || !isset($post['tokens'])
             ) {
-                throw new ODRBadRequestException();
+                if ( isset($post['datatype_id']) && isset($post['datarecord_id']) && !isset($post['datafields']) && !isset($post['tokens']) ) {
+                    // User attempted to save a completely empty datarecord...return a more useful
+                    //  error message
+                    throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
+
+                    // TODO - technically, it would be valid if the datatype only had files/images/child datatypes
+                    // TODO - ...but the resulting datatype is borderline useless, so it's not likely?
+                }
+                else {
+                    // Some other kind of problem, return a generic error message
+                    throw new ODRBadRequestException();
+                }
             }
 
             // TODO - parent/grandparent datarecord ids so this works for child records?

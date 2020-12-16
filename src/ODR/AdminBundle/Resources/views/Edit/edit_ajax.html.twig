@@ -154,64 +154,6 @@ function initPage() {
     });
 {% endif %}
 
-    $(".ODRDeleteFile").unbind('click').click(function() {
-        if ( confirm("Are you certain that you want to delete this File?") ) {
-            var file_id = $(this).attr('rel');
-
-            var url  = '{{ path('odr_record_delete_file', {'file_id': 0} ) }}';
-            url = url.substring(0,(url.length-1));
-            url += file_id;
-
-            var tmp = $(this).parents(".ODRDataField").first().attr('id');
-            tmp = tmp.split('_');
-            var datarecord_id = tmp[1];
-            var datafield_id = tmp[2];
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    // Going to need this
-                    var anchor = $("#File_" + file_id).parent();
-
-                    // Remove file data from table area
-                    $("#File_" + file_id).remove();
-
-                    // If that was the last file, re-add the "no files uploaded" div
-                    if ( $(anchor).children(".ODRFileDatafield_file").length === 0 ) {
-                        var html =
-                            '<div class="ODRFileDatafield_empty pure-u-1">\n' +
-                            '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
-                            '    <a class="Cursor">No Files Uploaded</a>\n' +
-                            '</div>';
-                        $(anchor).append(html);
-                    }
-
-                    if (data.d.need_reload == true)
-                        $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        }
-    });
-
     $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
         var icon_div = $(this).children(".ODRPublicFile");
@@ -1075,6 +1017,78 @@ function initPage() {
 
     console.log('Init page done.');
 }
+
+
+/**
+ * Deletes the given file, cleans up the page, and optionally executes the given callback
+ *
+ * @param {number} file_id
+ * @param {function} [callback]
+ */
+function DeleteFile(file_id, callback) {
+    if (callback === undefined) {
+        callback = function() {}
+    }
+
+    if ( confirm("Are you certain that you want to delete this File?") ) {
+        var url  = '{{ path('odr_record_delete_file', {'file_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += file_id;
+
+        var tmp = $("#File_" + file_id).parents(".ODRDataField").first().attr('id');
+        tmp = tmp.split('_');
+        var datarecord_id = tmp[1];
+        var datafield_id = tmp[2];
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                // Going to need this
+                var anchor = $("#File_" + file_id).parent();
+
+                // Remove file data from table area
+                $("#File_" + file_id).remove();
+
+                // If that was the last file uploaded to the field, re-add the "no files uploaded" div
+                if ( $(anchor).children(".ODRFileDatafield_file").length === 0 ) {
+                    var html =
+                        '<div class="ODRFileDatafield_empty pure-u-1">\n' +
+                        '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
+                        '    <a class="Cursor">No Files Uploaded</a>\n' +
+                        '</div>';
+                    $(anchor).append(html);
+                }
+
+                {# NOTE - this doesn't actually "reload" anything, just shows the upload div again #}
+                if (data.d.need_reload == true)
+                    $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
+
+                // Run the given callback
+                callback();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+}
+
 
 /**
  * Saves the current order of all images inside the given container element

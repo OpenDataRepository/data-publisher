@@ -6,11 +6,11 @@
 {% if not linked_importing %}
     <div class="csvimport_header pure-u-1">
         <button type="button" class="pure-button" onclick="selectAllFields();">
-            Select All
+            Import All
         </button>
         &nbsp;
         <button type="button" class="pure-button" onclick="deselectAllFields();">
-            Deselect All
+            Clear All
         </button>
     </div>
 {% endif %}
@@ -46,7 +46,7 @@
         } %}
 
         <table id="csv_import_table" class="pure-table pure-table-striped">
-            <thead><tr id="header">
+            <thead><tr id="header" class="Cursor">
                 <th>Column Name</th>
                 <th>Import?</th>
                 <th>Require unique values?</th>
