@@ -91,6 +91,7 @@ class FakeEditController extends ODRCustomController
 
             if ( !$pm_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
+            // TODO - ...shouldn't this also require the user to be able to edit at least one datafield?  doesn't really make sense otherwise...
             // --------------------
 
             // Grab the tab's id, if it exists
@@ -235,6 +236,15 @@ class FakeEditController extends ODRCustomController
                         throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" must have a value');
                 }
 
+                // Silently remove any fields that were given a value when they aren't supposed to
+                //  be editable by users
+                if ( $df['dataFieldMeta']['prevent_user_edits'] === true ) {
+                    if ( isset($datafields[$df_id]) )
+                        unset( $datafields[$df_id] );
+                    if ( isset($csrf_tokens[$df_id]) )
+                        unset( $csrf_tokens[$df_id] );
+                }
+
                 // Otherwise, only care about the field if it has a value in it...
                 if ( isset($datafields[$df_id]) ) {
                     $found_datafields[$df_id] = 1;
@@ -296,6 +306,10 @@ class FakeEditController extends ODRCustomController
                 if ( !isset($found_datafields[$df_id]) )
                     throw new ODRBadRequestException('Invalid Datafield');
             }
+
+            // Verify that at least one datafield was provided
+            if ( empty($datafields) )
+                throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
 
 
             // ----------------------------------------

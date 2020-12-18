@@ -4,8 +4,8 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% if datafield_meta.is_unique == 1 %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRReloadDiv"></div>
+{% if datafield_meta.is_unique or datafield_meta.prevent_user_edits %}
+    <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRReloadDiv {% if datafield_meta.is_unique %}ODRUniqueField{% elseif datafield_meta.prevent_user_edits %}ODRBlockedField{% endif %}"></div>
 {% endif %}
 
 {% set max_length = '' %}

@@ -47,7 +47,7 @@
             {% endif %}
 
             {# If this datatype is top-level, the the only way to update the rest of the fields after deleting a file is to reload the entire page #}
-            {% set file_delete_callback = 'function() { window.location.reload(true); }' %}
+            {% set file_delete_callback = 'function() { window.location.reload(); }' %}
             {% if not is_top_level %}
                 {# If it's not top level, then should attempt to surgically reload the childtype #}
                 {% set file_delete_callback = 'function() { ReloadEditChild(' ~ datatype.id ~ ',' ~ datarecord.parent.id ~ '); }' %}

@@ -265,6 +265,7 @@ class EntityMetaModifyService
             'phpValidator' => $old_meta_entry->getPhpValidator(),
             'required' => $old_meta_entry->getRequired(),
             'is_unique' => $old_meta_entry->getIsUnique(),
+            'prevent_user_edits' => $old_meta_entry->getPreventUserEdits(),
             'allow_multiple_uploads' => $old_meta_entry->getAllowMultipleUploads(),
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
             'newFilesArePublic' => $old_meta_entry->getNewFilesArePublic(),
@@ -333,6 +334,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setRequired( $properties['required'] );
         if ( isset($properties['is_unique']) )
             $new_datafield_meta->setIsUnique( $properties['is_unique'] );
+        if ( isset($properties['prevent_user_edits']) )
+            $new_datafield_meta->setPreventUserEdits( $properties['prevent_user_edits'] );
         if ( isset($properties['allow_multiple_uploads']) )
             $new_datafield_meta->setAllowMultipleUploads( $properties['allow_multiple_uploads'] );
         if ( isset($properties['newFilesArePublic']) )

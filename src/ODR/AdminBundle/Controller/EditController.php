@@ -98,6 +98,8 @@ class EditController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        // TODO - ...does this even get used anymore, since FakeEdit was introduced?
+
         try {
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1823,7 +1825,7 @@ class EditController extends ODRCustomController
     public function updateAction($datarecord_id, $datafield_id, Request $request)
     {
         // TODO - This should be changed to a transaction....
-        // TODO - ...kind of need the ability to mark a field as "derived", which would prevent the API/CSVImport/Edit/FakeEdit/MassEdit controllers from changing its value...
+
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1874,6 +1876,11 @@ class EditController extends ODRCustomController
 
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
             // --------------------
 
 

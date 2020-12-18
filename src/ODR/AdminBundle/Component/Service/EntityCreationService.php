@@ -179,6 +179,7 @@ class EntityCreationService
         $datafield_meta->setMarkdownText('');
         $datafield_meta->setIsUnique(false);
         $datafield_meta->setRequired(false);
+        $datafield_meta->setPreventUserEdits(false);
         $datafield_meta->setSearchable(DataFields::NOT_SEARCHED);
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 

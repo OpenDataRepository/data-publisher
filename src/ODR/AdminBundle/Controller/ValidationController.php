@@ -455,6 +455,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setMarkdownText('');
                     $dfm->setIsUnique(false);
                     $dfm->setRequired(false);
+                    $dfm->setPreventUserEdits(false);
                     $dfm->setSearchable(DataFields::NOT_SEARCHED);
                     $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
@@ -577,6 +578,7 @@ class ValidationController extends ODRCustomController
 
                     $dtm->setSearchNotesUpper(null);
                     $dtm->setSearchNotesLower(null);
+                    $dtm->setNewRecordsArePublic(false);
 
                     $dtm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));    // public
 

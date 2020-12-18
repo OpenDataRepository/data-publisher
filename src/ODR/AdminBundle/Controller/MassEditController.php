@@ -389,8 +389,9 @@ class MassEditController extends ODRCustomController
                 // Ensure the datafield belongs to the top-level datatype or one of its descendants
                 $df_array = self::getDatafieldArray($dt_array, $df_id);
 
-                if ( $df->getIsUnique() == 1 ) {
-                    // Silently ignore datafields that are marked as unique
+                if ( $df->getIsUnique() || $df->getPreventUserEdits() ) {
+                    // Silently ignore datafields that are marked as unique, or as not editable by
+                    //  any user
                     unset( $datafields[$df_id] );
                 }
                 else {

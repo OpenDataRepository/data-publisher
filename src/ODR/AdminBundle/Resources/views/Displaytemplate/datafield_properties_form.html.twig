@@ -170,6 +170,27 @@
         </div>
         {% endif %}
 
+        {% if typeclass == 'Boolean' or typeclass == 'DatetimeValue'
+            or typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar'
+            or typeclass == 'LongVarchar' or typeclass == 'LongText'
+            or typeclass == 'IntegerValue' or typeclass == 'DecimalValue'
+        %}
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.prevent_user_edits) }}
+            {{ form_widget(datafield_form.prevent_user_edits,
+                {
+                    'attr': {
+                        'style': 'width:auto',
+                        'class': 'ODRFloatingCheckbox',
+                    }
+                })
+            }}
+            <label for="{{ datafield_form.prevent_user_edits.vars.id }}" title="If checked, nobody is allowed to directly change values in this field.  Only useful when paired with specific render plugins.">
+                {{ datafield_form.prevent_user_edits.vars.label }}
+            </label>
+        </div>
+        {% endif %}
+
         {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
         <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">

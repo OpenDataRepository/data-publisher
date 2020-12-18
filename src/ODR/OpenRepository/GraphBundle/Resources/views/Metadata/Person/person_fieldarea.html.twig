@@ -51,37 +51,43 @@
                 {% else %}
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                    {% set can_edit_datafield = 0 %}
+                    {% set can_edit_datafield = false %}
                     {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
-                        {% set can_edit_datafield = 1 %}
+                        {% set can_edit_datafield = true %}
                     {% endif %}
 
                     {# Don't need to add anything to these datafields...the datatype div has the required class #}
                     {% set metadata_guidance_classes = '' %}
 
-                    <div
-                        class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ metadata_guidance_classes }}"
-                        id="Field_{{ datarecord.id }}_{{ datafield.id }}"
-                        rel="{{ theme.id }}"
+                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {{ metadata_guidance_classes }}"
+                         id="Field_{{ datarecord.id }}_{{ datafield.id }}"
+                         rel="{{ theme.id }}"
+                    {% if datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
+                         title="You are not allowed to make changes to this datafield."
+                         style="cursor:help;"
+                    {% endif %}
                     >
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                            {# markdown fields are their own thing #}
                             {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
                                 'datafield': datafield
                             } %}
-                        {% elseif can_edit_datafield == 1 or datarecord_is_fake %}
-                            {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
-                                'datatype': datatype,
-                                'datarecord': datarecord,
-                                'datafield': datafield,
-                                'is_link': is_link,
-                                'token_list': token_list,
-                                'is_datatype_admin': is_datatype_admin,
-                            } %}
-                        {% else %}
+                        {% elseif datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
                             {# user isn't allowed to edit datafield #}
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                            } %}
+                        {% else %}
+                            {# user is allowed to edit datafield #}
+                            {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
+                                'datatype': datatype,
+                                'datarecord': datarecord,
+                                'datafield': datafield,
+
+                                'is_link': is_link,
+                                'token_list': token_list,
+                                'is_datatype_admin': is_datatype_admin,
                             } %}
                         {% endif %}
                     </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->

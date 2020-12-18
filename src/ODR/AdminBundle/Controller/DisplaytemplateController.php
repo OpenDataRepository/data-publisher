@@ -2337,6 +2337,17 @@ class DisplaytemplateController extends ODRCustomController
                             break;
                     }
 
+                    // Ensure that specific fieldtypes can't have the property that "prevents user edits"
+                    switch ($submitted_data->getFieldType()->getTypeClass()) {
+                        case 'File':
+                        case 'Image':
+                        case 'Radio':
+                        case 'Tag':
+                        case 'Markdown':
+                            $submitted_data->setPreventUserEdits(false);
+                            break;
+                    }
+
                     // If the fieldtype changed, then ensure several of the properties are cleared
                     if ( $old_fieldtype_id !== $new_fieldtype_id ) {
                         // Reset a datafield's markdown text if it's not longer a markdown field
@@ -2392,6 +2403,7 @@ class DisplaytemplateController extends ODRCustomController
                         'phpValidator' => $submitted_data->getPhpValidator(),
                         'required' => $submitted_data->getRequired(),
                         'is_unique' => $submitted_data->getIsUnique(),
+                        'prevent_user_edits' => $submitted_data->getPreventUserEdits(),
                         'allow_multiple_uploads' => $submitted_data->getAllowMultipleUploads(),
                         'shorten_filename' => $submitted_data->getShortenFilename(),
                         'newFilesArePublic' => $submitted_data->getNewFilesArePublic(),

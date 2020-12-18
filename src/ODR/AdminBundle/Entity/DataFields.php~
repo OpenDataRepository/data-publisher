@@ -813,6 +813,16 @@ class DataFields
     }
 
     /**
+     * Get preventUserEdits.
+     *
+     * @return bool
+     */
+    public function getPreventUserEdits()
+    {
+        return $this->getDataFieldMeta()->getPreventUserEdits();
+    }
+
+    /**
      * Get allow_multiple_uploads
      *
      * @return boolean

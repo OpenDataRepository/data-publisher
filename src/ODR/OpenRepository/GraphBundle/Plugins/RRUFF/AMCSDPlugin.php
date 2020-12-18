@@ -180,7 +180,6 @@ class AMCSDPlugin implements DatatypePluginInterface
                         'token_list' => $token_list,
 
                         'plugin_fields' => $plugin_fields,
-                        'editable_datafields' => $editable_datafields,
                     )
                 );
             }
