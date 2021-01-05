@@ -58,6 +58,8 @@ class PluginsController extends ODRCustomController
      * array of all available Render Plugins...the array keys are plugin classnames, and the values
      * are arrays of parsed yml data.
      *
+     * TODO - pass in another parameter so this function only attempts to load/validate a single plugin?
+     *
      * @param \Doctrine\ORM\EntityManager $em
      * @param bool $validate
      *
@@ -349,7 +351,6 @@ class PluginsController extends ODRCustomController
                         if ( count($diff_1) == 0 && count($diff_2) == 0 )
                             unset( $tmp[$fieldname]['allowed_fieldtypes'] );
 
-
                         // If there are no differences, remove the entry
                         if ( count($tmp[$fieldname]) == 0 )
                             unset( $tmp[$fieldname] );
@@ -568,7 +569,7 @@ class PluginsController extends ODRCustomController
 
                         $allowed_fieldtypes[] = $sub_result[0]['fieldtype_id'];
                     }
-                    $rpf->setAllowedFieldtypes(implode(',', $allowed_fieldtypes));
+                    $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes) );
 
                     $render_plugin->addRenderPluginField($rpf);
 
@@ -785,7 +786,16 @@ class PluginsController extends ODRCustomController
 
                         $allowed_fieldtypes[] = $sub_result[0]['fieldtype_id'];
                     }
-                    $rpf->setAllowedFieldtypes(implode(',', $allowed_fieldtypes));
+                    $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes) );
+
+                    // TODO - how to handle changes to allowed_fieldtypes (and other options) when the plugin is already in use?
+                    // TODO - automatically forcing changes could be dangerous...
+                    // TODO    - fieldtypes aren't guaranteed to be transferrable, and it's trivially easy to lose data if done unexpectedly
+                    // TODO    - a field that is (forced to be) unique but wasn't originally intended to be unique will interfere with edits across the entire datatype
+                    // TODO    - changing the "allow multiple uploads" or "prevent user edits" options will also be irritating if it goes against the user's original intent
+
+                    // TODO - also, lack of versioning and difficulty of reverting amplify any problems encountered
+                    // TODO - ...maybe some kind of problem locator utility?  and/or a modal to list the changes being made
 
                     if ($creating) {
                         $rpf->setCreatedBy($user);
@@ -1230,7 +1240,7 @@ class PluginsController extends ODRCustomController
 
 
     /**
-     * Saves settings changes made to a RenderPlugin for a DataType
+     * Changes the RenderPlugin (or its settings) being used by a Datatype or a Datafield.
      *
      * @param Request $request
      *

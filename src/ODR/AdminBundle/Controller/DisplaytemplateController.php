@@ -2138,6 +2138,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
             $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
 
+            // TODO - how to handle render plugins demanding that datafields must_be_unique, must_not_allow_multiple_uploads, and must_prevent_user_edits?
+            // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
+
             // Keep track of conditions where parts of the datafield shouldn't be changed...
             $ret = $dfi_service->canChangeFieldtype($datafield);
             $prevent_fieldtype_change = $ret['prevent_change'];
