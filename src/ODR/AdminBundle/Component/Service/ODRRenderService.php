@@ -1256,7 +1256,7 @@ class ODRRenderService
         $datarecord_array = array();
         if ( !is_null($datarecord) ) {
             $initial_datarecord_id = $datarecord->getId();
-            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+            $datarecord_array = $this->dri_service->getDatarecordArray($datarecord->getGrandparent()->getId(), $include_links);
         }
 
 
