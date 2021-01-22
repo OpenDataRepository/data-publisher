@@ -528,23 +528,15 @@
 
         // Setup Tabs
         $(".ODRTabAccordion").each(function() {
-            // Hide all content divs except the first
+            // Tabs are stored a level below the tab accordion
             var wrapper_div = $(this);
-            $(wrapper_div).children(".accordion-content").each(function() {
-                $(this).hide();
-            });
-            $(wrapper_div).children(".accordion-content").first().show();
-
-            // For each button that could be clicked...
             var tab_div = $(wrapper_div).children(".ODRTabButtonHeader").first();  // should only be one tab div here
 
-            // Ensure the first button is marked as "active"
-            $(tab_div).children(".ODRTabButton").first().addClass('pure-button-active');
-
-            // Attach click handlers to all the buttons in this tab div
+            // Ensure click handlers are attached to all the buttons in this tab div
             $(tab_div).children(".ODRTabButton").each(function() {
                 $(this).unbind('click').click(function() {
-                    // Ensure this button is marked as "active", while all the others are not
+                    // Ensure the button that just got clicked is marked as "active", while all the
+                    //  other buttons are not
                     $(tab_div).children(".ODRTabButton").removeClass('pure-button-active');
                     $(this).addClass('pure-button-active');
 
@@ -564,6 +556,25 @@
                     onWindowResize();
                 });
             });
+
+            // Check whether a tab was already selected...
+            var prev_selection = false;
+            $(tab_div).children(".ODRTabButton").each(function() {
+                if ( $(this).hasClass('pure-button-active') )
+                    prev_selection = true;
+            });
+
+            // If a tab hasn't already been selected...
+            if (!prev_selection) {
+                // ...ensure the first tab is marked as "active"...
+                $(tab_div).children(".ODRTabButton").first().addClass('pure-button-active');
+
+                // ...and the first content div is the only one visible
+                $(wrapper_div).children(".accordion-content").each(function() {
+                    $(this).hide();
+                });
+                $(wrapper_div).children(".accordion-content").first().show();
+            }
         });
 
         // Setup Dropdown

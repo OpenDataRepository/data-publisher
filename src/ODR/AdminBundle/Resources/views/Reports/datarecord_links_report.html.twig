@@ -18,10 +18,16 @@
             {% for ancestor_id, descendants in linked_datarecords %}
             <tr>
                 <td>
+                    {# Want to display the ancestor datarecord's name, if possible #}
+                    {% set ancestor_name = ancestor_id %}
+                    {% if local_datatype_names[ancestor_id] is defined %}
+                        {% set ancestor_name = local_datatype_names[ancestor_id] %}
+                    {% endif %}
+
                     {% if can_edit_local %}
-                    <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': ancestor_id}) }}">{{ ancestor_id }}</a>
+                    <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': ancestor_id}) }}">{{ ancestor_name }}</a>
                     {% else %}
-                    <a target="_blank" class="address" href="#{{ path('odr_display_view', {'datarecord_id': ancestor_id}) }}">{{ ancestor_id }}</a>
+                    <a target="_blank" class="address" href="#{{ path('odr_display_view', {'datarecord_id': ancestor_id}) }}">{{ ancestor_name }}</a>
                     {% endif %}
                 </td>
                 <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ row_num }}"></i></td>
@@ -39,10 +45,16 @@
     <div class="pure-u-1 ODRDatarecordListHeader">...is linked to these Remote Datarecords</div>
     {% for descendant_id in descendants %}
     <div class="pure-u-1-5">
+        {# Want to display the descendant datarecord's name, if possible #}
+        {% set descendant_name = descendant_id %}
+        {% if remote_datatype_names[descendant_id] is defined %}
+            {% set descendant_name = remote_datatype_names[descendant_id] %}
+        {% endif %}
+
         {% if can_edit_remote %}
-        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': descendant_id}) }}">{{ descendant_id }}</a>
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': descendant_id}) }}">{{ descendant_name }}</a>
         {% else %}
-        <a target="_blank" class="address" href="#{{ path('odr_display_view', {'datarecord_id': descendant_id}) }}">{{ descendant_id }}</a>
+        <a target="_blank" class="address" href="#{{ path('odr_display_view', {'datarecord_id': descendant_id}) }}">{{ descendant_name }}</a>
         {% endif %}
     </div>
     {% endfor %}

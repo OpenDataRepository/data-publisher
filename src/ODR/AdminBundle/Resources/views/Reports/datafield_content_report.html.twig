@@ -10,22 +10,14 @@
     <table id="ODRValuesTable" class="display dataTable">
         <thead>
             <tr>
-            {% if use_external_id_field %}
-                <th>{{ datatype.getexternalidfield.fieldname }}</th>
-            {% else %}
-                <th>Datarecord ID</th>
-            {% endif %}
+                <th>Datarecord</th>
                 <th>Value</th>
             </tr>
         </thead>
         <tbody>
         {% for dr_id,row in content %}
             <tr>
-            {% if use_external_id_field %}
-                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ row.external_id }}</a></td>
-            {% else %}
-                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a></td>
-            {% endif %}
+                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ row.dr_name }}</a></td>
                 <td>{{ row.value }}</td>
             </tr>
         {% endfor %}
