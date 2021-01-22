@@ -41,9 +41,13 @@ class TrackingController extends ODRCustomController
 
     // TODO - move the datafield history stuff from EditController into here?
 
-    // TODO - rig the search system so it works within the modal system, in order to get datarecord criteria
+    // TODO - add another controller action so users can approach from the context of "what changes have been made to this field?"
+    // TODO - in this case, $display_datarecord_metadata would be false, since you don't care about datarecord stuff when looking at a specific field
 
-    // TODO - shortcuts to go to a datarecord's edit page from this list?
+
+    // TODO - rig the search system so it works within the modal system, in order to set datarecord criteria without going back to the search page
+
+    // TODO - shortcuts to go to a datarecord's view/edit page from this list?  need to know the grandparent id...
 
     // TODO - make a tutorial to indicate you can multisort columns?
     // TODO - ...datatables.js can already multisort since the data is in-browser (hold shift when clicking a column)
@@ -113,6 +117,10 @@ class TrackingController extends ODRCustomController
 
 
             // ----------------------------------------
+            // User is approaching this from the context of "what changes were made to this record?"
+            // As such, displaying when datarecords were created/deleted/etc is useful
+            $display_datarecord_metadata = true;
+
             // Default to displaying a month of changes
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
@@ -157,6 +165,7 @@ class TrackingController extends ODRCustomController
 
                         'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
             );
@@ -253,6 +262,10 @@ class TrackingController extends ODRCustomController
 
 
             // ----------------------------------------
+            // User is approaching this from the context of "what changes were made to these records?"
+            // As such, displaying when datarecords were created/deleted/etc is useful
+            $display_datarecord_metadata = true;
+
             // Default to displaying a month of changes
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
@@ -305,6 +318,7 @@ class TrackingController extends ODRCustomController
 
                         'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
             );
@@ -369,6 +383,10 @@ class TrackingController extends ODRCustomController
 
 
             // ----------------------------------------
+            // User is approaching this from the context of "what changes were made to all records in this datatype?"
+            // As such, displaying when datarecords were created/deleted/etc is useful
+            $display_datarecord_metadata = true;
+
             // Default to displaying a month of changes
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
@@ -406,6 +424,7 @@ class TrackingController extends ODRCustomController
 
                         'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
             );
@@ -504,6 +523,10 @@ class TrackingController extends ODRCustomController
 
 
             // ----------------------------------------
+            // User is approaching this from the context of "what changes has this user made?"
+            // As such, displaying when datarecords were created/deleted/etc is useful
+            $display_datarecord_metadata = true;
+
             // Default to displaying a month of changes
             $today = new \DateTime();
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
@@ -519,6 +542,7 @@ class TrackingController extends ODRCustomController
 
                         'today' => $today->format("Y-m-d"),
                         'month_ago' => $month_ago->format("Y-m-d"),
+                        'display_datarecord_metadata' => $display_datarecord_metadata,
                     )
                 )
             );
@@ -557,7 +581,7 @@ class TrackingController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
-            // Always need to have both of these...
+            // Always need to have these...
             if ( !isset($post['start_date']) || !isset($post['end_date']) )
                 throw new ODRBadRequestException();
 
@@ -582,6 +606,11 @@ class TrackingController extends ODRCustomController
             if ($interval->invert === 1)
                 throw new ODRBadRequestException('Start date must be before end date');
 
+
+            // Extract this as well
+            $display_datarecord_metadata = false;
+            if ( isset($post['display_datarecord_metadata']) )
+                $display_datarecord_metadata = true;
 
             // Also need to have at least one of these...
             $target_datarecord_id = null;
@@ -717,6 +746,8 @@ class TrackingController extends ODRCustomController
             $row_count = 0;
 
             // Only perform a search when there's some criteria set...just a date range is unacceptable
+            $no_criteria = true;
+
             $history = array();
             $dr_created_deleted_history = array();
             $names = array();
@@ -725,7 +756,12 @@ class TrackingController extends ODRCustomController
                 || !is_null($target_user_ids) || !is_null($target_datafield_ids)
             ) {
                 // Build an array of all the criteria that got passed in...
+                $no_criteria = false;
                 $criteria = array();
+
+                // Need to save datatype ids so that the datarecord created/deleted/public_status
+                //  changes are found...
+                $datatype_ids = array();
 
                 // Save the date range that contains the changes the user is interested in...
                 if ( !is_null($start) ) {
@@ -754,27 +790,51 @@ class TrackingController extends ODRCustomController
                 if ( !is_null($target_user_ids) )
                     $criteria['target_user_ids'] = $target_user_ids;
 
-
-                // If the calling user is not a super admin...
-                $datatype_ids = array();
-                if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
-                     // ...then they need to be restricted to the datatypes they're allowed to edit
-                    $datatype_ids = $editable_datatypes;
-                }
-                // Also going to need these ids for finding created/deleted datarecords
-                $criteria['datatype_ids'] = $datatype_ids;
-
-
                 // Save which datafields the results shold be filtered by
                 $datafield_ids = array();
                 if ( !is_null($target_datafield_ids) )
                     $datafield_ids = $target_datafield_ids;
-                // If no datafields were specified, then default to all datafields of this datatype
-                //  when possible
-                if ( !is_null($grandparent_datatype) )
-                    $datatype_ids = array($grandparent_datatype->getId());
+
+                if ( !is_null($grandparent_datatype) ) {
+                    // If no datafields were specified, then default to all datafields of this datatype
+                    //  when possible
+                    $datatype_ids = array( $grandparent_datatype->getId() );
+                }
+                else {
+                    // Otherwise, run a query to load which datatypes those datafields belong to
+                    $datatype_ids = self::getDatafieldOwners($em, $datafield_ids);
+                }
 
 
+                // ----------------------------------------
+                // NOTE - When $criteria['datatype_ids'] is empty, then self::getDatarecordChanges()
+                //  won't return anything...the other functions ignore that array entry in favor
+                //  of the array or datafields returned by self::getDatafieldTypeclasses()
+                // ----------------------------------------
+
+                // The user directly controls whether they want to see datarecord created/deleted/etc
+                if ( $display_datarecord_metadata ) {
+                    // If yes, then ensure there's something in $criteria['datatype_ids']
+                    if ( !isset($criteria['datatype_ids']) || empty($criteria['datatype_ids']) ) {
+                        if ( is_null($target_datafield_ids) ) {
+                            // No datafields set, so the user is probably looking for all changes
+                            //  made by a user...should use the list of editable datatypes for that
+                            $criteria['datatype_ids'] = $editable_datatypes;
+                        }
+                        else {
+                            // Otherwise, only interested in the datarecord created/deleted/etc
+                            //  entries that are releated to the rest of the criteria
+                            $criteria['datatype_ids'] = $datatype_ids;
+                        }
+                    }
+                }
+                else {
+                    // If no, then ensure there's nothing in $criteria['datatype_ids']
+                    $criteria['datatype_ids'] = array();
+                }
+
+
+                // ----------------------------------------
                 // Need to locate typeclasses for all datafields being searched on
                 // This function is also where permissions are applied...datafields the user isn't
                 //  allowed to edit are filtered out
@@ -783,14 +843,14 @@ class TrackingController extends ODRCustomController
 
                 // ----------------------------------------
                 // The functions are split apart to be both easier to read and easier on the database
-                // The $history array can't be passed by reference to each of the functions because they
-                //  typically need to filter out senseless or useless data...
+                // The $history array can't be passed by reference to each of the functions because
+                //  they typically need to filter out senseless or useless data...
                 $text_number_changes = self::getTextNumberChanges($em, $datafields_by_typeclass, $criteria, $row_count);
                 $file_image_changes = self::getFileImageChanges($em, $datafields_by_typeclass, $criteria, $row_count);
                 $radio_tag_changes = self::getRadioTagChanges($em, $datafields_by_typeclass, $criteria, $row_count);
 
                 // Also need to get a list of datarecords that were created/deleted under this criteria
-                $dr_created_deleted_history = self::getCreatedDeletedDatarecords($em, $criteria, $row_count);
+                $dr_created_deleted_history = self::getDatarecordChanges($em, $criteria, $row_count);
 
                 // Combine all of the datafield-level changes...
                 $history = self::combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes);
@@ -811,6 +871,7 @@ class TrackingController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_data.html.twig',
                     array(
+                        'no_criteria' => $no_criteria,
                         'history' => $history,
                         'dr_history' => $dr_created_deleted_history,
 
@@ -912,6 +973,40 @@ class TrackingController extends ODRCustomController
         }
 
         return $datafields_by_typeclass;
+    }
+
+
+    /**
+     * Executes a query to find which datatypes the given datafields belong to.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array $datafield_ids
+     *
+     * @return array
+     */
+    private function getDatafieldOwners($em, $datafield_ids)
+    {
+        $query =
+           'SELECT DISTINCT df.data_type_id AS dt_id
+            FROM odr_data_fields df
+            WHERE df.id IN (:datafield_ids)';
+        $params = array(
+            'datafield_ids' => $datafield_ids
+        );
+        $types = array(
+            'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY
+        );
+
+        $conn = $em->getConnection();
+        $results = $conn->executeQuery($query, $params, $types);
+
+        $datatype_ids = array();
+        foreach ($results as $result) {
+            $dt_id = intval($result['dt_id']);
+            $datatype_ids[] = $dt_id;
+        }
+
+        return $datatype_ids;
     }
 
 
@@ -1405,7 +1500,7 @@ class TrackingController extends ODRCustomController
      *
      * @return array
      */
-    private function getCreatedDeletedDatarecords($em, $criteria, &$row_count)
+    private function getDatarecordChanges($em, $criteria, &$row_count)
     {
         $history = array();
 
@@ -1415,7 +1510,7 @@ class TrackingController extends ODRCustomController
                 dr.created AS created, dr.createdBy AS createdBy
             FROM odr_data_record AS dr
             JOIN odr_data_type AS dt ON dr.data_type_id = dt.id
-            WHERE dt.grandparent_id IN (:datatype_ids)';
+            WHERE dt.deletedAt IS NULL AND dt.grandparent_id IN (:datatype_ids)';
         if ( isset($criteria['start_date']) )
             $created_query .= ' AND dr.created BETWEEN :start_date AND :end_date';
         if ( isset($criteria['target_user_ids']) )
@@ -1429,13 +1524,28 @@ class TrackingController extends ODRCustomController
                 dr.deletedAt AS deletedAt, dr.deletedBy AS deletedBy
             FROM odr_data_record dr
             JOIN odr_data_type AS dt ON dr.data_type_id = dt.id
-            WHERE dt.grandparent_id IN (:datatype_ids)';
+            WHERE dt.deletedAt IS NULL AND dt.grandparent_id IN (:datatype_ids)';
         if ( isset($criteria['start_date']) )
             $deleted_query .= ' AND dr.deletedAt BETWEEN :start_date AND :end_date';
         if ( isset($criteria['target_user_ids']) )
             $deleted_query .= ' AND dr.deletedBy IN (:target_user_ids)';
         if ( isset($criteria['grandparent_datarecord_ids']) )
             $deleted_query .= ' AND dr.grandparent_id IN (:grandparent_datarecord_ids)';
+        // ----------------------------------------
+        // ----------------------------------------
+        $public_query =
+           'SELECT dr.data_type_id AS dt_id, dr.id AS dr_id,
+               drm.public_date AS public_date, drm.created AS updated, drm.createdBy AS updatedBy
+            FROM odr_data_record_meta drm
+            JOIN odr_data_record dr ON drm.data_record_id = dr.id
+            JOIN odr_data_type AS dt ON dr.data_type_id = dt.id
+            WHERE dt.deletedAt IS NULL AND dt.grandparent_id IN (:datatype_ids)';
+        if ( isset($criteria['start_date']) )
+            $public_query .= ' AND drm.created BETWEEN :start_date AND :end_date';
+        if ( isset($criteria['target_user_ids']) )
+            $public_query .= ' AND drm.createdBy IN (:target_user_ids)';
+        if ( isset($criteria['grandparent_datarecord_ids']) )
+            $public_query .= ' AND dr.grandparent_id IN (:grandparent_datarecord_ids)';
         // ----------------------------------------
 
         // ----------------------------------------
@@ -1468,10 +1578,11 @@ class TrackingController extends ODRCustomController
         $queries = array(
             'created' => $created_query,
             'deleted' => $deleted_query,
+            'public' => $public_query,
         );
 
         $conn = $em->getConnection();
-        foreach ($queries as $name => $query) {
+        foreach ($queries as $query_type => $query) {
             // Don't execute this query if the previous queries have processed more than the soft
             //  limit placed on rows
             if ( $row_count > self::ROWS_SOFT_LIMIT )
@@ -1488,17 +1599,29 @@ class TrackingController extends ODRCustomController
                 if ( !isset($history[$dt_id][$dr_id]) )
                     $history[$dt_id][$dr_id] = array();
 
-                if ( isset($result['created']) ) {
-                    $history[$dt_id][$dr_id]['created'] = array(
-                        'date' => $result['created'],
-                        'createdBy' => $result['createdBy']
-                    );
-                }
-                else {
-                    $history[$dt_id][$dr_id]['deleted'] = array(
-                        'date' => $result['deletedAt'],
-                        'deletedBy' => $result['deletedBy']
-                    );
+                switch ($query_type) {
+                    case 'created':
+                        $history[$dt_id][$dr_id]['created'] = array(
+                            'date' => $result['created'],
+                            'createdBy' => $result['createdBy']
+                        );
+                        break;
+                    case 'public':
+                        if ( !isset($history[$dt_id][$dr_id]['updated']) )
+                            $history[$dt_id][$dr_id]['updated'] = array();
+
+                        $date = $result['updated'];
+                        $history[$dt_id][$dr_id]['updated'][$date] = array(
+                            'public_date' => $result['public_date'],
+                            'updatedBy' => $result['updatedBy']
+                        );
+                        break;
+                    case 'deleted':
+                        $history[$dt_id][$dr_id]['deleted'] = array(
+                            'date' => $result['deletedAt'],
+                            'deletedBy' => $result['deletedBy']
+                        );
+                        break;
                 }
 
                 // Increment the number of rows that have been processed
@@ -1508,7 +1631,7 @@ class TrackingController extends ODRCustomController
             }
         }
 
-        return $history;
+        return self::filterDatarecordChanges($history);
     }
 
 
@@ -1553,13 +1676,13 @@ class TrackingController extends ODRCustomController
                                 }
                             }
                             else if ($prev_entity['value'] === $data['value']) {
-                                // If the more recent value is identical to its previous value, then pretend
-                                //  the more recent value doesn't exist and get rid of it
+                                // If the more recent value is identical to its previous value, then
+                                //  pretend the more recent value doesn't exist and get rid of it
                                 unset( $history[$dt_id][$dr_id][$df_id][$entity_id][$date] );
                             }
                             else {
-                                // The more recent value is different than the previous value...reset in case
-                                //  there's an even more recent value stored...
+                                // The more recent value is different than the previous value...reset
+                                //  in case there's an even more recent value stored...
                                 $prev_entity = $data;
                             }
                         }
@@ -1598,6 +1721,8 @@ class TrackingController extends ODRCustomController
     private function filterFileImageChanges($history)
     {
         // TODO - filter instances when a file is deleted but replaced by a new file with the same name?
+        // TODO - filter out cases where a file/image was public, then set to non-public, then right back to public? and vice versa
+        // TODO - filter out image rotations?  it's not trivial, since the only link between the old and the new file is the timestamp
 
         // Don't actually have anything to filter out...
         return $history;
@@ -1638,6 +1763,75 @@ class TrackingController extends ODRCustomController
                     // No point preserving the datafield if nothing has ever changed in it
                     if ( empty($history[$dt_id][$dr_id][$df_id]) )
                         unset( $history[$dt_id][$dr_id][$df_id] );
+                }
+
+                // No point preserving the datarecord if nothing has ever changed in it
+                if ( empty($history[$dt_id][$dr_id]) )
+                    unset( $history[$dt_id][$dr_id] );
+            }
+
+            // No point preserving the datatype if nothing has ever changed in it
+            if ( empty($history[$dt_id]) )
+                unset( $history[$dt_id] );
+        }
+
+        return $history;
+    }
+
+
+    /**
+     * Takes a datarecord change array, and filters out initial "non-public" values.
+     *
+     * @param array $history
+     *
+     * @return array
+     */
+    private function filterDatarecordChanges($history)
+    {
+        // Doesn't make any sense for the first public-status entry to say the datarecord is non-public
+        foreach ($history as $dt_id => $dt_data) {
+            foreach ($dt_data as $dr_id => $dr_data) {
+                // If the "updated" entry doesn't exist, then there's nothing to filter
+                if ( !isset($dr_data['updated']) )
+                    continue;
+
+                // Need to keep track of previous "updated" entries
+                $prev_update = null;
+                foreach ($dr_data['updated'] as $date => $data) {
+                    if ( is_null($prev_update) ) {
+                        // First public_status change for this datarecord...
+                        if ( $data['public_date'] === "2200-01-01 00:00:00" ) {
+                            // If the datarecord was created in this time range, then ignore the
+                            //  initial "datarecord is non-public" entry
+                            if ( isset($history[$dt_id][$dr_id]['created'])
+                                && $history[$dt_id][$dr_id]['created']['date'] === $date
+                            ) {
+                                unset( $history[$dt_id][$dr_id]['updated'][$date] );
+                            }
+                            else {
+                                // Otherwise, want to preserve this "datarecord is non-public" entry
+                                $prev_update = $data;
+                            }
+                        }
+                        else {
+                            // Datarecord has been set to public
+                            $prev_update = $data;
+                        }
+                    }
+                    else if ( $prev_update['public_date'] === $data['public_date'] ) {
+                        // If the more recent value is identical to its previous value, then
+                        //  pretend the more recent value doesn't exist and get rid of it
+                        unset( $history[$dt_id][$dr_id]['updated'][$date] );
+                    }
+                    else {
+                        // The more recent value is different than the previous value...reset
+                        //  in case there's an even more recent value stored...
+                        $prev_update = $data;
+                    }
+
+                    // No point preserving the updated entry if nothing has ever changed in it
+                    if ( empty($history[$dt_id][$dr_id]['updated']) )
+                        unset( $history[$dt_id][$dr_id]['updated'] );
                 }
 
                 // No point preserving the datarecord if nothing has ever changed in it
@@ -1789,6 +1983,12 @@ class TrackingController extends ODRCustomController
                 if ( isset($dr_data['deleted']) ) {
                     $deletedBy = $dr_data['deleted']['deletedBy'];
                     $ids['user_ids'][$deletedBy] = 1;
+                }
+                if ( isset($dr_data['updated']) ) {
+                    foreach ($dr_data['updated'] as $date => $data) {
+                        $updatedBy = $data['updatedBy'];
+                        $ids['user_ids'][$updatedBy] = $updatedBy;
+                    }
                 }
             }
         }
