@@ -3621,13 +3621,17 @@ if ($debug)
             $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
-            if ( count($post['searchable']) !== count($df_array) || count($post['public_status']) !== count($df_array) )
-                throw new ODRBadRequestException();
-
             // Ensure that the provided datafields match the datatype
             foreach ($df_array as $df_id => $df) {
-                // Verify that a datafield entry for both of these properties exist...
-                if ( !isset($post['searchable'][$df_id]) || !isset($post['public_status'][$df_id]) )
+                // Verify that all datafields in the post have an entry for public_status...
+                if ( !isset($post['public_status'][$df_id]) )
+                    throw new ODRBadRequestException();
+
+                // ...while all fields other than markdown fields must have a searchable entry
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                if ( $typeclass === 'Markdown' && isset($post['searchable'][$df_id]) )
+                    throw new ODRBadRequestException();
+                else if ( $typeclass !== 'Markdown' && !isset($post['searchable'][$df_id]) )
                     throw new ODRBadRequestException();
 
                 // Verify that the public status is a boolean
@@ -3636,37 +3640,41 @@ if ($debug)
                     throw new ODRBadRequestException();
 
                 // Verify that the searchable status isn't something silly
-                $searchable = $post['searchable'][$df_id];
-                if ( $searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY )
-                    throw new ODRBadRequestException();
+                if ($typeclass === 'Markdown') {
+                    $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
+                }
+                else {
+                    $searchable = $post['searchable'][$df_id];
+                    if ($searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY)
+                        throw new ODRBadRequestException();
 
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                switch ($typeclass) {
-                    case 'DecimalValue':
-                    case 'IntegerValue':
-                    case 'LongText':
-                    case 'LongVarchar':
-                    case 'MediumVarchar':
-                    case 'ShortVarchar':
-                    case 'Radio':
-                    case 'Tag':
-                        // All of these fieldtypes can have any value for searchable
-                        break;
+                    switch ($typeclass) {
+                        case 'DecimalValue':
+                        case 'IntegerValue':
+                        case 'LongText':
+                        case 'LongVarchar':
+                        case 'MediumVarchar':
+                        case 'ShortVarchar':
+                        case 'Radio':
+                        case 'Tag':
+                            // All of these fieldtypes can have any value for searchable
+                            break;
 
-                    case 'Image':
-                    case 'File':
-                    case 'Boolean':
-                    case 'DatetimeValue':
-                        // General search is meaningless for these fieldtypes, so they can only
-                        //  be searched via advanced search
-                        if ($searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH)
-                            $post['searchable'][$df_id] = DataFields::ADVANCED_SEARCH_ONLY;
-                        break;
+                        case 'Image':
+                        case 'File':
+                        case 'Boolean':
+                        case 'DatetimeValue':
+                            // General search is meaningless for these fieldtypes, so they can only
+                            //  be searched via advanced search
+                            if ($searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH)
+                                $post['searchable'][$df_id] = DataFields::ADVANCED_SEARCH_ONLY;
+                            break;
 
-                    default:
-                        // No other fieldtypes can be searched
-                        $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
-                        break;
+                        default:
+                            // No other fieldtypes can be searched
+                            $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
+                            break;
+                    }
                 }
             }
 

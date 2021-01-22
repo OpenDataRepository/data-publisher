@@ -187,14 +187,14 @@
         });
 
         $("#ODRMultiDatafield_all_searchable").unbind('click').click(function () {
-            $(".ODRMultiDatafield_searchable").each(function() {
+            $(".ODRMultiDatafield_searchable").not(':disabled').each(function() {
                 var selection = $(this).children('option:selected').val();
                 if ( selection == 0 )
                     $(this).val(2);
             });
         });
         $("#ODRMultiDatafield_all_nonsearchable").unbind('click').click(function () {
-            $(".ODRMultiDatafield_searchable").each(function() {
+            $(".ODRMultiDatafield_searchable").not(':disabled').each(function() {
                 var selection = $(this).children('option:selected').val();
                 if ( selection != 0 )
                     $(this).val(0);

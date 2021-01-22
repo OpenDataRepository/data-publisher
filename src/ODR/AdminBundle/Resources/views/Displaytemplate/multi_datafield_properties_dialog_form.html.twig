@@ -22,21 +22,18 @@
 
         <fieldset>
             <table class="display dataTable pure-u-1">
-                <thead>
-                <tr>
+                <thead><tr>
                     <th>Datafield Name</th>
                     <th>Fieldtype</th>
                     <th>Public Status</th>
                     <th>Searchable</th>
-                </tr>
-                </thead>
-                <tbody class="">
+                </tr></thead>
+                <tbody>
                 {% for df_id, df in datafields %}
                     {% set datafield_meta = df.dataFieldMeta %}
                     {% set typeclass = datafield_meta.fieldType.typeClass %}
                     {% set searchable = datafield_meta.searchable %}
 
-                    {% if typeclass != "Markdown" %}
                     <tr>
                         <td>
                             <span class="Cursor">{{ datafield_meta.fieldName }}</span>
@@ -62,7 +59,6 @@
                             </select>
                         </td>
                     </tr>
-                    {% endif %}
                 {% endfor %}
                 </tbody>
             </table>
