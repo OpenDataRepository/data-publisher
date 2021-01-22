@@ -6,10 +6,10 @@
             <div class="ODRMarkdownContent">
                 <p>
                     This dialog allows you to select which files you want to download as a zip archive.
-                    The file are currently grouped by which{% if group_by_datafield %} datafield {% else %} datarecord {% endif %}they have been uploaded to.
+                    The files are currently grouped by which{% if group_by_datafield %} datafield {% else %} datarecord {% endif %}they have been uploaded to.
                 </p>
                 <p>
-                    {# can't use <button>...can't seem to prevent it from triggering some kind of form submit #}
+                    {# The <button> element is unusable here...can't seem to prevent it from triggering some kind of form submit #}
                     <a class="pure-button {% if not group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="0">Group by Datarecord</a>
                     <a class="pure-button {% if group_by_datafield %}pure-button-primary{% endif %} ODRToggleFileGrouping" rel="1">Group by Datafield</a>
                 </p>
@@ -44,6 +44,9 @@
             var grandparent_datarecord_id = '{{ grandparent_datarecord_id }}';
             var group_by_datafield = $(this).attr('rel');
 
+            // Could take awhile to reload/reformat the list, so show the loading spinner
+            $(".ODRRemodalBody").hide();
+            $(".ODRRemodalLoading").show();
             loadFileData(grandparent_datarecord_id, group_by_datafield);
         });
     });

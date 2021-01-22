@@ -95,6 +95,8 @@
                     $("#ODRPublicRecord").html('Make Record Public');
                 else
                     $("#ODRPublicRecord").html('Make Record Non-Public');
+
+                $.jGrowl('SAVED');
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
