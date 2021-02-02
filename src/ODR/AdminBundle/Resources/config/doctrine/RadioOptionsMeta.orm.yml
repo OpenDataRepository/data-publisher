@@ -4,6 +4,7 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+
     fields:
         id:
             id: true
@@ -56,6 +57,8 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
         radiooptionsmeta_fulltext:
             columns: ["option_name"]
             flags: fulltext
+        is_default_index:
+            columns: [ is_default ]
 
     manyToOne:
         radioOption:

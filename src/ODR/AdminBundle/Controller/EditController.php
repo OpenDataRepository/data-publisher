@@ -98,7 +98,7 @@ class EditController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        // TODO - ...does this even get used anymore, since FakeEdit was introduced?
+        // NOTE - this seems to only be used for directly creating a new metadata record
 
         try {
             // Get Entity Manager and setup repo
@@ -166,7 +166,6 @@ class EditController extends ODRCustomController
 
             $em->persist($datarecord);
             $em->flush();
-
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),

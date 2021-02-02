@@ -444,6 +444,10 @@ class EntityDeletionService
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
             }
 
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $this->cache_service->delete('default_radio_options');
+
             // Mark this datatype as updated
             $this->dti_service->updateDatatypeCacheEntry($datatype, $user);
 
@@ -1117,6 +1121,10 @@ class EntityDeletionService
             $this->cache_service->delete('top_level_datatypes');
             $this->cache_service->delete('top_level_themes');
             $this->cache_service->delete('cached_datatree_array');
+
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $this->cache_service->delete('default_radio_options');
 
 
             // ----------------------------------------

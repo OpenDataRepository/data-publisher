@@ -188,6 +188,12 @@ class FakeEditController extends ODRCustomController
                 throw new ODRBadRequestException();
             }
 
+            // Submission of a fake top-level may need to be handled differently than a submission
+            //  via the inline link system...
+            $inline_link = false;
+            if ( isset($post['inline_link']) )
+                $inline_link = true;
+
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -350,8 +356,25 @@ class FakeEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Now that all the post data makes sense, time to create some entities
-            $new_datarecord = $ec_service->createDatarecord($user, $datatype);    // creation of storage entities makes delaying flush here pointless
+            // When a fake top-level record is submitted, then the user was originally given a page
+            //  that had the default radio options already selected...and they had the opportunity
+            //  to change them.  These potential changes shouldn't be overwritten.
+            $create_default_radio_options = false;
+            if ($inline_link) {
+                // ...however, if the fake record was submitted via the inline linking system, then
+                //  the radio datafields were disabled (because there's no way to display search
+                //  results)...therefore, the default radio options should be selected.
+                $create_default_radio_options = true;
+            }
+
+            // Now that all the post data makes sense, it's time to create some entities
+            $new_datarecord = $ec_service->createDatarecord(
+                $user,
+                $datatype,
+                false,   // Delaying flush here is pointless, due to creation of storage entities below
+                $create_default_radio_options
+            );
+
             $new_datarecord->setProvisioned(false);
             $em->persist($new_datarecord);
 

@@ -455,7 +455,7 @@ class PermissionsManagementService
     /**
      * Returns whether the given user can change the public status of the given Datarecord.  This
      * doesn't cover the ability to change public status of files/images/radio options/tags...those
-     * would be better handled by a new Datafield-level permission.
+     * are still controlled by the can_edit_datafield permission.
      * If the user has this permission, it's implied they can edit the Datarecord.
      *
      * Users with this permission are able to...

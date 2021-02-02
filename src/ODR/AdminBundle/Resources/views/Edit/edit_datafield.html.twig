@@ -289,7 +289,9 @@
                 <div class="ODRRadioOptionsEdit">
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
-                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                    {% if datarecord_is_fake and radio_option.radioOptionMeta.isDefault %}
+                        {% set is_selected = 1 %}
+                    {% elseif datarecordfield.radioSelection[ radio_option.id ] is defined %}
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
@@ -367,11 +369,18 @@
 
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
-                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                    {% if datarecord_is_fake and radio_option.radioOptionMeta.isDefault %}
+                        {% set is_selected = 1 %}
+                    {% elseif datarecordfield.radioSelection[ radio_option.id ] is defined %}
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
-                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}" {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}>{{ radio_option.radioOptionMeta.optionName }}</option>
+                    <option id="Option_{{ radio_option.id }}"
+                            value="{{ radio_option.id}}"
+                            {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}
+                    >
+                        {{ radio_option.radioOptionMeta.optionName }}
+                    </option>
                 {% endfor %}
             {% endif %}
             </select>

@@ -28,6 +28,7 @@ use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -2071,6 +2072,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatafieldInfoService $dfi_service */
             $dfi_service = $this->container->get('odr.datafield_info_service');
             /** @var DatatypeInfoService $dti_service */
@@ -2368,6 +2371,44 @@ class DisplaytemplateController extends ODRCustomController
                             // These properties are only used by tags
                             $submitted_data->setTagsAllowMultipleLevels(false);
                             $submitted_data->setTagsAllowNonAdminEdit(false);
+                        }
+
+                        if ($old_fieldtype_typeclass === 'Radio') {
+                            // If the field is no longer a radio field, then delete the cache entry
+                            //  that stores the default radio options...just in case
+                            $cache_service->delete('default_radio_options');
+                        }
+                    }
+
+                    // If the field got changed from Multiple Radio/Select to Single Radio/Select,
+                    //  then ensure the "isDefault" property is only selected for one radio option
+                    if ( ($old_fieldtype_typename == 'Multiple Radio' || $old_fieldtype_typename == 'Multiple Select')
+                        && ($new_fieldtype_typename == 'Single Radio' || $new_fieldtype_typename == 'Single Select')
+                    ) {
+                        $query = $em->createQuery(
+                           'SELECT ro
+                            FROM ODRAdminBundle:RadioOptionsMeta rom
+                            JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
+                            WHERE ro.dataField = :datafield_id AND rom.isDefault = 1
+                            AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+                            ORDER BY rom.displayOrder'
+                        )->setParameters( array('datafield_id' => $datafield->getId()) );
+                        $results = $query->getResult();
+
+                        $count = 0;
+                        foreach ($results as $ro) {
+                            /** @var RadioOptions $ro */
+                            $count++;
+
+                            // Ignore the first default radio option
+                            if ($count == 1)
+                                continue;
+
+                            // Otherwise, mark the radio option as "not default
+                            $props = array(
+                                'isDefault' => false
+                            );
+                            $emm_service->updateRadioOptionsMeta($user, $ro, $props, true);    // don't flush immediately
                         }
                     }
 

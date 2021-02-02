@@ -42,6 +42,7 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\AdminBundle\Component\Utility\UserUtility;
 use FOS\UserBundle\Doctrine\UserManager;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -49,8 +50,7 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-// Utility
-use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -1766,8 +1766,9 @@ class DatatypeController extends ODRCustomController
                     // the user edit their metadata template first as it is the last thing set to $datatype above.
                     // Perhaps this should be more explicitly chosen.
                     // TODO - This is not good.  A long copy above may not be finished by the time the time the user arrives at design system.
-                    $url = $this->generateUrl('odr_design_master_theme', array('datatype_id' => $datatype->getId()), false);
-                    $return['d']['redirect_url'] = $url;
+                    $baseurl = $this->generateUrl('odr_search', array('search_slug' => $datatype->getUniqueId()), UrlGeneratorInterface::ABSOLUTE_URL);
+                    $url = $this->generateUrl('odr_design_master_theme', array('datatype_id' => $datatype->getId()));
+                    $return['d']['redirect_url'] = $baseurl.'#'.$url;
                 }
                 else {
                     // Return any errors encountered
