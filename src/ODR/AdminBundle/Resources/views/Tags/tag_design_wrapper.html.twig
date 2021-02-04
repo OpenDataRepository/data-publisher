@@ -10,20 +10,27 @@
         <button class="ODRTagCreationMode pure-button">Import tags</button>
     </div>
 
+    <input type="hidden" id="tag_order_hash" value="" />
+
     <div id="odr_tag_design" class="ODRTagWrapper_design pure-form">
         {# this form is for tag displayOrder and setting parent/child relationships #}
         <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
 
-        {% if allow_multiple_levels == false and sort_by_name == true %}
-            {# Don't display help message if only a single level of tags is permitted, and they're sorted by name #}
-        {% else %}
         <div class="ODRThemeElement">
-            <div id="ODRTagMoveHelpDiv">
+            {% if allow_multiple_levels == true or sort_by_name == false %}
+            <div class="ODRTagMoveHelpDiv">
                 To move a tag, click on the <i class="fa fa-arrows Cursor"></i> icon, then press the arrow keys to change the position of the selected tag.
-                <br>To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving. {% if sort_by_name == true %}After saving, the system will automatically update the tags to be in alphabetical order.{% endif %}
             </div>
+            {% endif %}
+            <div class="ODRTagMoveHelpDiv">
+                To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving.
+            </div>
+            {% if sort_by_name == true %}
+            <div class="ODRTagMoveHelpDiv">
+                After saving, the system will automatically update the tags to be in alphabetical order.
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
 
         <div class="ODRThemeElement" style="margin-top: 15px;">
             {# this form is for renaming tags #}
@@ -144,7 +151,7 @@
                 $("#odr_tag_design").hide();
                 $("#odr_tag_import").show();
 
-                $(".ODRTagCreationMode").html("Design tags");
+                $(".ODRTagCreationMode").html("Stop importing tags");
                 $(".ODRAddTag").html("Validate tag list");
 
                 resetRemodalInnerHeight();
@@ -173,6 +180,10 @@
      * Initializes the tag modal.
      */
     function initTags() {
+        // Save the current tag order for later use
+        var current_tag_order = getTagOrderHash();
+        $("#tag_order_hash").val(current_tag_order);
+
         $(".ODRTagAnchor").unbind('click').click(function(event) {
             // Don't want #odr_tag_design_modal click event to fire
             event.stopPropagation();
@@ -212,7 +223,7 @@
             DeleteTag(tag_id);
         });
 
-        $(".ODRTagLabel").click(function(event) {
+        $(".ODRTagLabel").unbind('click').click(function(event) {
             // Don't want #odr_tag_design_modal click event to fire
             event.stopPropagation();
             clearTagHighlights();
@@ -233,14 +244,48 @@
     var reordering_tags = false;
 
     /**
+     * clearTagHighlights() is called a lot as the user clicks around the tag form, but don't want
+     * it to keep calling SaveTagPosition() (and therefore repeatedly reloading chunks of the page)
+     * when nothing has actually changed...
+     *
+     * @returns {string}
+     */
+    function getTagOrderHash() {
+        var str = '';
+        $("#ODRTagForm").find(".ODRTagItem").each(function() {
+            // Need to know both the tag's id and how deep it is
+            var tag_id = $(this).attr('rel');
+            var tag_level = $(this).parents(".ODRTagItem").length;
+
+            if (str === '')
+                str = tag_level + ":" + tag_id;
+            else
+                str += ',' + tag_level + ":" + tag_id;
+        });
+
+        return $.md5(str);
+    }
+
+    /**
      * Removes the border highlights around tags in the modal so users can tell where a tag is
      * going to get moved to.
      */
     function clearTagHighlights() {
+
+        var prev_tag_order = $("#tag_order_hash").val();
+        var current_tag_order = getTagOrderHash();
+
         reordering_tags = false;
         $(".ODRTagHighlight").each(function() {
             $(this).removeClass('ODRTagHighlight');
-            SaveTagPosition( $(this) );
+
+            // Only save tag positions when the order has changed
+            if (prev_tag_order !== current_tag_order) {
+                prev_tag_order = current_tag_order;
+                $("#tag_order_hash").val(current_tag_order);
+
+                SaveTagPosition( $(this) );
+            }
         });
         $(".ODRNeighborTag").each(function() {
             $(this).removeClass('ODRNeighborTag');
@@ -394,7 +439,7 @@
         var tag_name = $("#ODRTag_" + tag_id + "_name").val().trim();
         var old_tag_name = $("#ODRTag_" + tag_id + "_name").data('old-value');
 
-        // Silently ignore attempts to save the same value
+        // Silently ignore attempts to save unchanged values
         if ( old_tag_name === tag_name )
             return;
 
@@ -612,7 +657,6 @@
      * @param {HTMLElement} item
      */
     function SaveTagPosition(item) {
-
         // Remove any pre-existing input elements added by this function
         $(".ODRTagPositionForm_input").remove();
 

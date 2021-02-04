@@ -3961,10 +3961,10 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     white-space: nowrap;
 }
 
-#ODRTagMoveHelpDiv {
+.ODRTagMoveHelpDiv {
     margin-left: 25px;
     /*vertical-align: middle;*/
-    padding-top: 10px;
+    /*padding-top: 10px;*/
 }
 
 .ODRSearchToggle {

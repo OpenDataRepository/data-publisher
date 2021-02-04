@@ -188,6 +188,7 @@ class SearchSidebarService
 
         // ----------------------------------------
         // Load the details for all of the users
+        // TODO - should this be changed to also include deleted users?
         /** @var ODRUser[] $all_users */
         $all_users = $this->user_manager->findUsers();
 
