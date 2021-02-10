@@ -919,6 +919,7 @@ class DisplaytemplateController extends ODRCustomController
             self::persistObject($em, $new_tdf, $user, true);    // Don't flush immediately...
 
 
+            // TODO - can't copy fields with render plugins?  why was that again?
             if ($add_to_linked_datatype) {
                 // When copying to a linked datatype...at this point there's a ThemeDatafield entry
                 //  in the local datatype's copy of the linked datatype's theme.  The new datafield
@@ -927,7 +928,7 @@ class DisplaytemplateController extends ODRCustomController
                 $theme_data = $theme_service->getThemeArray($source_theme->getId());
 
                 // Might as well ensure the copied datafield appears immediately after its source
-                //  datafield in the linked datatype's theme...
+                //  datafield in the linked datatype's master theme...
                 foreach ($theme_data[$source_theme->getId()]['themeElements'] as $te_num => $te) {
                     if ( isset($te['themeDataFields']) ) {
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
@@ -2022,7 +2023,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     private function getSortfieldDatatypes($datatype)
     {
-        /** @var DatatreeInfoService $$dti_service */
+        /** @var DatatreeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatree_info_service');
 
         // Locate the ids of all datatypes that the given parent datatype links to

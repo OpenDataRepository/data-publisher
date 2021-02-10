@@ -415,7 +415,7 @@ class DatarecordInfoService
             $dr_id = $dr['id'];
 
             // Flatten datarecord_meta
-            if ( count($dr['dataRecordMeta']) == 0 ) {
+            if ( count($dr['dataRecordMeta']) !== 1 ) {
                 // ...throwing an exception here because this shouldn't ever happen, and also requires
                 //  manual intervention to fix...
                 throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datarecord '.$dr_id);
@@ -501,7 +501,7 @@ class DatarecordInfoService
                 }
                 $df_id = $drf['dataField']['id'];
 
-                if ( count($drf['dataField']['dataFieldMeta']) == 0 ) {
+                if ( count($drf['dataField']['dataFieldMeta']) !== 1 ) {
                     // ...throwing an exception here because this shouldn't ever happen, and also
                     //  requires manual intervention to fix...
                     throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datafield '.$df_id);
@@ -521,7 +521,7 @@ class DatarecordInfoService
                 foreach ($drf['file'] as $file_num => $file) {
                     unset( $drf['file'][$file_num]['encrypt_key'] );
 
-                    if ( count($file['fileMeta']) == 0 ) {
+                    if ( count($file['fileMeta']) !== 1 ) {
                         // ...throwing an exception here because this shouldn't ever happen, and also
                         //  requires manual intervention to fix...
                         throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for file '.$file['id']);
@@ -543,7 +543,7 @@ class DatarecordInfoService
 
                     unset( $image['imageMeta'] );   // This is a phantom meta entry created for this image's thumbnail
 
-                    if ( count($image['parent']['imageMeta']) == 0 ) {
+                    if ( count($image['parent']['imageMeta']) !== 1 ) {
                         // ...throwing an exception here because this shouldn't ever happen, and also
                         //  requires manual intervention to fix...
                         throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for image '.$image['parent']['id']);

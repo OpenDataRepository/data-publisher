@@ -1067,6 +1067,12 @@ class DatatypeController extends ODRCustomController
             )->setParameters(array('datatypes' => $top_level_datatypes));
             $master_templates = $query->getArrayResult();
 
+            // Sort the templates by name
+            usort($master_templates, function($a, $b) {    // Don't need to preserve array keys
+                $a_name = $a['dataTypeMeta'][0]['shortName'];
+                $b_name = $b['dataTypeMeta'][0]['shortName'];
+                return strnatcasecmp($a_name, $b_name);
+            });
 
             // Render and return the html
             $templating = $this->get('templating');
@@ -1823,6 +1829,8 @@ class DatatypeController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
 
@@ -1859,10 +1867,6 @@ class DatatypeController extends ODRCustomController
             // Need to flush so createGroupsForDatatype() works
             $em->flush();
 
-            // Delete the cached version of the datatree array and the list of top-level datatypes
-            $cache_service->delete('cached_datatree_array');
-            $cache_service->delete('top_level_datatypes');
-            $cache_service->delete('top_level_themes');
 
             // Create the groups for the new datatype here so the datatype can be viewed
             $ec_service->createGroupsForDatatype($admin, $new_metadata_datatype);
@@ -1891,6 +1895,15 @@ class DatatypeController extends ODRCustomController
             $em->persist($new_metadata_datatype);
 
             $em->flush();
+
+            // Mark the datatype that just got a metadata datatype as updated
+            $dti_service->updateDatatypeCacheEntry($datatype, $admin);
+
+            // Delete the cached version of the datatree array and the list of top-level datatypes
+            $cache_service->delete('cached_datatree_array');
+            $cache_service->delete('top_level_datatypes');
+            $cache_service->delete('top_level_themes');
+
         }
         catch (\Exception $e) {
             $source = 0x40a08257;

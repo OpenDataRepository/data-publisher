@@ -257,47 +257,55 @@
         $(".import_checkbox").unbind('change').change(function () {
             var column_id = $(this).attr('rel');
 
-            if ($(this).is(':checked')) {
-                // Checkbox is now checked...enable other controls for this column of the CSV file
-                $("#column_" + column_id).prop('disabled', false);
-                $("#column_" + column_id + "_unique").prop('disabled', false);
+            var unique_checkbox = $("#column_" + column_id + "_unique");
+            var datafield_selector = $("#column_" + column_id);
+            var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
+            var secondary_delimiter_select = $("#column_" + column_id + "_select");
+            var secondary_delimiter_input = $("#column_" + column_id + "_delimiter");
+            var hierarchy_delimiter_select = $("#column_" + column_id + "_hierarchy_select");
+            var hierarchy_delimiter_input = $("#column_" + column_id + "_hierarchy_delimiter");
 
-                if ($("#column_" + column_id).val() === "new")
-                    $("#column_" + column_id + "_fieldtype").prop('disabled', false);
+            if ( $(this).is(':checked') ) {
+                // Checkbox is now checked...enable other controls for this column of the CSV file
+                $(datafield_selector).prop('disabled', false);
+                $(unique_checkbox).prop('disabled', false);
+
+                if ( $(datafield_selector).val() === "new" )
+                    $(fieldtype_selector).prop('disabled', false);
 
                 // Force the rest of the items on the page to update
-                $("#column_" + column_id + "_fieldtype").trigger('change');
+                $(fieldtype_selector).trigger('change');
             }
             else {
                 // Checkbox is now unchecked...reset and disable the controls for this column...
 
                 // ...the unique requirement column
-                $("#column_" + column_id + "_unique").prop('disabled', true);
-                $("#column_" + column_id + "_unique").parent().find('.csvimport_inline_warning').hide();
-                if ($("#column_" + column_id + "_unique").is(':checked'))
-                    $("#column_" + column_id + "_unique").prop('checked', false);
+                $(unique_checkbox).prop('disabled', true);
+                $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
+                if ( $(unique_checkbox).is(':checked') )
+                    $(unique_checkbox).prop('checked', false);
 
                 // ...and the datafield mapping
-                $("#column_" + column_id).children().first().prop('selected', true);
-                $("#column_" + column_id).prop('disabled', true);
+                $(datafield_selector).children().first().prop('selected', true);
+                $(datafield_selector).prop('disabled', true);
 
                 // ...and the fieldtype mapping column
-                $("#column_" + column_id + "_fieldtype").children().first().prop('selected', true);
-                $("#column_" + column_id + "_fieldtype").prop('disabled', true);
+                $(fieldtype_selector).children().first().prop('selected', true);
+                $(fieldtype_selector).prop('disabled', true);
 
                 // ...and the secondary delimiter column
-                $("#column_" + column_id + "_delimiter").prop('disabled', true);
-                $("#column_" + column_id + "_select").children().first().prop('selected', true);
-                $("#column_" + column_id + "_select").prop('disabled', true);
+                $(secondary_delimiter_input).prop('disabled', true);
+                $(secondary_delimiter_select).children().first().prop('selected', true);
+                $(secondary_delimiter_select).prop('disabled', true);
 
                 // ...and the hierarchy delimiter column
-                $("#column_" + column_id + "_hierarchy_delimiter").prop('disabled', true);
-                $("#column_" + column_id + "_hierarchy_select").children().first().prop('selected', true);
-                $("#column_" + column_id + "_hierarchy_select").prop('disabled', true);
+                $(hierarchy_delimiter_input).prop('disabled', true);
+                $(hierarchy_delimiter_select).children().first().prop('selected', true);
+                $(hierarchy_delimiter_select).prop('disabled', true);
 
                 // Reset/disable all other warnings
                 updateHiddenFields();
-                $("#column_" + column_id + "_fieldtype").trigger('change');
+                $(fieldtype_selector).trigger('change');
             }
 
             if (block_changes)
@@ -319,13 +327,15 @@
             var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
 
             // Provide the option to select a fieldtype if the user wants a new datafield
+            var is_disabled = $(this).is(':disabled');
             var df_id = $(this).val();
-            if (df_id === 'new') {
+            if ( !is_disabled && df_id === 'new') {
                 $(fieldtype_selector).prop('disabled', false);
             }
             else {
                 var fieldtype_id = $(this).children('option:selected').attr('rel');
-                $(fieldtype_selector).val(fieldtype_id);
+                if (fieldtype_id !== undefined && fieldtype_id !== 'new')
+                    $(fieldtype_selector).val(fieldtype_id);
                 $(fieldtype_selector).prop('disabled', true);
             }
 
@@ -482,12 +492,24 @@
 {% endif %} {# if not linked_importing #}
     });
 
+    /**
+     * Disables the "Start Import" button when changes have been made that require revalidation of
+     * the data.
+     */
     function preventImport() {
         var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
         $("#import_button").removeAttr('onclick').prop('disabled', true).attr('title', change_block_str);
     }
 
 {% if not linked_importing %}
+    /**
+     * Updates visiblity of the delimiter inputs depending on which fieldtype is currently selected
+     * for the given column.
+     *
+     * @param {string} typename
+     * @param {string} column_id
+     * @param {string} df_id
+     */
     function setDelimiters(typename, column_id, df_id) {
         var delimiter_select = $("#column_" + column_id + "_select");
         var delimiter_field = $("#column_" + column_id + "_delimiter");
@@ -549,6 +571,10 @@
         }
     }
 
+    /**
+     * Creates and displays warninngs to the user about delimiters...such as the delimiter meant
+     * for a File/Image field can't be the same as the primary CSV delimiter.
+     */
     function updateDelimiterWarnings() {
 
         var csv_delimiter = "{{ csv_delimiter }}";
@@ -602,16 +628,25 @@
         });
     }
 
+    /**
+     * Creates and displays relevant warnings about importing into specific fieldtypes...such as
+     * Short/Medium/LongVarchar fields have character limits, or overwriting existing files/images.
+     *
+     * @param {number} column_id
+     * @param {array} allowed_fieldtypes
+     */
     function updateDatafieldMeta(column_id, allowed_fieldtypes) {
-        var datafield_id = $("#column_" + column_id).val();
+        var datafield_selector = $("#column_" + column_id);
+        var datafield_id = $(datafield_selector).val();
+
         var fieldtype_id = $("#column_" + column_id + "_fieldtype").val();
-        var meta_column = "#column_" + column_id + "_length_warning";
+        var meta_column = $("#column_" + column_id + "_length_warning");
         var column_length = $("#column_" + column_id + "_length").val();
         column_length = parseInt(column_length);
 
         // Display some metadata about the selected fieldtype if needed
         var typename = allowed_fieldtypes[fieldtype_id];
-        if ( !$("#column_" + column_id).is(':enabled') ) {
+        if ( !$(datafield_selector).is(':enabled') ) {
             $(meta_column).html('');
         }
         else if ((typename === 'File' || typename === 'Image') && datafield_id !== 'new') {
@@ -647,6 +682,10 @@
         }
     }
 
+    /**
+     * When an existing datafield is mapped to a column of the CSV file, it needs to be not be
+     * displayed as "available to map" to a different column.
+     */
     function updateHiddenFields() {
         // Need to build a list of which datafields are currently mapped to a column
         var selected_fields = [];
@@ -677,56 +716,73 @@
         });
     }
 
-    function setUniqueWarnings(column_id, unique_datafields) {
-        // Check if the "require unique" datafield is already checked
+    /**
+     * Updates the status of the "Require Unique Values?" checkbox based on the other form elements.
+     *
+     * @param {string} column_id
+     * @param {array} unique_datafields
+     * @param {array} unique_fieldtypes
+     */
+    function setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes) {
+        var import_checkbox = $("#import_checkbox_" + column_id);
+        var unique_checkbox = $("#column_" + column_id + "_unique");
+        var datafield_selector = $("#column_" + column_id);
+        var fieldtype_selector = $("#column_" + column_id + "_fieldtype")
+
+        // Determine whether the "require unique" datafield is already checked
         var is_checked = false;
-        if ($("#column_" + column_id + "_unique").is(":checked"))
+        if ( $(unique_checkbox).is(":checked") )
             is_checked = true;
 
-        // Check if the datafield is marked as unique
+        // Determine whether the column is being imported
+        var is_being_imported = false;
+        if ( $(import_checkbox).is(':checked') )
+            is_being_imported = true;
+
+        // Determine whether the datafield is marked as unique
         var is_unique = false;
-        if ($("#import_checkbox_" + column_id).is(':checked')) {
-            var df_id = $("#column_" + column_id).children('option:selected').val();
+        if ( $(import_checkbox).is(':checked') ) {
+            var df_id = $(datafield_selector).children('option:selected').val();
             if (unique_datafields.indexOf(df_id) != -1)
                 is_unique = true;
         }
 
-        // Check if the fieldtype is allowed to be unique
+        // Determine whether the fieldtype is allowed to be unique
         var prevent_unique_checkbox = false;
-        if ($("#import_checkbox_" + column_id).is(':checked')) {
-            var ft_id = $("#column_" + column_id + "_fieldtype").children('option:selected').val();
+        if ( $(import_checkbox).is(':checked') ) {
+            var ft_id = $(fieldtype_selector).children('option:selected').val();
             if (unique_fieldtypes.indexOf(ft_id) == -1)
                 prevent_unique_checkbox = true;
         }
 
-        var unique_checkbox = "#column_" + column_id + "_unique";
-        if (prevent_unique_checkbox) {
-            // Fieldtype is not allowed to be unique...ensure "require unique" is unchecked
+        if ( !is_being_imported || prevent_unique_checkbox ) {
+            // Column is not being imported, or fieldtype is not allowed to be unique
+            // Ensure the "require unique" checkbox is unchecked
             if (is_checked) {
                 $(unique_checkbox).prop('checked', false);
                 $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
             }
 
-            // Disable checkbox so it can't be checked
+            // Disable the "require unique" checkbox so it can't be checked
             $(unique_checkbox).prop('disabled', true);
         }
         else if (is_unique) {
-            // Datafield is marked as unique, ensure "require unique" is checked
+            // Datafield is marked as unique, ensure the "require unique" checkbox is unchecked
             if (!is_checked) {
                 $(unique_checkbox).prop('checked', true);
                 $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
             }
 
-            // Disable checkbox so it can't be unchecked
+            // Disable the "require unique" checkbox so it can't be unchecked
             $(unique_checkbox).prop('disabled', true);
         }
         else {
-            if ($(unique_checkbox).prop('disabled')) {
-                // checkbox was disabled...enable it
+            if ( $(unique_checkbox).prop('disabled') ) {
+                // the "require unique" checkbox was disabled...enable it
                 $(unique_checkbox).prop('disabled', false);
             }
             else {
-                // checkbox was already enabled
+                // the "require unique" checkbox was already enabled
                 if (is_checked)
                     $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
                 else
@@ -735,6 +791,9 @@
         }
     }
 
+    /**
+     * Utility function to select all columns listed in the CSV file, marking them for import.
+     */
     function selectAllFields() {
         $(".import_checkbox").each(function () {
             if (!$(this).is(':checked')) {
@@ -743,6 +802,9 @@
         });
     }
 
+    /**
+     * Utility function to deselect all columns listed in the CSV file, preventing their import.
+     */
     function deselectAllFields() {
         $(".import_checkbox").each(function () {
             if ($(this).is(':checked')) {
@@ -753,6 +815,9 @@
 
     {% endif %} {# if not linked_importing #}
 
+    /**
+     * Performs some final validation on the form before starting the server-side CSV Validation.
+     */
     function validateImport() {
 
     {% if parent_datatype == null %}
@@ -875,6 +940,12 @@
             dataType: 'json',
             data: import_data,
             success: function (data) {
+                // These three need to be hidden when the user changes something after a previous
+                //  validation run
+                $(".ODRCSVImportHeader").hide();
+                $("#ODRCSVImport_cancel").hide();
+                $('#csvUploadForm').hide();
+
                 // Replace this with loading message/checker directly
                 $('#CSVImportLayoutForm').hide();
                 $('.ODRValidationSystem').hide();

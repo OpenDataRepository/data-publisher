@@ -183,7 +183,6 @@
     {% else %}
     var isMasterType = 0;
     {% endif %}
-    var SelectedElement = null;
     var SaveTimeout = 1500;
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
@@ -344,9 +343,6 @@
     function setupElement(elem, element_type) {
         if (element_type === undefined)
             return;
-
-        // Store the previous element for opacity switching
-        SelectedElement = $(elem);    // TODO - this looks like it's unused...
 
         // Fade out all elements other than this one....
         var actual_parent = null;

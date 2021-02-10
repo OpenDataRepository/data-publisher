@@ -126,7 +126,7 @@
     });
 
     /**
-     * Updates the href property of the Dashboard "button" to point to the correct landing page
+     * Updates the href property of the Dashboard "button" to point to the correct landing page.
      */
     function updateDashboardLink() {
         // Extract unique id
@@ -171,6 +171,11 @@
         });
     }
 
+    /**
+     * Creates a notification popup from the given error response.
+     *
+     * @param {object} response
+     */
     function createJGrowlError(response) {
         var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
         error_text += '<div class="ODRNotificationText">' + response.error.message + '</div>';
@@ -186,6 +191,9 @@
         );
     }
 
+    /**
+     * Redirects an anonymous user to ODR's login page.
+     */
     function ODRLogin() {
         // Extract the current base url
         var baseurl = window.location.href;
@@ -220,12 +228,21 @@
         });
     }
 
+    /**
+     * Forces a complete AJAX reload of the current page.
+     */
     function reloadPage() {
         // TODO - should check if URL has hash value...
         var url = window.location.hash.substr(1);
         LoadContentFullAjax( url );
     }
 
+    /**
+     * Updates the URL hash so ODR loads content to insert into the page.
+     * i.e  going from https://odr.io/admin to https://odr.io/admin#/admin/type/list/databases
+     *
+     * @param {string} url
+     */
     function UpdateURL(url) {
         // Update the URL and hash
         var current_hash = window.location.hash.substr(1);
@@ -243,6 +260,14 @@
 
     var xhr = null;
     var timer = null;
+
+    /**
+     * Replaces all content on the page based off the given url.
+     * i.e.  going from https://odr.io/admin to https://odr.io/chemin
+     *
+     * @param {string} url
+     * @param {boolean} [use_fade]
+     */
     function LoadContentFullAjax(url, use_fade) {
         if (timer)
             window.clearTimeout(timer);
@@ -311,12 +336,22 @@
         });
     }
 
-
+    /**
+     * Hides the search sidebar so that users can't see or expand it.
+     */
     function disableSearchSidebar() {
         $("#ODRSearchContent").addClass("ODRSearchResultsWide");
         $("#ODRSearchSidebar").addClass("ODRHidden");
     }
 
+    /**
+     * Ensures the search sidebar is available and that it's displaying the search layout for the
+     * given search key.
+     *
+     * @param {string} [search_key]
+     * @param {boolean} [force_visible]
+     * @param {string} [intent]
+     */
     function enableSearchSidebar(search_key, force_visible, intent) {
         // Ensure the sidebar is up to date first...
         if (intent === undefined || intent === null)
@@ -325,6 +360,13 @@
         updateSearchSidebar(search_key, force_visible, intent);
     }
 
+    /**
+     * Reloads and reinitializes the content of the search sidebar.
+     *
+     * @param {string} [search_key]
+     * @param {boolean} [force_visible]
+     * @param {string} [intent]
+     */
     function updateSearchSidebar(search_key, force_visible, intent) {
         var force_rebuild = false;
         if ( $("#ODRSidebarSearchKey").val() !== search_key || $("#ODRSearchSidebar").html() === '' )
@@ -381,6 +423,11 @@
         }
     }
 
+    /**
+     * TODO
+     *
+     * @param {boolean} [force_visible]
+     */
     function setSidebarToggle(force_visible) {
         var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
@@ -408,6 +455,9 @@
         recalcDatatablesWidths();
     }
 
+    /**
+     * Toggles the search sidebar between "visible" and "expanded".
+     */
     function searchToggle() {
         var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
@@ -435,6 +485,11 @@
         setTimeout("recalcDatatablesWidths()", 300);
     }
 
+    /**
+     * If the current page's content includes a dataTables.js instance (i.e. search result lists),
+     * then expanding/shrinking the search sidebar requires that instance to redraw itself so it
+     * will take up the correct amount of the page width.
+     */
     function recalcDatatablesWidths() {
         // Force the datatables.js FixedHeader and Responsive plugins to redraw if they exist
         var datatables_instances = $(".ODRDatatableInstance");
@@ -451,6 +506,11 @@
         }
     }
 
+    /**
+     * Displays an overlay on the page so the user can't click anything while searches are running.
+     *
+     * @param {string} [intent]
+     */
     function showSearchOverlay(intent) {
         $("#loading-overlay").fadeIn('fast');
         $("#loading").html('<span>Searching...</span>');
@@ -463,6 +523,9 @@
             $("#ODRSearchContent").html('');
     }
 
+    /**
+     * Hides the search overlay.
+     */
     function hideSearchOverlay() {
         $("#loading-overlay").fadeOut('fast');
         $("#loading").html('<span>Loading...</span>');
@@ -476,8 +539,10 @@
         // console.log('accordion highlight')
     }
 
+    /**
+     * Attaches click handlers to the accordion, tabbed, and dropdown header display_types.
+     */
     function setupAccordions() {
-
         // Setup Accordions
         $(".ODRFormAccordion").children("h3").each(function() {
             $(this).unbind('click').click(function() {
@@ -524,7 +589,6 @@
                 // console.log( 'showing ' + $(this).children().children(".ODRFormAccordion").children("h3:first").next().attr('id') );
             }
         });
-
 
         // Setup Tabs
         $(".ODRTabAccordion").each(function() {
@@ -607,8 +671,11 @@
         });
     }
 
-
     var WindowResizeInterval = "";
+
+    /**
+     * Forces textarea elements to display all their contents.
+     */
     function onWindowResize() {
         // Clear the interval so these resizes only happen once
         if (WindowResizeInterval != "")
@@ -627,7 +694,9 @@
         });
     }
 
-
+    /**
+     * Initializes the click handlers used for ODR's image gallery.
+     */
     function setupImageGalleries() {
         // Set up image galleries
         $(".ODRImageGallery").not(".ODRImageGallery_ready").each(function() {
@@ -689,6 +758,9 @@
         });
     }
 
+    /**
+     * Initializes the click handlers used for ODR's tag datafields.
+     */
     function setupTagTree() {
         $(".ODRTagParent").unbind('click').click(function(event) {
             event.stopImmediatePropagation();

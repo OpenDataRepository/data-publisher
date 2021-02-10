@@ -88,6 +88,7 @@ class DatafieldInfoService
                     $render_plugin_classname = $dfm['renderPlugin']['pluginClassName'];
 
                     // These values require a bit of calculation first...
+                    // TODO - can't copy fields with render plugins?  why was that again?
                     $can_copy = true;
                     if ( $typeclass === 'Radio' || $typeclass === 'Tag' || $render_plugin_classname !== 'odr_plugins.base.default' )
                         $can_copy = false;
