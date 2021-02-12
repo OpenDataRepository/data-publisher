@@ -40,6 +40,7 @@ class MigrationController extends ODRCustomController
      * 5) Since there's only at most one themeDatatype entry per themeElement, turn all
      *    instances of a "hidden" themeDatatype into a "hidden" themeElement instead
      * 6) Delete ancient/unused database tables
+     * 7) Change the chemin references plugin classname to "odr_plugins.chemin.chemin_references"
      *
      * @param Request $request
      *
@@ -277,6 +278,27 @@ class MigrationController extends ODRCustomController
 
             $ret .= '</div>';
             $ret .= '<br>----------------------------------------<br>';
+
+            // ----------------------------------------
+            // 7) Change the chemin references plugin classname to "odr_plugins.chemin.chemin_references"
+            $ret .= '<div>Updating "Chemin References" plugin:<br>';
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RenderPlugin rp
+                SET rp.pluginClassName = :old_classname
+                WHERE rp.pluginClassName = :new_classname'
+            );
+            $query->execute(
+                array(
+                    'old_classname' => "odr_plugins.chemin.chemin_references",
+                    'new_classname' => "odr_plugins.base.chemin_references"
+                )
+            );
+
+            $ret .= 'success';
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
+
 
             // ----------------------------------------
             // Done with the changes

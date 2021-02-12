@@ -1,11 +1,11 @@
-odr_plugins.base.chemin_references:
+odr_plugins.chemin.chemin_references:
     name: Chemin References Plugin
-    category: Base
+    category: Chemin
     datatype: true
     version: 1.0.1
     override_fields: true
     override_child: false
-    description: TEMPORARY
+    description: A custom version of the References Plugin, customized to have an additional "Supporting Files" field.
     required_fields:
         authors:
             name: Authors

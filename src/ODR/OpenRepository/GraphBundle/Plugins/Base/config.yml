@@ -5,10 +5,6 @@ services:
             $templating: '@templating'
 
     # Datatype plugins
-    odr_plugins.base.chemin_references:
-        class: '%odr_plugin_base_classpath%\Base\CheminReferencesPlugin'
-        arguments:
-            $templating: '@templating'
     odr_plugins.base.references:
         class: '%odr_plugin_base_classpath%\Base\ReferencesPlugin'
         arguments:

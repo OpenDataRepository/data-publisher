@@ -17,12 +17,12 @@ odr_plugins.rruff.amcsd:
         fileno:
             name: fileno
             description: An external ID used for the data
-            type: IntegerValue
+            type: ShortVarchar    # must allow leading zeros
 #            properties: must_be_unique
         database_code:
             name: database_code_amcsd
             description: The value of the "database_code_amcsd" field in the AMC File
-            type: ShortVarchar
+            type: ShortVarchar    # must allow leading zeros
 #            properties: must_be_unique,must_prevent_user_edits
         authors:
             name: Authors

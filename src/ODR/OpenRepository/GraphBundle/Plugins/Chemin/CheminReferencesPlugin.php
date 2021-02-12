@@ -13,7 +13,7 @@
  *
  */
 
-namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
+namespace ODR\OpenRepository\GraphBundle\Plugins\Chemin;
 
 // ODR
 use ODR\AdminBundle\Entity\RenderPluginInstance;

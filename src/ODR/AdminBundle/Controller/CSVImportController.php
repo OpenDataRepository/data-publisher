@@ -4218,6 +4218,7 @@ exit();
             // Increment the job counter
             $total = $tracked_job->getTotal();
             $count = $tracked_job->incrementCurrent($em);
+            $status .= ' ~~ $total: '.$total.'  $count: '.$count."\n";
 
             if ($count >= $total) {
                 // Job is completed...
