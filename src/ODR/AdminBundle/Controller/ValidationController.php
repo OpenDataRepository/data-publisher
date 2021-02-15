@@ -922,7 +922,7 @@ class ValidationController extends ODRCustomController
                     FROM ODRAdminBundle:'.$classname.' AS e
                     JOIN ODRAdminBundle:'.$classname.'Meta AS em WITH em.'.$relation.' = e
                     WHERE e.deletedAt IS NULL AND em.deletedAt IS NULL
-                    ORDER BY e.id'
+                    ORDER BY e.id, em.id'
                 );
                 $results = $query->getArrayResult();
 
@@ -1761,7 +1761,7 @@ class ValidationController extends ODRCustomController
                 $tmp[$t_id][$te_id]['theme_dataypes'][$tdt_id] = $dt_id;
             }
 
-            exit('<pre>'.print_r($tmp, true).'</pre>' );
+            exit( '<pre>'.print_r($tmp, true).'</pre>' );
         }
         catch (\Exception $e) {
             // Don't want any changes made being saved to the database

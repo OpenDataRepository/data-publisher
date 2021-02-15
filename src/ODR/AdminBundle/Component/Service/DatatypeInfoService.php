@@ -558,7 +558,9 @@ class DatatypeInfoService
             $dt_id = $dt['id'];
 
             // Flatten datatype meta
-            if ( count($dt['dataTypeMeta']) !== 1 ) {
+            if ( count($dt['dataTypeMeta']) == 0 ) {
+                // TODO - this comparison (and the 3 others in this function) really needs to be strict (!== 1)
+                // TODO - ...but that would lock up multiple dev servers until their databases get fixed
                 // ...throwing an exception here because this shouldn't ever happen, and also requires
                 //  manual intervention to fix...
                 throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datatype '.$dt_id);
@@ -581,7 +583,7 @@ class DatatypeInfoService
                 $typeclass = $df['dataFieldMeta'][0]['fieldType']['typeClass'];
 
                 // Flatten datafield_meta and masterDatafield of each datafield
-                if ( count($df['dataFieldMeta']) !== 1 ) {
+                if ( count($df['dataFieldMeta']) == 0 ) {
                     // ...throwing an exception here because this shouldn't ever happen, and also
                     //  requires manual intervention to fix...
                     throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datafield '.$df_id);
@@ -599,7 +601,7 @@ class DatatypeInfoService
                 // Flatten radio options if they exist
                 // They're ordered by displayOrder, so preserve $ro_num
                 foreach ($df['radioOptions'] as $ro_num => $ro) {
-                    if ( count($ro['radioOptionMeta']) !== 1 ) {
+                    if ( count($ro['radioOptionMeta']) == 0 ) {
                         // ...throwing an exception here because this shouldn't ever happen, and
                         //  also requires manual intervention to fix...
                         throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for radio option '.$ro['id']);
@@ -614,7 +616,7 @@ class DatatypeInfoService
                 // Flatten tags if they exist
                 $tag_list = array();
                 foreach ($df['tags'] as $t_num => $t) {
-                    if ( count($t['tagMeta']) !== 1 ) {
+                    if ( count($t['tagMeta']) == 0 ) {
                         // ...throwing an exception here because this shouldn't ever happen, and
                         //  also requires manual intervention to fix...
                         throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for tag '.$t['id']);
