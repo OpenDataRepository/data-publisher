@@ -1,0 +1,81 @@
+odr_plugins.chemin.chemin_references:
+    name: Chemin References Plugin
+    category: Chemin
+    datatype: true
+    version: 1.0.1
+    override_fields: true
+    override_child: false
+    description: A custom version of the References Plugin, customized to have an additional "Supporting Files" field.
+    required_fields:
+        authors:
+            name: Authors
+            description: The authors of this article.
+            type: LongText
+        title:
+            name: Article Title
+            description: The title of this article.
+            type: LongText
+        journal:
+            name: Journal
+            description: The name of the journal in which this article was published.
+            type: LongText
+        year:
+            name: Year
+            description: What year the article was published.
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+        month:
+            name: Month
+            description: What month the article was published.
+            type: ShortVarchar
+        volume:
+            name: Volume
+            description: The volume number of the journal the article was published in.
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+        issue:
+            name: Issue
+            description: The issue number of the journal the article was published in.
+            type: ShortVarchar
+        booktitle:
+            name: Book Title
+            description: The title of this book.
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+        publisher:
+            name: Publisher
+            description: The publisher of this book.
+            type: LongVarchar
+        publisher_location:
+            name: Publisher Location
+            description: Where the publisher of this book is located.
+            type: LongVarchar
+#        annotation:
+#            name: Annotation
+#            description: ...forget what this was meant to be
+#            type: LongVarchar
+        pages:
+            name: Pages
+            description: The pages the article takes up in the journal.
+            type: ShortVarchar
+        file:
+            name: File
+            description: A file containing a scan of the physical reference.
+            type: File
+        url:
+            name: URL
+            description: A URL that points to an online copy of the reference.
+            type: LongVarchar
+        supporting_files:
+            name: Supporting Files
+            description: A set of files containing supporting data for this reference.
+            type: File
+    config_options:
+#        graph_type:
+#            name: Graph Type
+#            type: string
+#            default: xy 
+#            choices: xy||XY Scatter, line||Line, hbar||Horizontal Bar, vbar||Vertical Bar
+#            description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
+#        graph_width: 
+#            name: Graph Width
+#            type: string
+#            default: 900 
+#            description: Enter a width in pixels for the graph. 

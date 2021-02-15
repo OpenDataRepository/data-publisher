@@ -55,7 +55,7 @@
                         dataType: "json",
                         success: function(data, textStatus, jqXHR) {
                             // Open the new datatype's design page
-                            window.location.hash = data.d.redirect_url;
+                            window.location.href = data.d.redirect_url;
                         },
                         error: function(jqXHR, textStatus, errorThrown) {
                             // Re-enable the submit button

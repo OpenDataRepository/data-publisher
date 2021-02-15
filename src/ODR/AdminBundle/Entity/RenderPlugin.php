@@ -43,6 +43,11 @@ class RenderPlugin
     /**
      * @var string
      */
+    private $category;
+
+    /**
+     * @var string
+     */
     private $pluginClassName;
 
     /**
@@ -175,6 +180,30 @@ class RenderPlugin
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * Set category.
+     *
+     * @param string $category
+     *
+     * @return RenderPlugin
+     */
+    public function setCategory($category)
+    {
+        $this->category = $category;
+
+        return $this;
+    }
+
+    /**
+     * Get category.
+     *
+     * @return string
+     */
+    public function getCategory()
+    {
+        return $this->category;
     }
 
     /**

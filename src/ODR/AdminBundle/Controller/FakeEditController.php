@@ -91,6 +91,7 @@ class FakeEditController extends ODRCustomController
 
             if ( !$pm_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
+            // TODO - ...shouldn't this also require the user to be able to edit at least one datafield?  doesn't really make sense otherwise...
             // --------------------
 
             // Grab the tab's id, if it exists
@@ -154,12 +155,24 @@ class FakeEditController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
+            // Ensure the post data is valid...
             if ( !isset($post['datatype_id'])
                 || !isset($post['datarecord_id'])
                 || !isset($post['datafields'])
                 || !isset($post['tokens'])
             ) {
-                throw new ODRBadRequestException();
+                if ( isset($post['datatype_id']) && isset($post['datarecord_id']) && !isset($post['datafields']) && !isset($post['tokens']) ) {
+                    // User attempted to save a completely empty datarecord...return a more useful
+                    //  error message
+                    throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
+
+                    // TODO - technically, it would be valid if the datatype only had files/images/child datatypes
+                    // TODO - ...but the resulting datatype is borderline useless, so it's not likely?
+                }
+                else {
+                    // Some other kind of problem, return a generic error message
+                    throw new ODRBadRequestException();
+                }
             }
 
             // TODO - parent/grandparent datarecord ids so this works for child records?
@@ -174,6 +187,12 @@ class FakeEditController extends ODRCustomController
             ) {
                 throw new ODRBadRequestException();
             }
+
+            // Submission of a fake top-level may need to be handled differently than a submission
+            //  via the inline link system...
+            $inline_link = false;
+            if ( isset($post['inline_link']) )
+                $inline_link = true;
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -221,6 +240,15 @@ class FakeEditController extends ODRCustomController
                 if ( $df['dataFieldMeta']['is_unique'] === true ) {
                     if ( !isset($datafields[$df_id]) )
                         throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" must have a value');
+                }
+
+                // Silently remove any fields that were given a value when they aren't supposed to
+                //  be editable by users
+                if ( $df['dataFieldMeta']['prevent_user_edits'] === true ) {
+                    if ( isset($datafields[$df_id]) )
+                        unset( $datafields[$df_id] );
+                    if ( isset($csrf_tokens[$df_id]) )
+                        unset( $csrf_tokens[$df_id] );
                 }
 
                 // Otherwise, only care about the field if it has a value in it...
@@ -285,6 +313,10 @@ class FakeEditController extends ODRCustomController
                     throw new ODRBadRequestException('Invalid Datafield');
             }
 
+            // Verify that at least one datafield was provided
+            if ( empty($datafields) )
+                throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
+
 
             // ----------------------------------------
             // Load datafield entities to prepare for entity creation, and to perform final
@@ -324,8 +356,25 @@ class FakeEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Now that all the post data makes sense, time to create some entities
-            $new_datarecord = $ec_service->createDatarecord($user, $datatype);    // creation of storage entities makes delaying flush here pointless
+            // When a fake top-level record is submitted, then the user was originally given a page
+            //  that had the default radio options already selected...and they had the opportunity
+            //  to change them.  These potential changes shouldn't be overwritten.
+            $create_default_radio_options = false;
+            if ($inline_link) {
+                // ...however, if the fake record was submitted via the inline linking system, then
+                //  the radio datafields were disabled (because there's no way to display search
+                //  results)...therefore, the default radio options should be selected.
+                $create_default_radio_options = true;
+            }
+
+            // Now that all the post data makes sense, it's time to create some entities
+            $new_datarecord = $ec_service->createDatarecord(
+                $user,
+                $datatype,
+                false,   // Delaying flush here is pointless, due to creation of storage entities below
+                $create_default_radio_options
+            );
+
             $new_datarecord->setProvisioned(false);
             $em->persist($new_datarecord);
 

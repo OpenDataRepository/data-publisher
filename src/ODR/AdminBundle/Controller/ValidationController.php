@@ -455,6 +455,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setMarkdownText('');
                     $dfm->setIsUnique(false);
                     $dfm->setRequired(false);
+                    $dfm->setPreventUserEdits(false);
                     $dfm->setSearchable(DataFields::NOT_SEARCHED);
                     $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
@@ -577,6 +578,7 @@ class ValidationController extends ODRCustomController
 
                     $dtm->setSearchNotesUpper(null);
                     $dtm->setSearchNotesLower(null);
+                    $dtm->setNewRecordsArePublic(false);
 
                     $dtm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));    // public
 
@@ -920,7 +922,7 @@ class ValidationController extends ODRCustomController
                     FROM ODRAdminBundle:'.$classname.' AS e
                     JOIN ODRAdminBundle:'.$classname.'Meta AS em WITH em.'.$relation.' = e
                     WHERE e.deletedAt IS NULL AND em.deletedAt IS NULL
-                    ORDER BY e.id'
+                    ORDER BY e.id, em.id'
                 );
                 $results = $query->getArrayResult();
 
@@ -1759,7 +1761,7 @@ class ValidationController extends ODRCustomController
                 $tmp[$t_id][$te_id]['theme_dataypes'][$tdt_id] = $dt_id;
             }
 
-            exit('<pre>'.print_r($tmp, true).'</pre>' );
+            exit( '<pre>'.print_r($tmp, true).'</pre>' );
         }
         catch (\Exception $e) {
             // Don't want any changes made being saved to the database
@@ -2501,13 +2503,14 @@ class ValidationController extends ODRCustomController
     /**
      * Returns a page that displays the cached array version of two datatypes side by side
      *
-     * @param $left_datatype_id
-     * @param $right_datatype_id
+     * @param int $left_datatype_id
+     * @param int $right_datatype_id
+     * @param bool $filter
      * @param Request $request
      *
      * @return Response
      */
-    public function comparedatatypesAction($left_datatype_id, $right_datatype_id, Request $request)
+    public function comparedatatypesAction($left_datatype_id, $right_datatype_id, $filter, Request $request)
     {
         $ret = '';
 
@@ -2550,6 +2553,13 @@ class ValidationController extends ODRCustomController
             $left = self::removeDates($left);
             $right = self::removeDates($right);
 
+            $filtered_left = $left;
+            $filtered_right = $right;
+            if ($filter) {
+                $filtered_left = self::removeDuplicates($left, $right);
+                $filtered_right = self::removeDuplicates($right, $left);
+            }
+
             $ret = '
 <html>
     <head>
@@ -2561,10 +2571,10 @@ class ValidationController extends ODRCustomController
     <body class="pure-skin-odr">
         <div class="pure-g">
             <div class="pure-u-1-2">
-                <pre>'.print_r($left, true).'</pre>
+                <pre style="font-size: 0.8em;">'.print_r($filtered_left, true).'</pre>
             </div>
             <div class="pure-u-1-2">
-                <pre>'.print_r($right, true).'</pre>
+                <pre style="font-size: 0.8em;">'.print_r($filtered_right, true).'</pre>
             </div>
         </div>
     </body>
@@ -2590,7 +2600,8 @@ class ValidationController extends ODRCustomController
      *
      * @param array &$array @see DatatypeInfoService::buildDatatypeData()
      */
-    private function inflateTemplateInfo(&$array) {
+    private function inflateTemplateInfo(&$array)
+    {
         foreach ($array as $dt_id => $dt) {
             if ( !isset($dt['masterDataType']) )
                 $array[$dt_id]['masterDataType'] = array('id' => '', 'unique_id' => '');
@@ -2620,8 +2631,8 @@ class ValidationController extends ODRCustomController
      *
      * @return array
      */
-    private function removeDates($src) {
-
+    private function removeDates($src)
+    {
         $dest = array();
 
         foreach ($src as $key => $value) {
@@ -2634,5 +2645,65 @@ class ValidationController extends ODRCustomController
         }
 
         return $dest;
+    }
+
+
+    /**
+     * Copies values from $subject that aren't identical to the "same" values in $control.
+     * Only really works on the cached datatype arrays.
+     *
+     * @param array $subject
+     * @param array $control
+     *
+     * @return array
+     */
+    private function removeDuplicates($subject, $control)
+    {
+        $filtered = array();
+
+        $subject_keys = array_keys($subject);
+        $control_keys = array_keys($control);
+
+        for ($i = 0; $i < count($subject_keys); $i++) {
+            $subject_key = $subject_keys[$i];
+            $subject_value = $subject[$subject_key];
+            $control_key = $control_keys[$i];
+            $control_value = $control[$control_key];
+
+            if ( is_array($subject_value) ) {
+                if ( !is_null($control_value) ) {
+                    // Can only continue recursion when both $subject_value and $control_value are
+                    //  not null...
+                    $ret = self::removeDuplicates($subject[$subject_key], $control[$control_key]);
+                    if ( !empty($ret) )
+                        $filtered[$subject_key] = $ret;
+                }
+                else {
+                    // ...if one is null but the other isn't, then the output won't be aligned
+                    $filtered[$subject_key] = $subject_value;
+                }
+            }
+            else {
+                switch ($subject_key) {
+                    case 'shortName':
+                    case 'longName':
+                    case 'pluginClassName':
+                    case 'fieldName':
+                    case 'typeName':
+                    case 'optionName':
+                    case 'tagName':
+                        // Always want the name fields in there
+                        $filtered[$subject_key] = $subject_value;
+                        break;
+
+                    default:
+                        // Don't care about any other value unless it's different
+                        if ( $subject_value !== $control_value )
+                            $filtered[$subject_key] = $subject_value;
+                }
+            }
+        }
+
+        return $filtered;
     }
 }

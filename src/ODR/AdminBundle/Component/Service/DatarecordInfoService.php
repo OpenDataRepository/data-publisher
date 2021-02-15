@@ -416,6 +416,8 @@ class DatarecordInfoService
 
             // Flatten datarecord_meta
             if ( count($dr['dataRecordMeta']) == 0 ) {
+                // TODO - this comparison (and the 3 others in this function) really needs to be strict (!== 1)
+                // TODO - ...but that would lock up multiple dev servers until their databases get fixed
                 // ...throwing an exception here because this shouldn't ever happen, and also requires
                 //  manual intervention to fix...
                 throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datarecord '.$dr_id);

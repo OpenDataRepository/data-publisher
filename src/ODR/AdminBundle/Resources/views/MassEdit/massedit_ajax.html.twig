@@ -78,7 +78,7 @@
 {% endspaceless %}
 
 <script>
-var SaveTimeout = 1000;
+var SaveTimeout = 1500;
 
 $(function() {
     disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
@@ -234,7 +234,10 @@ function initPage() {
         // Apply dimensions of parent div to loading div
         $(this).css({"height": height, "line-height": height, "width": width});
 
-        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
+        if ( $(this).hasClass('ODRUniqueField') )
+            $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
+        else if ( $(this).hasClass('ODRBlockedField') )
+            $(this).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
     });
 
     $(".ODRDatePicker").datepicker({

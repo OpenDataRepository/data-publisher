@@ -43,6 +43,8 @@ use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Events
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
 use ODR\AdminBundle\Form\DatetimeValueForm;
@@ -71,6 +73,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
@@ -94,6 +97,8 @@ class EditController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        // NOTE - this seems to only be used for directly creating a new metadata record
 
         try {
             // Get Entity Manager and setup repo
@@ -161,7 +166,6 @@ class EditController extends ODRCustomController
 
             $em->persist($datarecord);
             $em->flush();
-
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -259,7 +263,7 @@ class EditController extends ODRCustomController
             if ( in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
-            // Create a new top-level datarecord...
+            // Create a new datarecord...
             $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
 
             // Set parent/grandparent properties so this becomes a child datarecord
@@ -272,7 +276,7 @@ class EditController extends ODRCustomController
             $em->persist($datarecord);
             $em->flush();
 
-            // Get record_ajax.html.twig to re-render the datarecord
+            // Get edit_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'new_datarecord_id' => $datarecord->getId(),
                 'datatype_id' => $datatype_id,
@@ -567,7 +571,7 @@ class EditController extends ODRCustomController
                 // This is either a child datarecord, or a request to delete a datarecord from a
                 //  parent datarecord that links to it
 
-                // Get record_ajax.html.twig to re-render the datarecord
+                // Get edit_ajax.html.twig to re-render the datarecord
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
                     'parent_id' => $parent_datarecord->getId(),
@@ -717,14 +721,34 @@ class EditController extends ODRCustomController
 
                     /** @var GraphPluginInterface $plugin */
                     $plugin->onFileChange($datafield, $file_id);
+
+                    // TODO - refactor to use the dispatched event instead?
                 }
             }
 
 
+            // ----------------------------------------
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new FileDeletedEvent($datafield, $datarecord, $user);
+                $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // TODO - do something here?
+            }
+
+
             // -----------------------------------
-            // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
+            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
+            //  the upload button again since this datafield's only file just got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
+
         }
         catch (\Exception $e) {
             $source = 0x08e2fe10;
@@ -1132,7 +1156,8 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
-            // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
+            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show the
+            //  the upload button again since this datafield's only image got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
 
@@ -1799,6 +1824,7 @@ class EditController extends ODRCustomController
     public function updateAction($datarecord_id, $datafield_id, Request $request)
     {
         // TODO - This should be changed to a transaction....
+
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1849,6 +1875,11 @@ class EditController extends ODRCustomController
 
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
             // --------------------
 
 

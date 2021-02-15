@@ -90,7 +90,7 @@ class FlowController extends ODRCustomController
     private function flowError($message = '')
     {
         $response = new Response();
-        $response->setStatusCode(503);
+        $response->setStatusCode(503);    // TODO - why 503 and not 500?
         $response->setContent($message);
 
         return $response;

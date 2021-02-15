@@ -82,6 +82,16 @@
                         <button id="ODRTrackingForm_userlist" type="button" class="pure-button pure-button-secondary">Change Users</button>
                     </div>
                 </fieldset>
+
+                <fieldset>
+                    <label for="ODRTrackingForm_record_metadata"
+                           title="Displays when Records were created, deleted, or had their public status changed"
+                           class="Info"
+                    >
+                        <strong>Display Record metadata?&nbsp;&nbsp;</strong>
+                    </label>
+                    <input id="ODRTrackingForm_record_metadata" type="checkbox" name="display_datarecord_metadata" value="1" {% if display_datarecord_metadata %}checked{% endif %}/>
+                </fieldset>
             </form>
         </div>
     </div>
@@ -203,6 +213,10 @@
         });
         $("#ODRTrackingForm_userlist").unbind('click').click(function() {
             openTrackingDialog("user");
+        });
+
+        $("#ODRTrackingForm_record_metadata").unbind('click').click(function() {
+            reloadTrackingData();
         });
 
         // Immediately load some tracking data after setting up the page

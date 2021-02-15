@@ -130,9 +130,14 @@ class EntityMetaModifyService
         // However, the path where self::createNewMetaEntry() will repeatedly return true needs to
         //  be avoided at all costs...self::updateDatafieldMeta() will schedule a new DatafieldMeta
         //  entry every time its called, so when the flush eventually happens there will be multiple
-        //  not-deleted DatafieldMeta entries pointing to the same Datafield.  At that point, the
-        //  database is in a *broken* state since there's supposed to be only one not-deleted meta
-        //  entry at any given time.
+        //  not-deleted DatafieldMeta entries pointing to the same Datafield.  To use the previous
+        //  example, inserting a new radio option and forcing a resort of the 5 existing radio
+        //  options will result in 6 or 7 new datafieldMeta entries for the datafield...at which
+        //  point the database is in a *broken* state since there's only supposed to be one undeleted
+        //  datafieldMeta entry active at any given time.
+
+        // NOTE - do not make any changes without testing all code branches that lead to this point
+        // NOTE - that means direct inspection of the database to see what gets created in all cases
         $found = false;
         $uow_insertions = $this->em->getUnitOfWork()->getScheduledEntityInsertions();
         foreach ($uow_insertions as $key => $entity) {
@@ -168,8 +173,11 @@ class EntityMetaModifyService
         if ( !$datatype->getIsMasterType() )
             return;
 
-        // See self::incrementDatafieldMasterRevision() for the explanation of why this exists.
+        // The reasoning behind this is effectively identical to the reasoning described in
+        //  self::incrementDatafieldMasterRevision().
 
+        // NOTE - do not make any changes without testing all code branches that lead to this point
+        // NOTE - that means direct inspection of the database to see what gets created in all cases
         $found = false;
         $uow_insertions = $this->em->getUnitOfWork()->getScheduledEntityInsertions();
         foreach ($uow_insertions as $key => $entity) {
@@ -265,6 +273,7 @@ class EntityMetaModifyService
             'phpValidator' => $old_meta_entry->getPhpValidator(),
             'required' => $old_meta_entry->getRequired(),
             'is_unique' => $old_meta_entry->getIsUnique(),
+            'prevent_user_edits' => $old_meta_entry->getPreventUserEdits(),
             'allow_multiple_uploads' => $old_meta_entry->getAllowMultipleUploads(),
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
             'newFilesArePublic' => $old_meta_entry->getNewFilesArePublic(),
@@ -333,6 +342,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setRequired( $properties['required'] );
         if ( isset($properties['is_unique']) )
             $new_datafield_meta->setIsUnique( $properties['is_unique'] );
+        if ( isset($properties['prevent_user_edits']) )
+            $new_datafield_meta->setPreventUserEdits( $properties['prevent_user_edits'] );
         if ( isset($properties['allow_multiple_uploads']) )
             $new_datafield_meta->setAllowMultipleUploads( $properties['allow_multiple_uploads'] );
         if ( isset($properties['newFilesArePublic']) )

@@ -48,18 +48,41 @@ class CheminEE1Plugin implements DatatypePluginInterface
 
 
     /**
-     * Executes the Chemin EE1 Plugin on the provided datarecords
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin
+     * @param array $datatype
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    {
+        // This render plugin isn't allowed to work when in edit mode
+        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
+            return false;
+
+        return true;
+    }
+
+
+    /**
+     * Executes the CheminEE1 Plugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
      * @param array $theme_array
      * @param array $rendering_options
+     * @param array $parent_datarecord
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
+     * @param array $token_list
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {

@@ -142,6 +142,7 @@ security:
 # These need to stay anonymous
         - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }     # search page
         - { path: ^/view, role: IS_AUTHENTICATED_ANONYMOUSLY }       # display mode
+        - { path: ^/session, role: IS_AUTHENTICATED_ANONYMOUSLY }    # changing pagelength or using a different layout
         - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login, uses secret key defined in parameters.yml for authentication
 
 ##########

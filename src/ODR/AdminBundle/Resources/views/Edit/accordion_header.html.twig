@@ -3,6 +3,36 @@
 {% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 
+{% set can_edit_parent_record = false %}
+{% if datatype_permissions[ parent_datarecord.dataType.id ] is defined
+    and datatype_permissions[ parent_datarecord.dataType.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_parent_record = true %}
+{% endif %}
+
+{% set can_edit_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_record = true %}
+{% endif %}
+
+{% set can_add_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+    {% set can_add_record = true %}
+{% endif %}
+
+{% set can_delete_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+    {% set can_delete_record = true %}
+{% endif %}
+
+{% set can_change_public_status = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_public' ] is defined %}
+    {% set can_change_public_status = true %}
+{% endif %}
+
 {% if is_top_level == 0 and (display_type == ACCORDION_HEADER or display_type == LIST_HEADER) %}
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <span class="ui-icon ui-icon-triangle-1-s"></span>

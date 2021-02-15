@@ -151,7 +151,7 @@ class ReportsController extends ODRCustomController
 
     /**
      * Returns an array of the namefield values for all datarecords of the given datatype.
-     * TODO - move to DatarecordInfoService?  This is the only place that has this requirement though...
+     * TODO - move to DatarecordInfoService?  This is the only controller that needs this data though...
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param DataType $datatype
@@ -394,6 +394,9 @@ class ReportsController extends ODRCustomController
                 throw new ODRBadRequestException("This Datafield's Fieldtype is not File or Image");
 
 
+            // Load the namefield_value for each datarecord of the given datafield's grandparent datatype
+            $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType()->getGrandparent());
+
             // Locate any datarecords where this datafield has multiple uploaded files
             $query = null;
             if ($typename == 'File') {
@@ -427,21 +430,30 @@ class ReportsController extends ODRCustomController
                 $dr_id = $result['dr_id'];
                 $grandparent_id = $result['grandparent_id'];
 
+                // Increment the number of files/images this datarecord has
                 if ( !isset($duplicate_list[$dr_id]) )
                     $duplicate_list[$dr_id] = 0;
-
                 $duplicate_list[$dr_id]++;
 
+                // Also store the grandparent id for later use
                 $grandparent_list[$dr_id] = $grandparent_id;
             }
 
-            // Only want to send a list of the grandparent ids to the twig file
+            // Only want the twig file to display grandparents
             $datarecord_list = array();
             foreach ($duplicate_list as $dr_id => $count) {
-                $grandparent_id = $grandparent_list[$dr_id];
+                if ($count > 1) {
+                    // Want to use the grandparent datarecord's name value, if possible
+                    $grandparent_id = $grandparent_list[$dr_id];
 
-                if ( $count > 1 && !in_array($grandparent_id, $datarecord_list) )
-                    $datarecord_list[] = $grandparent_id;
+                    if ( isset($datarecord_names[$grandparent_id]) ) {
+                        $grandparent_name = $datarecord_names[$grandparent_id];
+                        $datarecord_list[$grandparent_id] = $grandparent_name;
+                    }
+                    else {
+                        $datarecord_list[$grandparent_id] = $grandparent_id;
+                    }
+                }
             }
 
             // Render and return a page detailing which datarecords have multiple uploads...
@@ -450,7 +462,6 @@ class ReportsController extends ODRCustomController
                     'ODRAdminBundle:Reports:multiple_file_uploads_report.html.twig',
                     array(
                         'datafield' => $datafield,
-//                        'user_permissions' => $user_permissions,
                         'multiple_uploads' => $datarecord_list,
                     )
                 )
@@ -521,6 +532,9 @@ class ReportsController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Load the namefield_value for each of the ancestor side's datarecords
+            $datarecord_names = self::getDatarecordNames($em, $datatree->getAncestor());
+
             $results = array();
             if ($datatree->getIsLink() == 0) {
                 // Determine whether a datarecord of this datatype has multiple child datarecords
@@ -549,16 +563,22 @@ class ReportsController extends ODRCustomController
             $tmp = array();
             foreach ($results as $num => $result) {
                 $ancestor_id = $result['ancestor_id'];
+
+                // Increment the number of child/linked datarecords for this ancestor datarecord
                 if ( !isset($tmp[$ancestor_id]) )
                     $tmp[$ancestor_id] = 0;
-
                 $tmp[$ancestor_id]++;
             }
 
-            $datarecords = array();
+            $datarecord_list = array();
             foreach ($tmp as $dr_id => $count) {
-                if ($count > 1)
-                    $datarecords[] = $dr_id;
+                if ($count > 1) {
+                    // Want to use the ancestor datarecord's name value, if possible
+                    if ( isset($datarecord_names[$dr_id]) )
+                        $datarecord_list[$dr_id] = $datarecord_names[$dr_id];
+                    else
+                        $datarecord_list[$dr_id] = $dr_id;
+                }
             }
 
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
@@ -567,7 +587,7 @@ class ReportsController extends ODRCustomController
                     'ODRAdminBundle:Reports:datarecord_number_report.html.twig',
                     array(
                         'datatree' => $datatree,
-                        'datarecords' => $datarecords,
+                        'datarecords' => $datarecord_list,
                     )
                 )
             );
@@ -624,6 +644,16 @@ class ReportsController extends ODRCustomController
             if ($remote_datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $local_datatype->getId(),
+                    'descendant' => $remote_datatype->getId(),
+                )
+            );
+            if ($datatree == null)
+                throw new ODRNotFoundException('Datatree');
+
 
             // --------------------
             // Determine user privileges
@@ -640,6 +670,10 @@ class ReportsController extends ODRCustomController
             // --------------------
 
 
+            // Attempt to load both the local and the remote datarecord's name values
+            $local_datatype_names = self::getDatarecordNames($em, $datatree->getAncestor());
+            $remote_datatype_names = self::getDatarecordNames($em, $datatree->getDescendant());
+
             // Locate any datarecords of the local datatype that link to datarecords of the remote datatype
             $query = $em->createQuery(
                'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
@@ -648,7 +682,12 @@ class ReportsController extends ODRCustomController
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
                 AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('local_datatype_id' => $local_datatype->getId(), 'remote_datatype_id' => $remote_datatype->getId()) );
+            )->setParameters(
+                array(
+                    'local_datatype_id' => $local_datatype->getId(),
+                    'remote_datatype_id' => $remote_datatype->getId()
+                )
+            );
             $results = $query->getArrayResult();
 
             $linked_datarecords = array();
@@ -673,6 +712,9 @@ class ReportsController extends ODRCustomController
 
                         'can_edit_local' => $can_edit_local,
                         'can_edit_remote' => $can_edit_remote,
+
+                        'local_datatype_names' => $local_datatype_names,
+                        'remote_datatype_names' => $remote_datatype_names,
                     )
                 )
             );
@@ -755,49 +797,31 @@ class ReportsController extends ODRCustomController
             }
 
 
+            // Load the namefield_value for each datarecord of the given datafield's datatype
+            $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
+
             // Build a query to grab all values in this datafield
-            $use_external_id_field = true;
-            $results = array();
-            if ($datatype->getExternalIdField() == null) {
-                $use_external_id_field = false;
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, e.value AS value
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                    WHERE dr.dataType = :datatype AND drf.dataField = :datafield
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-                    ORDER BY dr.id'
-                )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id) );
-                $results = $query->getArrayResult();
-            }
-            else {
-                $external_id_field_typeclass = $datatype->getExternalIdField()->getFieldType()->getTypeClass();
-                $typeclass = $datafield->getFieldType()->getTypeClass();
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, e_2.value AS value, e_1.value AS external_id
-                    FROM ODRAdminBundle:'.$external_id_field_typeclass.' AS e_1
-                    JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
-                    JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = dr
-                    JOIN ODRAdminBundle:'.$typeclass.' AS e_2 WITH e_2.dataRecordFields = drf_2
-                    WHERE dr.dataType = :datatype AND drf_2.dataField = :datafield AND drf_1.dataField = :external_id_field
-                    AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL
-                    ORDER BY dr.id'
-                )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id, 'external_id_field' => $datatype->getExternalIdField()->getId()) );
-                $results = $query->getArrayResult();
-            }
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id, e.value AS value
+                FROM ODRAdminBundle:DataRecord AS dr
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
+                WHERE dr.dataType = :datatype AND drf.dataField = :datafield
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                ORDER BY dr.id'
+            )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id) );
+            $results = $query->getArrayResult();
 
             $content = array();
             foreach ($results as $num => $result) {
                 $dr_id = $result['dr_id'];
                 $value = $result['value'];
 
-                $external_id = '';
-                if ($use_external_id_field)
-                    $external_id = $result['external_id'];
+                $dr_name = $dr_id;
+                if ( isset($datarecord_names[$dr_id]) )
+                    $dr_name = $datarecord_names[$dr_id];
 
-                $content[$dr_id] = array('external_id' => $external_id, 'value' => $value);
+                $content[$dr_id] = array('dr_name' => $dr_name, 'value' => $value);
             }
 
 
@@ -808,8 +832,8 @@ class ReportsController extends ODRCustomController
                     array(
                         'datafield' => $datafield,
                         'datatype' => $datatype,
+
                         'content' => $content,
-                        'use_external_id_field' => $use_external_id_field,
                     )
                 )
             );
@@ -881,6 +905,10 @@ class ReportsController extends ODRCustomController
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Invalid DataField');
 
+
+            // Load the namefield_value for each datarecord of the given datafield's datatype
+            $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
+
             // Find all selected radio options for this datafield
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id, rom.optionName
@@ -899,16 +927,24 @@ class ReportsController extends ODRCustomController
             foreach ($results as $num => $result) {
                 $dr_id = $result['dr_id'];
 
+                // Increment the number of radio options this datarecord has selected
                 if ( !isset($datarecords[$dr_id]) )
                     $datarecords[$dr_id] = 0;
-
                 $datarecords[$dr_id]++;
             }
 
-            // Don't need to save datarecords that don't have multiple selections
             foreach ($datarecords as $dr_id => $count) {
-                if ($count < 2)
-                    unset($datarecords[$dr_id]);
+                if ($count > 1) {
+                    // Want to use the datarecord's name value, if possible
+                    if ( isset($datarecord_names[$dr_id]) )
+                        $datarecords[$dr_id] = $datarecord_names[$dr_id];
+                    else
+                        $datarecords[$dr_id] = $dr_id;
+                }
+                else {
+                    // Don't need to save datarecords that don't have more than one selection
+                    unset( $datarecords[$dr_id] );
+                }
             }
 
             // ----------------------------------------
@@ -919,6 +955,7 @@ class ReportsController extends ODRCustomController
                     array(
                         'datafield' => $datafield,
                         'datatype' => $datatype,
+
                         'datarecords' => $datarecords,
                     )
                 )

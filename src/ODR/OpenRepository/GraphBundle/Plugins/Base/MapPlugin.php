@@ -58,6 +58,25 @@ class MapPlugin implements DatatypePluginInterface
 
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin
+     * @param array $datatype
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    {
+        // This render plugin isn't allowed to work when in edit mode
+        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
+            return false;
+
+        return true;
+    }
+
+
+    /**
      * Executes the Map Plugin on the provided datarecords
      *
      * @param array $datarecords
@@ -65,20 +84,18 @@ class MapPlugin implements DatatypePluginInterface
      * @param array $render_plugin
      * @param array $theme_array
      * @param array $rendering_options
+     * @param array $parent_datarecord
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
+     * @param array $token_list
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {
-
-//            $str = '<pre>'.print_r($datarecords, true)."\n".print_r($datatype, true)."\n".print_r($render_plugin, true)."\n".print_r($theme, true).'</pre>';
-//            throw new \Exception($str);
-
-//            throw new \Exception( print_r($rendering_options, true) );
-
             // ----------------------------------------
             // Grab various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
@@ -93,6 +110,8 @@ class MapPlugin implements DatatypePluginInterface
                     $options[$key] = $option['optionValue'];
             }
 
+
+            // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
             foreach ($render_plugin_map as $rpm) {
@@ -115,7 +134,6 @@ class MapPlugin implements DatatypePluginInterface
                 $datafield_mapping[$key] = array('id' => $df_id, 'typeclass' => $df_typeclass);
             }
 
-//            throw new \Exception( '<pre>'.print_r($datafield_mapping, true).'</pre>' );
 
             // ----------------------------------------
             // For each datarecord that has been passed to this plugin, locate the associated comments field

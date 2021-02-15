@@ -179,6 +179,7 @@ class EntityCreationService
         $datafield_meta->setMarkdownText('');
         $datafield_meta->setIsUnique(false);
         $datafield_meta->setRequired(false);
+        $datafield_meta->setPreventUserEdits(false);
         $datafield_meta->setSearchable(DataFields::NOT_SEARCHED);
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
@@ -221,11 +222,12 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param bool $select_default_radio_options If true, then relevant default radio options are automatically located and marked as selected
      *
      * @return DataRecord
      */
-    public function createDatarecord($user, $datatype, $delay_flush = false)
+    public function createDatarecord($user, $datatype, $delay_flush = false, $select_default_radio_options = true)
     {
         // Initial create
         $datarecord = new DataRecord();
@@ -238,6 +240,7 @@ class EntityCreationService
         $datarecord->setParent($datarecord);
         $datarecord->setGrandparent($datarecord);
 
+        // TODO - the part about "most areas" is not correct, it's currently only checked in EditController::editAction()
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
         $datarecord->setUniqueId( $this->uuid_service->generateDatarecordUniqueId() );
 
@@ -258,10 +261,152 @@ class EntityCreationService
         $datarecord->addDataRecordMetum($datarecord_meta);
         $this->em->persist($datarecord_meta);
 
+        // Set up default radio options if required
+        // NOTE - the only reason this function works properly is because it gets called before a
+        //  flush happens
+        if ($select_default_radio_options)
+            self::selectDefaultRadioOptions($user, $datarecord);
+
         if ( !$delay_flush )
             $this->em->flush();
 
         return $datarecord;
+    }
+
+
+    /**
+     * Determines whether a brand-new datarecord needs to have radio options selected by default.
+     *
+     * NOTE - the only reason this function works properly is because it gets called before a
+     * flush happens in self::createDatarecord().
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     */
+    private function selectDefaultRadioOptions($user, $datarecord)
+    {
+        // Load the list of radio options marked as default, if possible
+        $default_radio_options = $this->cache_service->get('default_radio_options');
+        if ($default_radio_options === false) {
+            // Cache entry doesn't exist...need to create it
+            // NOTE - changing a datafield's fieldtype away from "Radio" does not delete the radio
+            //  options...so need to also check current fieldtype in here
+            $query = $this->em->createQuery(
+               'SELECT ro.id AS ro_id, df.id AS df_id, dt.id AS dt_id
+                FROM ODRAdminBundle:RadioOptionsMeta rom
+                JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
+                JOIN ODRAdminBundle:DataFields df WITH ro.dataField = df
+                JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
+                JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
+                JOIN ODRAdminBundle:DataType gdt WITH dt.grandparent = gdt
+                WHERE rom.isDefault = 1 AND ft.typeClass = :typeclass
+                AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                AND dt.deletedAt IS NULL AND gdt.deletedAt IS NULL'
+            )->setParameters( array('typeclass' => 'Radio') );
+            $results = $query->getArrayResult();
+
+            $default_radio_options = array();
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $df_id = $result['df_id'];
+                $dt_id = $result['dt_id'];
+
+                if ( !isset($default_radio_options[$dt_id]) )
+                    $default_radio_options[$dt_id] = array();
+                if ( !isset($default_radio_options[$dt_id][$df_id]) )
+                    $default_radio_options[$dt_id][$df_id] = array();
+                $default_radio_options[$dt_id][$df_id][] = $ro_id;
+            }
+
+            // Save the list back into the cache
+            $this->cache_service->set('default_radio_options', $default_radio_options);
+        }
+
+        // If the datarecord doesn't belong to a datatype that has a default radio option, then
+        //  it makes no sense to keep looking
+        $dt_id = $datarecord->getDataType()->getId();
+        if ( !isset($default_radio_options[$dt_id]) )
+            return;
+
+        // Otherwise, going to need to hydrate all affected datafields and all radio options
+        $datafields_to_hydrate = array();
+        $radio_options_to_hydrate = array();
+        foreach ($default_radio_options[$dt_id] as $df_id => $radio_options) {
+            $datafields_to_hydrate[] = $df_id;
+            foreach ($radio_options as $num => $ro_id)
+                $radio_options_to_hydrate[] = $ro_id;
+        }
+
+        $query = $this->em->createQuery(
+           'SELECT df
+            FROM ODRAdminBundle:DataFields df
+            WHERE df.id IN (:datafield_ids)'
+        )->setParameters( array('datafield_ids' => $datafields_to_hydrate) );
+        $results = $query->getResult();
+
+        $datafields = array();
+        foreach ($results as $df) {
+            /** @var DataFields $df */
+            $datafields[ $df->getId() ] = $df;
+        }
+
+        $query = $this->em->createQuery(
+           'SELECT ro
+            FROM ODRAdminBundle:RadioOptions ro
+            WHERE ro.id IN (:radio_option_ids)'
+        )->setParameters( array('radio_option_ids' => $radio_options_to_hydrate) );
+        $results = $query->getResult();
+
+        $radio_options = array();
+        foreach ($results as $ro) {
+            /** @var RadioOptions $ro */
+            $df_id = $ro->getDataField()->getId();
+            if ( !isset($radio_options[$df_id]) )
+                $radio_options[$df_id] = array();
+
+            $radio_options[$df_id][ $ro->getId() ] = $ro;
+        }
+
+        // Now that the entities are hydrated, create a DataRecordField entry for each datafield
+        // IMPORTANT - this method ONLY works because the Datarecord doesn't actually "exist"...
+        // It exists only in Doctrine's persist buffer (or whatever), so there's no way for another
+        //  ODR process to try to create drf entities for it...which is what the main function
+        //  self::createDatarecordField() has to prevent by using locking techniques
+        foreach ($datafields as $df_id => $df) {
+            $drf = new DataRecordFields();
+            $drf->setDataRecord($datarecord);
+            $drf->setDataField($df);
+
+            $drf->setCreated(new \DateTime());
+            $drf->setCreatedBy($user);
+
+            // Do not flush the entity here
+            $this->em->persist($drf);
+
+            foreach ($radio_options[$df_id] as $ro_id => $ro) {
+                // Creating the RadioSelection entities has the same restrictions as the drf entities
+                // ...and the usual restrictions can be sidestepped here for the same reasons.
+                $rs = new RadioSelection();
+                $rs->setDataRecord($datarecord);
+                $rs->setDataRecordFields($drf);
+                $rs->setRadioOption($ro);
+
+                $rs->setCreated(new \DateTime());
+                $rs->setUpdated(new \DateTime());
+                $rs->setCreatedBy($user);
+                $rs->setUpdatedBy($user);
+
+                // Mark this option as selected
+                $rs->setSelected(1);
+
+                // Do not flush the entity here
+                $this->em->persist($rs);
+            }
+        }
+
+        // Don't flush here...let the caller take care of it
     }
 
 

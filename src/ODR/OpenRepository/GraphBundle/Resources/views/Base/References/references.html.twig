@@ -9,33 +9,57 @@
 <div class="ODRRenderPluginContent{% if is_top_level == 1 %} ODRReferenceSingle{% else %} ODRReference{% endif %}">
 {% if mapping is defined %}
     {% set author = '' %}
-    {% if mapping.authors is defined and mapping.authors|length > 0 %}
-        {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin, 'text')|raw %}
+    {% if mapping.authors is defined %}
+        {% if mapping.authors is iterable and mapping.authors|length > 0 %}
+            {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin, 'text')|raw %}
+        {% else %}
+            {% set author = mapping.authors %}
+        {% endif %}
     {% endif %}
 
     {% set year = '' %}
-    {% if mapping.year is defined and mapping.year|length > 0 %}
-        {% set year = mapping.year.datafield|datafield_plugin(datarecord, mapping.year.render_plugin, 'text')|raw %}
+    {% if mapping.year is defined %}
+        {% if mapping.year is iterable and mapping.year|length > 0 %}
+            {% set year = mapping.year.datafield|datafield_plugin(datarecord, mapping.year.render_plugin, 'text')|raw %}
+        {% else %}
+            {% set year = mapping.year %}
+        {% endif %}
     {% endif %}
 
     {% set article_title = '' %}
-    {% if mapping.article_title is defined and mapping.article_title|length > 0 %}
-        {% set article_title = mapping.article_title.datafield|datafield_plugin(datarecord, mapping.article_title.render_plugin, 'text')|raw %}
+    {% if mapping.article_title is defined %}
+        {% if mapping.article_title is iterable and mapping.article_title|length > 0 %}
+            {% set article_title = mapping.article_title.datafield|datafield_plugin(datarecord, mapping.article_title.render_plugin, 'text')|raw %}
+        {% else %}
+            {% set article_title = mapping.article_title %}
+        {% endif %}
     {% endif %}
 
     {% set journal = '' %}
-    {% if mapping.journal is defined and mapping.journal|length > 0 %}
-        {% set journal = mapping.journal.datafield|datafield_plugin(datarecord, mapping.journal.render_plugin, 'text')|raw %}
+    {% if mapping.journal is defined %}
+        {% if mapping.journal is iterable and mapping.journal|length > 0 %}
+            {% set journal = mapping.journal.datafield|datafield_plugin(datarecord, mapping.journal.render_plugin, 'text')|raw %}
+        {% else %}
+            {% set journal = mapping.journal %}
+        {% endif %}
     {% endif %}
 
     {% set volume = '' %}
-    {% if mapping.volume is defined and mapping.volume|length > 0 %}
-        {% set volume = mapping.volume.datafield|datafield_plugin(datarecord, mapping.volume.render_plugin, 'text')|raw %}
+    {% if mapping.volume is defined %}
+        {% if mapping.volume is iterable and mapping.volume|length > 0 %}
+            {% set volume = mapping.volume.datafield|datafield_plugin(datarecord, mapping.volume.render_plugin, 'text')|raw %}
+        {% else %}
+            {% set volume = mapping.volume %}
+        {% endif %}
     {% endif %}
 
     {% set pages = '' %}
-    {% if mapping.pages is defined and mapping.pages|length > 0 %}
-        {% set pages = mapping.pages.datafield|datafield_plugin(datarecord, mapping.pages.render_plugin, 'text')|raw %}
+    {% if mapping.pages is defined %}
+        {% if mapping.pages is iterable and mapping.pages|length > 0 %}
+            {% set pages = mapping.pages.datafield|datafield_plugin(datarecord, mapping.pages.render_plugin, 'text')|raw %}
+        {% else %}
+            {% set pages = mapping.pages %}
+        {% endif %}
     {% endif %}
 {#
     {% set book_title = '' %}

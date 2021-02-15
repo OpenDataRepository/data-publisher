@@ -1,7 +1,8 @@
 odr_plugins.base.map:
     name: Map Plugin
+    category: Base
     datatype: true
-    version: 1.10
+    version: 1.1.1
     override_fields: true
     override_child: true
     description: Provides the basic ability to plot one or more GPS points onto a map using data from OpenStreetMap.

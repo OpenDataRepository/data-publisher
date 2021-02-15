@@ -33,7 +33,7 @@
                         <span>Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}</span>
                     </div>
                     <div>
-                        <i class="fa fa-trash-o ODRDeleteFile Pointer" rel="{{ file.id }}"></i>&nbsp;
+                        <i class="fa fa-trash-o ODRDeleteFile Pointer" onclick="DeleteFile({{ file.id }}{% if file_delete_callback is defined %}, {{ file_delete_callback }}{% endif %});"></i>
                         <span>Delete File</span>
                     </div>
                     <div>

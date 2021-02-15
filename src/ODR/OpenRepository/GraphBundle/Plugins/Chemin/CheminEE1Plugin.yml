@@ -1,7 +1,8 @@
 odr_plugins.chemin.cheminee1:
     name: Chemin EE1 Plugin
+    category: Chemin
     datatype: true
-    version: 1.00
+    version: 1.0.1
     override_fields: false
     override_child: true
     description: Plugin to display Chemin EE1 Data

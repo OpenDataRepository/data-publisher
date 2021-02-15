@@ -1,109 +1,99 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
 
-{% set can_edit_parent_record = false %}
-{% if datatype_permissions[ parent_datarecord.dataType.id ] is defined
-    and datatype_permissions[ parent_datarecord.dataType.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_parent_record = true %}
+
+{% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
+
+{# Don't attempt to execute the default render_plugin #}
+{% set can_execute_plugin = false %}
+{% if render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
+    {% set can_execute_plugin = render_plugin|can_execute_plugin(datatype, rendering_options) %}
 {% endif %}
 
-{% set can_edit_record = false %}
-{% if datatype_permissions[ datatype.id ] is defined
-    and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_record = true %}
+{% set content = '' %}
+{% if can_execute_plugin and render_plugin.overrideChild %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+    {% if content|length > 0 %}
+        <!-- Start {{ render_plugin.pluginName }} override child html -->
+        {{ content|raw }}
+        <!-- End {{ render_plugin.pluginName }} override child html -->
+    {% endif %}
 {% endif %}
 
-{% set can_add_record = false %}
-{% if datatype_permissions[ datatype.id ] is defined
-    and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-    {% set can_add_record = true %}
-{% endif %}
+{% if not can_execute_plugin or content|length == 0 %}
+    <div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
 
-{% set can_delete_record = false %}
-{% if datatype_permissions[ datatype.id ] is defined
-    and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-    {% set can_delete_record = true %}
-{% endif %}
-
-{% set can_change_public_status = false %}
-{% if datatype_permissions[ datatype.id ] is defined
-    and datatype_permissions[ datatype.id ][ 'dr_public' ] is defined %}
-    {% set can_change_public_status = true %}
-{% endif %}
-
-
-<div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
-
-    {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
-        'datatype': datatype,
-        'datarecord_list': datarecord_array,
-
-        'is_top_level': is_top_level,
-        'is_link': is_link,
-        'display_type': display_type
-    } %}
-
-    {% for dr_id, datarecord in datarecord_array %}
-{#
-----------</br>
-datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
-parent: {{ datarecord.parent.id }}</br>
-grandparent: {{ datarecord.grandparent.id }}</br>
-</br>
-parent_datarecord_id: {{ parent_datarecord.id }}</br>
-target_datatype_id: {{ target_datatype_id }}</br>
-</br>
-is_top_level: {{ is_top_level }}</br>
-is_link: {{ is_link }}</br>
-display_type: {{ display_type }}</br>
-----------</br>
-#}
-        {% set dr_is_fake = false %}
-        {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
-            {% set dr_is_fake = true %}
-        {% endif %}
-
-        {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
-            'datarecord': datarecord,
+        {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
             'datatype': datatype,
-
-            'can_edit_parent_record': can_edit_parent_record,
-            'can_add_record': can_add_record,
-            'can_edit_record': can_edit_record,
-            'can_delete_record': can_delete_record,
-            'can_change_public_status': can_change_public_status,
+            'datarecord_list': datarecord_array,
 
             'is_top_level': is_top_level,
+            'is_link': is_link,
             'display_type': display_type
         } %}
 
-        <div class="ODRFieldArea accordion-content pure-u-1{% if dr_is_fake %} ODRFakeRecord{% endif %}" id="FieldArea_{{ datarecord.id }}">
-            {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
-                'datatype_array': datatype_array,
-                'datarecord': datarecord,
-                'theme_array': theme_array,
+        {% for dr_id, datarecord in datarecord_array %}
 
-                'parent_datarecord': parent_datarecord,
-                'target_datatype_id': target_datatype_id,
-                'target_datarecord_id': datarecord.id,
-                'target_theme_id': target_theme_id,
+            {% set dr_is_fake = false %}
+            {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+                {% set dr_is_fake = true %}
+            {% endif %}
+
+            {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
+                'datarecord': datarecord,
+                'datatype': datatype,
 
                 'datatype_permissions': datatype_permissions,
-                'datafield_permissions': datafield_permissions,
 
                 'is_top_level': is_top_level,
-                'is_link': is_link,
-                'display_type': display_type,
-
-                'token_list': token_list,
+                'display_type': display_type
             } %}
-        </div><!-- End of #FieldArea_{{ datarecord.id }} -->
 
-    {% endfor %}
+            <div class="ODRFieldArea accordion-content pure-u-1{% if dr_is_fake %} ODRFakeRecord{% endif %}" id="FieldArea_{{ datarecord.id }}">
 
-    {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
+                {% set content = '' %}
+                {% if not dr_is_fake and can_execute_plugin and (render_plugin.overrideChild or render_plugin.overrideFields) %}
+                    {# [datarecord] converts datarecord into a single-element array #}
+                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+                    {% if content|length > 0 %}
+                        <!-- html for {{ render_plugin.pluginName }} -->
+                        {{ content|raw }}
+                    {% endif %}
+                {% endif %}
 
-</div><!-- End of #DataType_{{ datatype.id }} -->
+                {% if can_execute_plugin and render_plugin.overrideFields and content|length > 0 %}
+                    {# If using render plugin and it overrides datafield display, do nothing here #}
+                {% else %}
+                    {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
+                        'datatype_array': datatype_array,
+                        'datarecord': datarecord,
+                        'theme_array': theme_array,
+
+                        'parent_datarecord': parent_datarecord,
+                        'target_datatype_id': target_datatype_id,
+                        'target_datarecord_id': datarecord.id,
+                        'target_theme_id': target_theme_id,
+
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
+
+                        'is_top_level': is_top_level,
+                        'is_link': is_link,
+                        'display_type': display_type,
+
+                        'token_list': token_list,
+                    } %}
+                {% endif %}
+
+            </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+        {% endfor %}
+
+        {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
+
+    </div><!-- End of #DataType_{{ datatype.id }} -->
+{% endif %}
 
 {% endspaceless %}

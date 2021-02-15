@@ -1466,11 +1466,12 @@ odr_update_datatype_names:
     defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }
 
 odr_compare_datatypes:
-    path:  /admin/type/compare/{left_datatype_id}/{right_datatype_id}
-    defaults: { _controller:  ODRAdminBundle:Validation:comparedatatypes }
+    path:  /admin/type/compare/{left_datatype_id}/{right_datatype_id}/{filter}
+    defaults: { _controller:  ODRAdminBundle:Validation:comparedatatypes, filter: 1 }
     requirements:
         left_datatype_id: \d+
         right_datatype_id: \d+
+        filter: 0|1
 
 #-----------------------------------------
 

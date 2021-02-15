@@ -67,7 +67,9 @@ function setupResizeable(elem) {
         handles: handles,
         minHeight: jQuery(elem).height(),
         maxHeight: jQuery(elem).height(),
-        grid: ( jQuery(elem).parent().parent().width() )/64, // 41.5,  // 996 width / 24 units
+        // Divide the width of the element's parent by 24 to create a grid that closely approximates
+        //  the width of the element itself after it gets saved
+        grid: ( jQuery(elem).parent().parent().width() )/24,
         start: function( event, ui) {
             // console.log('Resizeable start:');
             // console.log('height: ', jQuery(elem).height());

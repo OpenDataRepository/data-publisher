@@ -1259,6 +1259,11 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form...deleted DataField');
 
+                    // If the datafield is set to prevent user edits, and the user bypassed the UI
+                    //  in an attempt to force CSVImport to make a change to it, throw an error
+                    if ($datafield->getPreventUserEdits())
+                        throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
+
                     // Ensure fieldtype mapping entry exists
                     $fieldtype_id = $datafield->getFieldType()->getId();
                     if ( !isset($allowed_fieldtypes[$fieldtype_id]) )
@@ -3049,6 +3054,11 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form');
 
+                    // If the datafield is set to prevent user edits, and the user somehow managed
+                    //  to sneak a field into here to force CSVImport to make a change to it, throw an error
+                    if ($datafield->getPreventUserEdits())
+                        throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
+
                     // Store for later...
                     $hydrated_datafields[$datafield->getId()] = $datafield;
 
@@ -4208,6 +4218,7 @@ exit();
             // Increment the job counter
             $total = $tracked_job->getTotal();
             $count = $tracked_job->incrementCurrent($em);
+            $status .= ' ~~ $total: '.$total.'  $count: '.$count."\n";
 
             if ($count >= $total) {
                 // Job is completed...

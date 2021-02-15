@@ -35,7 +35,7 @@
                             {% if data['value'] is defined %}
                                 <td>Value changed to "{{ data['value'] }}"</td>
                             {% else %}
-                                <td>"{{ data['filename'] }}" is now{% if data['public_date'] == "2200-01-01 00:00:00" %} not{% endif %} public</td>
+                                <td>"{{ data['filename'] }}" is {% if data['public_date'] == "2200-01-01 00:00:00" %} no longer{% else %} now{% endif %} public</td>
                             {% endif %}
                             <td>{{ names['users'][ data['updatedBy'] ] }}</td>
 
@@ -60,29 +60,47 @@
     {% for dt_id,dt_data in dr_history %}
         {% for dr_id,dr_data in dt_data %}
             {% for key,data in dr_data %}
-            <tr>
-                <td>{{ data['date'] }}</td>
-                <td>{{ names['datatypes'][dt_id] }}</td>
-                <td>{% if names['datarecords'][dr_id] is defined %}{{ names['datarecords'][dr_id] }}{% else %}{{ dr_id }}{% endif %}</td>
-                <td></td>
+                {% if key == 'created' or key == 'deleted' %}
+                <tr>
+                    <td>{{ data['date'] }}</td>
+                    <td>{{ names['datatypes'][dt_id] }}</td>
+                    <td>{% if names['datarecords'][dr_id] is defined %}{{ names['datarecords'][dr_id] }}{% else %}{{ dr_id }}{% endif %}</td>
+                    <td></td>
 
-                {% set user_name = "" %}
-                {% if key == 'created' %}
-                    <td>Datarecord created</td>
+                    {% set user_name = "" %}
+                    {% if key == 'created' %}
+                        <td>Datarecord created</td>
 
-                    {% if names['users'][ data['createdBy'] ] is defined %}
-                        {% set user_name = names['users'][ data['createdBy'] ] %}
+                        {% if names['users'][ data['createdBy'] ] is defined %}
+                            {% set user_name = names['users'][ data['createdBy'] ] %}
+                        {% endif %}
+                        <td>{{ user_name }}</td>
+                    {% else %}
+                        <td>Datarecord deleted</td>
+
+                        {% if names['users'][ data['deletedBy'] ] is defined %}
+                            {% set user_name = names['users'][ data['deletedBy'] ] %}
+                        {% endif %}
+                        <td>{{ user_name }}</td>
                     {% endif %}
-                    <td>{{ user_name }}</td>
+                </tr>
                 {% else %}
-                    <td>Datarecord deleted</td>
+                    {% for date,status_data in data %}
+                    <tr>
+                        <td>{{ date }}</td>
+                        <td>{{ names['datatypes'][dt_id] }}</td>
+                        <td>{% if names['datarecords'][dr_id] is defined %}{{ names['datarecords'][dr_id] }}{% else %}{{ dr_id }}{% endif %}</td>
+                        <td></td>
+                        <td>Datarecord is {% if status_data['public_date'] == "2200-01-01 00:00:00" %} no longer{% else %} now{% endif %} public</td>
 
-                    {% if names['users'][ data['deletedBy'] ] is defined %}
-                        {% set user_name = names['users'][ data['deletedBy'] ] %}
-                    {% endif %}
-                    <td>{{ user_name }}</td>
+                        {% set user_name = "" %}
+                        {% if names['users'][ status_data['updatedBy'] ] is defined %}
+                            {% set user_name = names['users'][ status_data['updatedBy'] ] %}
+                        {% endif %}
+                        <td>{{ user_name }}</td>
+                    </tr>
+                    {% endfor %}
                 {% endif %}
-            </tr>
             {% endfor %}
         {% endfor %}
     {% endfor %}
@@ -94,7 +112,11 @@
         $("#ODRHistoryTable").DataTable({
             "pageLength": 100,
             "language": {
+                {% if no_criteria %}
+                "emptyTable": "No criteria set"
+                {% else %}
                 "emptyTable": "No changes found with this criteria"
+                {% endif %}
             }
         });
     });

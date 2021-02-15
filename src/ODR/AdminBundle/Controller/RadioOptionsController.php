@@ -390,6 +390,10 @@ class RadioOptionsController extends ODRCustomController
             if ( $datafield->getIsMasterField() )
                 $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately
 
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $cache_service->delete('default_radio_options');
+
             // Mark this datatype as updated
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
@@ -601,6 +605,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -690,8 +696,13 @@ class RadioOptionsController extends ODRCustomController
                 $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
             }
 
+
             // Now that changes are made, flush the database
             $em->flush();
+
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $cache_service->delete('default_radio_options');
 
             // Force an update of this datatype's cached entries
             $dti_service->updateDatatypeCacheEntry($datatype, $user);

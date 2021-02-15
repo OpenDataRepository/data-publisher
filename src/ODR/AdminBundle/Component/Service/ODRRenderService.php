@@ -1218,6 +1218,12 @@ class ODRRenderService
         //  reloaded
 
         $template_name = 'ODRAdminBundle:Edit:edit_datafield.html.twig';
+        if ( $datafield->getPreventUserEdits() ) {
+            // In theory, fields that are blocked shouldn't be requesting reloads...but if they do,
+            //  reload the Display version instead of the Edit version
+            $template_name = 'ODRAdminBundle:Display:display_datafield.html.twig';
+        }
+
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);
     }
 

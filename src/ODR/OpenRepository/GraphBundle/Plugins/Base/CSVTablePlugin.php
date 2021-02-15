@@ -70,9 +70,6 @@ class CSVTablePlugin implements DatafieldPluginInterface
     {
         try {
             // ----------------------------------------
-//            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
-//            return $str;
-
             // Grab various properties from the render plugin array
             $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
 

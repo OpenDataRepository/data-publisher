@@ -183,8 +183,7 @@
     {% else %}
     var isMasterType = 0;
     {% endif %}
-    var SelectedElement = null;
-    var SaveTimeout = 2000;
+    var SaveTimeout = 1500;
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
@@ -344,9 +343,6 @@
     function setupElement(elem, element_type) {
         if (element_type === undefined)
             return;
-
-        // Store the previous element for opacity switching
-        SelectedElement = $(elem);    // TODO - this looks like it's unused...
 
         // Fade out all elements other than this one....
         var actual_parent = null;
@@ -2266,6 +2262,9 @@
                     // single radio and single select fields can be changed to any other radio fieldtype
                     'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
                     'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
+                    // multiple radio can be changed to multiple select, and vice versa
+                    'Multiple Radio': ['Multiple Select'],
+                    'Multiple Select': ['Multiple Radio'],
                     // markdown fields have no data to lose
                     'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
                 };

@@ -95,6 +95,12 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: false
             column: is_unique
 
+        # This only applies to boolean, integer, decimal, datetime, and varchar fields
+        prevent_user_edits:
+            type: boolean
+            nullable: false
+            default: false
+
         # These three apply to both files and images
         allow_multiple_uploads:
             type: boolean

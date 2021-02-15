@@ -154,6 +154,23 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 */
+
+        if ( $current_typeclass == 'Boolean' || $current_typeclass == 'DatetimeValue'
+            || $current_typeclass == 'IntegerValue' || $current_typeclass == 'DecimalValue'
+            || $current_typeclass == 'ShortVarchar' || $current_typeclass == 'MediumVarchar'
+            || $current_typeclass == 'LongVarchar' || $current_typeclass == 'LongText'
+        ) {
+            // Easier to enforce this on the "text" fields, for right now...
+            $builder->add(
+                'prevent_user_edits',
+                CheckboxType::class,
+                array(
+                    'label'  => 'Prevent User Edits',
+                    'required' => false
+                )
+            );
+        }
+
         if ( $current_typeclass !== 'Markdown' ) {
             // All fields except markdown are searchable
             $builder->add(

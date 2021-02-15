@@ -74,6 +74,8 @@
     {% set inline_search_link = true %}
 {% endif %}
 
+    {# TODO - enable datafield render plugins?  they're going to completely interfere with edit functionality... #}
+
     <form
         {% if is_link %} autocomplete="off"{% endif %}
         {% if not datarecord_is_fake %}
@@ -118,12 +120,14 @@
             <div class="pure-u-1 Info" title="Record must be saved before files can be uploaded" style="opacity: 45%;">
             {% endif %}
 
+            {# Don't want to execute anything special after a file gets deleted #}
+{#            {% set file_delete_callback = 'function() {}' %}#}
             {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
                 'datafield': datafield,
                 'datarecord': datarecord,
                 'files': valuefield,
 
-                'datarecord_is_fake': datarecord_is_fake
+                'datarecord_is_fake': datarecord_is_fake,
             } %}
 
             {% if datarecord_is_fake %}
@@ -141,7 +145,15 @@
             {% endif %}
             {% set callback = 'ReloadFileDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                'target': target,
+                'single_file': single_file,
+                'upload_type': 'file',
+                'datatype_id': datatype.id,
+                'datarecord_id': datarecord.id,
+                'datafield_id': datafield.id,
+                'callback': callback
+            } %}
         </div>
         {% endif %}
         {#</fieldset>#}
@@ -277,7 +289,9 @@
                 <div class="ODRRadioOptionsEdit">
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
-                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                    {% if datarecord_is_fake and radio_option.radioOptionMeta.isDefault %}
+                        {% set is_selected = 1 %}
+                    {% elseif datarecordfield.radioSelection[ radio_option.id ] is defined %}
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
@@ -355,11 +369,18 @@
 
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
-                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                    {% if datarecord_is_fake and radio_option.radioOptionMeta.isDefault %}
+                        {% set is_selected = 1 %}
+                    {% elseif datarecordfield.radioSelection[ radio_option.id ] is defined %}
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
-                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}" {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}>{{ radio_option.radioOptionMeta.optionName }}</option>
+                    <option id="Option_{{ radio_option.id }}"
+                            value="{{ radio_option.id}}"
+                            {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}
+                    >
+                        {{ radio_option.radioOptionMeta.optionName }}
+                    </option>
                 {% endfor %}
             {% endif %}
             </select>

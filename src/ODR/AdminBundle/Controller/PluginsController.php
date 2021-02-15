@@ -58,6 +58,8 @@ class PluginsController extends ODRCustomController
      * array of all available Render Plugins...the array keys are plugin classnames, and the values
      * are arrays of parsed yml data.
      *
+     * TODO - pass in another parameter so this function only attempts to load/validate a single plugin?
+     *
      * @param \Doctrine\ORM\EntityManager $em
      * @param bool $validate
      *
@@ -115,6 +117,11 @@ class PluginsController extends ODRCustomController
                         $yaml = Yaml::parse(file_get_contents($plugin_directory.'/'.$config_filename));
 
                         foreach ($yaml as $plugin_classname => $plugin_config) {
+                            // Don't display the plugin in this list when the service isn't defined
+                            if ( !$this->container->has($plugin_classname) )
+                                continue;
+
+                            // Don't allow duplicate plugin definitions
                             if ( isset($available_plugins[$plugin_classname] ) )
                                 throw new ODRException('RenderPlugin config file "'.$abbreviated_config_path.'" attempts to redefine the RenderPlugin "'.$plugin_classname.'", previously defined in "'.$available_plugins[$plugin_classname]['filepath'].'"');
 
@@ -122,10 +129,6 @@ class PluginsController extends ODRCustomController
 
                             // Store the filepath in case of later duplicates
                             $available_plugins[$plugin_classname]['filepath'] = $abbreviated_config_path;
-
-                            // Store a group name for the plugin to assist in sorting
-                            $tmp = explode('.', $plugin_classname);
-                            $available_plugins[$plugin_classname]['group'] = ucfirst( $tmp[1] );
                         }
                     }
                     catch (ParseException $e) {
@@ -166,6 +169,7 @@ class PluginsController extends ODRCustomController
         // All plugins must define these configuration options
         $required_keys = array(
             'name',
+            'category',
             'datatype',
             'version',
             'override_fields',
@@ -273,6 +277,7 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         $plugins_needing_updates = array();
         foreach ($installed_plugins as $plugin_classname => $plugin_data) {
+            // Complain when an "installed" plugin appears to not be available
             if ( !isset($available_plugins[$plugin_classname]) )
                 throw new ODRException('The render plugin "'.$plugin_classname.'" "'.$plugin_data['pluginName'].'" is missing its config file on the server');
 
@@ -286,6 +291,9 @@ class PluginsController extends ODRCustomController
 
             if ( $plugin_data['description'] !== $plugin_config['description'] )
                 $plugins_needing_updates[$plugin_classname][] = 'description';
+
+            if ( $plugin_data['category'] !== $plugin_config['category'] )
+                $plugins_needing_updates[$plugin_classname][] = 'category';
 
             if ( $plugin_data['overrideChild'] !== $plugin_config['override_child'] )
                 $plugins_needing_updates[$plugin_classname][] = 'override_child';
@@ -342,7 +350,6 @@ class PluginsController extends ODRCustomController
 
                         if ( count($diff_1) == 0 && count($diff_2) == 0 )
                             unset( $tmp[$fieldname]['allowed_fieldtypes'] );
-
 
                         // If there are no differences, remove the entry
                         if ( count($tmp[$fieldname]) == 0 )
@@ -512,6 +519,7 @@ class PluginsController extends ODRCustomController
             $render_plugin = new RenderPlugin();
             $render_plugin->setPluginName( $plugin_data['name'] );
             $render_plugin->setDescription( $plugin_data['description'] );
+            $render_plugin->setCategory( $plugin_data['category'] );
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
@@ -561,7 +569,7 @@ class PluginsController extends ODRCustomController
 
                         $allowed_fieldtypes[] = $sub_result[0]['fieldtype_id'];
                     }
-                    $rpf->setAllowedFieldtypes(implode(',', $allowed_fieldtypes));
+                    $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes) );
 
                     $render_plugin->addRenderPluginField($rpf);
 
@@ -593,6 +601,7 @@ class PluginsController extends ODRCustomController
     /**
      * Updates the database entries for a specified plugin to match the config file.
      * TODO - versioning?
+     * TODO - disabling an active plugin?
      *
      * @param Request $request
      *
@@ -660,6 +669,7 @@ class PluginsController extends ODRCustomController
             // Update the existing RenderPlugin entry from the config file data
             $render_plugin->setPluginName( $plugin_data['name'] );
             $render_plugin->setDescription( $plugin_data['description'] );
+            $render_plugin->setCategory( $plugin_data['category'] );
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
@@ -776,7 +786,16 @@ class PluginsController extends ODRCustomController
 
                         $allowed_fieldtypes[] = $sub_result[0]['fieldtype_id'];
                     }
-                    $rpf->setAllowedFieldtypes(implode(',', $allowed_fieldtypes));
+                    $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes) );
+
+                    // TODO - how to handle changes to allowed_fieldtypes (and other options) when the plugin is already in use?
+                    // TODO - automatically forcing changes could be dangerous...
+                    // TODO    - fieldtypes aren't guaranteed to be transferrable, and it's trivially easy to lose data if done unexpectedly
+                    // TODO    - a field that is (forced to be) unique but wasn't originally intended to be unique will interfere with edits across the entire datatype
+                    // TODO    - changing the "allow multiple uploads" or "prevent user edits" options will also be irritating if it goes against the user's original intent
+
+                    // TODO - also, lack of versioning and difficulty of reverting amplify any problems encountered
+                    // TODO - ...maybe some kind of problem locator utility?  and/or a modal to list the changes being made
 
                     if ($creating) {
                         $rpf->setCreatedBy($user);
@@ -922,16 +941,16 @@ class PluginsController extends ODRCustomController
                 // If datafield id isn't defined, this is a render plugin for a datatype
                 $current_render_plugin = $datatype->getRenderPlugin();
 
-                // Load all available render plugins for this datatype
+                // Load all available datatype render plugins, including the disabled ones
                 $query = $em->createQuery(
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
                     WHERE rp.plugin_type IN (:plugin_types)
-                    AND rp.deletedAt IS NULL'
+                    AND rp.deletedAt IS NULL
+                    ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
                     array(
                         'plugin_types' => array(
-                            RenderPlugin::DEFAULT_PLUGIN,
                             RenderPlugin::DATATYPE_PLUGIN,
                         )
                     )
@@ -941,22 +960,27 @@ class PluginsController extends ODRCustomController
 
                 // Attempt to grab the field mapping between this render plugin and this datatype
                 /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $current_render_plugin, 'dataType' => $datatype) );
+                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(
+                    array(
+                        'renderPlugin' => $current_render_plugin,
+                        'dataType' => $datatype
+                    )
+                );
             }
             else {
                 // ...otherwise, this is a render plugin for a datafield
                 $current_render_plugin = $datafield->getRenderPlugin();
 
-                // Load all available render plugins for this datafield
+                // Load all available datafield render plugins, including the disabled ones
                 $query = $em->createQuery(
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
                     WHERE rp.plugin_type IN (:plugin_types)
-                    AND rp.deletedAt IS NULL'
+                    AND rp.deletedAt IS NULL
+                    ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
                     array(
                         'plugin_types' => array(
-                            RenderPlugin::DEFAULT_PLUGIN,
                             RenderPlugin::DATAFIELD_PLUGIN,
                         )
                     )
@@ -965,10 +989,24 @@ class PluginsController extends ODRCustomController
                 $render_plugins = $query->getResult();
 
                 /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $current_render_plugin, 'dataField' => $datafield) );
+                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(
+                    array(
+                        'renderPlugin' => $current_render_plugin,
+                        'dataField' => $datafield
+                    )
+                );
             }
 
+            // Also need the default render plugin
+            /** @var RenderPlugin $default_render_plugin */
+            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy(
+                array(
+                    'pluginClassName' => 'odr_plugins.base.default'
+                )
+            );
 
+
+            // ----------------------------------------
             // Get Templating Object
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -978,6 +1016,8 @@ class PluginsController extends ODRCustomController
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
                         'render_plugins' => $render_plugins,
+                        'default_render_plugin' => $default_render_plugin,
+
                         'render_plugin_instance' => $render_plugin_instance
                     )
                 )
@@ -1200,7 +1240,7 @@ class PluginsController extends ODRCustomController
 
 
     /**
-     * Saves settings changes made to a RenderPlugin for a DataType
+     * Changes the RenderPlugin (or its settings) being used by a Datatype or a Datafield.
      *
      * @param Request $request
      *

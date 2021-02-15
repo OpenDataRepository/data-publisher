@@ -28,6 +28,7 @@ use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -918,6 +919,7 @@ class DisplaytemplateController extends ODRCustomController
             self::persistObject($em, $new_tdf, $user, true);    // Don't flush immediately...
 
 
+            // TODO - can't copy fields with render plugins?  why was that again?
             if ($add_to_linked_datatype) {
                 // When copying to a linked datatype...at this point there's a ThemeDatafield entry
                 //  in the local datatype's copy of the linked datatype's theme.  The new datafield
@@ -926,7 +928,7 @@ class DisplaytemplateController extends ODRCustomController
                 $theme_data = $theme_service->getThemeArray($source_theme->getId());
 
                 // Might as well ensure the copied datafield appears immediately after its source
-                //  datafield in the linked datatype's theme...
+                //  datafield in the linked datatype's master theme...
                 foreach ($theme_data[$source_theme->getId()]['themeElements'] as $te_num => $te) {
                     if ( isset($te['themeDataFields']) ) {
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
@@ -2021,7 +2023,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     private function getSortfieldDatatypes($datatype)
     {
-        /** @var DatatreeInfoService $$dti_service */
+        /** @var DatatreeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatree_info_service');
 
         // Locate the ids of all datatypes that the given parent datatype links to
@@ -2071,6 +2073,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatafieldInfoService $dfi_service */
             $dfi_service = $this->container->get('odr.datafield_info_service');
             /** @var DatatypeInfoService $dti_service */
@@ -2137,6 +2141,9 @@ class DisplaytemplateController extends ODRCustomController
             // Don't really need this when validating a form, but do need it for rendering one
             $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
             $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
+
+            // TODO - how to handle render plugins demanding that datafields must_be_unique, must_not_allow_multiple_uploads, and must_prevent_user_edits?
+            // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
 
             // Keep track of conditions where parts of the datafield shouldn't be changed...
             $ret = $dfi_service->canChangeFieldtype($datafield);
@@ -2337,6 +2344,17 @@ class DisplaytemplateController extends ODRCustomController
                             break;
                     }
 
+                    // Ensure that specific fieldtypes can't have the property that "prevents user edits"
+                    switch ($submitted_data->getFieldType()->getTypeClass()) {
+                        case 'File':
+                        case 'Image':
+                        case 'Radio':
+                        case 'Tag':
+                        case 'Markdown':
+                            $submitted_data->setPreventUserEdits(false);
+                            break;
+                    }
+
                     // If the fieldtype changed, then ensure several of the properties are cleared
                     if ( $old_fieldtype_id !== $new_fieldtype_id ) {
                         // Reset a datafield's markdown text if it's not longer a markdown field
@@ -2354,6 +2372,44 @@ class DisplaytemplateController extends ODRCustomController
                             // These properties are only used by tags
                             $submitted_data->setTagsAllowMultipleLevels(false);
                             $submitted_data->setTagsAllowNonAdminEdit(false);
+                        }
+
+                        if ($old_fieldtype_typeclass === 'Radio') {
+                            // If the field is no longer a radio field, then delete the cache entry
+                            //  that stores the default radio options...just in case
+                            $cache_service->delete('default_radio_options');
+                        }
+                    }
+
+                    // If the field got changed from Multiple Radio/Select to Single Radio/Select,
+                    //  then ensure the "isDefault" property is only selected for one radio option
+                    if ( ($old_fieldtype_typename == 'Multiple Radio' || $old_fieldtype_typename == 'Multiple Select')
+                        && ($new_fieldtype_typename == 'Single Radio' || $new_fieldtype_typename == 'Single Select')
+                    ) {
+                        $query = $em->createQuery(
+                           'SELECT ro
+                            FROM ODRAdminBundle:RadioOptionsMeta rom
+                            JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
+                            WHERE ro.dataField = :datafield_id AND rom.isDefault = 1
+                            AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+                            ORDER BY rom.displayOrder'
+                        )->setParameters( array('datafield_id' => $datafield->getId()) );
+                        $results = $query->getResult();
+
+                        $count = 0;
+                        foreach ($results as $ro) {
+                            /** @var RadioOptions $ro */
+                            $count++;
+
+                            // Ignore the first default radio option
+                            if ($count == 1)
+                                continue;
+
+                            // Otherwise, mark the radio option as "not default
+                            $props = array(
+                                'isDefault' => false
+                            );
+                            $emm_service->updateRadioOptionsMeta($user, $ro, $props, true);    // don't flush immediately
                         }
                     }
 
@@ -2392,6 +2448,7 @@ class DisplaytemplateController extends ODRCustomController
                         'phpValidator' => $submitted_data->getPhpValidator(),
                         'required' => $submitted_data->getRequired(),
                         'is_unique' => $submitted_data->getIsUnique(),
+                        'prevent_user_edits' => $submitted_data->getPreventUserEdits(),
                         'allow_multiple_uploads' => $submitted_data->getAllowMultipleUploads(),
                         'shorten_filename' => $submitted_data->getShortenFilename(),
                         'newFilesArePublic' => $submitted_data->getNewFilesArePublic(),
@@ -3606,13 +3663,17 @@ if ($debug)
             $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
-            if ( count($post['searchable']) !== count($df_array) || count($post['public_status']) !== count($df_array) )
-                throw new ODRBadRequestException();
-
             // Ensure that the provided datafields match the datatype
             foreach ($df_array as $df_id => $df) {
-                // Verify that a datafield entry for both of these properties exist...
-                if ( !isset($post['searchable'][$df_id]) || !isset($post['public_status'][$df_id]) )
+                // Verify that all datafields in the post have an entry for public_status...
+                if ( !isset($post['public_status'][$df_id]) )
+                    throw new ODRBadRequestException();
+
+                // ...while all fields other than markdown fields must have a searchable entry
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                if ( $typeclass === 'Markdown' && isset($post['searchable'][$df_id]) )
+                    throw new ODRBadRequestException();
+                else if ( $typeclass !== 'Markdown' && !isset($post['searchable'][$df_id]) )
                     throw new ODRBadRequestException();
 
                 // Verify that the public status is a boolean
@@ -3621,37 +3682,41 @@ if ($debug)
                     throw new ODRBadRequestException();
 
                 // Verify that the searchable status isn't something silly
-                $searchable = $post['searchable'][$df_id];
-                if ( $searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY )
-                    throw new ODRBadRequestException();
+                if ($typeclass === 'Markdown') {
+                    $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
+                }
+                else {
+                    $searchable = $post['searchable'][$df_id];
+                    if ($searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY)
+                        throw new ODRBadRequestException();
 
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                switch ($typeclass) {
-                    case 'DecimalValue':
-                    case 'IntegerValue':
-                    case 'LongText':
-                    case 'LongVarchar':
-                    case 'MediumVarchar':
-                    case 'ShortVarchar':
-                    case 'Radio':
-                    case 'Tag':
-                        // All of these fieldtypes can have any value for searchable
-                        break;
+                    switch ($typeclass) {
+                        case 'DecimalValue':
+                        case 'IntegerValue':
+                        case 'LongText':
+                        case 'LongVarchar':
+                        case 'MediumVarchar':
+                        case 'ShortVarchar':
+                        case 'Radio':
+                        case 'Tag':
+                            // All of these fieldtypes can have any value for searchable
+                            break;
 
-                    case 'Image':
-                    case 'File':
-                    case 'Boolean':
-                    case 'DatetimeValue':
-                        // General search is meaningless for these fieldtypes, so they can only
-                        //  be searched via advanced search
-                        if ($searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH)
-                            $post['searchable'][$df_id] = DataFields::ADVANCED_SEARCH_ONLY;
-                        break;
+                        case 'Image':
+                        case 'File':
+                        case 'Boolean':
+                        case 'DatetimeValue':
+                            // General search is meaningless for these fieldtypes, so they can only
+                            //  be searched via advanced search
+                            if ($searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH)
+                                $post['searchable'][$df_id] = DataFields::ADVANCED_SEARCH_ONLY;
+                            break;
 
-                    default:
-                        // No other fieldtypes can be searched
-                        $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
-                        break;
+                        default:
+                            // No other fieldtypes can be searched
+                            $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
+                            break;
+                    }
                 }
             }
 

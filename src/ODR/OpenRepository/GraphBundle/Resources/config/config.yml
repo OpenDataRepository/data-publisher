@@ -2,6 +2,8 @@ imports:
     - { resource: "../../Plugins/Base/config.yml" }
     - { resource: "../../Plugins/Chemin/config.yml" }
     - { resource: "../../Plugins/AHED/config.yml" }
+    - { resource: "../../Plugins/Metadata/config.yml" }
+#    - { resource: "../../Plugins/RRUFF/config.yml" }    # TODO - need a more robust plugin management system...these plugins shouldn't be active/available to the entirety of ODR...
 
 parameters:
     # This should point to the base directory for the render plugin yml and php files...used to

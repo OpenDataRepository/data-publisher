@@ -8,9 +8,9 @@
 {% else %}
 
 {#<div class="pure-u-1 ODRDatarecordListHeader">Datarecords that have multiple uploads</div>#}
-{% for dr_id in multiple_uploads %}
+{% for dr_id,dr_name in multiple_uploads %}
     <div class="pure-u-1-5">
-        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_name }}</a>
     </div>
 {% endfor %}
 
