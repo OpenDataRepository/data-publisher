@@ -2670,7 +2670,11 @@ class ValidationController extends ODRCustomController
             $control_key = $control_keys[$i];
             $control_value = $control[$control_key];
 
-            if ( is_array($subject_value) ) {
+            if ( $subject_key === 'tagTree' && $control_key === 'tagTree' ) {
+                // Don't attempt to compare tag trees...the results are useless, assuming they're
+                //  even in "the same order" in the first place
+            }
+            else if ( is_array($subject_value) ) {
                 if ( !is_null($control_value) ) {
                     // Can only continue recursion when both $subject_value and $control_value are
                     //  not null...

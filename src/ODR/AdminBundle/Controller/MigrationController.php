@@ -34,7 +34,7 @@ class MigrationController extends ODRCustomController
     /**
      * Performs the following migration actions to update the backend database from ODR v1.0 to v1.1
      * 1) ROLE_ADMIN is removed from all users
-     * 2) users with ROLE_SUPER_ADMIN are removed from all groups they were divviously members of
+     * 2) users with ROLE_SUPER_ADMIN are removed from all groups they were previously members of
      * 3) "Edit All" and "Admin" groups receive the "can_change_public_status" permission
      * 4) Update the description for the "Edit All" group
      * 5) Since there's only at most one themeDatatype entry per themeElement, turn all
@@ -72,6 +72,7 @@ class MigrationController extends ODRCustomController
             $ret = '<html>';
             $ret .= '<br>----------------------------------------<br>';
 
+
             // ----------------------------------------
             // 1) ROLE_ADMIN is removed from all users
             /** @var ODRUser[] $users */
@@ -81,7 +82,7 @@ class MigrationController extends ODRCustomController
             foreach ($users as $user) {
                 if ( $user->hasRole("ROLE_ADMIN") ) {
                     $user->removeRole("ROLE_ADMIN");
-                    $user->addRole("ROLE_USER");    // <-- not technically since all users have this role by default, but be safe...
+                    $user->addRole("ROLE_USER");    // <-- not technically needed since all users have this role by default, but be safe...
                     $user_manager->updateUser($user);
 
                     $ret .= '-- '.$user->getUserString().'<br>';
@@ -95,8 +96,9 @@ class MigrationController extends ODRCustomController
             $conn = $em->getConnection();
             $conn->beginTransaction();
 
+
             // ----------------------------------------
-            // 2) users with ROLE_SUPER_ADMIN are removed from all groups they were divviously members of
+            // 2) users with ROLE_SUPER_ADMIN are removed from all groups they were previously members of
             $ret .= '<div>Removing the following users with ROLE_SUPER_ADMIN from all groups:<br>';
             
             $super_admins = array();
@@ -207,6 +209,7 @@ class MigrationController extends ODRCustomController
             $ret .= '</div>';
             $ret .= '<br>----------------------------------------<br>';
 
+
             // ----------------------------------------
             // 5) Since there's only at most one themeDatatype entry per themeElement, turn all
             //    instances of a "hidden" themeDatatype into a "hidden" themeElement instead
@@ -245,6 +248,7 @@ class MigrationController extends ODRCustomController
             $ret .= '</div>';
             $ret .= '<br>----------------------------------------<br>';
 
+
             // ----------------------------------------
             // 6) Delete ancient/unused database tables
             $ret .= '<div>Dropping unused database tables:<br>';
@@ -279,18 +283,19 @@ class MigrationController extends ODRCustomController
             $ret .= '</div>';
             $ret .= '<br>----------------------------------------<br>';
 
+
             // ----------------------------------------
             // 7) Change the chemin references plugin classname to "odr_plugins.chemin.chemin_references"
             $ret .= '<div>Updating "Chemin References" plugin:<br>';
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:RenderPlugin rp
-                SET rp.pluginClassName = :old_classname
-                WHERE rp.pluginClassName = :new_classname'
+                SET rp.pluginClassName = :new_classname
+                WHERE rp.pluginClassName = :old_classname'
             );
             $query->execute(
                 array(
-                    'old_classname' => "odr_plugins.chemin.chemin_references",
-                    'new_classname' => "odr_plugins.base.chemin_references"
+                    'new_classname' => "odr_plugins.chemin.chemin_references",
+                    'old_classname' => "odr_plugins.base.chemin_references"
                 )
             );
 

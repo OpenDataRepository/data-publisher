@@ -20,7 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
-// Entites
+// Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;

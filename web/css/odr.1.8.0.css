@@ -4322,3 +4322,17 @@ i {
 .ODRTrackingDatafieldList_spacer {
     min-height: 10px;
 }
+
+.ODRRemoteSearch_dialog {
+    /*display: none;*/
+    text-align: left;
+    /*font-size: 0.8em;*/
+    color: #444;
+    font-family: "Lato-Reg", sans-serif;
+}
+.ODRRemoteSearch_pre {
+    margin: 0px;
+}
+.ODRRemoteSearch_extra {
+    margin-left: 15px;
+}

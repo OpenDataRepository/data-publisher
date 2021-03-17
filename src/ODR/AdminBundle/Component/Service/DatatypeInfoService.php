@@ -833,4 +833,80 @@ class DatatypeInfoService
             }
         }
     }
+
+
+    /**
+     * Returns an array with how many datarecords the user is allowed to see for each datatype in
+     * $datatype_ids
+     *
+     * @param int[] $datatype_ids
+     * @param array $datatype_permissions
+     *
+     * @return array
+     */
+    public function getDatarecordCounts($datatype_ids, $datatype_permissions)
+    {
+        $can_view_public_datarecords = array();
+        $can_view_nonpublic_datarecords = array();
+
+        foreach ($datatype_ids as $num => $dt_id) {
+            if ( isset($datatype_permissions[$dt_id])
+                && isset($datatype_permissions[$dt_id]['dr_view'])
+            ) {
+                $can_view_nonpublic_datarecords[] = $dt_id;
+            } else {
+                $can_view_public_datarecords[] = $dt_id;
+            }
+        }
+
+        // Figure out how many datarecords the user can view for each of the datatypes
+        $metadata = array();
+        if ( count($can_view_nonpublic_datarecords) > 0 ) {
+            $query = $this->em->createQuery(
+               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $can_view_nonpublic_datarecords
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $count = $result['datarecord_count'];
+                $metadata[$dt_id] = $count;
+            }
+        }
+
+        if ( count($can_view_public_datarecords) > 0 ) {
+            $query = $this->em->createQuery(
+               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dt IN (:datatype_ids) AND drm.publicDate != :public_date AND dr.provisioned = FALSE
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $can_view_public_datarecords,
+                    'public_date' => '2200-01-01 00:00:00'
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $count = $result['datarecord_count'];
+                $metadata[$dt_id] = $count;
+            }
+        }
+
+        return $metadata;
+    }
 }

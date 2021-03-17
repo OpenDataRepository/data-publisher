@@ -129,6 +129,10 @@
      * Updates the href property of the Dashboard "button" to point to the correct landing page.
      */
     function updateDashboardLink() {
+        // Don't run when nothing to update
+        if ( $('#ODRDatabaseLanding').length === 0 )
+            return;
+
         // Extract unique id
         var current_url = window.location.href;
         var url_data = current_url.split('#');
@@ -136,6 +140,11 @@
 
         // Unique ID is the last bit
         var unique_id = url_bits[(url_bits.length - 1)];
+        // There won't be anything to find in this case
+        if (unique_id === 'admin') {
+            $('#ODRDatabaseLanding').children('a').first().prop("href", "{{ path('odr_admin_homepage') }}");
+            return;
+        }
 
         // NOTE - despite being named as unique_ids, this also works with search slugs
         var url = '{{ path('odr_datatype_find_landing', { 'datatype_unique_id': 0 }) }}';

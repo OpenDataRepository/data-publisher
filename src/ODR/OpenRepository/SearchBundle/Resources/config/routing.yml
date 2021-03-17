@@ -1,15 +1,38 @@
 # ----------------------------------------
+# ODRRemoteSearch routes
+odr_remote_search_start:
+    path: /remote_search
+    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:start }
+
+odr_remote_search_select:
+    path: /remote_search/{datatype_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:select }
+    requirements:
+        datatype_id: \d+
+
+odr_remote_search_config:
+    path: /remote_search/config
+    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:config }
+    methods: [ POST ]
+
+odr_remote_search_download:
+    path: /remote_search/download/{minified}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:download }
+    requirements:
+        minified: 0|1
+
+# ----------------------------------------
 # Support for old routes and GET routes
 #
 odr_legacy_search_results:
     path: /search/results/{search_key}
-    defaults: { _controller:ODROpenRepositorySearchBundle:Default:legacy_search }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:legacy_search }
     requirements:
         search_key: '[^\/]*'
 
 odr_searchtest_get_results:
     path: /searchtest/{search_key}/{limit}/{offset}
-    defaults: { _controller:ODROpenRepositorySearchBundle:Facade:searchTemplateGetTest, version: 'v3' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGetTest, version: 'v3' }
     methods: [ GET ]
     requirements:
         search_key: '[^\/]*'
@@ -29,12 +52,12 @@ odr_legacy_render:
 
 odr_search_results:
     path: /search/results
-    defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:search }
     methods: [ POST ]
 
 odr_inline_link_search:
     path:  /search/inline_link
-    defaults: { _controller:ODROpenRepositorySearchBundle:Default:inlinelinksearch }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:inlinelinksearch }
     methods: [ POST ]
 
 odr_search_render:
