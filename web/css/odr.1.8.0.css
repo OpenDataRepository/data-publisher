@@ -3859,7 +3859,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 
 /* Expand/Collapse All tags */
 .ODRTagGroup_header {
-// padding-left: 15px;
+    /*padding-left: 15px;*/
     cursor: pointer;
 }
 .ODRTagGroup_headerlabel {
@@ -4290,6 +4290,12 @@ i {
 .strikethrough {
     text-decoration: line-through;
 }
+.underline {
+    text-decoration: underline;
+}
+.bold {
+    font-weight: bold;
+}
 
 #ODRTrackingDatafieldList {
     text-align: left;
@@ -4335,4 +4341,10 @@ i {
 }
 .ODRRemoteSearch_extra {
     margin-left: 15px;
+}
+
+.ODRDatarecordListHeader {
+    border-bottom: 1px solid #111111;
+    font-weight: bold;
+    padding: 10px 18px;
 }

@@ -4,7 +4,7 @@
 
         <div class="pure-u-1" style="padding-top:15px">
             <div class="pure-u-1">
-                <span style="float:left">
+                <span class="FLeft">
                     <b>Default Groups</b>
                 </span>
             </div>
@@ -20,7 +20,7 @@
                     {% if group.purpose != '' %}
                         {% set count = count + 1 %}
                         <div class="pure-u-1">
-                            <span style="float:left;">
+                            <span class="FLeft">
                                 <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
                                 <i id="group_members_{{ group.id }}" class="fa fa-lg fa-users Pointer ODRGroupMembers" title="Show which Users are members of this Group" rel="{{ group.id }}"></i>
                             </span>
@@ -34,7 +34,7 @@
         </div>
         <div class="pure-u-1" style="padding-top:15px">
             <div class="pure-u-1">
-                <span style="float:left">
+                <span class="FLeft">
                     <i class="Pointer tooltip fa fa-plus-square ODRAddGroup" title="Create new custom Group" rel="table" style="margin-right: 5px;"></i>
                     <b>Custom Groups</b>
                 </span>
@@ -51,7 +51,7 @@
                     {% if group.purpose == '' %}
                         {% set count = count + 1 %}
                         <div class="pure-u-1">
-                            <span style="float:left;">
+                            <span class="FLeft">
                                 <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
                                 <i id="group_members_{{ group.id }}" class="fa fa-lg fa-users Pointer ODRGroupMembers" title="Show which Users are members of this Group" rel="{{ group.id }}"></i>
                             </span>

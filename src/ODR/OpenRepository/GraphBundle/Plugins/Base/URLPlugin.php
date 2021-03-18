@@ -135,7 +135,7 @@ class URLPlugin implements DatafieldPluginInterface
 
             $str = '';
             if ($value !== '') {
-                $str = '<a target="_blank" href="'.$prepend.$href_value.$append.'">';
+                $str = '<a target="_blank" href="'.$prepend.$href_value.$append.'" class="underline">';
 
                 // Display the prepend/append strings in the datafield contents if configured that way
                 if ( isset($options['display_full_url']) && $options['display_full_url'] === 'yes' )

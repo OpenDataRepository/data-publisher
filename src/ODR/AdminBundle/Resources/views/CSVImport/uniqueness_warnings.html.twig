@@ -7,7 +7,7 @@
             {# notify that the file's encoding got changed #}
             <div class="pure-u-1" style="margin-bottom:20px;">
                 <span><i class="fa fa-lg fa-info-circle Cursor"></i></span>
-                <span>The uploaded CSV file had a number of invalid UTF-8 characters..as such, the server attempted to rewrite the file to convert it into valid UTF-8.  The modified file is available for download <a href="{{ path('odr_csv_file_redownload') }}" style="text-decoration: underline;">HERE</a> if you wish to verify that the automatic conversion worked properly.</span>
+                <span>The uploaded CSV file had a number of invalid UTF-8 characters..as such, the server attempted to rewrite the file to convert it into valid UTF-8.  The modified file is available for download <a href="{{ path('odr_csv_file_redownload') }}" class="underline">HERE</a> if you wish to verify that the automatic conversion worked properly.</span>
             </div>
         {% endif %}
 

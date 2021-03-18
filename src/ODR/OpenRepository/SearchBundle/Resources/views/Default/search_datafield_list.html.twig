@@ -14,11 +14,11 @@
 {% endfor %}
 
 <div class="ODRTableWrap">
-    <div class="pure-u-1" style="font-weight: bold;">List of Datafields that will be searched:</div>
+    <div class="pure-u-1 bold">List of Datafields that will be searched:</div>
 
     {# primary datatype #}
     {% if can_search_target_datatype %}
-        <div class="pure-u-1" style="font-weight: bold;">{{ target_datatype.getshortname }}</div>
+        <div class="pure-u-1 bold">{{ target_datatype.getshortname }}</div>
 
         {% for datafield in datatype['dataFields'] %}
             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
@@ -42,7 +42,7 @@
         {% endfor %}
 
         {% if can_search_child_datatype %}
-            <div class="pure-u-1" style="font-weight: bold;">{{ child_datatype['dataTypeMeta']['shortName'] }}</div>
+            <div class="pure-u-1 bold">{{ child_datatype['dataTypeMeta']['shortName'] }}</div>
 
             {% for datafield in child_datatype['dataFields']  %}
                 {% set searchable = datafield['dataFieldMeta']['searchable'] %}

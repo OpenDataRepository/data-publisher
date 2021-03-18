@@ -171,7 +171,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface
             $is_top_level = $rendering_options['is_top_level'];
 
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Base:CheminReferences/chemin_references.html.twig',
+                'ODROpenRepositoryGraphBundle:Chemin:CheminReferences/chemin_references.html.twig',
                 array(
                     'datarecord' => $datarecord,
                     'mapping' => $datafield_mapping,

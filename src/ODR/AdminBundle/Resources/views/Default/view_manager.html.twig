@@ -116,7 +116,7 @@
 {#
     {% if display_export_options is defined and display_export_options == true and intent == 'searching' and has_datarecords %}
         {% if use_jupyterhub %}
-            <div style="float:right;">
+            <div class="FRight">
                 <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
 
                 <form target="_blank" action="{{ path('odr_jupyterhub_export') }}" method="post" style="display: inline;">

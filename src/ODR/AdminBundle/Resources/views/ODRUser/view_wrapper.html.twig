@@ -18,7 +18,7 @@
         <div id="ODRThemeList" class="pure-u-1-4">
             <div class="pure-u-1" style="padding-top:15px">
                 <div class="pure-u-1">
-                    <span style="float:left">
+                    <span class="FLeft">
                         <b>Master Themes</b>
                     </span>
                 </div>
@@ -34,7 +34,7 @@
                         {% if theme.themeType == 'master' %}
                             {% set count = count + 1 %}
                             <div class="pure-u-1">
-                                <span style="float:left;">
+                                <span class="FLeft">
                                     <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
                                 </span>
                                 <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
@@ -56,7 +56,7 @@
 {#
             <div class="pure-u-1" style="padding-top:15px">
                 <div class="pure-u-1">
-                    <span style="float:left">
+                    <span class="FLeft">
                         <b>Derivative Themes</b>
                     </span>
                 </div>
@@ -72,7 +72,7 @@
                         {% if theme.themeType == 'derivative' %}
                             {% set count = count + 1 %}
                             <div class="pure-u-1">
-                                <span style="float:left;">
+                                <span class="FLeft">
                                     <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
                                 </span>
                                 <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
@@ -94,7 +94,7 @@
 #}
             <div class="pure-u-1" style="padding-top:15px">
                 <div class="pure-u-1">
-                    <span style="float:left">
+                    <span class="FLeft">
                         <b>Search Result Themes</b>
                     </span>
                 </div>
@@ -110,7 +110,7 @@
                         {% if theme.themeType == 'search_results' %}
                             {% set count = count + 1 %}
                             <div class="pure-u-1">
-                                <span style="float:left;">
+                                <span class="FLeft">
                                     <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
                                 </span>
                                 <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
@@ -132,7 +132,7 @@
 
             <div class="pure-u-1" style="padding-top:15px">
                 <div class="pure-u-1">
-                    <span style="float:left">
+                    <span class="FLeft">
                         <b>Table Themes</b>
                     </span>
                 </div>
@@ -148,7 +148,7 @@
                         {% if theme.themeType == 'table' %}
                             {% set count = count + 1 %}
                             <div class="pure-u-1">
-                                <span style="float:left;">
+                                <span class="FLeft">
                                     <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
                                 </span>
                                 <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
