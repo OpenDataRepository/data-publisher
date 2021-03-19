@@ -43,6 +43,30 @@ class LinkPlugin implements DatatypePluginInterface
 
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin
+     * @param array $datatype
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    {
+        // This render plugin isn't allowed to work when in edit mode
+        // TODO - allow execution in Edit mode?
+        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
+            return false;
+
+        // This plugin should only be executed when it's being used to render a linked datatype
+        if ( isset($rendering_options['is_link']) && $rendering_options['is_link'] === 1 )
+            return true;
+
+        return false;
+    }
+
+
+    /**
      * Executes the Link Plugin on the provided datarecords
      *
      * @param array $datarecords
@@ -50,19 +74,18 @@ class LinkPlugin implements DatatypePluginInterface
      * @param array $render_plugin
      * @param array $theme_array
      * @param array $rendering_options
+     * @param array $parent_datarecord
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
+     * @param array $token_list
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {
-
-//            $str = '<pre>'.print_r($datarecords, true)."\n".print_r($datatype, true)."\n".print_r($render_plugin, true)."\n".print_r($theme, true).'</pre>';
-//            throw new \Exception($str);
-
-
             // ----------------------------------------
             // Grab various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
@@ -91,59 +114,19 @@ class LinkPlugin implements DatatypePluginInterface
 
 
             // ----------------------------------------
-            // Determine whether to this is being called as part of rendering a linked datatype...
-            $output = '';
-            if ( isset($rendering_options['is_link']) && $rendering_options['is_link'] == 1 ) {
-                // ...if yes, then render just the link button and the labels if they exist
-                $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:Link/link.html.twig',
-                    array(
-                        'datatype' => $datatype,
-                        'datarecord_array' => $datarecords,
-                        'labels' => $labels,
+            // This will only be called on a linked datatype in display mode...
+            $output = $this->templating->render(
+                'ODROpenRepositoryGraphBundle:Base:Link/link.html.twig',
+                array(
+                    'datatype' => $datatype,
+                    'datarecord_array' => $datarecords,
+                    'labels' => $labels,
 
-                        'is_top_level' => $rendering_options['is_top_level'],
-                        'is_link' => $rendering_options['is_link'],
-                        'display_type' => $rendering_options['display_type'],
-                    )
-                );
-            }
-            else {
-                // ...if not, then render using the default layout.  After all, it's not too useful
-                //  to only have a link to this datarecord's view page when you're actually on this
-                //  datarecord's view page...
-                $parent_datarecord_id = '';
-                $target_datarecord_id = '';
-                foreach ($datarecords as $dr_id => $dr) {
-                    $target_datarecord_id = $dr_id;
-                    $parent_datarecord_id = $dr['parent']['id'];
-                    break;
-                }
-
-                // Should only ever be one theme in here at a time...
-                $target_theme_id = '';
-                foreach ($theme_array as $t_id => $t)
-                    $target_theme_id = $t_id;
-
-
-                $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:Link/link_default.html.twig',
-                    array(
-                        'datatype_array' => array($datatype['id'] => $datatype),
-                        'datarecord_array' => $datarecords,
-                        'theme_array' => $theme_array,
-
-                        'target_datatype_id' => $datatype['id'],
-                        'parent_datarecord_id' => $parent_datarecord_id,
-                        'target_datarecord_id' => $target_datarecord_id,
-                        'target_theme_id' => $target_theme_id,
-
-                        'is_top_level' => $rendering_options['is_top_level'],
-                        'is_link' => $rendering_options['is_link'],
-                        'display_type' => $rendering_options['display_type'],
-                    )
-                );
-            }
+                    'is_top_level' => $rendering_options['is_top_level'],
+                    'is_link' => $rendering_options['is_link'],
+                    'display_type' => $rendering_options['display_type'],
+                )
+            );
 
             return $output;
         }

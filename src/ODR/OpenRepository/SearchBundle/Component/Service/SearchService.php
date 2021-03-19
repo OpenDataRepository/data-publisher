@@ -19,6 +19,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -90,6 +91,69 @@ class SearchService
         $this->th_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
+    }
+
+
+    /**
+     * Returns true when the given value has already been saved to an instance of the given
+     * datafield, and false otherwise.  If a datarecord is specified, this function will still return
+     * true even if that one datarecord has the given value.
+     *
+     * For example...let datarecord 1 has value "123" in df, datarecord 2 has value "456" in df
+     * * valueAlreadyExists(df, "123") => true
+     * * valueAlreadyExists(df, "789") => false
+     * * valueAlreadyExists(df, "456", dr_1) => true, because dr_2 already has "456"
+     * * valueAlreadyExists(df, "456", dr_2) => false, because dr_2 is allowed to have "456"
+     *
+     * @param DataFields $datafield
+     * @param string $value
+     * @param DataRecord|null $datarecord
+     *
+     * @return bool
+     */
+    public function valueAlreadyExists($datafield, $value, $datarecord = null)
+    {
+        // ----------------------------------------
+        // Don't continue if called on a datafield that can't be unique
+        if ( !$datafield->getFieldType()->getCanBeUnique() )
+            throw new ODRBadRequestException('valueAlreadyExists() called with '.$datafield->getFieldType()->getTypeName().' datafield', 0xdd175c30);
+
+        // Also don't continue if the datafield and the datarecord don't belong to the same datatype
+        if ( !is_null($datarecord) && $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
+            throw new ODRBadRequestException("Datafield and Datarecord don't belong to the same Datatype", 0xdd175c30);
+
+
+        // ----------------------------------------
+        // Want to perform an exact search for this value...this only works because it's a text/number
+        //  datafield...other fieldtypes with more complicated searches can't be unique
+        if ( $value[0] !== '"' && $value[-1] !== '"' ) {
+            // Only put quotes around the given value if it's not already quoted
+            $value = '"'.$value.'"';
+        }
+        $search_results = self::searchTextOrNumberDatafield($datafield, $value);
+
+
+        // ----------------------------------------
+        // If the search didn't return anything, then no datarecord has this value
+        if ( count($search_results['records']) === 0 ) {
+            return false;
+        }
+        else {
+            // Otherwise, behavior depends on whether a datarecord was specified...
+            if ( is_null($datarecord) ) {
+                // ...no datarecord specified, so this is likely a request from a fake record...having
+                // anything in the search results means the fake record should not be saved
+                return true;
+            }
+            else {
+                // ...datarecord was specified, so this is likely a request from a regular record...
+                //  exactly one search result that points to this datarecord is still acceptable
+                if ( isset($search_results['records'][$datarecord->getId()]) )
+                    return false;
+                else
+                    return true;
+            }
+        }
     }
 
 
@@ -2114,7 +2178,7 @@ class SearchService
     {
         // ----------------------------------------
         // Going to need all the datatypes related to this given datatype...
-        $related_datatypes = self::getRelatedTemplateDatatypes($template_uuid);
+        $related_datatypes = self::getRelatedTemplateDatatypesByUUID($template_uuid);
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();
@@ -2171,24 +2235,13 @@ class SearchService
      * In order for general search to be run on a template, ODR needs to have an array of template
      * uuids available for self::getSearchableTemplateDatafields() to work.
      *
-     * @param string $top_level_template_uuid
+     * @param DataType $datatype
      *
      * @return array
      */
-    public function getRelatedTemplateDatatypes($template_uuid)
+    public function getRelatedTemplateDatatypes($datatype)
     {
-        // Convert the template uuid into a datatype id if possible...
-        /** @var \ODR\AdminBundle\Entity\DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
-                'unique_id' => $template_uuid,
-                'is_master_type' => 1
-            )
-        );
-        if ($datatype == null)
-            throw new ODRNotFoundException('Datatype', false, 0x76e87ad5);
-
-        // Use that id to locate related datatypes from the cached datatree array...
+        // Locate related datatypes from the cached datatree array...
         $related_datatypes = self::getRelatedDatatypes( $datatype->getId() );
 
         // ...then get the uuids of all the related datatypes
@@ -2210,5 +2263,31 @@ class SearchService
             $dt_uuids[] = $result['dt_uuid'];
 
         return $dt_uuids;
+    }
+
+
+    /**
+     * In order for general search to be run on a template, ODR needs to have an array of template
+     * uuids available for self::getSearchableTemplateDatafields() to work.
+     *
+     * @param string $template_uuid
+     *
+     * @return array
+     */
+    public function getRelatedTemplateDatatypesByUUID($template_uuid)
+    {
+        // Convert the template uuid into a datatype id if possible...
+        /** @var DataType $datatype */
+        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array(
+                'unique_id' => $template_uuid,
+                'is_master_type' => 1
+            )
+        );
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype', false, 0x76e87ad5);
+
+        // Run the other function now that the requested datatype was located
+        return self::getRelatedTemplateDatatypes($datatype);
     }
 }

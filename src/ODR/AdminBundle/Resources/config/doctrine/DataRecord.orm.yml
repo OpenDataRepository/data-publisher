@@ -4,9 +4,6 @@ ODR\AdminBundle\Entity\DataRecord:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
-    indexes:
-        uuid_index:
-            columns: [ unique_id ]
 
     fields:
         id:
@@ -43,8 +40,15 @@ ODR\AdminBundle\Entity\DataRecord:
             type: datetime
             nullable: true
 
-    oneToMany:
+    indexes:
+        datarecord_created:
+            columns: ["created"]
+        datarecord_deleted:
+            columns: ["deletedAt"]
+        uuid_index:
+            columns: [ unique_id ]
 
+    oneToMany:
         boolean:
             targetEntity: Boolean
             cascade: {  }

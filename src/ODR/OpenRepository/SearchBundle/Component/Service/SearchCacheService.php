@@ -51,9 +51,9 @@ class SearchCacheService
     /**
      * SearchCacheService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param CacheService $cacheService
-     * @param SearchService $searchService
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param SearchService $search_service
      * @param Logger $logger
      */
     public function __construct(
@@ -110,14 +110,14 @@ class SearchCacheService
             $master_datatype = $datatype->getGrandparent()->getMasterDataType();
 
             // ...then the cache entries that reference this datatype's datafields need to get cleared
-            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($master_datatype->getUniqueId());
+            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($master_datatype);
             foreach ($related_datatypes as $num => $dt_uuid)
                 $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
         }
         else if ( $grandparent_datatype->getIsMasterType() ) {
             // If the datatype being deleted is a master template, then delete the cache entries
             //  that store the datafields for all datatypes derived from this template
-            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($grandparent_datatype->getUniqueId());
+            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($grandparent_datatype);
             foreach ($related_datatypes as $num => $dt_uuid)
                 $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
         }

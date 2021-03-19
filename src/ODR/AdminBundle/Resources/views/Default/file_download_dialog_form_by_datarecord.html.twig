@@ -1,0 +1,48 @@
+{% spaceless %}
+
+{% if file_array|length == 0 %}
+<div class="ODRMarkdownContent">
+    <p>No Files are available for downloading</p>
+</div>
+{% endif %}
+
+{% for dr_id, dr in file_array %}
+<ul>
+    <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datarecords'][dr_id] }}
+
+        <ul>
+        {% if dr['datafields'] is defined and dr['datafields']|length > 0 %}
+            {% for df_id, files in dr['datafields'] %}
+                <li id="FileList_{{ dr_id }}_{{ df_id }}"><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id] }}
+                    <ul>
+                    {% for file_id, filename in files %}
+                        <li>
+                            <span class="ODRTristateCheckbox binary">
+                                <i class="fa"></i>
+                                <input type="hidden" value="{{ file_id }}" name="files[]" disabled />
+                            </span>
+                            {{ filename }}
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% endfor %}
+        {% endif %}
+
+        {% if dr['child_datatypes'] is defined and dr['child_datatypes']|length > 0 %}
+            {% for child_dt_id, child_dr_list in dr['child_datatypes'] %}
+                <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datatypes'][child_dt_id] }}
+                    {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datarecord.html.twig' with {
+                        'file_array': child_dr_list,
+                        'entity_names': entity_names,
+                    } %}
+                </li>
+            {% endfor %}
+        {% endif %}
+        </ul>
+
+    </li>
+</ul>
+{% endfor %}
+
+{% endspaceless %}

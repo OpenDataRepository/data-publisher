@@ -55,7 +55,7 @@ class DefaultController extends ODRCustomController
                 'ODRAdminBundle:Default:index.html.twig',
                 array(
                     'user' => $user,
-                    'user_permissions' => $datatype_permissions,
+                    'datatype_permissions' => $datatype_permissions,
                     'site_baseurl' => $this->container->getParameter('site_baseurl')
                 )
             );

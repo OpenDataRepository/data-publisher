@@ -362,7 +362,7 @@
             error: function (jqXHR, textStatus, errorThrown) {
                 zip_archive_timeouts[ archive_filename ] = null;
                 // Close modal
-                var inst = $('[data-remodal-id=' + dialog_id + ']').remodal();
+                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
                 inst.close();
                 // Show growl
                 var response = $.parseJSON(jqXHR.responseText);

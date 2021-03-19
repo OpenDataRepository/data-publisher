@@ -80,7 +80,8 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 $result = $clone_datatype_service->createDatatypeFromMaster(
                     $data->datatype_id,
                     $data->user_id,
-                    $data->template_group
+                    $data->template_group,
+                    $data->preserve_uuids
                 );
 
                 $current_time = new \DateTime();

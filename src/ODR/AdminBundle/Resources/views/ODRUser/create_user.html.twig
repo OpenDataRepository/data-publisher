@@ -19,6 +19,7 @@
     var xhr;
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableInputs();
 
         $("#saved").hide();
         xhr = null;
@@ -38,7 +39,10 @@
                 }
             },
             submitHandler: function(form) {
-                saveProfileForm();
+                // This validation will fire regardless of whether the email matches an existing
+                //  user or not...only want to submit the form when the password field is enabled
+                if ( $("#{{ profile_form.plainPassword.vars.id }}").prop('disabled') === false )
+                    saveProfileForm();
             }
         });
 
@@ -61,6 +65,18 @@
         });
     });
 
+    function disableInputs() {
+        $("#ODRUserProfileForm").find("input").not(".required").each(function() {
+            $(this).prop('disabled', true);
+        });
+    }
+
+    function enableInputs() {
+        $("#ODRUserProfileForm").find("input").not(".required").each(function() {
+            $(this).prop('disabled', false);
+        });
+    }
+
     function checkEmail() {
         var url = "{{ path('odr_admin_new_user_check') }}";
         var email = $("#{{ profile_form.email.vars.id }}").val().trim();
@@ -80,17 +96,23 @@
                 if (data.d === 0) {
                     // Email not found, can create new user
                     $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').prop('disabled', false);
+
+                    enableInputs();
                 }
                 else if (data.d === -1) {
                     // User checked whether their own profile existed, or managed to check the email
                     //  of a super-admin
                     $("#submitButton").html('Unable to modify permissions for this user').attr('onclick', '');
                     $("#emailCheckButton").html('User already exists');
+
+                    disableInputs();
                 }
                 else {
                     // Email that was checked belongs to a different user
                     $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').prop('disabled', false);
                     $("#emailCheckButton").html('User already exists');
+
+                    disableInputs();
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {

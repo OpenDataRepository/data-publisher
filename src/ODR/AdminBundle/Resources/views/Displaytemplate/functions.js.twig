@@ -1,0 +1,286 @@
+{% spaceless %}
+
+/**
+ * Initializes jQuery resizable instances on the given theme_element or datafield.
+ * 
+ * @param {HTMLElement} elem
+ */
+function setupResizeable(elem) {
+    // Only run when element is a ThemeElement or a Datafield
+    var theme_element_id;
+    var datafield_id;
+    var element_type;
+    if ( jQuery(elem).hasClass('ODRThemeElement') )
+        element_type = 'theme_element';
+    else if ( jQuery(elem).hasClass('ODRDataField') )
+        element_type = 'datafield';
+    else
+        return;
+
+    {#console.log('setupResizeable()', elem);#}
+
+    var handles;
+    var handle_e = '<span class="ODRDragHandle ODRDragHandleTEEast ui-resizeable-handle ui-resizeable-e">&esdot;</span>';
+    var handle_w = '<span class="ODRDragHandle ODRDragHandleTEWest ui-resizeable-handle ui-resizeable-w">&esdot;</span>';
+    var handle_sort = '<span class="ODRSortHandle"><i class="fa fa-bars"></i></span>';
+    switch (element_type) {
+        case 'theme_element':
+            // Add resize handles
+            jQuery(elem).prepend(handle_e);
+            jQuery(elem).append(handle_w);
+
+            handles = {
+                e: "#ThemeDesignArea .ui-resizeable-e"
+            };
+
+            // Load the properties form before any resizing is performed
+            theme_element_id = jQuery(elem).attr('id').replace('ThemeElement_', '');
+            LoadThemeElementForm(theme_element_id);
+
+            break;
+        case 'datafield':
+            // Add resize and sort handles
+            jQuery(elem).prepend(handle_e);
+            jQuery(elem).append(handle_sort);
+            jQuery(elem).append(handle_w);
+
+            // Fix position of sort handle
+            var left = jQuery(elem).width()/2 - 12;
+            jQuery(elem).find(".ODRSortHandle").css('left', left + "px");
+
+            handles = {
+                e: "#ThemeDesignArea .ui-resizeable-e"
+            };
+
+            // Load the properties form before any resizing is performed
+            datafield_id = jQuery(elem).attr('id').replace('Field_', '');
+            theme_element_id = jQuery(elem).parents('.ODRThemeElement').first().attr('id').replace('ThemeElement_', '');
+            LoadThemeDatafieldForm(theme_element_id, datafield_id);
+
+            break;
+    }
+
+    // clearAllFields() destroys all resizeable instances before this is called
+
+    {# TODO - Replace with alternate grid method due to jQuery bug: https://bugs.jqueryui.com/ticket/8932 #}
+    jQuery(elem).resizable({
+        handles: handles,
+        minHeight: jQuery(elem).height(),
+        maxHeight: jQuery(elem).height(),
+        // Divide the width of the element's parent by 24 to create a grid that closely approximates
+        //  the width of the element itself after it gets saved
+        grid: ( jQuery(elem).parent().parent().width() )/24,
+        start: function( event, ui) {
+            // console.log('Resizeable start:');
+            // console.log('height: ', jQuery(elem).height());
+            // console.log('grid:', jQuery(elem).parent().parent().width()/24);
+            // console.log('parent width:', jQuery(elem).parent().parent().width());
+            // console.log('element width:', jQuery(elem).width());
+        },
+        stop: function( event, ui ) {
+            // Refactor all widths for all elements in array to be f/24
+            var ui_elem = ui.originalElement;
+            var total_width = ui_elem.parent().parent().width();
+            // var padding_left = parseInt(ui_elem.css('padding-left'));
+            // var padding_right = parseInt(ui_elem.css('padding-right'));
+            var width = ui_elem.width(); //  + padding_left + padding_right;
+            // console.log('End total width:: ', total_width);
+            // console.log('End width:: ', width);
+
+            // Need to add padding before calculation?
+            // console.log('Padding left', padding_left);
+            // console.log('Padding right', padding_right);
+
+            var pct = width / total_width * 100;
+
+            var u_factor = pct/4.16667;  // 100 / 24 = 4.16666667
+
+            // console.log('u', u_factor);
+            if (u_factor < 1)
+                u_factor = 1;
+            else if (u_factor > 24)
+                u_factor = 24;
+            else
+                u_factor = Math.ceil(u_factor);
+
+            // console.log('Factor:: ', u_factor);
+
+            var prefix = "pure-u";
+            var classes = ui_elem.attr('class').split(" ").filter(function(c) {
+                return c.lastIndexOf(prefix, 0) !== 0;
+            });
+            ui_elem.attr('class', classes.join(" ").trim());
+
+            // Get new width and refactor to f/24
+            // Remove inline width style.
+            if(ui_elem.attr('style')) {
+                ui_elem.attr('style', function(i, style) {
+                    return style.replace(/width[^;]+;?/g, '');
+                });
+            }
+
+            // default is always pure-u-1
+            ui_elem.addClass('pure-u-1');
+            ui_elem.addClass('pure-u-md-' + u_factor + '-24');
+            ui_elem.addClass('pure-u-xl-' + u_factor + '-24');
+
+            // ui_elem.width(width)
+
+            switch(element_type) {
+                case 'theme_element':
+                    // Save new U Factors to DB via Get Request
+                    jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24");
+                    jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24");
+                    SaveThemeElementProperties(theme_element_id);
+                    break;
+
+                default:
+                    // Fix position of sort handle
+                    var left = ui_elem.width()/2 - 12;
+                    ui_elem.find(".ODRSortHandle").css('left', left + "px");
+
+                    // Save new U Factors to DB via Get Request
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24");
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24");
+                    SaveThemeDatafieldProperties(theme_element_id, datafield_id);
+                    break;
+            }
+        }
+    });
+}
+
+/**
+ * Creates/updates JQuery sortable instances for all theme_elements directly belonging to a datatype.
+ *
+ * Theme_elements can't be moved into a different datatype.
+ *
+ * @param {HTMLElement} elem
+ */
+function setupSortableThemeElements(elem) {
+    // Only run when element is a theme_element
+    if ( !jQuery(elem).hasClass('ODRThemeElement') )
+        return;
+
+    {#console.log('setupSortableThemeElements()', elem);#}
+
+    // setup sortable for theme elements at the selected level
+    // Add class to theme element handles at this level to select only those?
+    jQuery(elem).parent().find('> .ODRThemeElement > .ODRThemeElementHandle').addClass('ODRLiveSortable');
+
+    var starting_fieldarea = null;
+    jQuery(elem).parent().each(function() {
+
+        // clearAllFields() destroys all sortable instances before this is called
+
+        jQuery(this).sortable({
+            handle: ".ODRLiveSortable",
+            placeholder: "ui-state-highlight",
+            // connectWith: ".ODRFieldArea",
+            start: function (event, ui) {
+                // Store where the theme element started
+                starting_fieldarea = jQuery(ui.helper).parent().attr('id');
+
+                // Style the placeholder to more closely match the datafield being drug around
+                jQuery(ui.placeholder).addClass( jQuery(ui.helper).attr('class') );
+                jQuery(ui.placeholder).css('height', jQuery(ui.helper).height());
+                jQuery(ui.placeholder).css('width', jQuery(ui.helper).width() * 0.95);
+            },
+            stop: function (event, ui) {
+                // Grab where it ended
+                var ending_fieldarea = jQuery(ui.item).parent().attr('id');
+
+                // If the theme element ended up in a different fieldarea,
+                // don't save the change and revert the layout
+                if (starting_fieldarea === ending_fieldarea)
+                    SaveThemeElementOrder( jQuery(ui.item).parent() );
+                else
+                    jQuery(this).sortable("cancel");
+
+                // Unhide the object that was being dragged around
+                jQuery(ui.item).show();
+                // jQuery(ui.item).removeAttr('style');
+                starting_fieldarea = null;
+            }
+        });
+    });
+}
+
+/**
+ * Creates/updates JQuery sortable instances for all datafields directly belonging to a datatype.
+ *
+ * Datafields can't be moved into a different datatype.
+ *
+ * @param {HTMLElement} elem
+ */
+function setupSortableDatafields(elem) {
+    // Only run when element is a datafield
+    if ( !jQuery(elem).hasClass('ODRDataField') )
+        return;
+
+    var datafield_id = jQuery(elem).attr('id').replace('Field_', '');
+    {#console.log('setupSortableDatafields()', elem, datafield_id);#}
+
+    // Restrict sortable to only same level theme elements
+    // i.e. theme elements that have the same field area as a parent
+    var ParentFieldArea = jQuery(elem).parents('.ODRFieldArea').first();
+
+    // Setup sortable for all DataFields in these theme elements
+    ParentFieldArea.find("> .ODRThemeElement > .ODRInnerBox").each(function () {
+        // Only create sortables from theme elements that are not child types or linked types.
+        if ( jQuery(this).find('> .ODRLinkedType').length > 0 || jQuery(this).find('> .ODRDataType').length > 0 ) {
+            // console.log('Linked or child');
+            return;
+        }
+        // console.log('Setting datafield sortable');
+
+        // clearAllFields() destroys all sortable instances before this is called
+
+        var starting_theme_element = null;
+        var starting_fieldarea = null;
+        jQuery(this).sortable({
+            handle: ".ODRSortHandle",
+            items: "> .ODRDataField",   // Only attach the event to datafields within the ODRInnerBox
+            placeholder: "ui-state-highlight",
+            connectWith: ".ODRInnerBox",
+            dropOnEmpty: true,
+            start: function (event, ui) {
+                // Store where the datafield started
+                starting_theme_element = jQuery(ui.helper).parent().parent().attr('id');
+                starting_fieldarea = jQuery(ui.helper).parent().parent().parent().attr('id');
+
+                // Style the placeholder to more closely match the datafield being drug around
+                jQuery(ui.placeholder).addClass( jQuery(ui.helper).attr('class') );
+                jQuery(ui.placeholder).css('height', jQuery(ui.helper).height());
+                jQuery(ui.placeholder).css('width', jQuery(ui.helper).width() * 0.95);
+            },
+            stop: function (event, ui) {
+                // Grab where the datafield ended
+                var ending_theme_element = jQuery(ui.item).parent().parent().attr('id');
+                var ending_fieldarea = jQuery(ui.item).parent().parent().parent().attr('id');
+
+                // If the datafield ended up in the same fieldarea...
+                if (starting_fieldarea === ending_fieldarea) {
+                    // Update the order of the datafields in the destination theme element
+                    SaveDatafieldOrder( jQuery(ui.item).parent(), datafield_id, starting_theme_element, ending_theme_element );
+                }
+                else {
+                    // ...if not, don't save the change and revert the layout
+                    jQuery(this).sortable("cancel");
+                }
+
+                // Unhide the object that was being dragged around
+                jQuery(ui.item).show();
+
+                // jQuery Sortable attaches a display: block style to these elements...get rid of it
+                jQuery(ui.item).removeAttr('style');
+
+                // Reset for the next sortable call
+                starting_theme_element = null;
+                starting_fieldarea = null;
+                jQuery(ui.placeholder).removeAttr('css');
+            }
+        });
+    });
+}
+
+{% endspaceless %}

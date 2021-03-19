@@ -1,7 +1,7 @@
 # These blacklisted strings should all be lowercase
 # TODO - add other ones commonly used by bots looking for easy pickings...
 parameters:
-    odr.search_slug_blacklist: "admin|api|app|beanstalk|bin|csvimport|csvexport|dashboard|design|docs|edit|jobs|login|login-check|logout|massedit|oauth|profile|profile_edit|profile_save|redirect|resetting|save_fragment|search|session|src|user|vendor|view|web"
+    odr.search_slug_blacklist: "admin|api|app|beanstalk|bin|csvimport|csvexport|dashboard|design|docs|edit|jobs|login|login-check|logout|massedit|oauth|profile|profile_edit|profile_save|redirect|remote_search|resetting|save_fragment|search|session|src|user|vendor|view|web"
 
 services:
     odr_custom_controller:
@@ -26,6 +26,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"
+            $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
 
     odr.search_api_service:
@@ -53,6 +54,7 @@ services:
         arguments:
             $datatype_info_service: "@odr.datatype_info_service"
             $search_service: "@odr.search_service"
+            $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
 
     odr.search_service:

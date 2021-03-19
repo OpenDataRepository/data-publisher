@@ -69,14 +69,19 @@
     {% set datarecord_is_fake = true %}
 {% endif %}
 
+{% set inline_search_link = false %}
+{% if datarecord_is_fake and is_link %}
+    {% set inline_search_link = true %}
+{% endif %}
+
+    {# TODO - enable datafield render plugins?  they're going to completely interfere with edit functionality... #}
+
     <form
-        {% if is_link > 0 %} autocomplete="off"{% endif %}
-        {% if datarecord_is_fake %}
-            action="{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}"
-        {% else %}
+        {% if is_link %} autocomplete="off"{% endif %}
+        {% if not datarecord_is_fake %}
             action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
         {% endif %}
-        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %} {% if datafield_meta.is_unique %}ODRUniqueField{% endif %}"
+        class="pure-u-1{% if is_link %} ODRLinkLookupForm{% endif %} {% if datarecord_is_fake and datafield_meta.is_unique %}ODRUniqueField{% endif %}"
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
@@ -111,7 +116,23 @@
 
         {#<fieldset>#}
         <div class="ODRFileDatafield">
-            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {'files': valuefield, 'datafield': datafield, 'datarecord': datarecord} %}
+            {% if datarecord_is_fake %}
+            <div class="pure-u-1 Info" title="Record must be saved before files can be uploaded" style="opacity: 45%;">
+            {% endif %}
+
+            {# Don't want to execute anything special after a file gets deleted #}
+{#            {% set file_delete_callback = 'function() {}' %}#}
+            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                'datafield': datafield,
+                'datarecord': datarecord,
+                'files': valuefield,
+
+                'datarecord_is_fake': datarecord_is_fake,
+            } %}
+
+            {% if datarecord_is_fake %}
+            </div>
+            {% endif %}
         </div>
 
         {% if not datarecord_is_fake %}
@@ -124,13 +145,26 @@
             {% endif %}
             {% set callback = 'ReloadFileDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                'target': target,
+                'single_file': single_file,
+                'upload_type': 'file',
+                'datatype_id': datatype.id,
+                'datarecord_id': datarecord.id,
+                'datafield_id': datafield.id,
+                'callback': callback
+            } %}
         </div>
         {% endif %}
         {#</fieldset>#}
 
     {% elseif field_typename == "Image" %}
         {% set has_image = false %}
+
+        {% if datarecord_is_fake %}
+        <div class="pure-u-1 Info" title="Record must be saved before images can be uploaded">
+        {% endif %}
+
         {#<fieldset>#}
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}" style="text-align: center;">{{ datafield_meta.fieldName }}</label>
             <div class="ODRSortableImage pure-u-1">
@@ -172,13 +206,17 @@
                     {% if datafield_meta.allow_multiple_uploads == 1 %}
                         {% set single_file = false %}
                     {% endif %}
-                    {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
+                    {% set callback = 'ReloadEditDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
                     {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
                 {% endif %}
             </div>
             {% endif %}
         {#</fieldset>#}
+
+        {% if datarecord_is_fake %}
+        </div>
+        {% endif %}
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
@@ -191,7 +229,7 @@
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
                     id="{{ input_id }}"
-                    class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
+                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
                     {% if datafield_meta.required == 1 %}required="required"{% endif %}
                     data-error-type="inline"
@@ -213,7 +251,7 @@
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                     type="text"
                     id="{{ input_id }}"
-                    class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
+                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
@@ -229,6 +267,10 @@
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
+            {% if inline_search_link %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be changed" style="opacity: 45%;">
+            {% endif %}
+
             <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% set print_null_option = false %}
@@ -247,14 +289,23 @@
                 <div class="ODRRadioOptionsEdit">
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
-                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                    {% if datarecord_is_fake and radio_option.radioOptionMeta.isDefault %}
+                        {% set is_selected = 1 %}
+                    {% elseif datarecordfield.radioSelection[ radio_option.id ] is defined %}
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
                     {% if print_null_option == true %}
                         {% set print_null_option = false %}
                         <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
-                            <input id="{{ input_id }}_0" type="radio" name="RadioGroup_{{ unique_id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
+                            <input
+                                id="{{ input_id }}_0"
+                                type="radio"
+                                name="RadioGroup_{{ unique_id }}"
+                                {% if has_selection == false %}checked{% endif %}
+                                class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}"
+                                {% if inline_search_link %}disabled{% endif %}
+                            />
                             No Option Selected
                         </label>
                     {% endif %}
@@ -269,6 +320,7 @@
                             name="RadioGroup_{{ unique_id }}"
                             {% if is_selected == 1 %}checked{% endif %}
                             class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}"
+                            {% if inline_search_link %}disabled{% endif %}
                         />
                     {% else %}
                         <input
@@ -278,6 +330,7 @@
                             name="RadioGroup_{{ unique_id }}"
                             {% if is_selected == 1 %}checked{% endif %}
                             class="MultipleRadioGroup"
+                            {% if inline_search_link %}disabled{% endif %}
                         />
                     {% endif %}
 
@@ -287,11 +340,18 @@
                 </div>
             {% endif %}
 
+            {% if inline_search_link %}
+            </div>
+            {% endif %}
         </fieldset>
 
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
+            {% if inline_search_link %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be changed" style="opacity: 45%;">
+            {% endif %}
+
             <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             <select
@@ -299,6 +359,7 @@
                 id="{{ input_id }}"
                 class="pure-u-24-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}"
                 {% if field_typename == "Multiple Select" %}multiple{% endif %}
+                {% if inline_search_link %}disabled{% endif %}
             >
 
             {% if datafield.radioOptions is defined %}
@@ -308,22 +369,36 @@
 
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
-                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                    {% if datarecord_is_fake and radio_option.radioOptionMeta.isDefault %}
+                        {% set is_selected = 1 %}
+                    {% elseif datarecordfield.radioSelection[ radio_option.id ] is defined %}
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
-                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}" {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}>{{ radio_option.radioOptionMeta.optionName }}</option>
+                    <option id="Option_{{ radio_option.id }}"
+                            value="{{ radio_option.id}}"
+                            {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}
+                    >
+                        {{ radio_option.radioOptionMeta.optionName }}
+                    </option>
                 {% endfor %}
             {% endif %}
             </select>
 
+            {% if inline_search_link %}
+            </div>
+            {% endif %}
         </fieldset>
 
     {% elseif field_typename == "Tags" %}
         <fieldset>
+            {% if inline_search_link %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
+            <div class="pure-u-1 Info" title="Record must be saved before this field can be changed" style="opacity: 45%;">
+            {% endif %}
+
             <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
                 {{ datafield_meta.fieldName }}
-                {% if datafield_meta.tags_allow_non_admin_edit or is_datatype_admin %}
+                {% if not datarecord_is_fake and (datafield_meta.tags_allow_non_admin_edit or is_datatype_admin) %}
                 <span class="ODRTagsEdit" rel="{{ datafield.id }}"><i class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i></span>
                 {% endif %}
             </label>
@@ -334,7 +409,13 @@
 
                     'drf': datarecordfield,
                     'stacked_tags': datafield.tags,
+
+                    'inline_search_link': inline_search_link
                 } %}
+            {% endif %}
+
+            {% if inline_search_link %}
+            </div>
             {% endif %}
         </fieldset>
 
@@ -403,37 +484,55 @@
         });
 
         $("#EditForm_{{ unique_id }}").validate({
-        {% if field_typename == "Integer" %}
             rules: {
                 "{{ input_name }}": {
-                    ODRInteger: {}  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                {% if field_typename == "Integer" %}
+                    ODRInteger: {},  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                {% elseif field_typename == "Decimal" %}
+                    ODRDecimal: {},  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
+                {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+                    maxlength: {{ max_length }},
+                {% endif %}
+
+                {% if datafield_meta.is_unique and not is_link %}
+                    required: true,
+                {% endif %}
+
+                {% if datafield_meta.is_unique and (not is_link or not datarecord_is_fake) %}
+                    {# field needs to be unique, and record needs to not be simultaneously a link and a "fake" for this rule to play nice with the rest of ODR #}
+                    remote: {
+                        {% if not datarecord_is_fake %}
+                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id, 'datarecord_id': datarecord.id }) }}",
+                        {% else %}
+                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}",
+                        {% endif %}
+                        type: "post",
+                        data: {
+                            {# The form's value is automatically inserted by jQuery validate #}
+                            "{{ field_typeclass }}Form[_token]": function () {
+                                return $("#EditForm_{{ unique_id }}").find("input[type=hidden]").val();
+                            },
+                            "{{ field_typeclass }}Form[error_type]": "json",
+                        }
+                    }
+                {% endif %}
                 }
             },
-        {% elseif field_typename == "Decimal" %}
-            rules: {
-                "{{ input_name }}": {
-                    ODRDecimal: {}  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
-                }
-            },
-        {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-            rules: {
-                "{{ input_name }}": {
-                    maxlength: {{ max_length }}
-                }
-            },
-            messages: {
-                "{{ input_name }}": {
-                    maxlength: "{{ max_length }} characters max"
-                }
-            },
-        {% endif %}
             submitHandler: function(form) {
+            {% if not datarecord_is_fake %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }}
                 );
+            {% else %}
+                // "Fake" records don't have an equivalent to SaveRecordData(), so probably should
+                //   clear the timeout here
+                clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {% endif %}
 
-                {% if not datarecord_is_fake %}
+            {% if not datarecord_is_fake %}
+                {# TODO - this is not the correct way of saving changes to these properties... #}
+                {# TODO - the server needs to automatically run these so loss of network won't leave the database out of sync with its metadata #}
                 // Need to check if this is a datatype properties value
                 var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
                 switch(field_reference) {
@@ -458,10 +557,16 @@
                         break;
 
                 }
-                {% endif %}
+            {% endif %}
             }
             // focusInvalid: false
         });
+
+        {% if datarecord_is_fake and not is_link %}
+        // Ensure required fields are immediately highlighted when a user is trying to create a new
+        //  top-level record
+        $("#EditForm_{{ unique_id }}").valid();
+        {% endif %}
     </script>
     {% endif %}
 

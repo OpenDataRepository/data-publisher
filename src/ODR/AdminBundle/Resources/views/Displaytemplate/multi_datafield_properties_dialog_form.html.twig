@@ -1,0 +1,70 @@
+{% spaceless %}
+
+{% set NOT_SEARCHED = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHED') %}
+{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
+{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
+{% set ADVANCED_SEARCH_ONLY = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH_ONLY') %}
+
+<div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
+    <div class="pure-u-1">
+        <button id="ODRMultiDatafield_all_public" class="pure-button">Make all fields Public</button>
+        <button id="ODRMultiDatafield_all_nonpublic" class="pure-button">Make all fields Not Public</button>
+        <button id="ODRMultiDatafield_all_searchable" class="pure-button">Make all fields Searchable</button>
+        <button id="ODRMultiDatafield_all_nonsearchable" class="pure-button">Make all fields Not Searchable</button>
+    </div>
+
+    <form id="ODRMultipleDatafieldPropertiesForm" class="pure-form">
+        <input type="hidden" name="_token" value="{{ token }}" />
+        {% for df_id, df in datafields %}
+            {% set datafield_meta = df['dataFieldMeta'] %}
+            <input type="hidden" id="ODRMultiDatafield_{{ df_id }}_publicStatus" name="public_status[{{ df_id }}]" value="{% if datafield_meta.publicDate|is_public %}1{% else %}0{% endif %}" />
+        {% endfor %}
+
+        <fieldset>
+            <table class="display dataTable pure-u-1">
+                <thead><tr>
+                    <th>Datafield Name</th>
+                    <th>Fieldtype</th>
+                    <th>Public Status</th>
+                    <th>Searchable</th>
+                </tr></thead>
+                <tbody>
+                {% for df_id, df in datafields %}
+                    {% set datafield_meta = df.dataFieldMeta %}
+                    {% set typeclass = datafield_meta.fieldType.typeClass %}
+                    {% set searchable = datafield_meta.searchable %}
+
+                    <tr>
+                        <td>
+                            <span class="Cursor">{{ datafield_meta.fieldName }}</span>
+                        </td>
+                        <td>
+                            <span class="Cursor">{{ datafield_meta.fieldType.typeName }}</span>
+                        </td>
+                        <td>
+                            <a class="ODRMultiDatafield_public" rel="{{ df_id }}">
+                                <i class="Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %}"></i>
+                                &nbsp;<span>{% if datafield_meta.publicDate|is_public %}Public{% else %}Not Public{% endif %}</span>
+                            </a>
+                        </td>
+                        <td>
+                            <select class="ODRMultiDatafield_searchable" name="searchable[{{ df_id }}]" {% if typeclass == "Markdown" %}disabled title="Markdown fields can't be searched"{% endif %}>
+                                <option value="{{ NOT_SEARCHED }}" {% if searchable == NOT_SEARCHED %}selected{% endif %}>No</option>
+                                {% if typeclass != 'Image' and typeclass != 'File' and typeclass != 'Boolean' and typeclass != 'DatetimeValue' %}
+                                    {# These typeclasses don't have a meaningful "general" search #}
+                                <option value="{{ GENERAL_SEARCH }}" {% if searchable == GENERAL_SEARCH %}selected{% endif %}>General Only</option>
+                                {% endif %}
+                                <option value="{{ ADVANCED_SEARCH }}" {% if searchable == ADVANCED_SEARCH %}selected{% endif %}>Advanced</option>
+                                <option value="{{ ADVANCED_SEARCH_ONLY }}" {% if searchable == ADVANCED_SEARCH_ONLY %}selected{% endif %}>Advanced Only</option>
+                            </select>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </fieldset>
+    </form>
+
+</div>
+
+{% endspaceless %}

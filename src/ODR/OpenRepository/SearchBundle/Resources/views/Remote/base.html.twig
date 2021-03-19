@@ -1,0 +1,124 @@
+{% spaceless %}
+
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRAccordionWrapper ODRFormAccordion">
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    ODR Remote Search Setup
+                </h3>
+
+                <div class="ODRFieldArea accordion-content">
+                    <div class="ODRBodyContent">
+                        Welcome to the ODR Remote Search setup pages. This series of pages will help create a configuration that allows a non-ODR site to create a valid ODR search key, and then redirect the user to the relevant ODR search page.
+                        <br>
+                        Clicking on the <i class="fa fa-lg fa-question-circle"></i> icon in the upper-right of the page will highlight the most relevant parts of these setup pages.
+                        <br><br>
+                        The first step in this process is to select the datatype that you intend to search on.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="ODRContentWrapper pure-u-1">
+    <table id="ODRDatatypeList" class="display dataTable">
+        <thead><tr>
+            <th></th>
+            <th></th>
+            <th>Database Name</th>
+            <th>Records</th>
+
+            <th>Created By</th>
+            <th>Created On</th>
+            <th>Description</th>
+        </tr></thead>
+        <tbody>
+        {% for num,dt in datatypes %}
+            {% set datatype_meta = dt.dataTypeMeta %}
+            <tr>
+                <td>{{ dt.id }}</td>
+                <td><button class="ODRDatatype_select pure-button" rel="{{ dt.id }}">Select</button></td>
+                <td>{{ datatype_meta.longName }}</td>
+
+                {# number of datarecords for this datatype #}
+                {% set datarecord_count = 0 %}
+                {% if metadata[ dt.id ] is defined %}
+                    {% set datarecord_count = metadata[ dt.id ] %}
+                {% endif %}
+                <td id="ODRDatarecordList_{{ dt.id }}_count">{{ datarecord_count }}</td>
+
+                <td>{{ dt.createdBy|user_string }}</td>
+                <td>{{ dt.created|date('Y-m-d') }}</td>
+                <td>{{ datatype_meta.description }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRDatatypeList").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "visible": false
+                },
+                {
+                    "targets": [1],
+                    "orderable": false,
+                    "searchable": false
+                },
+                // {
+                //     "width": "30%",
+                //     "targets": [6]
+                // }
+            ],
+            "order": [[2, "asc"]],
+            "autoWidth": true,
+            "paging": false,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+            "info": false,
+            "language": {
+                "emptyTable": "No Databases found"
+            }
+        });
+        $("#ODRDatatypeList").removeAttr('style');
+
+        $(".ODRDatatype_select").unbind('click').click(function() {
+            var dt_id = $(this).attr('rel');
+            var url = '{{ path('odr_remote_search_select', {'datatype_id': 0}) }}';
+            url = url.substr(0, url.length-1) + dt_id;
+
+            UpdateURL(url);
+        });
+
+        // Might as well make the help system available here to point out useful stuff
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        $('#ODRDatatypeList_filter')
+            .attr('data-step', '2')
+            .attr('data-intro', "If you know which database you're looking for, then the table can be filtered by typing into this field.");
+        $('#ODRDatatypeList').find('tr').first()
+            .attr('data-step', '3')
+            .attr('data-intro', 'Additionally, the table can be sorted by clicking on the column headers, if necessary.');
+        $('#ODRDatatypeList').find('button.ODRDatatype_select').first()
+            .attr('data-step', '4')
+            .attr('data-intro', "Once you have found the database you're interested in, click the button that row.  You will be taken to the next stage of the process.");
+
+        // Initialize the help button
+        $('#ODRHelpButton').unbind('click').click(function () {
+            introJs()
+                // .onbeforechange(introJsStepBeforeChangeHandler)
+                // .onbeforeexit(introJsExitHandler)
+                .start();
+        });
+    });
+</script>
+
+{% endspaceless %}

@@ -25,7 +25,9 @@
 } %}
 
 {% if record_display_view == "single" %}
-    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' with {
+        'initial_datarecord_id': initial_datarecord_id,
+    } %}
 {% endif %}
 
 {% if record_display_view == "single" %}

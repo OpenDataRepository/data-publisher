@@ -6,8 +6,10 @@
 {% set header_right_path = path('odr_logout') %}
 {% set header_right_js = '' %}
 
+{% set logged_in = false %}
 {% set current_user = '' %}
-{% if user != null %}
+{% if user != "anon." %}
+    {% set logged_in = true %}
     {% set current_user = user.getuserstring %}
 {% endif %}
 {#
@@ -21,12 +23,12 @@
 {% block title %}ODR Admin{% endblock %}
 
 {% set use_navigation_block = false %}
-{%  if user != null %}
+{% if user != "anon." %}
     {% set use_navigation_block = true %}
 {% endif %}
 
 {% block navigation_top %}
-    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'user_permissions': user_permissions} %}
+    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
 {% endblock %}
 
 {# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODROpenRepositorySearchBundle:Default:index.html.twig #}
@@ -35,7 +37,6 @@
     <div id="ODRSearchSidebar" class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchVisible ODRHidden"></div>
     <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide"></div>
 
-    {% set logged_in = true %}
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
     {{ js.write(logged_in) }}
 {% endblock %}

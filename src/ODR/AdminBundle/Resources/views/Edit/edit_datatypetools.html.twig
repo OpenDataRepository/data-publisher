@@ -1,0 +1,78 @@
+{% spaceless %}
+
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+
+{% set parent_datatype_id = parent_datarecord.dataType.id %}
+{% set datarecord_meta = datarecord.dataRecordMeta %}
+
+{% set can_edit_parent_record = false %}
+{% if datatype_permissions[ parent_datatype_id ] is defined
+    and datatype_permissions[ parent_datatype_id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_parent_record = true %}
+{% endif %}
+
+{% set can_delete_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+    {% set can_delete_record = true %}
+{% endif %}
+
+{% set can_change_public_status = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_public' ] is defined %}
+    {% set can_change_public_status = true %}
+{% endif %}
+
+<div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
+{% if not datarecord_is_fake %}
+    {% if is_link == 1 %}
+    <span rel="{{ datatype.id }}">
+        {% if can_edit_parent_record %}
+        <i
+            class="fa fa-link Pointer tooltip ODRUnlinkRecord"
+            title="This is a linked record.  Click to unlink."
+            rel="{{ datarecord.id }}"
+        ></i>
+        {% endif %}
+
+        {% if can_delete_record %}
+        <i
+            class="Pointer tooltip fa fa-times ODRDeleteLinkedRecord"
+            title="Delete this Linked Record"
+            rel="{{ datarecord.id }}"
+        ></i>
+        {% endif %}
+    </span>
+    {% endif %}
+
+    {% if datarecord.id != datarecord.grandparent.id %}
+    <span rel="{{ datatype.id }}">
+        <i
+            id="datarecord_{{ datarecord.id }}_public"
+            class="tooltip fa fa-globe {% if datarecord_meta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_change_public_status %}Pointer ODRPublicChildRecord{% endif %}"
+            title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
+            rel="{{ datarecord.id }}"
+        ></i>
+
+        {% if is_link == 0 and can_delete_record %}
+        <i
+            class="Pointer tooltip fa fa-times ODRDeleteChildRecord"
+            title="Delete Record"
+            rel="{{ datarecord.id }}"
+        ></i>
+        {% endif %}
+    </span>
+    {% endif %}
+{% else %}    {# datarecord_is_fake == true #}
+    {% if display_type == DROPDOWN_HEADER %}
+    <span>
+        <i
+            class="fa fa-lg fa-hourglass-half Pointer tooltip"
+            title="This is a temporary record..."
+        ></i>
+    </span>
+    {% endif %}
+{% endif %}
+</div>
+
+{% endspaceless %}

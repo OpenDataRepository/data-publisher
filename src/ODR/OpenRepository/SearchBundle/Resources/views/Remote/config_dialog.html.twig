@@ -1,0 +1,96 @@
+{% spaceless %}
+
+<!-- ODRRemoteSearch Config Dialog Form -->
+
+<script>
+
+    var odrremotesearch_body = '<div id="ODRRemoteSearchDialogWrapper" class="ODRHidden"> </div>';
+
+    /**
+     * Opens ODR's modal to display a formatted javascript config for the remote search functionality.
+     */
+    function openODRRemoteSearchDialog() {
+        // open dialog
+        modal_options = {
+            title: 'ODR Remote Search Setup',
+            loading: true,
+            body: odrremotesearch_body,
+            buttons: [
+                {
+                    id: 'ODRRemoteSearch_close',
+                    text: 'Close'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadODRRemoteSearchDialog();
+
+        // Attach an event handler to the close button
+        $("#ODRRemoteSearch_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
+    }
+
+    /**
+     * Submits the user-selected datafields, and then displays the relevant javascript config.
+     */
+    function loadODRRemoteSearchDialog() {
+        // Get rid of any previous checkbox elements in the form
+        $(".ODRRemoteSearch_form_element").remove();
+
+        $(".ODRRemoteSearch_select").each(function(index,elem) {
+            // Only care about selected elements...
+            if ( $(elem).is(':checked') ) {
+                var df_id = $(elem).attr('rel');
+                var element = $("<input>", {"type": "hidden", "class": "ODRRemoteSearch_form_element", "value": 1, "name": "datafield_ids[" + df_id + "]"});
+
+                $("#ODRRemoteSearch_form").append(element);
+            }
+        });
+
+        var url  = '{{ path('odr_remote_search_config') }}';
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: $("#ODRRemoteSearch_form").serialize(),
+            success: function(data) {
+                $("#ODRRemoteSearchDialogWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRRemoteSearchDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+<!-- End of ODRRemoteSearch Config Dialog Form -->
+
+{% endspaceless %}

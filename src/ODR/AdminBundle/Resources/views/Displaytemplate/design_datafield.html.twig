@@ -5,38 +5,11 @@
 {% set typeclass = datafield_meta.fieldType.typeClass %}
 
 <script>
-
-    if (datafield_properties === undefined) {
+    if (datafield_properties === undefined)
         var datafield_properties = [];
-    }
 
-    datafield_properties[{{ datafield.id }}] = {};
-    datafield_properties[{{ datafield.id }}].render_plugin_id = {{ datafield_meta.renderPlugin.id }};
-    datafield_properties[{{ datafield.id }}].render_plugin_name = '{{ datafield_meta.renderPlugin.pluginName }}';
-    {% if typeclass != "Radio" %}
-        datafield_properties[{{ datafield.id }}].can_copy = 1;
-    {% else %}
-        datafield_properties[{{ datafield.id }}].can_copy = 0;
-    {% endif %}
-    {% if datafield_meta.publicDate|is_public %}
-        datafield_properties[{{ datafield.id }}].is_public = 1;
-    {% else %}
-        datafield_properties[{{ datafield.id }}].is_public = 0;
-    {% endif %}
-
-    {% if is_external_id_field %}
-        datafield_properties[{{ datafield.id }}].can_delete = 0;
-        datafield_properties[{{ datafield.id }}].delete_message = "This datafield is currently in use as the Datatype's external ID field...unable to delete";
-    {% elseif is_master_template_field %}
-        datafield_properties[{{ datafield.id }}].can_delete = 0;
-        datafield_properties[{{ datafield.id }}].delete_message = "This datafield is currently required by the Datatype's master template...unable to delete";
-    {% elseif is_datatype_render_plugin_field %}
-        datafield_properties[{{ datafield.id }}].can_delete = 0;
-        datafield_properties[{{ datafield.id }}].delete_message = "This Datafield is currently required by the Datatype's Render Plugin...unable to delete";
-    {% else %}
-        datafield_properties[{{ datafield.id }}].can_delete = 1;
-        datafield_properties[{{ datafield.id }}].delete_message = '';
-    {% endif %}
+    datafield_properties[{{ datafield.id }}] = {{ datafield_properties[ datafield.id ]|json_encode|raw }};
+    {#console.log('datafield {{ datafield.id }}', datafield_properties[{{ datafield.id }}]);#}
 </script>
 
 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield.id }}" >

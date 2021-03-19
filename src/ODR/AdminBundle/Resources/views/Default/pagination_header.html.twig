@@ -26,7 +26,8 @@
         </a>
     </div>
 
-    <div class="pure-u-1 pure-u-md-1-2">
+    <div class="pure-u-1 pure-u-md-3-8">
+        {% if num_datarecords > 1 %}
         <form id="ODRPageSelectForm" name="ODRPageSelectForm">
             {% if num_pages > 4 %}
             <span id="ODRPageSelect" class="odr_page_button Pointer">
@@ -72,9 +73,11 @@
             {% endif %}
 
         </form>
+        {% endif %}
     </div>
 
-    <div class="pure-u-1 pure-u-md-3-8">
+    <div class="pure-u-1 pure-u-md-1-2">
+        {% if num_datarecords > 1 %}
         <span>
             <span class="ODRPaginationLabel Cursor">Show:&nbsp;</span>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 10 %}pure-button-primary{% endif %}" rel="10">10</button>
@@ -83,22 +86,13 @@
             <button type="button" class="ODRPageLength pure-button {% if page_length == 100 %}pure-button-primary{% endif %}" rel="100">100</button>
             <span class="ODRPaginationLabel Cursor">&nbsp;records/page</span>
         </span>
+        {% endif %}
     </div>
 
     {% set is_datatype_admin = false %}
     {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
         {% set is_datatype_admin = true %}
     {% endif %}
-
-    {% set user_role = '' %}
-    {% if user != 'anon.' %}
-        {% for role in user.getroles %}
-            {% if role == 'ROLE_ADMIN' %}
-                {% set user_role = 'ROLE_ADMIN' %}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
-
 
     {# Page/View Options #}
     {% set page_type = 'search_results' %}
@@ -118,7 +112,6 @@
 
         'display_export_options': true,
         'intent': intent,
-        'user_role': user_role,
         'user_permissions': user_permissions,
 
         'notitle': true,

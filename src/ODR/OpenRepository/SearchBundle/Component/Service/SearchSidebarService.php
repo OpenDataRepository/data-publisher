@@ -16,6 +16,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 // Services
+use FOS\UserBundle\Doctrine\UserManager;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
@@ -42,6 +43,11 @@ class SearchSidebarService
     private $pm_service;
 
     /**
+     * @var UserManager
+     */
+    private $user_manager;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -53,17 +59,21 @@ class SearchSidebarService
      * @param EntityManager $entity_manager
      * @param DatatypeInfoService $datatype_info_service
      * @param PermissionsManagementService $permissions_service
+     * @param UserManager $user_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         DatatypeInfoService $datatype_info_service,
         PermissionsManagementService $permissions_service,
+        UserManager $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->dti_service = $datatype_info_service;
         $this->pm_service = $permissions_service;
+        $this->user_manager = $user_manager;
+
         $this->logger = $logger;
     }
 
@@ -139,63 +149,124 @@ class SearchSidebarService
 
 
     /**
-     * Returns an array of user ids and usernames based on the datatypes that $admin_user can see,
-     * so that the search page can populate createdBy/updatedBy fields correctly
+     * Given a user and a filtered datatype array, this function returns a list of all users that
+     * can edit/add/delete the datarecords belonging to the datatypes in the array.  Super admins
+     * are included and labelled, as well.  This list is used so that the search sidebar can
+     * correctly populate the createdBy/modifiedBy fields.
      *
      * @param ODRUser $user
+     * @param array $datatype_array
      *
      * @return array
      */
-    public function getSidebarUserList($user)
+    public function getSidebarUserList($user, $datatype_array)
     {
-        // Determine if the user has the permissions required to see anybody in the created/modified by search fields
+        // Don't display any other users when the current user isn't logged in
+        if ( $user == 'anon.' )
+            return array();
+
+        // Otherwise, the user needs to be able to edit/add/delete datarecords from at least one of
+        //  the datatypes in the array...
         $datatype_permissions = $this->pm_service->getDatatypePermissions($user);
 
-        $relevant_permissions = array();
-        foreach ($datatype_permissions as $datatype_id => $up) {
-            if ( (isset($up['dr_edit']) && $up['dr_edit'] == 1)
-                || (isset($up['dr_delete']) && $up['dr_delete'] == 1)
-                || (isset($up['dr_add']) && $up['dr_add'] == 1)
-            ) {
-                $relevant_permissions[ $datatype_id ] = $up;
+        $editable_datatypes = array();
+        foreach ($datatype_array as $dt_id => $dt_data) {
+            if ( isset($datatype_permissions[$dt_id]) ) {
+                if ( isset($datatype_permissions[$dt_id]['dr_edit'])
+                    || isset($datatype_permissions[$dt_id]['dr_add'])
+                    || isset($datatype_permissions[$dt_id]['dr_delete'])
+                ) {
+                    $editable_datatypes[] = $dt_id;
+                }
             }
         }
 
-        if ( $user == 'anon.' || count($relevant_permissions) == 0 ) {
-            // Not logged in, or has none of the required permissions
+        // If the user doesn't have any of the relevant permissions, then don't show them any users
+        if ( empty($editable_datatypes) )
             return array();
+
+
+        // ----------------------------------------
+        // Load the details for all of the users
+        // TODO - should this be changed to also include deleted users?
+        /** @var ODRUser[] $all_users */
+        $all_users = $this->user_manager->findUsers();
+
+        $user_lookup = array();
+        $super_admins = array();
+        foreach ($all_users as $u) {
+            if ( $u->isEnabled() ) {
+                if ($u->hasRole('ROLE_SUPER_ADMIN'))
+                    $super_admins[$u->getId()] = $u->getUserString().' (Super Admin)';
+                else
+                    $user_lookup[$u->getId()] = $u->getUserString();
+            }
         }
 
 
-        // Otherwise, locate users to populate the created/modified by boxes with
-        // Get a list of datatypes the user is allowed to access
-        $datatype_list = array();
-        foreach ($relevant_permissions as $dt_id => $tmp)
-            $datatype_list[] = $dt_id;
-
-        // Get all other users which can view that list of datatypes
-        $query = $this->em->createQuery(
-           'SELECT u.id, u.username, u.email, u.firstName, u.lastName
-            FROM ODROpenRepositoryUserBundle:User AS u
-            JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
-            JOIN ODRAdminBundle:Group AS g WITH ug.group = g
-            JOIN ODRAdminBundle:GroupDatatypePermissions AS gdtp WITH gdtp.group = g
-            JOIN ODRAdminBundle:GroupDatafieldPermissions AS gdfp WITH gdfp.group = g
-            WHERE u.enabled = 1 AND g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
-            GROUP BY u.id'
-        )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
-        $results = $query->getArrayResult();
-
-        // Convert them into a list of users that the admin user is allowed to search by
+        // ----------------------------------------
+        // Need to find all users that can currently (and used to be able to) modify these datatypes
         $user_list = array();
-        foreach ($results as $user) {
-            $username = '';
-            if ( is_null($user['firstName']) || $user['firstName'] === '' )
-                $username = $user['email'];
-            else
-                $username = $user['firstName'].' '.$user['lastName'];
 
-            $user_list[ $user['id'] ] = $username;
+        $conn = $this->em->getConnection();
+        $params = array('datatype_ids' => $editable_datatypes);
+        $types = array('datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY);
+
+
+        // Two tables to check...do the GroupDatatypePermissions table first...
+        // NOTE - using gdtp.data_type_id instead of g.data_type_id to get all datatype ids instead
+        //  of just top-level datatype ids
+        $query =
+           'SELECT ug.user_id AS user_id, gdtp.data_type_id AS dt_id
+            FROM odr_user_group AS ug
+            JOIN odr_group AS g ON ug.group_id = g.id
+            JOIN odr_group_datatype_permissions AS gdtp ON gdtp.group_id = g.id
+            WHERE g.data_type_id IN (:datatype_ids)
+            AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1)
+            AND gdtp.deletedAt IS NULL AND g.deletedAt IS NULL';
+        $results = $conn->executeQuery($query, $params, $types);
+
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $user_id = $result['user_id'];
+
+            if ( !isset($user_list[$dt_id]) )
+                $user_list[$dt_id] = $super_admins;
+            if ( isset($user_lookup[$user_id]) )
+                $user_list[$dt_id][$user_id] = $user_lookup[$user_id];
+        }
+
+        // ...then do the GroupDatafieldPermissions table
+        // NOTE - using df.data_type_id instead of g.data_type_id to get all datatype ids instead
+        //  of just top-level datatype ids
+        $query =
+           'SELECT ug.user_id AS user_id, df.data_type_id AS dt_id
+            FROM odr_user_group AS ug
+            JOIN odr_group AS g ON ug.group_id = g.id
+            JOIN odr_group_datafield_permissions AS gdfp ON gdfp.group_id = g.id
+            JOIN odr_data_fields df ON gdfp.data_field_id = df.id
+            WHERE g.data_type_id IN (:datatype_ids)
+            AND gdfp.can_edit_datafield = 1
+            AND df.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL';
+        $results = $conn->executeQuery($query, $params, $types);
+
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $user_id = $result['user_id'];
+
+            if ( !isset($user_list[$dt_id]) )
+                $user_list[$dt_id] = $super_admins;
+            if ( isset($user_lookup[$user_id]) )
+                $user_list[$dt_id][$user_id] = $user_lookup[$user_id];
+        }
+
+
+        // ----------------------------------------
+        // Sort each sublist of users so they're easier to look at
+        foreach ($user_list as $dt_id => $users) {
+            $tmp = $users;
+            asort($tmp, SORT_FLAG_CASE | SORT_STRING);    // case-insenstive sort
+            $user_list[$dt_id] = $tmp;
         }
 
         return $user_list;

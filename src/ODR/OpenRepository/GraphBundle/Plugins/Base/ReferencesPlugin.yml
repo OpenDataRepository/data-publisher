@@ -1,7 +1,8 @@
 odr_plugins.base.references:
-    name: References Plugin 
+    name: References Plugin
+    category: Base
     datatype: true
-    version: 1.00
+    version: 1.0.1
     override_fields: true
     override_child: false
     description: The References Plugin parses multiple linked DataRecords and returns HTML that looks like something you would expect to see for multiple references... 

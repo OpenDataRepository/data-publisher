@@ -1,0 +1,125 @@
+{% spaceless %}
+
+<table id="ODRHistoryTable" class="display dataTable">
+    <thead><tr>
+        <th>Date</th>
+        <th>Database</th>
+        <th>Datarecord</th>
+        <th>Datafield</th>
+        <th>Change Made</th>
+        <th>User</th>
+    </tr></thead>
+    <tbody>
+    {# Dump the storage entity change history #}
+    {% for dt_id,dt_data in history %}
+        {% for dr_id,dr_data in dt_data %}
+            {% for df_id,df_data in dr_data %}
+                {% for entity_id,entity_data in df_data %}
+                    {% for date,data in entity_data %}
+                    <tr>
+                        <td>{{ date }}</td>
+                        <td>{{ names['datatypes'][dt_id] }}</td>
+                        <td>{% if names['datarecords'][dr_id] is defined %}{{ names['datarecords'][dr_id] }}{% else %}{{ dr_id }}{% endif %}</td>
+                        <td>{{ names['datafields'][df_id] }}</td>
+
+                        {# Order is important...uploadedBy should be before updatedBy, and deletedBy should be last #}
+                        {% if data['uploadedBy'] is defined %}    {# file/image field got uploaded #}
+                            <td>"{{ data['filename'] }}" uploaded</td>
+                            <td>{{ names['users'][ data['uploadedBy'] ] }}</td>
+
+                        {% elseif data['selectedBy'] is defined %}    {# radio/tag field #}
+                            <td>"{{ data['name'] }}" {% if data['selected'] == 0 %}deselected{% else %}selected{% endif %}</td>
+                            <td>{{ names['users'][ data['selectedBy'] ] }}</td>
+
+                        {% elseif data['updatedBy'] is defined %}    {# text/number field, or file/image public status change #}
+                            {% if data['value'] is defined %}
+                                <td>Value changed to "{{ data['value'] }}"</td>
+                            {% else %}
+                                <td>"{{ data['filename'] }}" is {% if data['public_date'] == "2200-01-01 00:00:00" %} no longer{% else %} now{% endif %} public</td>
+                            {% endif %}
+                            <td>{{ names['users'][ data['updatedBy'] ] }}</td>
+
+                        {% else %}    {# file/image field got deleted #}
+                            {# NOTE - this is at the end because older database entires aren't guaranteed to have a deletedBy value #}
+                            <td>"{{ data['filename'] }}" deleted</td>
+                            {% set user_name = "" %}
+                            {% if names['users'][ data['deletedBy'] ] is defined %}
+                                {% set user_name = names['users'][ data['deletedBy'] ] %}
+                            {% endif %}
+                            <td>{{ user_name }}</td>
+
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+            {% endfor %}
+        {% endfor %}
+    {% endfor %}
+
+    {# Dump the datarecord created/deleted history #}
+    {% for dt_id,dt_data in dr_history %}
+        {% for dr_id,dr_data in dt_data %}
+            {% for key,data in dr_data %}
+                {% if key == 'created' or key == 'deleted' %}
+                <tr>
+                    <td>{{ data['date'] }}</td>
+                    <td>{{ names['datatypes'][dt_id] }}</td>
+                    <td>{% if names['datarecords'][dr_id] is defined %}{{ names['datarecords'][dr_id] }}{% else %}{{ dr_id }}{% endif %}</td>
+                    <td></td>
+
+                    {% set user_name = "" %}
+                    {% if key == 'created' %}
+                        <td>Datarecord created</td>
+
+                        {% if names['users'][ data['createdBy'] ] is defined %}
+                            {% set user_name = names['users'][ data['createdBy'] ] %}
+                        {% endif %}
+                        <td>{{ user_name }}</td>
+                    {% else %}
+                        <td>Datarecord deleted</td>
+
+                        {% if names['users'][ data['deletedBy'] ] is defined %}
+                            {% set user_name = names['users'][ data['deletedBy'] ] %}
+                        {% endif %}
+                        <td>{{ user_name }}</td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                    {% for date,status_data in data %}
+                    <tr>
+                        <td>{{ date }}</td>
+                        <td>{{ names['datatypes'][dt_id] }}</td>
+                        <td>{% if names['datarecords'][dr_id] is defined %}{{ names['datarecords'][dr_id] }}{% else %}{{ dr_id }}{% endif %}</td>
+                        <td></td>
+                        <td>Datarecord is {% if status_data['public_date'] == "2200-01-01 00:00:00" %} no longer{% else %} now{% endif %} public</td>
+
+                        {% set user_name = "" %}
+                        {% if names['users'][ status_data['updatedBy'] ] is defined %}
+                            {% set user_name = names['users'][ status_data['updatedBy'] ] %}
+                        {% endif %}
+                        <td>{{ user_name }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    $(function() {
+        $("#ODRHistoryTable").DataTable({
+            "pageLength": 100,
+            "language": {
+                {% if no_criteria %}
+                "emptyTable": "No criteria set"
+                {% else %}
+                "emptyTable": "No changes found with this criteria"
+                {% endif %}
+            }
+        });
+    });
+</script>
+
+{% endspaceless %}

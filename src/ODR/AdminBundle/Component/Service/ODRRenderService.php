@@ -22,15 +22,16 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Form\UpdateThemeForm;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\Form\FormFactory;
 
 
 class ODRRenderService
@@ -45,6 +46,11 @@ class ODRRenderService
      * @var CacheService
      */
     private $cache_service;
+
+    /**
+     * @var DatafieldInfoService
+     */
+    private $dfi_service;
 
     /**
      * @var DatarecordInfoService
@@ -82,6 +88,11 @@ class ODRRenderService
     private $emm_service;
 
     /**
+     * @var FormFactory
+     */
+    private $form_factory;
+
+    /**
      * @var EngineInterface
      */
     private $templating;
@@ -97,6 +108,7 @@ class ODRRenderService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatypeInfoService $datatype_info_service
      * @param PermissionsManagementService $permissions_service
@@ -104,12 +116,14 @@ class ODRRenderService
      * @param CloneThemeService $clone_theme_service
      * @param CloneTemplateService $clone_template_service
      * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param FormFactory $form_factory
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatypeInfoService $datatype_info_service,
         PermissionsManagementService $permissions_service,
@@ -117,11 +131,13 @@ class ODRRenderService
         CloneThemeService $clone_theme_service,
         CloneTemplateService $clone_template_service,
         EntityMetaModifyService $entity_meta_modify_service,
+        FormFactory $form_factory,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatype_info_service;
         $this->pm_service = $permissions_service;
@@ -129,6 +145,7 @@ class ODRRenderService
         $this->clone_theme_service = $clone_theme_service;
         $this->clone_template_service = $clone_template_service;
         $this->emm_service = $entity_meta_modify_service;
+        $this->form_factory = $form_factory;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -173,6 +190,8 @@ class ODRRenderService
 
             'sync_with_template' => false,
             'sync_metadata_with_template' => false,
+
+            'datafield_properties' => array(),
         );
 
         $datarecord = null;
@@ -205,12 +224,52 @@ class ODRRenderService
      *
      * @param ODRUser $user
      * @param Theme $theme
+     * @param string $search_key
      *
      * @return string
      */
-    public function getThemeDesignHTML($user, $theme)
+    public function getThemeDesignHTML($user, $theme, $search_key = '')
     {
-        throw new ODRNotImplementedException();
+        $datatype = $theme->getDataType();
+        $datarecord = null;
+
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
+
+        // ----------------------------------------
+        // Store whether this is a "short" form or not...
+        // TODO - wasn't this distinction supposed to be removed in the near future?
+        $is_short_form = in_array($theme->getThemeType(), ($this->theme_service)::SHORT_FORM_THEMETYPES);
+
+        // Build the Form to save changes to the Theme's name/description
+        $theme_meta = $theme->getThemeMeta();
+        $theme_form = $this->form_factory->create(
+            UpdateThemeForm::class,
+            $theme_meta,
+            array(
+                'is_short_form' => $is_short_form,
+            )
+        );
+
+        // ----------------------------------------
+        $template_name = 'ODRAdminBundle:Theme:theme_ajax.html.twig';
+        $extra_parameters = array(
+//            'display_mode' => "wizard",
+            'display_mode' => 'edit',
+            'search_key' => $search_key,
+
+            'is_datatype_admin' => $is_datatype_admin,
+
+            'is_short_form' => $is_short_form,
+            'theme_form' => $theme_form->createView(),
+            'theme' => $theme,    // Needed for ODRAdminBundle:Theme:theme_properties_form.html.twig
+        );
+
+        // TODO - is this needed?  I'm guessing it'll never actually do something unless somebody else is modifying the master theme at the same time...
+        // Ensure all relevant themes are in sync before rendering the end result
+        $parent_theme = $theme->getParentTheme();
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
+
+        return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
 
@@ -545,6 +604,11 @@ class ODRRenderService
             // If rendering for Edit mode, the token list requires filtering to be done first...
             if ( isset($extra_parameters['token_list']) )
                 $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+
+            // If rendering for Master Design, only load datafield properties for the datafields the
+            //  user is allowed to see...
+            if ( isset($extra_parameters['datafield_properties']) )
+                $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array);
         }
         else {
             // If displaying HTML for viewing/modifying a group, then the permission arrays need
@@ -552,12 +616,7 @@ class ODRRenderService
             /** @var Group $group */
             $group = $extra_parameters['group'];
 
-            $permissions = $this->cache_service->get('group_'.$group->getId().'_permissions');
-            if ($permissions == false) {
-                $permissions = $this->pm_service->rebuildGroupPermissionsArray($group->getId());
-                $this->cache_service->set('group_'.$group->getId().'_permissions', $permissions);
-            }
-
+            $permissions = $this->pm_service->getGroupPermissionsArray( $group->getId() );
             $datatype_permissions = $permissions['datatypes'];
             $datafield_permissions = $permissions['datafields'];
         }
@@ -876,9 +935,9 @@ class ODRRenderService
 
 
         // Find the ThemeDatatype entry that contains the child/linked datatype getting reloaded
-        $is_link = 0;          // default to "not linked"
-        $display_type = 1;     // default to "accordion"
-        $multiple_allowed = 1; // default to "multiple allowed"
+        $is_link = 0;
+        $display_type = 0;
+        $multiple_allowed = 0;
 
         $tdt = null;
         foreach ($theme_array[$parent_theme->getId()]['themeElements'] as $num => $te) {
@@ -941,7 +1000,9 @@ class ODRRenderService
 
         $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
-            'is_datatype_admin' => $is_datatype_admin
+            'is_datatype_admin' => $is_datatype_admin,
+
+            'datafield_properties' => array(),
         );
 
         // Ensure all relevant themes are in sync before rendering the end result
@@ -1012,7 +1073,7 @@ class ODRRenderService
 
         // ...only get the datarecord arrays if a datarecord was specified
 //        $initial_datarecord_id = null;
-//        $datarecord_array = array();
+        $datarecord_array = array();
 //        if ( !is_null($datarecord) ) {
 //            $initial_datarecord_id = $datarecord->getId();
 //            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
@@ -1032,36 +1093,16 @@ class ODRRenderService
         // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
         //  they shouldn't...the theme array intentionally isn't filtered
         $user_permissions = $this->pm_service->getUserPermissionsArray($user);
-//        if ( isset($extra_parameters['target_user']) ) {
-//            // If rendering for "view_as_user" mode, then use the target user's permissions instead
-//            $user_permissions = $this->pm_service->getUserPermissionsArray( $extra_parameters['target_user'] );
-//        }
 
         $datatype_permissions = $user_permissions['datatypes'];
 //        $datafield_permissions = $user_permissions['datafields'];
 
-//        if ( !isset($extra_parameters['group']) ) {
-//            $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//
-//            // If rendering for Edit mode, the token list requires filtering to be done first...
-//            if (isset($extra_parameters['token_list']))
-//                $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
-//        }
-//        else {
-//            // If displaying HTML for viewing/modifying a group, then the permission arrays need
-//            //  to be based off the group instead of the user
-//            /** @var Group $group */
-//            $group = $extra_parameters['group'];
-//
-//            $permissions = $this->cache_service->get('group_'.$group->getId().'_permissions');
-//            if ($permissions == false) {
-//                $permissions = $this->pm_service->rebuildGroupPermissionsArray($group->getId());
-//                $this->cache_service->set('group_'.$group->getId().'_permissions', $permissions);
-//            }
-//
-//            $datatype_permissions = $permissions['datatypes'];
-//            $datafield_permissions = $permissions['datafields'];
-//        }
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        // If rendering for Master Design, only load datafield properties for the datafields the
+        //  user is allowed to see...
+        if ( isset($extra_parameters['datafield_properties']) )
+            $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array);
 
 
         // ----------------------------------------
@@ -1138,42 +1179,11 @@ class ODRRenderService
      */
     public function reloadMasterDesignDatafield($user, $source_datatype, $theme_element, $datafield)
     {
-        $datatype = $datafield->getDataType();
-        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
-
-        // Store whether this datafield is the datatype's external id field
-        $is_external_id_field = false;
-        if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() == $datafield->getId() )
-            $is_external_id_field = true;
-
-        // Store whether this datafield is derived from some master template
-        $is_master_template_field = false;
-        if ( !is_null($datafield->getMasterDataField()) )
-            $is_master_template_field = true;
-
-        // Store whether this datafield is being used by the datatype's render plugin or not
-        $is_datatype_render_plugin_field = false;
-        if ( $datatype->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
-            // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
-            $query = $this->em->createQuery(
-               'SELECT rpf.fieldName
-                FROM ODRAdminBundle:RenderPluginInstance AS rpi
-                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
-                WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id AND rpf.active = 1
-                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId(), 'datafield_id' => $datafield->getId()) );
-            $results = $query->getArrayResult();
-
-            if ( count($results) > 0 )
-                $is_datatype_render_plugin_field = true;
-        }
+        if ( $datafield->getDataType()->getId() !== $source_datatype->getId() )
+            throw new ODRBadRequestException();
 
         $extra_parameters = array(
-            'is_datatype_admin' => $is_datatype_admin,
-            'is_external_id_field' => $is_external_id_field,
-            'is_master_template_field' => $is_master_template_field,
-            'is_datatype_render_plugin_field' => $is_datatype_render_plugin_field,
+            'datafield_properties' => array(),
         );
 
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
@@ -1208,6 +1218,12 @@ class ODRRenderService
         //  reloaded
 
         $template_name = 'ODRAdminBundle:Edit:edit_datafield.html.twig';
+        if ( $datafield->getPreventUserEdits() ) {
+            // In theory, fields that are blocked shouldn't be requesting reloads...but if they do,
+            //  reload the Display version instead of the Edit version
+            $template_name = 'ODRAdminBundle:Display:display_datafield.html.twig';
+        }
+
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);
     }
 
@@ -1229,7 +1245,7 @@ class ODRRenderService
     private function reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord = null)
     {
         // ----------------------------------------
-        // Make the assumption that linked datatypes are available here
+        // Assume that the reload request could be for a datafield in a linked datatype
         $include_links = true;
 
         // All templates need the datatype and theme arrays...
@@ -1246,7 +1262,7 @@ class ODRRenderService
         $datarecord_array = array();
         if ( !is_null($datarecord) ) {
             $initial_datarecord_id = $datarecord->getId();
-            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+            $datarecord_array = $this->dri_service->getDatarecordArray($datarecord->getGrandparent()->getId(), $include_links);
         }
 
 
@@ -1259,6 +1275,11 @@ class ODRRenderService
         // If rendering for Edit mode, the token list requires filtering to be done first...
         if ( isset($extra_parameters['token_list']) )
             $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+
+        // If rendering for Master Design, only load datafield properties for the datafields the
+        //  user is allowed to see...
+        if ( isset($extra_parameters['datafield_properties']) )
+            $extra_parameters['datafield_properties'] = $this->dfi_service->getDatafieldProperties($datatype_array, $datafield_id);
 
 
         // ----------------------------------------

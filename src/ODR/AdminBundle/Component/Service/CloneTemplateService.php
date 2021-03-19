@@ -1049,7 +1049,7 @@ class CloneTemplateService
 
         // Locate all users and groups that have been modified by this
         $query = $this->em->createQuery(
-           'SELECT g.id AS group_id, u.id AS user_id
+           'SELECT u.id AS user_id
             FROM ODRAdminBundle:Group AS g
             LEFT JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
             LEFT JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
@@ -1062,21 +1062,30 @@ class CloneTemplateService
         );
         $results = $query->getArrayResult();
 
-        $affected_groups = array();
         $affected_users = array();
         foreach ($results as $result) {
-            $group_id = $result['group_id'];
             $user_id = $result['user_id'];
 
-            if ( !is_null($group_id) )
-                $affected_groups[$group_id] = 1;
             if ( !is_null($user_id) )
                 $affected_users[$user_id] = 1;
         }
 
-        // Delete all of the cached entries for the affected entities
-        foreach ($affected_groups as $group_id => $num)
-            $this->cache_service->delete('group_'.$group_id.'_permissions');
+        // Need to separately locate all super_admins, since they're going to need permissions
+        //  cleared too
+        $query = $this->em->createQuery(
+           'SELECT u.id AS user_id
+            FROM ODROpenRepositoryUserBundle:User AS u
+            WHERE u.roles LIKE :role'
+        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $user_id = $result['user_id'];
+
+            $affected_users[$user_id] = 1;
+        }
+
+        // Delete all of the cached entries for the affected users
         foreach ($affected_users as $user_id => $num)
             $this->cache_service->delete('user_'.$user_id.'_permissions');
 

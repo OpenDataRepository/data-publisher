@@ -1,7 +1,7 @@
 {% spaceless %}
-    <!-- File Download Dialog -->
 
-    <script>
+<!-- File Download Dialog -->
+<script>
     var file_download_body = '<div id="ODRFileDownloadFormWrapper" class="ODRHidden"> ' +
             '<form id="ODRFileDownloadForm" method="POST"></form> ' +
         '</div> ' +
@@ -13,8 +13,15 @@
             '</div> ' +
         '</div>';
 
-
-    function openFileDownloadDialog(grandparent_datarecord_id, datarecord_id, datafield_id) {
+    /**
+     * Opens an ODR modal to allow users to pick which files/images they want to download as a zip
+     * archive.
+     *
+     * @param {number} grandparent_datarecord_id
+     * @param {number} target_datarecord_id
+     * @param {number} target_datafield_id
+     */
+    function openFileDownloadDialog(grandparent_datarecord_id, target_datarecord_id, target_datafield_id) {
         // open dialog
         modal_options = {
             title: "Select files to download:",
@@ -36,18 +43,24 @@
         };
         openODRRemodal(modal_options);
 
-        // set innerhtml
-        loadFileData(grandparent_datarecord_id, datarecord_id, datafield_id);
+        var group_by_datafield = 0;    // don't group_by_datafield by default
+        loadFileData(grandparent_datarecord_id, group_by_datafield, target_datarecord_id, target_datafield_id);
     }
 
 
-    function loadFileData(grandparent_datarecord_id, datarecord_id, datafield_id) {
+    /**
+     * Requests the tree structure of all files/images uploaded to the given grandparent_datarecord
+     * and its descendants.
+     *
+     * @param {number} grandparent_datarecord_id
+     * @param {number} group_by_datafield  0 or 1
+     * @param {number} [target_datarecord_id]
+     * @param {number} [target_datafield_id]
+     */
+    function loadFileData(grandparent_datarecord_id, group_by_datafield, target_datarecord_id, target_datafield_id) {
         var url = '{{ path('odr_get_file_list', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));
-        url += grandparent_datarecord_id;
-        if (datarecord_id != 0 || datafield_id != 0) {
-            url += '/' + datarecord_id + '/' + datafield_id;
-        }
+        url += grandparent_datarecord_id + '/' + group_by_datafield;
 
         $.ajax({
             cache: false,
@@ -56,7 +69,7 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 $("#ODRFileDownloadForm").html( data.d );
-                initFileDownloadDialogForm(datarecord_id, datafield_id);
+                initFileDownloadDialogForm(target_datarecord_id, target_datafield_id);
                 // remove loading
                 $(".ODRRemodalLoading").fadeOut('150', function() {
                     $(".ODRRemodalBody").show();
@@ -66,7 +79,7 @@
                     resetRemodalInnerHeight();
 
                     // Setup submit handler
-                    $('#ODRFileDownloadFormSubmit').click(function() {
+                    $('#ODRFileDownloadFormSubmit').unbind('click').click(function() {
                         var $el = $(this).parent().parent();
                         // Create/send a POST request of file ids
                         submitFileDownloadForm( $el.attr('id') );
@@ -94,6 +107,13 @@
     }
 
 
+    /**
+     * Attaches click handlers and selects all files belonging to the given datarecord/datafield if
+     * requested.
+     *
+     * @param {number} [target_datarecord_id]
+     * @param {number} [target_datafield_id]
+     */
     function initFileDownloadDialogForm(target_datarecord_id, target_datafield_id) {
         $(".ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();
@@ -143,6 +163,11 @@
     }
 
 
+    /**
+     * Updates the state of the tri-state checkboxes going up the tree.
+     *
+     * @param {HTMLElement} source_element
+     */
     function applyToParents(source_element) {
         var parent_list_element = $(source_element).parent().parent().parent().not('form');
         if (parent_list_element.length == 0)
@@ -170,6 +195,11 @@
     }
 
 
+    /**
+     * Submits which files the user wants to download to the server.
+     *
+     * @param {string} form_id
+     */
     function submitFileDownloadForm(form_id) {
         var file_count = 0;
         $("#ODRFileDownloadForm").find('.binary').each(function() {
@@ -179,8 +209,7 @@
             }
         });
 
-        var id_data = $("#ODRFileDownloadForm > ul").attr('id').split(/_/);
-        var grandparent_datarecord_id = id_data[1];
+        var grandparent_datarecord_id = '{{ initial_datarecord_id }}';
 
         var url = '{{ path('odr_start_zip_archive_download', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));

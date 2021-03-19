@@ -31,6 +31,8 @@ ODR\AdminBundle\Entity\LongText:
             nullable: true
 
     indexes:
+        longtext_created:
+            columns: ["created"]
         longtext_fulltext:
             columns: ["value"]
             flags: fulltext

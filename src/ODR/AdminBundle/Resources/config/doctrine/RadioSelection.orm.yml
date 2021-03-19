@@ -33,6 +33,10 @@ ODR\AdminBundle\Entity\RadioSelection:
             type: datetime
             nullable: true
 
+    indexes:
+        radioselection_created:
+            columns: ["created"]
+
     manyToOne:
         radioOption:
             targetEntity: RadioOptions

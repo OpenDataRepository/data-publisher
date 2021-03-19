@@ -1,0 +1,148 @@
+{% spaceless %}
+
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRAccordionWrapper ODRFormAccordion">
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    Copy Datatype
+                </h3>
+
+                <div class="ODRFieldArea accordion-content">
+                    <div class="ODRBodyContent">
+                        This interface lets ODR super-admins select an existing non-template in order
+                        to make a copy of that database and all its layouts.  After the copying is
+                        complete, the new database "forgets" its relation with its source datatype...the
+                        new database will neither check for nor copy any future changes made to the
+                        source database.
+                    </div>
+                    <div class="ODRBodyContent">
+                        <form id="CopyDatatypeForm">
+                            <input type="hidden" name="_token" value="{{ csrf_token }}" />
+                            <input type="hidden" id="selected_datatype_id" name="datatype_id" value="" />
+
+                            <label for="selected_user_id"><b>Select owner of new database:&nbsp;</b></label>
+                            <select id="selected_user_id" name="user_id">
+                                {% for user in user_list %}
+                                    {% if user.enabled %}
+                                    <option value="{{ user.id }}" {% if user.id == admin.id %}selected{% endif %}>{{ user.getuserstring }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="ODRContentWrapper pure-u-1">
+    <table id="ODRDatatypeList" class="display dataTable">
+        <thead><tr>
+            <th>Database Name</th>
+            <th>Created By</th>
+            <th>Description</th>
+            <th></th>
+            <th></th>
+        </tr></thead>
+        <tbody>
+        {% for datatype in datatypes %}
+            {% set datatype_meta = datatype.dataTypeMeta %}
+            <tr>
+                <td>{{ datatype_meta.shortName }}</td>
+                <td>{{ datatype.createdBy|user_string }}</td>
+                <td>{{ datatype_meta.description }}</td>
+                <td>
+                    <a class="pure-button" target="_blank" href="{{ path('odr_search', {'search_slug': datatype_meta.searchSlug}) }}" title="View {{ datatype_meta.shortName }} Existing Records" rel="{{ datatype.id }}">View Existing Records</a>
+                </td>
+                <td>
+                    <a class="pure-button pure-button-primary ODRStartCopy" rel="{{ datatype.id }}">Copy <b>{{ datatype_meta.shortName }}</b></a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Want to display warnings when the datatype or its metadata datatype are derived...
+    var derived_datatypes = [];
+    var derived_metadata = [];
+{% for datatype in datatypes %}
+    {% if datatype.masterDataType is not null %}
+    derived_datatypes.push('{{ datatype.id }}');
+    {% endif %}
+    {% if datatype.metadata_datatype is not null and datatype.metadata_datatype.masterDataType is not null %}
+    derived_metadata.push('{{ datatype.id }}');
+    {% endif %}
+{% endfor %}
+    // console.log(derived_datatypes);
+    // console.log(derived_metadata);
+
+    $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        $("#ODRDatatypeList").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [3,4],
+                    "orderable": false,
+                    "searchable": false,
+                }
+            ],
+            "paging": false,
+            "info": false,
+            "language": {
+                "emptyTable": "No Databases found"
+            }
+        });
+
+        $(".ODRStartCopy").unbind('click').click(function() {
+            var datatype_id = $(this).attr('rel');
+            if ( derived_datatypes.indexOf(datatype_id) !== -1 ) {
+                if ( !confirm("WARNING - The selected datatype is derived from a master template.  You probably do NOT want to copy this database...Cross-template searches and automatic template updates WILL NOT work.") )
+                    return;
+            }
+            else if ( derived_metadata.indexOf(datatype_id) !== -1 ) {
+                if ( !confirm("WARNING - The metadata entry for the selected datatype is derived from a master template.  You might want to ask if this is going to be a problem.") )
+                    return;
+            }
+
+            $("#selected_datatype_id").val(datatype_id);
+
+            var url = "{{ path('odr_copy_normal_database') }}";
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                dataType: 'json',
+                data: $("#CopyDatatypeForm").serialize(),
+                success: function (data, textStatus, jqXHR) {
+                    var redirect_url = data.d.redirect_url;
+                    UpdateURL(redirect_url);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // TODO - should everything get reset on an error?
+                    // doReset();
+                },
+                complete: function (jqXHR, textStatus) {
+
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+</script>
+
+{% endspaceless %}

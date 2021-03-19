@@ -3,15 +3,28 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'display'} %}
 
-{% if render_plugin.overrideChild == 1 %}
-    <!-- Start {{ render_plugin.pluginName }} override child html -->
-    {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
-    {{ datarecord_array|datatype_plugin(datatype, render_plugin, theme_array, rendering_options)|raw }}
-    <!-- End {{ render_plugin.pluginName }} override child html -->
+{# Don't attempt to execute the default render_plugin #}
+{% set can_execute_plugin = false %}
+{% if render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
+    {% set can_execute_plugin = render_plugin|can_execute_plugin(datatype, rendering_options) %}
+{% endif %}
 
-{% else %}
+{% set content = '' %}
+{% if can_execute_plugin and render_plugin.overrideChild %}
+    {# Display mode doesn't have datatype_permissions, datafield_permissions, or a token_list #}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin, theme_array, rendering_options) %}
+    {% if content|length > 0 %}
+        <!-- Start {{ render_plugin.pluginName }} override child html -->
+        {{ content|raw }}
+        <!-- End {{ render_plugin.pluginName }} override child html -->
+    {% endif %}
+{% endif %}
+
+{% if not can_execute_plugin or content|length == 0 %}
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
         {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
@@ -25,43 +38,29 @@
 
         {% for dr_id, datarecord in datarecord_array %}
 
-{#
-----------</br>
-datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
-parent: {{ datarecord.parent.id }}</br>
-grandparent: {{ datarecord.grandparent.id }}</br>
-</br>
-parent_datarecord_id: {{ parent_datarecord_id }}</br>
-target_datatype_id: {{ target_datatype_id }}</br>
-</br>
-is_top_level: {{ is_top_level }}</br>
-is_link: {{ is_link }}</br>
-display_type: {{ display_type }}</br>
-</br>
-render_plugin_name: {{ render_plugin.pluginName }}</br>
-render_plugin.overrideChild: {{ render_plugin.overrideChild }}</br>
-render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
-----------</br>
-#}
-
             {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
                 'datarecord': datarecord,
                 'datatype': datatype,
+
                 'is_top_level': is_top_level,
                 'display_type': display_type
             } %}
 
             <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
-                {% if render_plugin.id != '1' and (render_plugin.overrideChild == 1 or render_plugin.overrideFields == 1) %}
-                    <!-- html for {{ render_plugin.pluginName }} -->
-                    {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType} %}
-                    {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options)|raw }}
+                {% set content = '' %}
+                {% if can_execute_plugin and (render_plugin.overrideChild or render_plugin.overrideFields) %}
                     {# [datarecord] converts datarecord into a single-element array #}
-
+                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options) %}
+                    {% if content|length > 0 %}
+                        <!-- html for {{ render_plugin.pluginName }} -->
+                        {{ content|raw }}
+                    {% endif %}
                 {% endif %}
 
-                {% if render_plugin.overrideFields == 0 %}
+                {% if can_execute_plugin and render_plugin.overrideFields and content|length > 0 %}
+                    {# If using render plugin and it overrides datafield display, do nothing here #}
+                {% else %}
                     {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,

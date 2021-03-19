@@ -1,0 +1,151 @@
+{% spaceless %}
+
+<div class="pure-u-1">
+    <button type="button" id="ODRTracking_deleted_users" class="pure-button" rel="Hide">Show deleted users</button>
+    <button type="button" id="ODRTracking_deselect_all" class="pure-button" rel="Hide">Deselect all users</button>
+</div>
+
+{% set deleted_column_num = 5 %}
+<div class="pure-u-1-24"></div>
+<div class="ODRTableOuterWrap pure-u-22-24">
+    <div class="ODRTableWrap">
+        <table id="ODRTrackingUserList" class="display dataTable">
+            <thead><tr>
+                <th></th>
+                <th></th>
+                <th>User</th>
+                <th>Institution</th>
+                <th></th>
+                <th></th>
+            </tr></thead>
+            <tbody>
+            {% for user in user_list %}
+                <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
+                    <td>{{ user.id }}</td>
+                    <td>
+                        <input class="ODRTrackingUser_checkbox" type="checkbox" rel="{{ user.id }}"/>
+                    </td>
+                    <td{% if user.enabled == 0 %} class="strikethrough"{% endif %}>{{ user.getuserstring }}</td>
+                    <td>{{ user.institution }}</td>
+                    <td>{% if user.hasrole("ROLE_SUPER_ADMIN") %}Super Admin{% endif %}</td>
+                    <td class="strikethrough">{% if user.enabled == 0 %}Deleted User{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="pure-u-1-24"></div>
+
+<script>
+    // Sourced from: https://www.datatables.net/plug-ins/sorting/custom-data-source/dom-checkbox
+    $.fn.dataTable.ext.order['dom-checkbox'] = function  ( settings, col )
+    {
+        return this.api().column( col, {order:'index'} ).nodes().map( function ( td, i ) {
+            return $('input', td).prop('checked') ? '1' : '0';
+        } );
+    };
+
+    $(function() {
+        var table = $("#ODRTrackingUserList").DataTable({
+            "columnDefs": [
+                {
+                    "targets": [0,{{ deleted_column_num }}],
+                    "visible": false,
+                },
+                {
+                    // https://datatables.net/reference/option/columns.orderDataType
+                    "targets": [1],
+                    "orderDataType": "dom-checkbox",
+                    "searchable": false,
+                }
+            ],
+            "autoWidth": false,
+            "paging": false,
+            "info": false,
+            "language": {
+                "emptyTable": "No Users found"
+            }
+        });
+
+        $("#ODRTracking_deleted_users").unbind('click').click(function() {
+            var action = $(this).attr('rel');
+            $(this).html( action + " deleted users");
+
+            if (action == "Hide") {
+                $(this).attr('rel', 'Show');
+                $("#ODRTrackingUserList tbody tr.ODRDeletedUser").each(function() {
+                    $(this).removeClass('ODRHidden');
+                });
+                // Display the column indicating which users are deleted
+                table.column({{ deleted_column_num }}).visible(true);
+            }
+            else {
+                $(this).attr('rel', 'Hide');
+                $("#ODRTrackingUserList tbody tr.ODRDeletedUser").each(function() {
+                    $(this).addClass('ODRHidden');
+                });
+                // Hide the column indicating which users are deleted
+                table.column({{ deleted_column_num }}).visible(false);
+            }
+
+            redoRowClasses();
+        });
+
+        $("#ODRTracking_deselect_all").unbind('click').click(function() {
+            $(".ODRTrackingUser_checkbox").each(function() {
+                $(this).prop('checked', false);
+            });
+        });
+
+        selectUsers();
+    });
+
+    /**
+     * Selects the checkbox for each user that the tracking page is already filtering by.
+     */
+    function selectUsers() {
+        //
+        var deleted_user_is_selected = false;
+
+        var target_user_ids = $("#target_user_ids").val();
+        if (target_user_ids !== '') {
+            target_user_ids = target_user_ids.split(',');
+
+            $(".ODRTrackingUser_checkbox").each(function(index, elem) {
+                var user_id = $(elem).attr('rel');
+                if ( target_user_ids.includes(user_id) ) {
+                    $(elem).prop('checked', true);
+
+                    if ( $(elem).parents('tr').hasClass('ODRDeletedUser') )
+                        deleted_user_is_selected = true;
+                }
+            });
+        }
+
+        // If a deleted user is currently selected, then ensure deleted users are visible
+        if ( deleted_user_is_selected )
+            $("#ODRTracking_deleted_users").trigger('click');
+        else
+            redoRowClasses();
+    }
+
+    /**
+     * Resets the even/odd classnames for the tracking table.  For use after deleted users are
+     * either shown or hidden.
+     */
+    function redoRowClasses() {
+        var count = 0;
+        $("#ODRTrackingUserList tbody tr").each(function() {
+            if ( !$(this).hasClass('ODRHidden') ) {
+                count++;
+                if ( count % 2 === 1 )
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
+{% set datatype_meta = datatype.dataTypeMeta %}
 {% set theme = theme_array[target_theme_id] %}
 
 <div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
@@ -8,27 +9,29 @@
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
         <h3 title="Click to display properties."
-            class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties"
+            class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties {% if not is_datatype_admin %}ODRForbidden{% endif %}"
             role="tab" aria-expanded="true" aria-selected="true" tabindex="0"
         >
             {% if is_datatype_admin %}
                 <i id="ODRDatatype_{{datatype.id }}_publicStatus"
-                   class="Pointer fa fa-lg fa-globe{% if datatype.dataTypeMeta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
-                   title="Field {% if not datatype.dataTypeMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
+                   class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
+                   title="Field {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
                    rel="{{ datatype.id }}"
                 ></i>
             {% endif %}
             <a
                 id="Datatype_{{ datatype.id }}_ShortName"
-                class="tooltip{% if not is_datatype_admin %} ODRForbidden{% endif %}"
+                class="tooltip"
                 title="Click to display properties." rel="{{ datatype.id }}"
             >
-                {{ datatype.dataTypeMeta.shortName }}
+                {{ datatype_meta.shortName }}
             </a>
         </h3>
         {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
             'datatype': datatype,
             'theme_id': theme.id,
+
+            'is_datatype_admin': is_datatype_admin,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
@@ -38,6 +41,7 @@
             {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
 
                 'target_datatype_id': target_datatype_id,
                 'target_theme_id': target_theme_id,
@@ -57,16 +61,18 @@
                     class="ODRHeader ODRDatatypeProperties tooltip{% if not is_datatype_admin %} ODRForbidden{% endif %}"
                 >
                     <i id="ODRDatatype_{{datatype.id }}_publicStatus"
-                       class="Pointer fa fa-lg fa-globe{% if datatype.dataTypeMeta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
-                       title="Field {% if not datatype.dataTypeMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
+                       class="Pointer fa fa-lg fa-globe{% if datatype_meta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicDatatype"
+                       title="Field {% if not datatype_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view"
                        rel="{{ datatype.id }}"
                     ></i>
-                    <span id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</span>
+                    <span id="Datatype_{{ datatype.id }}_ShortName">{{ datatype_meta.shortName }}</span>
                 </h3>
                 {# current datatype is top-level #}
                 {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
                     'datatype': datatype,
                     'theme_id': theme.id,
+
+                    'is_datatype_admin': is_datatype_admin,
 
                     'is_top_level': is_top_level,
                     'is_link': is_link,
@@ -78,6 +84,7 @@
             {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'datafield_properties': datafield_properties,
 
                 'target_datatype_id': target_datatype_id,
                 'target_theme_id': target_theme_id,

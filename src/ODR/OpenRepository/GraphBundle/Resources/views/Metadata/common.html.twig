@@ -1,0 +1,153 @@
+{% spaceless %}
+
+<div id="ODRMetadataGuidance_wrapper" class="ODRContentWrapper ODRHidden">
+    <div class="ODRThemeElement">
+        <div id="ODRMetadataGuidance_text" class="ODRInnerBox" style="padding:10px;">
+            Initializing...
+        </div>
+        <button id="ODRMetadataGuidance_prev" class="pure-button pure-button-primary">Previous Step</button>
+        <button id="ODRMetadataGuidance_toggle" class="pure-button">Skip</button>
+        <button id="ODRMetadataGuidance_next" class="pure-button pure-button-primary">Next Step</button>
+    </div>
+</div>
+
+<script>
+    /**
+     * An array of strings that "name" a step in the metadata guidance system.  They need to also...
+     * 1) be the HTML id of a single div, containing the description for the current step
+     * 2) be an HTML class on all datafields/theme_elements that are displayed as part of the step
+     *
+     * Each plugin that's part of the system needs to push its strings into this variable.
+     */
+    var ODRMetadataGuidance_steps = [];
+
+    /**
+     * Holds the current step the guidance system is displaying...plugins can't change this without breaking something.
+     */
+    var ODRMetadataGuidance_currentStep = 0;
+
+    /**
+     * TODO
+     */
+    function ODR_startMetadataGuidance() {
+
+        // console.log(ODRMetadataGuidance_steps);
+
+        if ( ODRMetadataGuidance_steps.length === 0 ) {
+            // No steps defined for the guidance system...ensure everything remains hidden
+            $("#ODRMetadataGuidance_wrapper").addClass("ODRHidden");
+        }
+        else {
+            // Otherwise, attach event handlers and start the system...
+            $("#ODRMetadataGuidance_wrapper").removeClass("ODRHidden");
+
+            $("#ODRMetadataGuidance_prev").unbind('click').click(function () {
+                // Show/enable everything from the previous step
+                ODRMetadataGuidance_currentStep--;
+                ODRMetadataGuidance_showStep(ODRMetadataGuidance_currentStep);
+
+                // Disable the prev button if needed
+                if (ODRMetadataGuidance_currentStep === 0)
+                    $("#ODRMetadataGuidance_prev").prop('disabled', 'disabled');
+                // Ensure the next button is enabled
+                $("#ODRMetadataGuidance_next").prop('disabled', '');
+            });
+
+            $("#ODRMetadataGuidance_next").unbind('click').click(function () {
+                // Show/enable everything from the next step
+                ODRMetadataGuidance_currentStep++;
+                ODRMetadataGuidance_showStep(ODRMetadataGuidance_currentStep);
+
+                // Ensure the prev button is enabled
+                $("#ODRMetadataGuidance_prev").prop('disabled', '');
+                // Disable the next button if user now on the final step
+                if (ODRMetadataGuidance_currentStep === ODRMetadataGuidance_steps.length)
+                    $("#ODRMetadataGuidance_next").prop('disabled', 'disabled');
+            });
+
+            $("#ODRMetadataGuidance_toggle").unbind('click').click(function () {
+                var text = $(this).html();
+                if (text === 'Skip')
+                    ODRMetadataGuidance_end();
+                else
+                    ODRMetadataGuidance_begin();
+            });
+
+            // Start the guidance system from the first step
+            ODRMetadataGuidance_begin();
+        }
+    }
+
+    /**
+     * Disable the entire metadata guidance system, reverting all html elements to visible
+     */
+    function ODRMetadataGuidance_end() {
+        // Update button properties
+        $("#ODRMetadataGuidance_prev").prop('disabled', 'disabled');
+        $("#ODRMetadataGuidance_next").prop('disabled', 'disabled');
+        $("#ODRMetadataGuidance_toggle").html('Restart');
+
+        // Ensure everything is displayed
+        $(".ODRMetadataGuidance_step").removeClass("ODRHidden");
+
+        // Update the text blurb
+        $("#ODRMetadataGuidance_text").html("The guidance system is completed, and all properties on the page are now visible.<br><br>To restart the guidance system, click the \"Restart\" button");
+    }
+
+    /**
+     * Enables the metadata guidance system, initializing it back to the first step
+     */
+    function ODRMetadataGuidance_begin() {
+        // Update button properties
+        $("#ODRMetadataGuidance_prev").prop('disabled', 'disabled');
+        $("#ODRMetadataGuidance_next").prop('disabled', '');
+        $("#ODRMetadataGuidance_toggle").html('Skip');
+
+        // Programatically transfer all steps from the datafield/datatype entities they're currently
+        //  on to their parent theme elements
+        jQuery.each(ODRMetadataGuidance_steps, function(step_num,step_name) {
+            var step_classname = "." + step_name;
+            // console.log(step_classname);
+            $(step_classname).each(function(index,elem) {
+                // console.log( $(elem) );
+                $(elem).addClass("ODRMetadataGuidance_step");
+
+                var parent_te = $(elem).closest(".ODRThemeElement");
+                // console.log( $(parent_te) );
+                $(parent_te).addClass(step_name);
+            });
+        });
+
+        // Execute the first step
+        ODRMetadataGuidance_currentStep = 0;
+        ODRMetadataGuidance_showStep(ODRMetadataGuidance_currentStep);
+    }
+
+    /**
+     * Enables/shows all html elements from the given step number
+     *
+     * @param {number} step
+     */
+    function ODRMetadataGuidance_showStep(step) {
+        if ( step < 0 || step > ODRMetadataGuidance_steps.length )
+            return;
+
+        if ( step === ODRMetadataGuidance_steps.length ) {
+            // All guidance steps completed, show everything
+            ODRMetadataGuidance_end();
+        }
+        else {
+            // Update the blurb for the requested step
+            var step_name = ODRMetadataGuidance_steps[step];
+            var step_text = $("#" + step_name).html();
+            $("#ODRMetadataGuidance_text").html(step_text);
+
+            // Hide all elements not associated with this step
+            $(".ODRMetadataGuidance_step").not(step_name).addClass("ODRHidden");
+            // Show the elements associated with the requested step
+            $(".ODRMetadataGuidance_step." + step_name).removeClass("ODRHidden");
+        }
+    }
+</script>
+
+{% endspaceless %}

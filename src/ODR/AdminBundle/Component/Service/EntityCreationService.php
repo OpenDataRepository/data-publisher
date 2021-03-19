@@ -179,7 +179,8 @@ class EntityCreationService
         $datafield_meta->setMarkdownText('');
         $datafield_meta->setIsUnique(false);
         $datafield_meta->setRequired(false);
-        $datafield_meta->setSearchable(0);
+        $datafield_meta->setPreventUserEdits(false);
+        $datafield_meta->setSearchable(DataFields::NOT_SEARCHED);
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
@@ -221,11 +222,12 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $delay_flush
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param bool $select_default_radio_options If true, then relevant default radio options are automatically located and marked as selected
      *
      * @return DataRecord
      */
-    public function createDatarecord($user, $datatype, $delay_flush = false)
+    public function createDatarecord($user, $datatype, $delay_flush = false, $select_default_radio_options = true)
     {
         // Initial create
         $datarecord = new DataRecord();
@@ -238,6 +240,7 @@ class EntityCreationService
         $datarecord->setParent($datarecord);
         $datarecord->setGrandparent($datarecord);
 
+        // TODO - the part about "most areas" is not correct, it's currently only checked in EditController::editAction()
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
         $datarecord->setUniqueId( $this->uuid_service->generateDatarecordUniqueId() );
 
@@ -258,10 +261,152 @@ class EntityCreationService
         $datarecord->addDataRecordMetum($datarecord_meta);
         $this->em->persist($datarecord_meta);
 
+        // Set up default radio options if required
+        // NOTE - the only reason this function works properly is because it gets called before a
+        //  flush happens
+        if ($select_default_radio_options)
+            self::selectDefaultRadioOptions($user, $datarecord);
+
         if ( !$delay_flush )
             $this->em->flush();
 
         return $datarecord;
+    }
+
+
+    /**
+     * Determines whether a brand-new datarecord needs to have radio options selected by default.
+     *
+     * NOTE - the only reason this function works properly is because it gets called before a
+     * flush happens in self::createDatarecord().
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     */
+    private function selectDefaultRadioOptions($user, $datarecord)
+    {
+        // Load the list of radio options marked as default, if possible
+        $default_radio_options = $this->cache_service->get('default_radio_options');
+        if ($default_radio_options === false) {
+            // Cache entry doesn't exist...need to create it
+            // NOTE - changing a datafield's fieldtype away from "Radio" does not delete the radio
+            //  options...so need to also check current fieldtype in here
+            $query = $this->em->createQuery(
+               'SELECT ro.id AS ro_id, df.id AS df_id, dt.id AS dt_id
+                FROM ODRAdminBundle:RadioOptionsMeta rom
+                JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
+                JOIN ODRAdminBundle:DataFields df WITH ro.dataField = df
+                JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
+                JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
+                JOIN ODRAdminBundle:DataType gdt WITH dt.grandparent = gdt
+                WHERE rom.isDefault = 1 AND ft.typeClass = :typeclass
+                AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                AND dt.deletedAt IS NULL AND gdt.deletedAt IS NULL'
+            )->setParameters( array('typeclass' => 'Radio') );
+            $results = $query->getArrayResult();
+
+            $default_radio_options = array();
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $df_id = $result['df_id'];
+                $dt_id = $result['dt_id'];
+
+                if ( !isset($default_radio_options[$dt_id]) )
+                    $default_radio_options[$dt_id] = array();
+                if ( !isset($default_radio_options[$dt_id][$df_id]) )
+                    $default_radio_options[$dt_id][$df_id] = array();
+                $default_radio_options[$dt_id][$df_id][] = $ro_id;
+            }
+
+            // Save the list back into the cache
+            $this->cache_service->set('default_radio_options', $default_radio_options);
+        }
+
+        // If the datarecord doesn't belong to a datatype that has a default radio option, then
+        //  it makes no sense to keep looking
+        $dt_id = $datarecord->getDataType()->getId();
+        if ( !isset($default_radio_options[$dt_id]) )
+            return;
+
+        // Otherwise, going to need to hydrate all affected datafields and all radio options
+        $datafields_to_hydrate = array();
+        $radio_options_to_hydrate = array();
+        foreach ($default_radio_options[$dt_id] as $df_id => $radio_options) {
+            $datafields_to_hydrate[] = $df_id;
+            foreach ($radio_options as $num => $ro_id)
+                $radio_options_to_hydrate[] = $ro_id;
+        }
+
+        $query = $this->em->createQuery(
+           'SELECT df
+            FROM ODRAdminBundle:DataFields df
+            WHERE df.id IN (:datafield_ids)'
+        )->setParameters( array('datafield_ids' => $datafields_to_hydrate) );
+        $results = $query->getResult();
+
+        $datafields = array();
+        foreach ($results as $df) {
+            /** @var DataFields $df */
+            $datafields[ $df->getId() ] = $df;
+        }
+
+        $query = $this->em->createQuery(
+           'SELECT ro
+            FROM ODRAdminBundle:RadioOptions ro
+            WHERE ro.id IN (:radio_option_ids)'
+        )->setParameters( array('radio_option_ids' => $radio_options_to_hydrate) );
+        $results = $query->getResult();
+
+        $radio_options = array();
+        foreach ($results as $ro) {
+            /** @var RadioOptions $ro */
+            $df_id = $ro->getDataField()->getId();
+            if ( !isset($radio_options[$df_id]) )
+                $radio_options[$df_id] = array();
+
+            $radio_options[$df_id][ $ro->getId() ] = $ro;
+        }
+
+        // Now that the entities are hydrated, create a DataRecordField entry for each datafield
+        // IMPORTANT - this method ONLY works because the Datarecord doesn't actually "exist"...
+        // It exists only in Doctrine's persist buffer (or whatever), so there's no way for another
+        //  ODR process to try to create drf entities for it...which is what the main function
+        //  self::createDatarecordField() has to prevent by using locking techniques
+        foreach ($datafields as $df_id => $df) {
+            $drf = new DataRecordFields();
+            $drf->setDataRecord($datarecord);
+            $drf->setDataField($df);
+
+            $drf->setCreated(new \DateTime());
+            $drf->setCreatedBy($user);
+
+            // Do not flush the entity here
+            $this->em->persist($drf);
+
+            foreach ($radio_options[$df_id] as $ro_id => $ro) {
+                // Creating the RadioSelection entities has the same restrictions as the drf entities
+                // ...and the usual restrictions can be sidestepped here for the same reasons.
+                $rs = new RadioSelection();
+                $rs->setDataRecord($datarecord);
+                $rs->setDataRecordFields($drf);
+                $rs->setRadioOption($ro);
+
+                $rs->setCreated(new \DateTime());
+                $rs->setUpdated(new \DateTime());
+                $rs->setCreatedBy($user);
+                $rs->setUpdatedBy($user);
+
+                // Mark this option as selected
+                $rs->setSelected(1);
+
+                // Do not flush the entity here
+                $this->em->persist($rs);
+            }
+        }
+
+        // Don't flush here...let the caller take care of it
     }
 
 
@@ -511,7 +656,8 @@ class EntityCreationService
 
 
     /**
-     * Create a new Group for users of the given datatype.
+     * Create a new Group for users of the given datatype.  Does NOT guard against creating
+     * duplicates of the default groups (i.e. "admin", "edit_all", "view_all", or "view_only")
      *
      * @param ODRUser $user
      * @param DataType $datatype
@@ -550,7 +696,7 @@ class EntityCreationService
         }
         else if ($initial_purpose == 'edit_all') {
             $group_meta->setGroupName('Default Group - Editor');
-            $group_meta->setGroupDescription('Users in this default Group can always both view and edit all Datarecords and Datafields of this Datatype.');
+            $group_meta->setGroupDescription('Users in this default Group are always allowed to view, edit, and change public status of Datarecords.');
         }
         else if ($initial_purpose == 'view_all') {
             $group_meta->setGroupName('Default Group - View All');
@@ -574,7 +720,8 @@ class EntityCreationService
 
 
         // ----------------------------------------
-        // Locate the ids of all children of this top-level datatype
+        // Now that the group is persisted, the grandparent datatype and all of its children each
+        //  need a GroupDatatypePermission entry to tie them to this new group
         $query = $this->em->createQuery(
            'SELECT dt
             FROM ODRAdminBundle:DataType AS dt
@@ -588,9 +735,8 @@ class EntityCreationService
             /** @var DataType $dt */
             $dt_ids[] = $dt->getId();
 
-            // Can't use createGroupsForDatatatype for this, it creates permissions for a single
-            //  datatype across all groups...this function instead needs to create permissions for
-            //  all datatypes for a single group
+            // Can't use self::createGroupsForDatatatype() for this...that function assumes the
+            //  group already exists in the database, which is not the case at this point in time
             $gdtp = new GroupDatatypePermissions();
             $gdtp->setGroup($group);
             $gdtp->setDataType($dt);
@@ -603,6 +749,7 @@ class EntityCreationService
             // Default all permissions to false...
             $gdtp->setIsDatatypeAdmin(false);
             $gdtp->setCanDesignDatatype(false);
+            $gdtp->setCanChangePublicStatus(false);
             $gdtp->setCanDeleteDatarecord(false);
             $gdtp->setCanAddDatarecord(false);
             $gdtp->setCanViewDatarecord(false);
@@ -615,6 +762,7 @@ class EntityCreationService
                     $gdtp->setCanDesignDatatype(true);
                 case 'edit_all':
                     // the 'edit_all' group gets all permissions below this line
+                    $gdtp->setCanChangePublicStatus(true);
                     $gdtp->setCanDeleteDatarecord(true);
                     $gdtp->setCanAddDatarecord(true);
                 case 'view_all':
@@ -626,12 +774,14 @@ class EntityCreationService
                     break;
 
                 default:
+                    // This is apparently a new "custom" group...can't assume anything about which
+                    //  permissions it will eventually have
                     break;
             }
 
-            // The group specifically for the top-level datatype needs to have the can_view_datatype
-            //  permission, because it makes zero sense for members of a group to not be able to see
-            //  the datatype it's meant for
+            // A GroupDatatypePermission entry for a top-level datatype needs to always have the
+            //  "can_view_datatype" permission so members of the group can see the datatype when
+            //  it's non-public
             if ( $dt->getId() === $dt->getGrandparent()->getId() )
                 $gdtp->setCanViewDatatype(true);
 
@@ -641,7 +791,8 @@ class EntityCreationService
 
 
         // ----------------------------------------
-        // Create the initial datafield permission entries
+        // The new group also needs to have a GroupDatafieldPermission entry for each datafield
+        //  that belongs to the grandparent datatype
         $this->em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted datafields
         $query = $this->em->createQuery(
            'SELECT df
@@ -655,9 +806,8 @@ class EntityCreationService
         foreach ($results as $df) {
             /** @var DataFields $df */
 
-            // Can't use createGroupsForDatafield for this, it creates permissions for a single
-            //  datafield across all groups...this function instead needs to create permissions for
-            //  all datafields for a single group
+            // Can't use self::createGroupsForDatafield() for this...that function assumes the
+            //  group already exists in the database, which is not the case at this point in time
             $gdfp = new GroupDatafieldPermissions();
             $gdfp->setGroup($group);
             $gdfp->setDataField($df);
@@ -670,17 +820,17 @@ class EntityCreationService
 
             $initial_purpose = $group->getPurpose();
             if ($initial_purpose == 'admin' || $initial_purpose == 'edit_all') {
-                // "admin" and "edit_all" groups can both see and edit this new datafield by default
+                // "admin" and "edit_all" groups can both view and edit this new datafield by default
                 $gdfp->setCanViewDatafield(1);
                 $gdfp->setCanEditDatafield(1);
             }
             else if ($initial_purpose == 'view_all') {
-                // The "view_all" group defaults to being able to see, but not edit, this datafield
+                // The "view_all" group defaults to being able to view, but not edit, this datafield
                 $gdfp->setCanViewDatafield(1);
                 $gdfp->setCanEditDatafield(0);
             }
             else {
-                // All other groups default to not being able to do anything to this datafield
+                // All other groups default to not being able to view or edit this datafield
                 $gdfp->setCanViewDatafield(0);
                 $gdfp->setCanEditDatafield(0);
             }
@@ -689,35 +839,19 @@ class EntityCreationService
             $this->em->persist($gdfp);
         }
 
-
-        // ----------------------------------------
-        // Automatically add super-admin users to new default "admin" groups
-        if ($initial_purpose == 'admin') {
-            $query = $this->em->createQuery(
-               'SELECT u
-                FROM ODROpenRepositoryUserBundle:User AS u
-                WHERE u.enabled = 1'
-            );
-            $user_list = $query->getResult();
-            /** @var ODRUser[] $user_list */
-
-            // Locate those with super-admin permissions...
-            foreach ($user_list as $u) {
-                if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
-                    // ...add the super admin to this new admin group
-                    self::createUserGroup($u, $group, $user, true);    // don't flush immediately...
-
-                    // ...delete the cached list of permissions for each super-admin belongs to
-                    $this->cache_service->delete('user_'.$u->getId().'_permissions');
-                }
-            }
-        }
-
         // Flush here unless otherwise required
         if ( !$delay_flush ) {
             $this->em->flush();
             $this->em->refresh($group);
         }
+
+
+        // ----------------------------------------
+        // Strangely enough, don't need to do any permission clearing here...either this is
+        // 1) a new "custom" group, and therefore nobody is a member of it yet
+        // OR
+        // 2) This was called as part of createGroupsForDatatype(), in which case that function needs
+        //  to do additional cache clearing anyways
 
         return $group;
     }
@@ -734,6 +868,7 @@ class EntityCreationService
      */
     public function createGroupsForDatatype($user, $datatype)
     {
+        // ----------------------------------------
         // Store whether this is a top-level datatype or not
         $datatype_id = $datatype->getId();
         $grandparent_datatype_id = $datatype->getGrandparent()->getId();
@@ -742,6 +877,8 @@ class EntityCreationService
         if ($datatype_id != $grandparent_datatype_id)
             $is_top_level = false;
 
+
+        // ----------------------------------------
         // Locate all groups for this datatype's grandparent
         $repo_group = $this->em->getRepository('ODRAdminBundle:Group');
 
@@ -764,6 +901,9 @@ class EntityCreationService
             if ($view_only_group == null)
                 self::createGroup($datatype->getCreatedBy(), $datatype, 'view_only', true);    // don't flush immediately
 
+            // By definition, a brand new top-level datatype can't already have a custom group...it
+            //  can only have the default groups
+
             // Flush once all groups are created
             $this->em->flush();
         }
@@ -778,11 +918,11 @@ class EntityCreationService
             foreach ($groups as $group) {
                 if ($group->getPurpose() == 'admin')
                     $has_admin = true;
-                if ($group->getPurpose() == 'edit_all')
+                else if ($group->getPurpose() == 'edit_all')
                     $has_edit = true;
-                if ($group->getPurpose() == 'view_all')
+                else if ($group->getPurpose() == 'view_all')
                     $has_view_all = true;
-                if ($group->getPurpose() == 'view_only')
+                else if ($group->getPurpose() == 'view_only')
                     $has_view_only = true;
             }
 
@@ -790,27 +930,9 @@ class EntityCreationService
                 throw new ODRException('createGroupsForDatatype(): grandparent datatype '.$grandparent_datatype_id.' is missing a default group for child datatype '.$datatype->getId().' to copy from.');
 
 
-            // Load the list of groups and users this will affect
-            $group_list = array();
-            foreach ($groups as $group)
-                $group_list[] = $group->getId();
-
-            $query = $this->em->createQuery(
-               'SELECT DISTINCT(u.id) AS user_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
-                WHERE ug.group IN (:groups)
-                AND ug.deletedAt IS NULL'
-            )->setParameters( array('groups' => $group_list) );
-            $results = $query->getArrayResult();
-
-            $user_list = array();
-            foreach ($results as $result)
-                $user_list[] = $result['user_id'];
-
-
             // ----------------------------------------
-            // Need to create a GroupDatatypePermission for each group in this datatype...
+            // This new child datatype needs to have a GroupDatatypePermission entry for each group
+            //  that its grandparent datatype already has, both "default" and "custom" groups
             foreach ($groups as $group) {
                 // Default permissions depend on the original purpose of this group...
                 $initial_purpose = $group->getPurpose();
@@ -827,6 +949,7 @@ class EntityCreationService
                 // Default all permissions to false...
                 $gdtp->setIsDatatypeAdmin(false);
                 $gdtp->setCanDesignDatatype(false);
+                $gdtp->setCanChangePublicStatus(false);
                 $gdtp->setCanDeleteDatarecord(false);
                 $gdtp->setCanAddDatarecord(false);
                 $gdtp->setCanViewDatarecord(false);
@@ -839,6 +962,7 @@ class EntityCreationService
                         $gdtp->setCanDesignDatatype(true);
                     case 'edit_all':
                         // the 'edit_all' group gets all permissions below this line
+                        $gdtp->setCanChangePublicStatus(true);
                         $gdtp->setCanDeleteDatarecord(true);
                         $gdtp->setCanAddDatarecord(true);
                     case 'view_all':
@@ -850,26 +974,56 @@ class EntityCreationService
                         break;
 
                     default:
+                        // This is one of the grandparent datatype's "custom" groups...can't assume
+                        //  anything about which permissions this new child datatype will get
                         break;
                 }
 
-                // Groups for child datatypes don't get the can_view_datatype permission by default
+                // Initial setup complete, persist the changes
                 $this->em->persist($gdtp);
             }
 
             // Flush now that all the datatype permission entries have been created
             $this->em->flush();
-
-
-            // ----------------------------------------
-            // Delete all cached versions of the groups that got modified
-            foreach ($groups as $group)
-                $this->cache_service->delete('group_'.$group->getId().'_permissions');
-
-            // Delete all permission entries for each affected user
-            foreach ($user_list as $user_id)
-                $this->cache_service->delete('user_'.$user_id.'_permissions');
         }
+
+
+        // ----------------------------------------
+        // Need to determine which users are already members of the groups for this datatype,
+        //  since they're going to need their permission arrays cleared
+        $query = $this->em->createQuery(
+           'SELECT DISTINCT(u.id) AS user_id
+            FROM ODRAdminBundle:Group AS g
+            LEFT JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+            LEFT JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+            WHERE g.dataType = :grandparent_datatype_id
+            AND g.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        $results = $query->getArrayResult();
+
+        $user_list = array();
+        foreach ($results as $result) {
+            // Groups may not have any members, so null user ids are a possibility
+            if ( !is_null($result['user_id']) )
+                $user_list[ $result['user_id'] ] = 1;
+        }
+
+        // Need to separately locate all super_admins, since they're going to need permissions
+        //  cleared too
+        $query = $this->em->createQuery(
+           'SELECT u.id AS user_id
+            FROM ODROpenRepositoryUserBundle:User AS u
+            WHERE u.roles LIKE :role'
+        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result)
+            $user_list[ $result['user_id'] ] = 1;
+
+        // Delete the cached permissions for each affected user
+        foreach ($user_list as $user_id => $num)
+            $this->cache_service->delete('user_'.$user_id.'_permissions');
+
     }
 
 
@@ -898,7 +1052,8 @@ class EntityCreationService
 
 
         // ----------------------------------------
-        // Load the list of groups and users this INSERT INTO query will affect
+        // Need to determine which users are already members of the groups for this datatype, since
+        //  they're going to need their cached permission arrays cleared
         $group_list = array();
         foreach ($groups as $group)
             $group_list[] = $group->getId();
@@ -914,12 +1069,24 @@ class EntityCreationService
 
         $user_list = array();
         foreach ($results as $result)
-            $user_list[] = $result['user_id'];
+            $user_list[ $result['user_id'] ] = 1;
+
+        // Need to separately locate all super_admins, since they're going to need permissions
+        //  cleared too
+        $query = $this->em->createQuery(
+           'SELECT u.id AS user_id
+            FROM ODROpenRepositoryUserBundle:User AS u
+            WHERE u.roles LIKE :role'
+        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result)
+            $user_list[ $result['user_id'] ] = 1;
 
 
         // ----------------------------------------
-        // Every group for this datatype is going to need a GroupDatafieldPermission for this new
-        //  datafield...
+        // Every group for this datatype is going to need a GroupDatafieldPermission entry for this
+        //  new datafield...
         foreach ($groups as $group) {
             $gdfp = new GroupDatafieldPermissions();
 
@@ -933,32 +1100,33 @@ class EntityCreationService
 
             $initial_purpose = $group->getPurpose();
             if ($initial_purpose == 'admin' || $initial_purpose == 'edit_all') {
-                // "admin" and "edit_all" groups can both see and edit this new datafield by default
+                // "admin" and "edit_all" groups can both view and edit this new datafield by default
                 $gdfp->setCanViewDatafield(1);
                 $gdfp->setCanEditDatafield(1);
             }
             else if ($initial_purpose == 'view_all') {
-                // The "view_all" group defaults to being able to see, but not edit, this datafield
+                // The "view_all" group defaults to being able to view, but not edit, this datafield
                 $gdfp->setCanViewDatafield(1);
                 $gdfp->setCanEditDatafield(0);
             }
             else {
-                // All other groups default to not being able to do anything to this datafield
+                // All other groups, including "custom" groups, default to not being able to view
+                //  or edit this datafield
                 $gdfp->setCanViewDatafield(0);
                 $gdfp->setCanEditDatafield(0);
             }
 
             $this->em->persist($gdfp);
-
-            // Delete this group's cached permissions
-            $this->cache_service->delete('group_'.$group->getId().'_permissions');
         }
 
-        // Also delete all permission entries for each affected user
-        foreach ($user_list as $user_id)
+
+        // ----------------------------------------
+        // Now that the database entries have been created, delete the cached permission entries for
+        //  the affected users
+        foreach ($user_list as $user_id => $num)
             $this->cache_service->delete('user_'.$user_id.'_permissions');
 
-
+        // Flush changes, unless otherwise requested
         if ( !$delay_flush )
             $this->em->flush();
     }
@@ -1816,7 +1984,7 @@ class EntityCreationService
         $theme_datatype->setThemeElement($theme_element);
         $theme_datatype->setChildTheme($child_theme);
 
-        $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
+        $theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
         $theme_datatype->setHidden(0);
 
         $theme_datatype->setCreatedBy($user);

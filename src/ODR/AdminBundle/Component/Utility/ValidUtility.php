@@ -55,6 +55,12 @@ class ValidUtility
         if ( preg_match('/^0$|^-?[1-9][0-9]*$/', $value) !== 1 )
             return false;
 
+        // Doctrine (and therefore Mysql) use 4 bytes to store values for IntegerValue fields, so
+        //  potential values that require more than 4 bytes to store are invalid...
+        $val = intval($value);
+        if ( $val > 2147483647 || $val < -2147483648 )
+            return false;
+
         // Otherwise, no problems
         return true;
     }

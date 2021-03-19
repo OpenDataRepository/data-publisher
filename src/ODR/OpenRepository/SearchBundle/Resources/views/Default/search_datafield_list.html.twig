@@ -1,25 +1,28 @@
 {% spaceless %}
 
+{% set GENERAL_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::GENERAL_SEARCH') %}
+{% set ADVANCED_SEARCH = constant('ODR\\AdminBundle\\Entity\\DataFields::ADVANCED_SEARCH') %}
+
 {% set datatype = datatype_array[target_datatype.id] %}
 
 {% set can_search_target_datatype = false %}
 {% for datafield in datatype['dataFields'] %}
     {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-    {% if searchable == 1 or searchable == 2 %}
+    {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
         {% set can_search_target_datatype = true %}
     {% endif %}
 {% endfor %}
 
 <div class="ODRTableWrap">
-    <div class="pure-u-1" style="font-weight: bold;">List of Datafields that will be searched:</div>
+    <div class="pure-u-1 bold">List of Datafields that will be searched:</div>
 
     {# primary datatype #}
     {% if can_search_target_datatype %}
-        <div class="pure-u-1" style="font-weight: bold;">{{ target_datatype.getshortname }}</div>
+        <div class="pure-u-1 bold">{{ target_datatype.getshortname }}</div>
 
         {% for datafield in datatype['dataFields'] %}
             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-            {% if searchable == 1 or searchable == 2 %}
+            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
                 <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
             {% endif %}
         {% endfor %}
@@ -33,19 +36,19 @@
         {% set can_search_child_datatype = false %}
         {% for datafield in child_datatype['dataFields']  %}
             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-            {% if searchable == 1 or searchable == 2 %}
+            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
                 {% set can_search_child_datatype = true %}
             {% endif %}
         {% endfor %}
 
         {% if can_search_child_datatype %}
-            <div class="pure-u-1" style="font-weight: bold;">{{ child_datatype['dataTypeMeta']['shortName'] }}</div>
+            <div class="pure-u-1 bold">{{ child_datatype['dataTypeMeta']['shortName'] }}</div>
 
             {% for datafield in child_datatype['dataFields']  %}
                 {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                    {% if searchable == 1 or searchable == 2 %}
-                        <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
-                    {% endif %}
+                {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
+                    <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
+                {% endif %}
             {% endfor %}
         {% endif %}
 

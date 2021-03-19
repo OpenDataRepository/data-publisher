@@ -1,0 +1,15 @@
+<script>
+    var remoteSearch = new ODRRemoteSearch({
+        baseurl: '{{ protocol }}:{{ baseurl }}/{{ search_slug }}',
+        datatype_id: {{ datatype_id }},
+
+        // The quoted values below *MUST* be changed to match your page's HTML
+        submit_button: 'submit',
+        mapping: {
+        {% for df_id,element_name in datafields %}
+            {{ df_id }}: '{{ element_name }}',
+        {% endfor %}
+        }
+    });
+    remoteSearch.initialize();
+</script>

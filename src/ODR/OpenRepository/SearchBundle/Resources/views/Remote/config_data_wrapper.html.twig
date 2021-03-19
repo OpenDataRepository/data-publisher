@@ -1,0 +1,31 @@
+{% spaceless %}
+
+<div class="ODRRemoteSearch_dialog ODRContentWrapper pure-u-1">
+     <div class="ODRThemeElement pure-u-1">
+         <div class="ODRInnerBox pure-u-1">
+             <div class="ODRFieldArea accordion-content">
+                 <div class="ODRBodyContent">
+                     The final step in this process is apply the configuration to your site.
+                 </div>
+             </div>
+         </div>
+    </div>
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRRemoteSearch_pre pure-u-11-24">
+                This snippet of javascript needs to be placed after the relevant HTML elements.
+                <br>
+                <pre style="text-align: left;">{{ config|escape }}</pre>
+            </div>
+            <div class="ODRRemoteSearch_extra pure-u-1-2">
+                TODO
+                <br>
+                <a href="{{ path('odr_remote_search_download', {'minified': 1}) }}">Minified</a>
+                <br>
+                <a href="{{ path('odr_remote_search_download', {'minified': 0}) }}">Unminified</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endspaceless %}

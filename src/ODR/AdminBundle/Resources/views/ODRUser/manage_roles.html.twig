@@ -5,7 +5,6 @@
         <div class="ODRInnerBox pure-u-1">
             <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
                 User List
-                <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
             </h3>
 
             <div class="ODRBodyContent">
@@ -13,8 +12,7 @@
                     <thead><tr>
                         <th>User Name</th>
                         <th class="Pointer ODRCenterText" title="Restricted to datatypes they have permissions for">User</th>
-                        <th class="Pointer ODRCenterText" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
-                        <th class="Pointer ODRCenterText" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
+                        <th class="Pointer ODRCenterText" title="Able to perform any action to every datatype">Super Admin</th>
 {#
                     {% if using_jupyterhub %}
                         <th class="Pointer ODRCenterText" title="Able to access JupyterHub">JupyterHub User</th>
@@ -27,25 +25,13 @@
                         <tr>
                             <td>{{ user.username }}</td>
 
-                            {% set level = 0 %}
-                            {% for role in user.getroles %}
-                                {% if role == 'ROLE_SUPER_ADMIN' %}
-                                    {% set level = level + 4 %}
-                                {% elseif role == 'ROLE_ADMIN' %}
-                                    {% set level = level + 2 %}
-                                {% elseif role == 'ROLE_USER' %}
-                                    {% set level = level + 1 %}
-                                {% endif %}
-                            {% endfor %}
+                            {% set is_super_admin = user.hasrole("ROLE_SUPER_ADMIN") %}
 
                             <td class="ODRCenterText">
-                                <input id="user_{{ user.id }}" onclick="setRole('user_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 1 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                                <input id="user_{{ user.id }}" onclick="setRole('user_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if not is_super_admin %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                             </td>
                             <td class="ODRCenterText">
-                                <input id="admin_{{ user.id }}" onclick="setRole('admin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 3 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
-                            </td>
-                            <td class="ODRCenterText">
-                                <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                                <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if is_super_admin %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                             </td>
 {#
                         {% if using_jupyterhub %}
@@ -60,10 +46,10 @@
                     <tr>
 {#
                     {% if using_jupyterhub %}
-                        <td colspan="4">No Users Found</td>
+                        <td colspan="3">No Users Found</td>
                     {% else %}
 #}
-                        <td colspan="3">No Users Found</td>
+                        <td colspan="2">No Users Found</td>
 {#
                     {% endif %}
 #}
@@ -80,9 +66,11 @@
 <script>
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-
-        $('#saved').hide();
     });
+
+    function notifySaved() {
+        $.jGrowl('SAVED');
+    }
 
     function setRole(id) {
         var data = id.split('_');
@@ -99,11 +87,7 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                $('#saved').fadeIn();
-
-                setTimeout(function() {
-                    $('#saved').fadeOut();
-                }, 2000);
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // TODO - revert back to previously selected option on error

@@ -1,9 +1,12 @@
 {% spaceless %}
 
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
+{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
     <span id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
         <span rel="{{ datatype.id }}">
             {% set class_str = "tooltip fa fa-globe Cursor" %}
@@ -77,6 +80,7 @@
                                 {# pass all child datarecords of this child datatype to display_childtype.html.twig at once #}
                                 {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
 
+                                <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ child_datatype_id }}_{{ datarecord.id }}">
                                 {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
                                     'datatype_array': child_datatype,
                                     'datarecord_array': datarecord_array,
@@ -90,6 +94,7 @@
                                     'is_link': theme_datatype.is_link,
                                     'display_type': theme_datatype.display_type
                                 } %}
+                                </div>
                             {% endif %}
 
                         {% endif %}

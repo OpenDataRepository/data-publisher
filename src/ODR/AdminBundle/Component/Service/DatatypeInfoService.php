@@ -186,7 +186,7 @@ class DatatypeInfoService
     public function getGrandparentDatatypeId($initial_datatype_id, $datatree_array = null)
     {
         if ( is_null($datatree_array) )
-            $datatree_array = self::getDatatreeArray();
+            $datatree_array = $this->dti_service->getDatatreeArray();
 
         $grandparent_datatype_id = $initial_datatype_id;
         while (
@@ -415,7 +415,7 @@ class DatatypeInfoService
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this
-        $datatree_array = self::getDatatreeArray();
+        $datatree_array = $this->dti_service->getDatatreeArray();
 
         // Going to need any tag hierarchy data for this datatype
         $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);
@@ -494,11 +494,11 @@ class DatatypeInfoService
 
                 dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
 
-                df, dfm, ft,
+                df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
 
                 ro, rom, t, tm,
-                df_rp, df_rpi, df_rpo, df_rpm
+                df_rp, df_rpi, df_rpo, df_rpm, df_rpf
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -534,6 +534,7 @@ class DatatypeInfoService
             LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
             LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
+            LEFT JOIN df_rpm.renderPluginFields AS df_rpf
 
             WHERE
                 dt.grandparent = :grandparent_datatype_id
@@ -558,6 +559,8 @@ class DatatypeInfoService
 
             // Flatten datatype meta
             if ( count($dt['dataTypeMeta']) == 0 ) {
+                // TODO - this comparison (and the 3 others in this function) really needs to be strict (!== 1)
+                // TODO - ...but that would lock up multiple dev servers until their databases get fixed
                 // ...throwing an exception here because this shouldn't ever happen, and also requires
                 //  manual intervention to fix...
                 throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datatype '.$dt_id);
@@ -613,6 +616,12 @@ class DatatypeInfoService
                 // Flatten tags if they exist
                 $tag_list = array();
                 foreach ($df['tags'] as $t_num => $t) {
+                    if ( count($t['tagMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and
+                        //  also requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for tag '.$t['id']);
+                    }
+
                     $tag_id = $t['id'];
                     $tag_list[$tag_id] = $t;
                     $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
@@ -802,7 +811,7 @@ class DatatypeInfoService
      */
     public function resetDatatypeSortOrder($datatype_id)
     {
-        // Delete the cached
+        // Delete the cached default ordering of records in this datatype
         $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
 
         // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
@@ -823,5 +832,81 @@ class DatatypeInfoService
                 unlink($graph_filepath.'/'.$filename);
             }
         }
+    }
+
+
+    /**
+     * Returns an array with how many datarecords the user is allowed to see for each datatype in
+     * $datatype_ids
+     *
+     * @param int[] $datatype_ids
+     * @param array $datatype_permissions
+     *
+     * @return array
+     */
+    public function getDatarecordCounts($datatype_ids, $datatype_permissions)
+    {
+        $can_view_public_datarecords = array();
+        $can_view_nonpublic_datarecords = array();
+
+        foreach ($datatype_ids as $num => $dt_id) {
+            if ( isset($datatype_permissions[$dt_id])
+                && isset($datatype_permissions[$dt_id]['dr_view'])
+            ) {
+                $can_view_nonpublic_datarecords[] = $dt_id;
+            } else {
+                $can_view_public_datarecords[] = $dt_id;
+            }
+        }
+
+        // Figure out how many datarecords the user can view for each of the datatypes
+        $metadata = array();
+        if ( count($can_view_nonpublic_datarecords) > 0 ) {
+            $query = $this->em->createQuery(
+               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $can_view_nonpublic_datarecords
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $count = $result['datarecord_count'];
+                $metadata[$dt_id] = $count;
+            }
+        }
+
+        if ( count($can_view_public_datarecords) > 0 ) {
+            $query = $this->em->createQuery(
+               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dt IN (:datatype_ids) AND drm.publicDate != :public_date AND dr.provisioned = FALSE
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $can_view_public_datarecords,
+                    'public_date' => '2200-01-01 00:00:00'
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $count = $result['datarecord_count'];
+                $metadata[$dt_id] = $count;
+            }
+        }
+
+        return $metadata;
     }
 }

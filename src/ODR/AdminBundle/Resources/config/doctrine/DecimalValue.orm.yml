@@ -39,6 +39,10 @@ ODR\AdminBundle\Entity\DecimalValue:
             type: datetime
             nullable: true
 
+    indexes:
+        decimalvalue_created:
+            columns: ["created"]
+
     manyToOne:
         dataField:
             targetEntity: DataFields

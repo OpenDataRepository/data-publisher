@@ -23,27 +23,48 @@
 <!-- End ODR Modal Dialog -->
 
 <script>
+
+    /**
+     * Changes the modal dialog's "loading" message text to something else.
+     *
+     * @param {string} message
+     */
     function setODRRemodalLoadingText(message) {
         var loading_text = $(".ODRRemodalLoading").find(".loading-text");
         loading_text.html(message);
     }
 
+    /**
+     * Resets the modal dialog's "loading" message text back to the default.
+     */
     function resetODRRemodalLoadingText() {
         var loading_text = $(".ODRRemodalLoading").find(".loading-text");
         loading_text.html("loading");
     }
 
-    // Apparently calling the close() function on a remodal that isn't "opened" will fail silently
+    /**
+     * Closes the current modal.
+     */
     function closeODRRemodal() {
         var inst = $('[data-remodal-id=ODRRemodal]').remodal();
 
         var state = inst.getState();
-        if (state === 'opened')
+        if (state === 'opened') {
             inst.close();
-        else if (state === 'opening')
+        }
+        else if (state === 'opening') {
+            // Apparently calling the close() function on a remodal that is still "opening" won't
+            //  actually do anything...so wait for it to fully open
             setTimeout(closeODRRemodal, 100);
+        }
     }
 
+    /**
+     * Changes the modal's body to display the given message.
+     *
+     * @param {string} message
+     * @param {string} [message_type]
+     */
     function setModalMessage(message, message_type) {
         var modal_body = $(".ODRRemodalBody");
         if (message_type === undefined) {
@@ -58,6 +79,14 @@
         resetRemodalInnerHeight();
     }
 
+    /**
+     * Opens ODR's modal dialog with the given options.
+     *
+     * The second parameter should almost never have anything specified...
+     *
+     * @param {Object} options
+     * @param {Object} [remodal_options]
+     */
     function openODRRemodal(options, remodal_options) {
         if (remodal_options === undefined
             || !_.isObject(remodal_options)

@@ -1,0 +1,544 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set sort_by_name = datafield_meta.radio_option_name_sort %}
+
+<div id="odr_radio_option_design_modal">
+    <div class="ODRThemeElement">
+        <button class="ODRAddRadioOption pure-button pure-button-primary">Create single radio option</button>
+        <button class="ODRRadioOptionCreationMode pure-button">Import radio options</button>
+    </div>
+
+    <div id="odr_radio_option_design" class="ODRRadioOptionWrapper_design pure-form">
+        <div class="ODRThemeElement">
+            <div class="ODRTagMoveHelpDiv">
+                Saving will happen automatically as changes are made.  Press the escape key to close without saving.
+            </div>
+        {% if sort_by_name %}
+            <div class="ODRTagMoveHelpDiv">
+                After saving, the system will automatically update the radio options to be in alphabetical order.
+            </div>
+        {% else %}
+            <div class="ODRTagMoveHelpDiv">
+                To move a radio option, click and drag using the <i class="fa fa-arrows Cursor"></i> icon.
+            </div>
+        {% endif %}
+        </div>
+
+        <div class="ODRThemeElement" style="margin-top: 15px;">
+            {# this form is for renaming radio options #}
+            <form id="ODRRadioOptionForm" rel="{{ datafield.id }}">
+                {% include 'ODRAdminBundle:Displaytemplate:radio_option_rows.html.twig' with {
+                    'datafield' : datafield
+                } %}
+            </form>
+        </div>
+    </div>
+
+    <div id="odr_radio_option_import" class="pure-form">
+        <div class="pure-u-1-2 ODRRadioOptionWrapper_design">
+            <form id="ODRRadioOptionListForm" class="pure-form" rel="{{ datafield.id }}" style="padding-left: 20px;">
+                <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if sort_by_name == true %}1{% else %}0{% endif %}" />
+                <fieldset>
+                    <table class="ODRRadioOptionListImport pure-table pure-table-striped pure-u-1">
+                        <thead>
+                            <tr>
+                                <th>Radio Options (one per line)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="ODRSortableOption pure-u-1" rel="{{ datafield.id }}">
+                            <tr class="pure-u-1">
+                                <td class="pure-u-1">
+                                    <textarea id="radio_option_list" class="pure-u-1" name="radio_option_list"></textarea>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </fieldset>
+            </form>
+        </div>
+        <div class="pure-u-1-2 ODRRadioOptionWrapper_import">
+        </div>
+    </div>
+</div>
+<script>
+
+    var SaveTimeout = 1500;
+
+    function notifySaved() {
+        $.jGrowl('SAVED');
+    }
+
+    $(function () {
+        $("#odr_radio_option_import").hide();
+        $(".ODRInputError").not(".ODRAlwaysShow").hide();
+
+{% if sort_by_name == false %}
+        // Destroy existing sortables
+        if ($("#ODRRadioOptionForm").sortable('instance') !== undefined)
+            $("#ODRRadioOptionForm").sortable('destroy');
+
+        $("#ODRRadioOptionForm").sortable({
+            handle: ".ODRRadioOptionAnchor",
+            placeholder: "ui-state-highlight",
+            // connectWith: "#ODRRadioOptionForm",
+            start: function (event, ui) {
+                // Don't need to determine whether this is valid?
+            },
+            stop: function (event, ui) {
+                // Don't need to determine whether this is valid?
+
+                // Save the new order order of the radio options
+                SaveRadioOptionOrder();
+            }
+        });
+{% endif %}
+
+        $(".ODRRadioOptionCreationMode").unbind('click').click(function(event) {
+            if ( $(this).hasClass('pure-button-disabled') )
+                return;
+
+            // Don't want #odr_radio_option_design_modal click event to fire
+            event.stopPropagation();
+
+            if ( $("#odr_radio_option_import").is(':visible') ) {
+                $("#odr_radio_option_design").show();
+                $("#odr_radio_option_import").hide();
+
+                $("#ODRRadioOptionListForm").find('textarea').each(function() {
+                    $(this).val('');
+                });
+                $(".ODRRadioOptionWrapper_import").html('');
+
+                $(".ODRRadioOptionCreationMode").html("Import radio options");
+                $(".ODRAddRadioOption").html("Create single radio option");
+
+                resetRemodalInnerHeight();
+            }
+            else {
+                $("#odr_radio_option_design").hide();
+                $("#odr_radio_option_import").show();
+
+                $(".ODRRadioOptionCreationMode").html("Stop importing radio options");
+                $(".ODRAddRadioOption").html("Import radio option list");
+
+                resetRemodalInnerHeight();
+            }
+        });
+
+        $("#radio_option_list").unbind('keyup paste').on('keyup paste', function() {
+            $(".ODRRadioOptionWrapper_import").html('');
+        });
+
+        FindDuplicateRadioOptionNames();
+
+        initRadioOptions();
+    });
+
+    /**
+     * Attaches event handlers to several of the elements on the page
+     */
+    function initRadioOptions() {
+        $(".ODRAddRadioOption").unbind('click').click(function(event) {
+            // Don't want #odr_radio_option_design_modal click event to fire
+            event.stopPropagation();
+
+            if ( $("#odr_radio_option_import").is(':visible') ) {
+                ImportRadioOptionsList({{ datafield.id }});
+            }
+            else {
+                AddRadioOption({{ datafield.id }});
+            }
+        });
+
+        $(".ODRDeleteRadioOption").unbind('click').click(function(event) {
+            // Don't want #odr_radio_option_design_modal click event to fire
+            event.stopPropagation();
+
+            var radio_option_id = $(this).attr('rel');
+            DeleteRadioOption(radio_option_id);
+        });
+
+        $(".ODRRadioOptionName").click(function(event) {
+            // Don't want #odr_radio_option_design_modal click event to fire
+            event.stopPropagation();
+        });
+
+        $(".ODRRadioOptionName").unbind('keyup paste').on('keyup paste', function() {
+            var radio_option_data = $(this).attr('id').split(/_/);
+            var radio_option_id = radio_option_data[2];
+
+            // Only want to execute the save function once
+            clearTimeout(SaveRadioOptionNameInterval[radio_option_id]);
+            SaveRadioOptionNameInterval[radio_option_id] = setTimeout("SaveRadioOptionName(" + radio_option_id + ")", SaveTimeout);
+
+            save_radio_option_xhr = true;
+
+            FindDuplicateRadioOptionNames();
+        });
+
+        $(".ODRDefaultRadioOption").unbind('click').click(function() {
+        {% if datafield_meta.fieldType.typeName == 'Single Select' or datafield_meta.fieldType.typeName == 'Single Radio' %}
+            {# Only allow to have a single "default" selection #}
+            // Save the current element...
+            var radio_option_id = $(this).attr('rel');
+
+            // Deselect all previously checked elements
+            $(".ODRDefaultRadioOption").each(function () {
+                if ( $(this).is(':checked') && $(this).attr('rel') !== radio_option_id )
+                    $(this).prop('checked', false);
+            });
+
+            // Get the server to mark this radio option as "default"
+            DefaultRadioOption(radio_option_id);
+        {% else %}
+            {# Allowed to have multiple "default" selections #}
+            var radio_option_id = $(this).attr('rel');
+            // Get the server to mark this radio option as "default"
+            DefaultRadioOption(radio_option_id);
+        {% endif %}
+        });
+    }
+
+    /**
+     * Finds and highlights radio options that have duplicate names.
+     */
+    function FindDuplicateRadioOptionNames() {
+        $(".ODRInputError").not(".ODRAlwaysShow").hide();
+        var has_duplicates = false;
+
+        var radio_option_names = {};
+        $("#odr_radio_option_design_modal").find(".ODRRadioOptionName").each(function() {
+            var name = $(this).val();
+            if ( radio_option_names[name] === undefined ) {
+                // Haven't seen this radio option name before
+                radio_option_names[name] = $(this);
+            }
+            else {
+                // Duplicate radio option name, show warnings for both of them
+                has_duplicates = true;
+
+                var prev_elem = radio_option_names[name];
+                $(this).parent().children('.ODRInputError').show();
+                $(prev_elem).parent().children('.ODRInputError').show();
+            }
+        });
+
+        if (has_duplicates)
+            $(".ODRRadioOptionCreationMode").addClass('pure-button-disabled');
+        else
+            $(".ODRRadioOptionCreationMode").removeClass('pure-button-disabled');
+    }
+
+    var save_radio_option_xhr = null;
+    var SaveRadioOptionNameInterval = [];
+
+    /**
+     * Creates a new radio option.
+     *
+     * @param {number} datafield_id
+     */
+    function AddRadioOption(datafield_id) {
+        var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
+        url = url.substring(0,(url.length - 1));
+        url += datafield_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // Reload parts of the page so that the new radio option shows up
+                ReloadDatafield(data.d.datafield_id);
+                loadRadioOptionEditDialog(data.d.datafield_id, data.d.radio_option_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Deletes a radio option.
+     *
+     * @param {number} radio_option_id
+     */
+    function DeleteRadioOption(radio_option_id) {
+        if ( !confirm('Are you sure you want to delete this radio option?') )
+            return;
+
+        var url = '{{ path('odr_design_delete_radio_option', { 'radio_option_id': 0 }) }}';
+        url = url.substring(0,(url.length - 1));
+        url += radio_option_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // Remove the option from this modal
+                $("#radio_option_" + radio_option_id).remove();
+                initRadioOptions();
+
+                // Also reload the datafield on the page so it no longer displays the deleted option
+                ReloadDatafield(data.d.datafield_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves changes to a radio option's name.
+     *
+     * @param {number} radio_option_id
+     */
+    function SaveRadioOptionName(radio_option_id) {
+        // Clear the save timeout for this specific radio option
+        clearTimeout(SaveRadioOptionNameInterval[radio_option_id]);
+
+        // Placing this after window.clearInterval() to avoid pointless double save + double reload
+        var radio_option_name = $("#radio_option_" + radio_option_id + "_name").val().trim();
+        var old_radio_option_name = $("#radio_option_" + radio_option_id + "_name").data('old-value');
+
+        // Silently ignore attempts to save the same value
+        if ( old_radio_option_name === radio_option_name )
+            return;
+
+        // Silently revert attempts to save blank radio options
+        if (radio_option_name === '') {
+            $("#radio_option_" + radio_option_id + "_name").val(old_radio_option_name);
+            return;
+        }
+
+        var url = '{{ path('odr_design_save_radio_option_name', { 'radio_option_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += radio_option_id;
+
+        // alert(url);  return;
+
+        var post_data = $("#ODRRadioOptionForm").find("#radio_option_" + radio_option_id + "_name").serialize();    // only want one radio option
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data) {
+                notifySaved();
+
+                // Always need to reload the datafield to ensure it's displaying the right name
+                {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
+                ReloadDatafield(data.d.datafield_id);
+
+                if ( data.d.reload_modal ) {
+                    // ...also reload the list of radio options
+                    loadRadioOptionEditDialog(data.d.datafield_id, radio_option_id);
+                }
+                else {
+                    // Replace the previous "old-value" with the one that just got saved
+                    $("#radio_option_" + radio_option_id + "_name").data('old-value', radio_option_name);
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Revert back to the old value on an error
+                $("#radio_option_" + radio_option_id + "_name").val(old_radio_option_name);
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Changes whether a radio option is selected by default or not.
+     *
+     * @param {number} radio_option_id
+     */
+    function DefaultRadioOption(radio_option_id) {
+
+        var url = '{{ path('odr_design_default_radio_option', { 'radio_option_id': 0 }) }}';
+        url = url.substring(0,(url.length - 1));
+        url += radio_option_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves the order of the radio options on the page.
+     */
+    function SaveRadioOptionOrder() {
+        // Grab order of radio options
+        var i = 0;
+        var radio_option_ids = {};
+        $("#ODRRadioOptionForm").children().each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            radio_option_ids[i] = id_data[2];
+            i++;
+        });
+
+        // Grab datafield
+        var datafield_id = $("#ODRRadioOptionForm").attr("rel");
+
+        var url = '{{ path('odr_design_save_radio_option_order', {'datafield_id': 0} ) }}';
+        url = url.substring(0, url.length-1);
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: radio_option_ids,
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                notifySaved();
+
+                // The controller may have made a lot of changes...just reload the datafield on the page
+                {% if sort_by_name %}
+                loadRadioOptionEditDialog(datafield_id);
+                {% endif %}
+                ReloadDatafield(datafield_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Imports a newline-delimited list of radio options
+     *
+     * @param {number} datafield_id
+     */
+    function ImportRadioOptionsList(datafield_id) {
+        if ( $("#radio_option_list").val() === '' ) {
+            alert('no radio options to import');
+            return;
+        }
+
+        var url = '{{ path('odr_design_save_radio_option_list', { 'datafield_id': 0 }) }}';
+        url = url.substring(0,(url.length - 1));
+        url += datafield_id;
+
+        var form_data = $("#ODRRadioOptionListForm").serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: form_data,
+            success: function(data) {
+                // Going to need to reload both the modal and the datafield afterwards
+                ReloadDatafield(datafield_id);
+                loadRadioOptionEditDialog(datafield_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

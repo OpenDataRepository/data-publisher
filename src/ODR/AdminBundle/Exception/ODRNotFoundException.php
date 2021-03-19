@@ -26,7 +26,7 @@ class ODRNotFoundException extends ODRException
     public function __construct($message, $exact = false, $source = 0)
     {
         if (!$exact)
-            $message = 'This '.$message.' has been deleted.';
+            $message = "This ".$message." can't be found.";
 
         parent::__construct($message, self::getStatusCode(), $source);
     }

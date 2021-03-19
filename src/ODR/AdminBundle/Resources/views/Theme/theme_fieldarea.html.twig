@@ -9,8 +9,6 @@
     {% set has_childtype = false %}
     {% set child_is_link = false %}
 
-    {% set childtype_hidden = false %}
-
     {% if theme_element.themeDataFields is defined %}
         {% set has_datafields = true %}
     {% elseif theme_element.themeDataType is defined %}
@@ -18,9 +16,6 @@
 
         {% if theme_element.themeDataType[0].is_link == 1 %}
             {% set child_is_link = true %}
-        {% endif %}
-        {% if theme_element.themeDataType[0].hidden == 1 %}
-            {% set childtype_hidden = true %}
         {% endif %}
     {% endif %}
 
@@ -32,22 +27,35 @@
 
     {% if not theme_element|is_filtered(datatype) %}
 
-    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}{% if childtype_hidden or theme_element_hidden %} ODRThemeHiddenElement{% endif %}">
+    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}{% if theme_element_hidden %} ODRThemeHiddenElement{% endif %}">
     <div class="ODRInnerBox">
+        {# Convert to JS Data for New interface #}
+        <script>
+            if (theme_element_properties === undefined)
+                var theme_element_properties = [];
 
-        <div id="ThemeElementTools_{{ theme_element.id }}" class="ThemeElementTools pure-u-1">
-            <span class="FRight">
-                <i id="ODRThemeElement_{{ theme_element.id }}_properties"
-                   class="Pointer tooltip fa fa-eye ODRThemeElementVisible"
-                   title="Toggle visibility of ThemeElement">
-                </i>
+            theme_element_properties[{{ theme_element.id }}] = {};
 
-                <i id="ODRThemeElement_{{ theme_element.id }}_delete"
-                   class="Pointer tooltip fa fa-trash-o {% if has_datafields or has_childtype %}fa-muted{% endif %} ODRDeleteThemeElement"
-                   title="Delete ThemeElement">
-                </i>
-            </span>
-        </div>
+            {% if has_childtype %}
+            theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
+            {% else %}
+            theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
+            {% endif %}
+
+            {% if has_datafields %}
+            theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
+            {% else %}
+            theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
+            {% endif %}
+
+            {% if child_is_link %}
+            theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
+            {% else %}
+            theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
+            {% endif %}
+
+            {#console.log('theme_element {{ theme_element.id }}', theme_element_properties[{{ theme_element.id }}]);#}
+        </script>
 
         {% if theme_element.themeDataFields is defined %}
             {# render all datafields in this theme element #}
@@ -55,7 +63,9 @@
                 {% set datafield_id = theme_datafield.dataField.id %}
 
                 {% if datatype['dataFields'][datafield_id] is not defined %}
-                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield_id }}" ></div>
+                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}"
+                         id="Field_{{ datafield_id }}"
+                    ></div>
                 {% else %}
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 

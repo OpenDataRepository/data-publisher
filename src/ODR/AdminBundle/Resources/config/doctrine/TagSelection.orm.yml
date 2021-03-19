@@ -34,6 +34,10 @@ ODR\AdminBundle\Entity\TagSelection:
             type: datetime
             nullable: true
 
+    indexes:
+        tagselection_created:
+            columns: ["created"]
+
     manyToOne:
         tag:
             targetEntity: Tags

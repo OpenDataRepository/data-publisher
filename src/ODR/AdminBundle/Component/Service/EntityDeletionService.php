@@ -48,6 +48,11 @@ class EntityDeletionService
     private $cache_service;
 
     /**
+     * @var DatafieldInfoService
+     */
+    private $dfi_service;
+
+    /**
      * @var DatarecordInfoService
      */
     private $dri_service;
@@ -78,6 +83,11 @@ class EntityDeletionService
     private $search_service;
 
     /**
+     * @var TrackedJobService
+     */
+    private $tj_service;
+
+    /**
      * @var ThemeInfoService
      */
     private $ti_service;
@@ -93,42 +103,48 @@ class EntityDeletionService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatypeInfoService $datatype_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
      * @param SearchCacheService $search_cache_service
      * @param SearchService $search_service
+     * @param TrackedJobService $tracked_job_service
      * @param ThemeInfoService $theme_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatypeInfoService $datatype_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
         SearchCacheService $search_cache_service,
         SearchService $search_service,
+        TrackedJobService $tracked_job_service,
         ThemeInfoService $theme_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatype_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_service = $search_service;
+        $this->tj_service = $tracked_job_service;
         $this->ti_service = $theme_info_service;
         $this->logger = $logger;
     }
 
 
     /**
-     * Deletes a datafield
+     * Deletes a datafield.
      *
      * @param DataFields $datafield
      * @param ODRUser $user
@@ -151,6 +167,18 @@ class EntityDeletionService
             // --------------------
 
 
+            // Check that the datafield isn't being used for something else before deleting it
+            $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $props = $this->dfi_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
+            if ( !$props['can_delete'] )
+                throw new ODRBadRequestException( $props['delete_message'] );
+
+
+            // Also prevent a datafield from being deleted if certain jobs are in progress
+            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
+            $this->tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to delete this datafield");
+
+
             // ----------------------------------------
             // Save which themes are going to get theme_datafield entries deleted
             $query = $this->em->createQuery(
@@ -164,7 +192,7 @@ class EntityDeletionService
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
-            // Save which groups need to delete their permission entries for this datafield
+            // Determine which groups will be affected by the deletion of this datafield
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
                 FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
@@ -188,11 +216,25 @@ class EntityDeletionService
             $all_affected_users = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $all_super_admins = $query->getArrayResult();
+
+            // Merge the two lists together
+            $all_affected_users = array_merge($all_affected_users, $all_super_admins);
+
 
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
             $conn = $this->em->getConnection();
             $conn->beginTransaction();
+
+            $need_flush = false;
 
             // ----------------------------------------
             // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
@@ -266,10 +308,42 @@ class EntityDeletionService
 
 
             // ----------------------------------------
+            // Need to check whether any other datatypes are using this datafield for sorting...
+            // This kinda needs to come before checking the datafield's datatype, because otherwise
+            //  the delayed flushing will create multiple DatatypeMeta entries for the previously
+            //  mentioned "other datatypes"...
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataTypeMeta AS dtm
+                JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
+                WHERE dtm.sortField = :datafield_id AND dt.id != :datatype_id
+                AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafield_id' => $datafield->getId(),
+                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it'll be taken care of next
+                )
+            );
+            $results = $query->getResult();
+
+            foreach ($results as $result) {
+                /** @var DataType $dt */
+                $dt = $result;
+
+                $props['sortField'] = null;
+                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
+
+                // Shouldn't need to clear cache entries as a result of this...
+                $need_flush = true;
+            }
+
+
+            // ----------------------------------------
             // Ensure that the datatype no longer thinks this datafield has a special purpose...
             $properties = array();
 
             // ...external id field
+            // NOTE: external id fields aren't allowed to be deleted, but keep for safety
             if ( !is_null($datatype->getExternalIdField())
                 && $datatype->getExternalIdField()->getId() === $datafield->getId()
             ) {
@@ -302,38 +376,9 @@ class EntityDeletionService
             }
 
             // Save any required changes
-            $need_flush = false;
             if ( count($properties) > 0 ) {
                 $need_flush = true;
                 $this->emm_service->updateDatatypeMeta($user, $datatype, $properties, true);    // don't flush
-            }
-
-
-            // ----------------------------------------
-            // Also need to check whether any other datatypes are using this datafield for sorting...
-            $query = $this->em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataTypeMeta AS dtm
-                JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
-                WHERE dtm.sortField = :datafield_id AND dt.id != :datatype_id
-                AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafield_id' => $datafield->getId(),
-                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it's already been taken care of
-                )
-            );
-            $results = $query->getResult();
-
-            foreach ($results as $result) {
-                /** @var DataType $dt */
-                $dt = $result;
-
-                $props['sortField'] = null;
-                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
-
-                // Shouldn't need to clear cache entries as a result of this...
-                $need_flush = true;
             }
 
 
@@ -378,6 +423,10 @@ class EntityDeletionService
 
 
             // ----------------------------------------
+            // Deleting a datafield needs to update the master_revision property of its datatype
+            if ( $datatype->getIsMasterType() )
+                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype);
+
             // Ensure that the cached tag hierarchy doesn't reference this datafield
             $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
             $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
@@ -389,16 +438,15 @@ class EntityDeletionService
                 $this->cache_service->delete('cached_table_data_'.$dr_id);
             }
 
-            // Wipe cached entries for Group and User permissions involving this datafield
-            foreach ($all_affected_groups as $group) {
-                $group_id = $group['group_id'];
-                $this->cache_service->delete('group_'.$group_id.'_permissions');
-            }
-
+            // Wipe cached permission entries for all users affected by this
             foreach ($all_affected_users as $u) {
                 $user_id = $u['user_id'];
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
             }
+
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $this->cache_service->delete('default_radio_options');
 
             // Mark this datatype as updated
             $this->dti_service->updateDatatypeCacheEntry($datatype, $user);
@@ -423,6 +471,7 @@ class EntityDeletionService
 
 
     /**
+     * Deletes a datarecord.
      * TODO - test this
      * TODO - EditController only needs to delete one at a time, but MassEditController needs multiple?
      *
@@ -447,6 +496,14 @@ class EntityDeletionService
             $is_top_level = true;
             if ($datatype->getId() !== $parent_datarecord->getDataType()->getId())
                 $is_top_level = false;
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            if ( !$this->pm_service->canEditDatarecord($user, $parent_datarecord) )
+                throw new ODRForbiddenException();
+            if ( !$this->pm_service->canDeleteDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
 
 
             // ----------------------------------------
@@ -639,7 +696,22 @@ class EntityDeletionService
                 throw new ODRBadRequestException('Unable to delete a metadata datatype');
 
             // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
-            // TODO - prevent datatype deletion when jobs are in progress?
+
+
+            // Prevent a datatype from being deleted if certain jobs are in progress
+            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
+            $this->tj_service->checkActiveJobs($datatype, $restricted_jobs, "Unable to delete this datatype");
+
+
+            // ----------------------------------------
+            // Easier to handle updates to the "master_revision" and others before anything gets
+            //  deleted...
+            if ( $datatype->getIsMasterType() )
+                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // don't flush immediately...
+
+            // Even though it's getting deleted, mark this datatype as updated so its parents get
+            //  updated as well
+            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
 
 
             // ----------------------------------------
@@ -695,9 +767,24 @@ class EntityDeletionService
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
             )->setParameters(array('groups' => $groups_to_delete));
-            $all_affected_users = $query->getArrayResult();
+            $group_members = $query->getArrayResult();
 
-            //print '<pre>'.print_r($all_affected_users, true).'</pre>';  exit();
+            // Need to separately locate all super_admins, since they're going to need permissions
+            //  cleared too
+            $query = $this->em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                WHERE u.roles LIKE :role'
+            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            $all_super_admins = $query->getArrayResult();
+
+            // Merge the two lists together
+            $all_affected_users = array();
+            foreach ($group_members as $num => $u)
+                $all_affected_users[ $u['user_id'] ] = 1;
+            foreach ($all_super_admins as $num => $u)
+                $all_affected_users[ $u['user_id'] ] = 1;
+            $all_affected_users = array_keys($all_affected_users);
 
             // Locate all cached theme entries that need to be rebuilt...
             $query = $this->em->createQuery(
@@ -1009,14 +1096,9 @@ class EntityDeletionService
 
 
             // ----------------------------------------
-            // Delete cached entries for Group and User permissions involving this Datatype
-            foreach ($groups_to_delete as $num => $group_id)
-                $this->cache_service->delete('group_'.$group_id.'_permissions');
-
-            foreach ($all_affected_users as $user) {
-                $user_id = $user['user_id'];
+            // Delete cached permission entries for the users related to this Datatype
+            foreach ($all_affected_users as $user_id)
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
-            }
 
             // ...cached searches
             $this->search_cache_service->onDatatypeDelete($datatype);
@@ -1040,6 +1122,10 @@ class EntityDeletionService
             $this->cache_service->delete('top_level_themes');
             $this->cache_service->delete('cached_datatree_array');
 
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $this->cache_service->delete('default_radio_options');
+
 
             // ----------------------------------------
             // No error encountered, commit changes
@@ -1048,6 +1134,7 @@ class EntityDeletionService
             // If a flush is needed, then only do it after the transaction is finished
             if ( $needs_flush )
                 $this->em->flush();
+
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...

@@ -15,7 +15,7 @@
 
         <div class="ODRRenderPluginContent">
         {% for dr_id,dr in datarecord_array %}
-            <div class="ODRRenderPluginLink" style="margin:10px;">
+            <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ dr_id }}" style="margin:5px 10px;">
                 <span>
                     <a target="_blank" href="#{{ path('odr_display_view', {'datarecord_id': dr_id}) }}" class="pure-button">View Linked Datarecord{% if labels[dr_id] is defined %} for "{{ labels[dr_id] }}"{% endif %}</a>
                 </span>

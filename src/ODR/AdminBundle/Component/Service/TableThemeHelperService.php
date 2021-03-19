@@ -40,12 +40,17 @@ class TableThemeHelperService
     private $cache_service;
 
     /**
+     * @var DatatypeInfoService
+     */
+    private $dbi_service;
+
+    /**
      * @var DatarecordInfoService
      */
     private $dri_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -80,10 +85,11 @@ class TableThemeHelperService
      *
      * @param ContainerInterface $container
      * @param CacheService $cache_service
-     * @param DatarecordInfoService $dri_service
-     * @param DatatypeInfoService $dti_service
-     * @param PermissionsManagementService $pm_service
-     * @param ThemeInfoService $theme_service
+     * @param DatarecordInfoService $datarecord_info_service
+     * @param DatatreeInfoService $datatree_info_service
+     * @param DatatypeInfoService $datatype_info_service
+     * @param PermissionsManagementService $permissions_service
+     * @param ThemeInfoService $theme_info_service
      * @param Router $router
      * @param Logger $logger
      */
@@ -91,7 +97,8 @@ class TableThemeHelperService
         ContainerInterface $container,
         CacheService $cache_service,
         DatarecordInfoService $datarecord_info_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
+        DatatypeInfoService $datatype_info_service,    // TODO - rename to DatabaseInfoService
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         Router $router,
@@ -99,8 +106,9 @@ class TableThemeHelperService
     ) {
         $this->container = $container;
         $this->cache_service = $cache_service;
+        $this->dbi_service = $datatype_info_service;
         $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->pm_service = $permissions_service;
         $this->theme_service = $theme_info_service;
         $this->router = $router;
@@ -217,7 +225,7 @@ class TableThemeHelperService
         //  a linked datatype, since that means linked datarecords need to be loaded as well...
         $needs_linked_data = false;
 
-        $associated_datatypes = $this->dti_service->getAssociatedDatatypes( array($datatype_id) );
+        $associated_datatypes = $this->dti_service->getAssociatedDatatypes($datatype_id);
         foreach ($df_array as $num => $df) {
             $dt_id = $df['dataType']['id'];
 
@@ -254,7 +262,7 @@ class TableThemeHelperService
             // If linked datarecords need to be loaded...
             if ( $needs_linked_data ) {
                 // ...then determine which ones to load
-                $associated_datarecords = $this->dri_service->getAssociatedDatarecords( array($search_dr_id) );
+                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($search_dr_id);
 
                 foreach ($associated_datarecords as $num => $tmp_dr_id) {
                     // Don't load $search_dr_id again...
@@ -348,7 +356,7 @@ class TableThemeHelperService
 
         // Also need the datatype info in order to determine render plugin for datafields
         $dt_id = $dr_data[$datarecord_id]['dataType']['id'];
-        $dt_data = $this->dti_service->getDatatypeArray($dt_id, $include_links);
+        $dt_data = $this->dbi_service->getDatatypeArray($dt_id, $include_links);
         $datatype_array = $dt_data[$dt_id];
 
 
@@ -356,13 +364,13 @@ class TableThemeHelperService
         $data = array('sortField_value' => $dr['sortField_value']);
         foreach ($datatype_array['dataFields'] as $df_id => $df) {
             // The datarecord might not have an entry for this datafield...
+            $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
             $df_value = '';
             $save_value = true;
 
-            // If the datafield is using a render plugin...
+            // If the datafield is using a render plugin, and is not a file datafield...
             $render_plugin = $df['dataFieldMeta']['renderPlugin'];
-            $render_plugin_id = $render_plugin['id'];
-            if ($render_plugin_id !== 1) {
+            if ($render_plugin['pluginClassName'] !== 'odr_plugins.base.default' && $df_typename !== 'File') {
                 // Run the render plugin for this datafield
                 try {
                     /** @var DatafieldPluginInterface $plugin */
@@ -378,7 +386,6 @@ class TableThemeHelperService
             }
             else {
                 // ...otherwise, (almost) directly transfer the data
-                $df_typename = $df['dataFieldMeta']['fieldType']['typeName'];
                 $drf = $dr['dataRecordFields'][$df_id];
 
                 switch ($df_typename) {
@@ -606,7 +613,7 @@ class TableThemeHelperService
     {
         // Might as well load layout data for linked datatypes here
         $include_links = true;
-        $datatype_array = $this->dti_service->getDatatypeArray($top_level_datatype_id, $include_links);
+        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype_id, $include_links);
 
         // The array needs to be filtered to only contain what a table layout can display...
         foreach ($datatype_array as $dt_id => $dt) {

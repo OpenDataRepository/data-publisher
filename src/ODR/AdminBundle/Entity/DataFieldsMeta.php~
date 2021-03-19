@@ -88,6 +88,11 @@ class DataFieldsMeta
     private $is_unique;
 
     /**
+     * @var bool
+     */
+    private $prevent_user_edits;
+
+    /**
      * @var boolean
      */
     private $allow_multiple_uploads;
@@ -466,6 +471,30 @@ class DataFieldsMeta
     public function getIsUnique()
     {
         return $this->is_unique;
+    }
+
+    /**
+     * Set preventUserEdits.
+     *
+     * @param bool $preventUserEdits
+     *
+     * @return DataFieldsMeta
+     */
+    public function setPreventUserEdits($preventUserEdits)
+    {
+        $this->prevent_user_edits = $preventUserEdits;
+
+        return $this;
+    }
+
+    /**
+     * Get preventUserEdits.
+     *
+     * @return bool
+     */
+    public function getPreventUserEdits()
+    {
+        return $this->prevent_user_edits;
     }
 
     /**

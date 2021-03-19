@@ -1,0 +1,245 @@
+{% spaceless %}
+
+<!-- Clone/Link Template Dialog -->
+
+<script>
+    var clone_link_template_dialog_body = '<div id="ODRCloneLinkTemplateFormWrapper" class="ODRHidden"> </div>';
+
+    /**
+     * Opens ODR's modal and loads valid template datatypes that can be cloned/linked to by the
+     * local datatype.
+     *
+     * @param {number} local_datatype_id
+     * @param {number} theme_element_id
+     */
+    function openCloneLinkTemplateDialog(local_datatype_id, theme_element_id) {
+        // open dialog
+        modal_options = {
+            title: 'Add Database From Template',
+            loading: true,
+            body: clone_link_template_dialog_body,
+            buttons: [
+                {
+                    id: 'ODRCloneLinkTemplateFormSubmit',
+                    text: 'Add Database From Template',
+                    // secondary: true,
+                    disabled: true
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadCloneLinkTemplateData(local_datatype_id, theme_element_id);
+    }
+
+    /**
+     * Loads valid template datatypes that can be cloned/linked to by the local datatype.
+     *
+     * @param {number} local_datatype_id
+     * @param {number} theme_element_id
+     */
+    function loadCloneLinkTemplateData(local_datatype_id, theme_element_id) {
+
+        var url = '{{ path('odr_design_get_clone_link_templates', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRCloneLinkTemplateFormWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRCloneLinkTemplateFormWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+
+                    // Setup submit handler
+                    $('#ODRCloneLinkTemplateFormSubmit').unbind('click').click(function() {
+                        submitLinkFromTemplateForm();
+                    });
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Submits a form that starts the cloning/linking process for the selected template datatype.
+     */
+    function submitLinkFromTemplateForm() {
+
+        var data = $('#ODRCloneLinkTemplateForm').serialize();
+        var url = $('#ODRCloneLinkTemplateForm').attr('action');    {# points to the route "odr_design_clone_and_link_datatype" #}
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: data,
+            dataType: "json",
+            success: function(data) {
+                // console.log(data.d);
+
+                // Turn modal into a "loading..." dialog
+                $(".ODRRemodalBody").hide();
+                $(".ODRRemodalButtons").hide();
+                $(".ODRRemodalLoading").show();
+
+                // Resize ODRFileDownloadModal to take up full height
+                resetRemodalInnerHeight();
+
+                // Need to continually check whether the job is done...
+                checkCloneLinkJobInterval(data.d);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    var clone_and_link_job = '';
+    var job_data = '';
+
+    /**
+     * Sets up a job tracker specifically for this clone/link job
+     *
+     * @param {object} data
+     */
+    function checkCloneLinkJobInterval(data) {
+        job_data = data;
+        console.log('Starting Interval', data);
+        if (clone_and_link_job !== '') {
+            window.clearInterval(clone_and_link_job);
+        }
+        clone_and_link_job = window.setInterval(function() { checkCloneLinkJob() }, 1500);    // check every 1.5 seconds
+        // console.log('Interval ID: ', clone_and_link_job);
+    }
+
+    /**
+     * Queries the server for the progress on the previously created clone/link job
+     */
+    function checkCloneLinkJob() {
+        var data = job_data;
+        // console.log('Running interval', data);
+
+        var url = '{{ path('odr_job_refresh', {'job_type': 'clone_and_link', 'job_id': 0 } ) }}';
+        url = url + "/" + data.tracked_job_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (result_data) {
+                // console.log('Tracked Job: ', result_data);
+                if (result_data.d[0].eta == 'Done') {
+                    console.log('Job complete - creating link:', data);
+                    window.clearInterval(clone_and_link_job);
+
+                    // Once the clone job is done, create a link between the local datatype and the
+                    //  newly cloned datatype
+                    createLinkToClonedTemplate(data.local_datatype_id, data.new_datatype_id, data.theme_element_id);
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Creates a link between the local datatype and the newly cloned remote datatype in the given
+     * theme_element.
+     *
+     * @param {number} local_datatype_id
+     * @param {number} cloned_datatype_id
+     * @param {number} theme_element_id
+     */
+    function createLinkToClonedTemplate(local_datatype_id, cloned_datatype_id, theme_element_id) {
+
+        var url = '{{ path('odr_design_quicklink_datatype', {'local_datatype_id': 0, 'remote_datatype_id': 0, 'theme_element_id': 0 }) }}';
+        url = url.substring(0,(url.length - 5)) + local_datatype_id + '/' + cloned_datatype_id + '/' + theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // ReloadThemeElement() forces a re-render of the theme element,
+                // so the 'Add Datafield', 'Add Childtype', 'Link DataType', and
+                // 'Delete ThemeElement' icons get muted automatically
+                ReloadThemeElement(theme_element_id);
+
+                closeODRRemodal();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+</script>
+
+{% endspaceless %}

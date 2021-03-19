@@ -33,6 +33,8 @@ ODR\AdminBundle\Entity\MediumVarchar:
             nullable: true
 
     indexes:
+        mediumvarchar_created:
+            columns: ["created"]
         mediumvarchar_fulltext:
             columns: ["value"]
             flags: fulltext

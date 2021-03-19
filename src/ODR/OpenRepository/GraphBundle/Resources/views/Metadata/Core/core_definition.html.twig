@@ -1,0 +1,19 @@
+{% spaceless %}
+<div id="ODRMetadataGuidance_Core_1" class="ODRHidden">
+    Enter the datatype's name and description...
+</div>
+<div id="ODRMetadataGuidance_Core_2" class="ODRHidden">
+    ...then some keywords because I want to do things out of order...
+</div>
+<div id="ODRMetadataGuidance_Core_3" class="ODRHidden">
+    ...and then finally some boring admin stuff that technically comes before the keywords on the page.
+</div>
+
+<script>
+    $(function() {
+        // Ensure the steps are only added once
+        if ( ODRMetadataGuidance_steps.indexOf("ODRMetadataGuidance_Core_1") === -1 )
+            ODRMetadataGuidance_steps.push("ODRMetadataGuidance_Core_1", "ODRMetadataGuidance_Core_2", "ODRMetadataGuidance_Core_3");
+    });
+</script>
+{% endspaceless %}

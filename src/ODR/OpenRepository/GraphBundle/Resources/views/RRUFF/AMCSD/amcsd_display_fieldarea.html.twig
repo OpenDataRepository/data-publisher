@@ -1,0 +1,126 @@
+{% spaceless %}
+
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
+    <span id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
+        <span rel="{{ datatype.id }}">
+            {% set class_str = "tooltip fa fa-globe Cursor" %}
+            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                {% set class_str = class_str ~ " ODRActiveIcon" %}
+            {% endif %}
+
+            {% set title_str = "Record is Not Public" %}
+            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                {% set title_str = "Record is Public" %}
+            {% endif %}
+
+            {% if is_link == 1 %}
+                {% set title_str = "Linked " ~ title_str %}
+            {% else %}
+                {% set title_str = "Child " ~ title_str %}
+            {% endif %}
+
+            <i id="datarecord_{{ datarecord.id }}_public" class="{{ class_str }}" title="{{ title_str }}" rel="{{ datarecord.id }}"></i>
+        </span>
+    </span>
+{% endif %}
+
+
+{% for theme_element in theme.themeElements %}
+
+    {% if not theme_element|is_empty(datarecord, datatype, 'display') %}
+
+        <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+            <div class="ODRInnerBox">
+
+                {% if theme_element.themeDataFields is defined %}
+                    {% for theme_datafield in theme_element.themeDataFields %}
+                        {% set datafield_id = theme_datafield.dataField.id %}
+
+                        {% if datatype['dataFields'][datafield_id] is not defined %}
+                            {# user doesn't have permissions to see this datafield #}
+                            <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
+                        {% else %}
+                            {% set datafield = datatype['dataFields'][datafield_id] %}
+
+                            {% set is_file_contents_datafield = false %}
+                            {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ] == "File Contents" %}
+                                {% set is_file_contents_datafield = true %}
+                            {% endif %}
+
+                            {% if theme_datafield.hidden == 0 %}
+                                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
+                                    {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                                        {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                                    {% else %}
+                                        {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                                            'datarecord': datarecord,
+                                            'datafield': datafield,
+                                        } %}
+                                    {% endif %}
+                                </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+
+                                {% if is_file_contents_datafield %}
+                                    <script>
+                                        $(function() {
+                                            $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('textarea').first().addClass('ODRMonospace');
+                                        });
+                                    </script>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                {% elseif theme_element.themeDataType is defined %}
+
+                    {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+                    {% for theme_datatype in theme_element.themeDataType %}
+                        {% set child_datatype_id = theme_datatype.dataType.id %}
+                        {% set child_theme_id = theme_datatype.childTheme.id %}
+
+                        {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                        {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
+                            {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                            {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
+
+                            {# filtering also means there may not be anything in the datarecord array... #}
+                            {% if datarecord['children'][child_datatype_id] is defined %}
+                                {# pass all child datarecords of this child datatype to display_childtype.html.twig at once #}
+                                {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
+
+                                <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ child_datatype_id }}_{{ datarecord.id }}">
+                                {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
+                                    'datatype_array': child_datatype,
+                                    'datarecord_array': datarecord_array,
+                                    'theme_array': child_theme,
+
+                                    'target_datatype_id': child_datatype_id,
+                                    'parent_datarecord_id': datarecord.id,
+                                    'target_theme_id': child_theme_id,
+
+                                    'is_top_level': 0,
+                                    'is_link': theme_datatype.is_link,
+                                    'display_type': theme_datatype.display_type
+                                } %}
+                                </div>
+                            {% endif %}
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                {% endif %}
+
+            </div><!-- End of .ODRInnerBox -->
+        </div><!-- End of .ThemeElement -->
+
+    {% endif %}
+
+{% endfor %}
+
+{% endspaceless %}

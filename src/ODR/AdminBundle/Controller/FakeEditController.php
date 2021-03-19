@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\Tags;
@@ -90,6 +91,7 @@ class FakeEditController extends ODRCustomController
 
             if ( !$pm_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
+            // TODO - ...shouldn't this also require the user to be able to edit at least one datafield?  doesn't really make sense otherwise...
             // --------------------
 
             // Grab the tab's id, if it exists
@@ -153,12 +155,24 @@ class FakeEditController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
+            // Ensure the post data is valid...
             if ( !isset($post['datatype_id'])
                 || !isset($post['datarecord_id'])
                 || !isset($post['datafields'])
                 || !isset($post['tokens'])
             ) {
-                throw new ODRBadRequestException();
+                if ( isset($post['datatype_id']) && isset($post['datarecord_id']) && !isset($post['datafields']) && !isset($post['tokens']) ) {
+                    // User attempted to save a completely empty datarecord...return a more useful
+                    //  error message
+                    throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
+
+                    // TODO - technically, it would be valid if the datatype only had files/images/child datatypes
+                    // TODO - ...but the resulting datatype is borderline useless, so it's not likely?
+                }
+                else {
+                    // Some other kind of problem, return a generic error message
+                    throw new ODRBadRequestException();
+                }
             }
 
             // TODO - parent/grandparent datarecord ids so this works for child records?
@@ -174,6 +188,12 @@ class FakeEditController extends ODRCustomController
                 throw new ODRBadRequestException();
             }
 
+            // Submission of a fake top-level may need to be handled differently than a submission
+            //  via the inline link system...
+            $inline_link = false;
+            if ( isset($post['inline_link']) )
+                $inline_link = true;
+
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -186,6 +206,8 @@ class FakeEditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -214,9 +236,19 @@ class FakeEditController extends ODRCustomController
             // Easier on the database to get the cache entry
             foreach ($datatype_array[$datatype->getId()]['dataFields'] as $df_id => $df) {
                 // Verify that a fields marked as unique has a value
+                $datafield_name = $df['dataFieldMeta']['fieldName'];
                 if ( $df['dataFieldMeta']['is_unique'] === true ) {
                     if ( !isset($datafields[$df_id]) )
-                        throw new ODRBadRequestException();
+                        throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" must have a value');
+                }
+
+                // Silently remove any fields that were given a value when they aren't supposed to
+                //  be editable by users
+                if ( $df['dataFieldMeta']['prevent_user_edits'] === true ) {
+                    if ( isset($datafields[$df_id]) )
+                        unset( $datafields[$df_id] );
+                    if ( isset($csrf_tokens[$df_id]) )
+                        unset( $csrf_tokens[$df_id] );
                 }
 
                 // Otherwise, only care about the field if it has a value in it...
@@ -230,7 +262,7 @@ class FakeEditController extends ODRCustomController
 
                     // Verify that the CSRF token for this field was submitted with the form...
                     if ( !isset($csrf_tokens[$df_id]) )
-                        throw new ODRBadRequestException();
+                        throw new ODRBadRequestException('Invalid CSRF Token');
 
                     // ...and that it's valid
                     $check_token = $token_manager->getToken($token_id)->getValue();
@@ -250,19 +282,19 @@ class FakeEditController extends ODRCustomController
                         case 'ShortVarchar':
                         case 'DatetimeValue':
                             if ( !self::isValidValue($typeclass, $value) )
-                                throw new ODRBadRequestException('Invalid value');
+                                throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" has an invalid value');
                             break;
 
                         // Radio options need a different validation
                         case 'Radio':
                             if ( !ValidUtility::areValidRadioOptions($df, $value) )
-                                throw new ODRBadRequestException('Invalid value');
+                                throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" has an invalid value');
                             break;
 
                         // Tags also need a different validation
                         case 'Tag':
                             if ( !ValidUtility::areValidTags($df, $value) )
-                                throw new ODRBadRequestException('Invalid value');
+                                throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" has an invalid value');
                             break;
 
                         // The rest of the typeclasses aren't valid
@@ -270,7 +302,7 @@ class FakeEditController extends ODRCustomController
                         case 'Image':
                         case 'Markdown':
                         default:
-                            throw new ODRBadRequestException('Invalid typeclass');
+                            throw new ODRBadRequestException('The Datafield "'.$datafield_name.'" is not a valid typeclass');
                     }
                 }
             }
@@ -280,6 +312,10 @@ class FakeEditController extends ODRCustomController
                 if ( !isset($found_datafields[$df_id]) )
                     throw new ODRBadRequestException('Invalid Datafield');
             }
+
+            // Verify that at least one datafield was provided
+            if ( empty($datafields) )
+                throw new ODRBadRequestException("The new record must have data entered in at least one field before it can be saved");
 
 
             // ----------------------------------------
@@ -308,20 +344,37 @@ class FakeEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If any of the fields are unique, then need to verify that a non-unique value isn't
-            //  going to get saved
+            // Need to verify that the values getting saved won't cause uniqueness conflicts with
+            //  any of the existing datarecords
             foreach ($datafields as $df_id => $value) {
                 $df = $df_mapping[$df_id];
                 if ( $df->getIsUnique() ) {
-                    if ( self::valueAlreadyExists($df, $value) )
+                    if ( $search_service->valueAlreadyExists($df, $value) )
                         throw new ODRConflictException('A Datarecord already has the value "'.$value.'" stored in the "'.$df->getFieldName().'" Datafield.');
                 }
             }
 
 
             // ----------------------------------------
-            // Now that all the post data makes sense, time to create some entities
-            $new_datarecord = $ec_service->createDatarecord($user, $datatype);    // creation of storage entities makes delaying flush here pointless
+            // When a fake top-level record is submitted, then the user was originally given a page
+            //  that had the default radio options already selected...and they had the opportunity
+            //  to change them.  These potential changes shouldn't be overwritten.
+            $create_default_radio_options = false;
+            if ($inline_link) {
+                // ...however, if the fake record was submitted via the inline linking system, then
+                //  the radio datafields were disabled (because there's no way to display search
+                //  results)...therefore, the default radio options should be selected.
+                $create_default_radio_options = true;
+            }
+
+            // Now that all the post data makes sense, it's time to create some entities
+            $new_datarecord = $ec_service->createDatarecord(
+                $user,
+                $datatype,
+                false,   // Delaying flush here is pointless, due to creation of storage entities below
+                $create_default_radio_options
+            );
+
             $new_datarecord->setProvisioned(false);
             $em->persist($new_datarecord);
 
@@ -438,44 +491,17 @@ class FakeEditController extends ODRCustomController
 
 
     /**
-     * Returns whether the given value already exists in the given datafield.
-     *
-     * Changes made here should also be made in EditController::valueAlreadyExists()
-     *
-     * @param DataFields $datafield
-     * @param string $value
-     *
-     * @return bool
-     */
-    private function valueAlreadyExists($datafield, $value)
-    {
-        // Want to perform an exact search for this value
-        // This is allowed because currently only text and number fields are allowed to be unique
-        $value = '"'.$value.'"';
-
-        /** @var SearchService $search_service */
-        $search_service = $this->container->get('odr.search_service');
-        $search_results = $search_service->searchTextOrNumberDatafield($datafield, $value);
-
-        // If the search returned anything, then the value already exists
-        if ( count($search_results['records']) > 0 )
-            return true;
-        else
-            return false;
-    }
-
-
-    /**
      * Checks whether the given value for the given datafield is unique or not...it's easier for the
      * javascript to throw up warnings about uniqueness conflicts when it only has to check a
      * single datafield at a time.
      *
      * @param int $datafield_id
+     * @param int $datarecord_id
      * @param Request $request
      *
      * @return Response
      */
-    public function checkfakerecordfielduniqueAction($datafield_id, Request $request)
+    public function checkfakerecordfielduniqueAction($datafield_id, $datarecord_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -491,6 +517,7 @@ class FakeEditController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Don't know exactly which typeclass this'll be...
+            $error_type = '';
             $value = '';
             foreach ($post as $typeclass => $form_data) {
                 // ...but it should have these two keys in the array
@@ -498,6 +525,8 @@ class FakeEditController extends ODRCustomController
                     throw new ODRBadRequestException();
 
                 $value = trim($form_data['value']);
+                if ( isset($form_data['error_type']) )
+                    $error_type = $form_data['error_type'];
             }
 
 
@@ -506,6 +535,8 @@ class FakeEditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
 
 
             /** @var DataFields $datafield */
@@ -517,6 +548,15 @@ class FakeEditController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            $datarecord = null;
+            if ( $datarecord_id !== '' ) {
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+                if ($datarecord == null)
+                    throw new ODRNotFoundException('Datarecord');
+                if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
+                    throw new ODRBadRequestException();
+            }
 
             // --------------------
             // Determine user privileges
@@ -529,13 +569,33 @@ class FakeEditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-
             // Datafield needs to be unique for this to make sense
             if ( !$datafield->getIsUnique() )
                 throw new ODRBadRequestException();
 
-            if ( self::valueAlreadyExists($datafield, $value) )
-                throw new ODRConflictException('A Datarecord already has the value "'.$value.'" stored in the "'.$datafield->getFieldName().'" Datafield.');
+
+            // Determine whether the given value is a duplicate of a value that already exists
+            $is_duplicate = $search_service->valueAlreadyExists($datafield, $value, $datarecord);
+            $error_str = 'A Datarecord already has the value "'.$value.'" stored in the "'.$datafield->getFieldName().'" Datafield.';
+
+            if ( $error_type === 'json' ) {
+                // Need to return JSON so the jQuery Validate plugin works properly...so according
+                //  to https://jqueryvalidation.org/remote-method/ ...return a string describing the
+                //  error when the value is a duplicate, or return the string "true" when the value
+                //  isn't a duplicate
+                $response = new Response();
+                if ($is_duplicate)
+                    $response->setContent(json_encode($error_str));
+                else
+                    $response->setContent(json_encode("true"));
+
+                $response->headers->set('Content-Type', 'application/json');
+                return $response;
+            }
+            else if ( $is_duplicate ) {
+                // Don't need to return JSON, so throw an exception when the value is a duplicate
+                throw new ODRConflictException($error_str);
+            }
 
         }
         catch (\Exception $e) {

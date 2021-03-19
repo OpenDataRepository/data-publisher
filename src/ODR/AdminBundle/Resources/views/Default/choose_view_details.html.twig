@@ -1,78 +1,98 @@
 {% spaceless %}
-    <li data-theme-id="{{ theme.id }}">
-        <div class="pure-u-1 pure-u-md-6-24">
-            <h4>{% if theme.name != "" %}
-                    {{ theme.name }}
-                {% elseif theme.name == "" and theme.theme_type == "master" %}
-                    Master View/Theme
-                {% elseif theme.name == "" and theme.is_default == 1 %}
-                    Default View
-                {% else %}
-                    Unnamed View.
-                {% endif %}
-                {#<div>theme id: {{ theme.id }}&nbsp;&nbsp;theme type: {{ theme.theme_type }}</div>#}
-            </h4>
-            <div>Created By: {{ theme.created_by_name }}</div>
-        </div>
-        <div class="pure-u-1 pure-u-md-12-24 ODRChooseViewDescription">
-            {% if theme.description != "" %}
-                {{ theme.description }}
-            {% elseif theme.name == "" and theme.is_default == 1 %}
-                Default view for selected database.
-            {% else %}
-                No description.
-            {% endif %}
-            {% if theme.id == selected_theme_id %}
-                <div class="ODRViewNote">[ Currently selected view. ]</div>
-            {% endif %}
-            {% if user != "anon." and user_default_theme is not null and theme.id == user_default_theme.id %}
-                <div class="ODRViewNote">[ Personal default view. ]</div>
-            {% endif %}
-            {% if theme.is_default == 1 %}
-                <div class="ODRViewNote">[ Database default view. ]</div>
-            {% endif %}
-            {% if theme.theme_type == "master" %}
-                <div class="ODRViewNote">[ Master theme/view for database. ]</div>
-            {% endif %}
-            {% if theme.theme_type == "table" %}
-                <div class="ODRViewNote">[ Table view. ]</div>
-            {% endif %}
-        </div>
-        <div class="pure-u-1 pure-u-md-5-24">
-            <ul class="ODRViewOptions">
-                {% if user != "anon." and (user_default_theme is null or theme.id != user_default_theme.id) %}
-                    <li class="ODRDefaultPersonal">make personal default</li>
-                {% endif %}
-                {% if theme.id != selected_theme_id %}
-                    <li class="ODRMakeCurrentView">apply view (current session)</li>
-                {% endif %}
-                {# any person can make their view public #}
-                {% if user != "anon." and theme.created_by == user.id and not theme.public %}
-                    <li class="ODRMakeViewPublic">make view public (usable by others)</li>
-                {%  elseif user != "anon." and theme.created_by == user.id and theme.is_default != 1 %}
-                    <li class="ODRMakeViewPublic">make view private</li>
-                {% endif %}
 
-                {# admin tools #}
-                {% if datatype_admin and user.id != "anon." and theme.is_default != 1 %}
-                    <li class="ODRDefaultDatabase">make default for database</li>
-                {% endif %}
+<li data-theme-id="{{ theme.id }}">
+    <div class="pure-u-1 pure-u-md-6-24">
+        <h4>
+        {% if theme.name != "" %}
+            {{ theme.name }}
+        {% elseif theme.name == "" and theme.theme_type == "master" %}
+            Master View/Theme
+        {% elseif theme.name == "" and theme.is_default == 1 %}
+            Default View
+        {% else %}
+            Unnamed View.
+        {% endif %}
+        </h4>
+        <div>Created By: {{ theme.created_by_name }}</div>
+        {#<div>theme id: {{ theme.id }}&nbsp;&nbsp;theme type: {{ theme.theme_type }}</div>#}
+    </div>
 
-                <li>
-                {% if user != "anon." and theme.created_by == user.id and theme.theme_type != "master" %}
-                    <span class="ODRModifyTheme">edit view</span> |
-                    <span class="ODRCopyModifyTheme">copy view</span>
-                {% elseif user != "anon." and theme.created_by == user.id  and theme.theme_type == "master" %}
-                    <span class="ODRCopyModifyTheme">copy view</span>
-                {% elseif user != "anon." %}
-                    <span class="ODRCopyModifyTheme">copy view</span>
-                {% endif %}
-                {% if datatype_admin and theme.is_default != 1 and theme.theme_type != "master" %}
-                    {# can't delete the master theme #}
-                    | <span class="ODRDeleteTheme">delete view</span>
-                {% endif %}
-                </li>
-            </ul>
-        </div>
-    </li>
+    <div class="pure-u-1 pure-u-md-12-24 ODRChooseViewDescription">
+    {% if theme.description != "" %}
+        {{ theme.description }}
+    {% elseif theme.name == "" and theme.is_default == 1 %}
+        Default view for selected database.
+    {% else %}
+        No description.
+    {% endif %}
+
+    {% if theme.id == selected_theme_id %}
+        <div class="ODRViewNote">[ Currently selected view. ]</div>
+    {% endif %}
+
+    {% if user != "anon." and user_default_theme is not null and theme.id == user_default_theme.id %}
+        <div class="ODRViewNote">[ Personal default view. ]</div>
+    {% endif %}
+
+    {% if theme.is_default == 1 %}
+        <div class="ODRViewNote">[ Database default view. ]</div>
+    {% endif %}
+
+    {% if theme.theme_type == "master" %}
+        <div class="ODRViewNote">[ Master theme/view for database. ]</div>
+    {% endif %}
+
+    {% if theme.theme_type == "table" %}
+        <div class="ODRViewNote">[ Table view. ]</div>
+    {% endif %}
+    </div>
+
+    <div class="pure-u-1 pure-u-md-5-24">
+        <ul class="ODRViewOptions">
+        {% if user != "anon." and (user_default_theme is null or theme.id != user_default_theme.id) %}
+            {# users can select any theme they can view to be their personal default #}
+            <li class="ODRDefaultPersonal">make personal default</li>
+        {% endif %}
+
+        {% if theme.id != selected_theme_id %}
+            {# all users and visitors can select a public theme #}
+            <li class="ODRMakeCurrentView">apply view (current session)</li>
+        {% endif %}
+
+        {% if user != "anon." and theme.created_by == user.id and not theme.public %}
+            {# users can always make one of their own themes public #}
+            <li class="ODRMakeViewPublic">make view public (usable by others)</li>
+        {%  elseif user != "anon." and theme.created_by == user.id and theme.public and theme.is_default != 1 and theme.theme_type != "master" %}
+            {# users can only make one of their own themes private if it's not a default or master theme #}
+            <li class="ODRMakeViewPublic">make view private</li>
+        {% endif %}
+
+        {% if is_datatype_admin and theme.public and theme.is_default != 1 %}
+            {# datatype admins can set a public theme as the default for a database #}
+            <li class="ODRDefaultDatabase">make default for database</li>
+        {% endif %}
+
+            <li>
+            {% if user != "anon." and theme.created_by == user.id and theme.theme_type != "master" %}
+                {# users can edit non-master themes they created #}
+                <span class="ODRModifyTheme">edit view</span> |
+            {% elseif is_datatype_admin and theme.theme_type == "master" %}
+                {# datatype admins are also allowed to edit master themes from here #}
+                <span class="ODRModifyTheme">edit view</span> |
+            {% endif %}
+
+            {% if user != "anon." %}
+                {# users are allowed to make their own copy of any theme #}
+                <span class="ODRCopyModifyTheme">copy view</span>
+            {% endif %}
+
+            {% if user != "anon." and theme.created_by == user.id and theme.is_default != 1 and theme.theme_type != "master" %}
+                {# users can delete themes, but only if they created it, and it's not a default theme, and it's not a master theme #}
+                | <span class="ODRDeleteTheme">delete view</span>
+            {% endif %}
+            </li>
+        </ul>
+    </div>
+</li>
+
 {% endspaceless %}

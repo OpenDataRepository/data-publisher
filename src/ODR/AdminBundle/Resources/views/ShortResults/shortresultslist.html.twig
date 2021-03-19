@@ -8,16 +8,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% set user_role = '' %}
-{% if user != 'anon.' %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_ADMIN' %}
-            {% set user_role = 'ROLE_ADMIN' %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-
-
 <div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
@@ -26,9 +16,9 @@
     </div>
 
     <div class="ODRShortResultWrapper">
-    {% if has_datarecords %}
+{#    {% if has_datarecords %}#}
         {{ pagination_html | raw }}
-    {% endif %}
+{#    {% endif %}#}
 
     {% if has_datarecords %}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
@@ -46,7 +36,8 @@
             'intent': intent,
         } %}
 
-        {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+        {# TODO - figure out some way to allow downloading all files/images from search results without the server being murdered in the process? #}
+        {#{% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}#}
 
     {% else %}
         <div class="ODRShortResults_empty">

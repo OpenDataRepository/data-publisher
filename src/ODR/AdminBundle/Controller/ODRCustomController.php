@@ -18,7 +18,6 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
@@ -32,10 +31,12 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedError;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Events
+use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -49,6 +50,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -65,7 +67,7 @@ class ODRCustomController extends Controller
      * @param array $datarecords  The unfiltered list of datarecord ids that need rendered...this should contain EVERYTHING
      * @param DataType $datatype  Which datatype the datarecords belong to
      * @param Theme $theme        Which theme to use for rendering this datatype
-     * @param User $user          Which user is requesting this list
+     * @param ODRUser $user       Which user is requesting this list
      * @param string $path_str
      *
      * @param string $intent      "searching" if searching from frontpage, or "linking" if searching for datarecords to link
@@ -731,7 +733,7 @@ class ODRCustomController extends Controller
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user              The user to use if a new TrackedJob is to be created
+     * @param ODRUser $user           The user to use if a new TrackedJob is to be created
      * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
      * @param string $target_entity   Which entity this job is operating on
      * @param array $additional_data  Additional data related to the TrackedJob
@@ -845,7 +847,7 @@ class ODRCustomController extends Controller
         /** @var UUIDService $uuid_service */
         $uuid_service = $this->container->get('odr.uuid_service');
 
-        /** @var User $user */
+        /** @var ODRUser $user */
         $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
         /** @var DataRecordFields $drf */
         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
@@ -1005,6 +1007,33 @@ class ODRCustomController extends Controller
             $em->flush();
             $em->refresh($my_obj);
 
+
+            // ----------------------------------------
+            // Now that the File (mostly) exists, should fire off the FilePreEncrypt event
+            // Since the File isn't encrypted, several properties don't exactly work the same as they
+            //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new FilePreEncryptEvent($my_obj);
+                $dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // TODO - do something here?
+            }
+
+            // NOTE - the event is dispatched prior to the file encryption so that file encryption
+            //  doesn't have to become a TrackedJob...which would also require the page would to
+            //  check for and handle the event dispatching completion...
+
+            // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+
+
             // ----------------------------------------
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files
             $pheanstalk = $this->get('pheanstalk');
@@ -1049,7 +1078,7 @@ class ODRCustomController extends Controller
      * NOTE: all thumbnails for the provided image will have their decrypted version deleted off the server...if for some reason you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
      *
      * @param Image $my_obj The Image that was just uploaded.
-     * @param User $user    The user requesting this action
+     * @param ODRUser $user The user requesting this action
      *
      */
     public function resizeImages(\ODR\AdminBundle\Entity\Image $my_obj, $user)
@@ -1151,135 +1180,6 @@ class ODRCustomController extends Controller
                 unlink($file_path);
             }
         }
-    }
-
-
-    /**
-     * Locates and returns a datarecord based on its external id
-     * TODO - move to datarecord info service?
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $datafield_id
-     * @param string $external_id_value
-     *
-     * @return DataRecord|null
-     */
-    protected function getDatarecordByExternalId($em, $datafield_id, $external_id_value)
-    {
-        // Get required information
-        /** @var DataFields $datafield */
-        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-        $typeclass = $datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield AND e.value = :value
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield_id, 'value' => $external_id_value) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists
-        $datarecord = null;
-        if ( isset($results[0]) )
-            $datarecord = $results[0];
-
-        return $datarecord;
-    }
-
-
-    /**
-     * Locates and returns a child datarecord based on its external id and its parent's external id
-     * TODO - move to datarecord info service?
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $child_datafield_id
-     * @param string $child_external_id_value
-     * @param integer $parent_datafield_id
-     * @param string $parent_external_id_value
-     *
-     * @return DataRecord|null
-     */
-    protected function getChildDatarecordByExternalId($em, $child_datafield_id, $child_external_id_value, $parent_datafield_id, $parent_external_id_value)
-    {
-        // Get required information
-        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-
-        /** @var DataFields $child_datafield */
-        $child_datafield = $repo_datafield->find($child_datafield_id);
-        $child_typeclass = $child_datafield->getFieldType()->getTypeClass();
-
-        /** @var DataFields $parent_datafield */
-        $parent_datafield = $repo_datafield->find($parent_datafield_id);
-        $parent_typeclass = $parent_datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:'.$child_typeclass.' AS e_1
-            JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
-            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2 WITH e_2.dataRecordFields = drf_2
-            WHERE dr.id != parent.id AND e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
-            AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
-        )->setParameters( array('child_datafield' => $child_datafield_id, 'child_value' => $child_external_id_value, 'parent_datafield' => $parent_datafield_id, 'parent_value' => $parent_external_id_value) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists
-        $datarecord = null;
-        if ( isset($results[0]) )
-            $datarecord = $results[0];
-
-        return $datarecord;
-    }
-
-
-    /**
-     * Locates and returns a single child datarecord based on its parent's external id...this assumes
-     * that only a single child datarecord is allowed in this child datatype
-     * TODO - move to datarecord info service?
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $child_datatype_id
-     * @param integer $parent_datafield_id
-     * @param string $parent_external_id_value
-     *
-     * @return DataRecord|null
-     */
-    protected function getChildDatarecordByParent($em, $child_datatype_id, $parent_datafield_id, $parent_external_id_value)
-    {
-        // Get required information
-        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-
-        /** @var DataFields $parent_datafield */
-        $parent_datafield = $repo_datafield->find($parent_datafield_id);
-        $parent_typeclass = $parent_datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = parent
-            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e WITH e.dataRecordFields = drf
-            WHERE dr.dataType = :datatype_id AND e.value = :parent_value AND e.dataField = :parent_datafield
-            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $child_datatype_id, 'parent_value' => $parent_external_id_value, 'parent_datafield' => $parent_datafield_id) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists, and also return null if there's more than one...the
-        //  function is called to determine whether the parent datarecord has a single child datarecord
-        //  that it can overwrite during importing
-        $datarecord = null;
-        if ( isset($results[0]) && count($results) == 1 )
-            $datarecord = $results[0];
-
-        return $datarecord;
     }
 
 
@@ -1428,7 +1328,7 @@ class ODRCustomController extends Controller
      *  a datafield/datatype that the user can't view due to permissions.
      *
      * @param Theme $theme
-     * @param User $user
+     * @param ODRUser $user
      *
      * @return bool
      */
@@ -1571,7 +1471,5 @@ class ODRCustomController extends Controller
         // User isn't able to view anything that was added...do not notify
         return false;
     }
-
-
 
 }

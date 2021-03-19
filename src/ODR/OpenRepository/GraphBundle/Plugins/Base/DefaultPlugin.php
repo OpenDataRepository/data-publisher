@@ -37,7 +37,6 @@ class DefaultPlugin implements DatafieldPluginInterface
      *
      * @param EngineInterface $templating
      */
-    // public function __construct(Templating $templating) {
     public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }
@@ -58,9 +57,7 @@ class DefaultPlugin implements DatafieldPluginInterface
     {
 
         try {
-//            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
-//            return $str;
-
+            // ----------------------------------------
             // Grab value of datafield
             $typeclass = $datafield['dataFieldMeta']['fieldType']['typeClass'];
 

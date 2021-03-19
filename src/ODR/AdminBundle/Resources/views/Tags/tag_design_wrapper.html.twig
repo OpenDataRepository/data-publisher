@@ -10,20 +10,27 @@
         <button class="ODRTagCreationMode pure-button">Import tags</button>
     </div>
 
+    <input type="hidden" id="tag_order_hash" value="" />
+
     <div id="odr_tag_design" class="ODRTagWrapper_design pure-form">
         {# this form is for tag displayOrder and setting parent/child relationships #}
         <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
 
-        {% if allow_multiple_levels == false and sort_by_name == true %}
-            {# Don't display help message if only a single level of tags is permitted, and they're sorted by name #}
-        {% else %}
         <div class="ODRThemeElement">
-            <div id="ODRTagMoveHelpDiv">
+            {% if allow_multiple_levels == true or sort_by_name == false %}
+            <div class="ODRTagMoveHelpDiv">
                 To move a tag, click on the <i class="fa fa-arrows Cursor"></i> icon, then press the arrow keys to change the position of the selected tag.
-                <br>To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving. {% if sort_by_name == true %}After saving, the system will automatically update the tags to be in alphabetical order.{% endif %}
             </div>
+            {% endif %}
+            <div class="ODRTagMoveHelpDiv">
+                To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving.
+            </div>
+            {% if sort_by_name == true %}
+            <div class="ODRTagMoveHelpDiv">
+                After saving, the system will automatically update the tags to be in alphabetical order.
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
 
         <div class="ODRThemeElement" style="margin-top: 15px;">
             {# this form is for renaming tags #}
@@ -47,7 +54,7 @@
                     </label>
                     <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter" class="ODRDelimiterField" maxlength="3" size="4" />
                     &nbsp;
-                    <span class="ODRInputError ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
+                    <span class="ODRInputError ODRAlwaysShow ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn">Needs a value</span></span>
                 </fieldset>
                 {% else %}
                 <fieldset style="margin-bottom: 10px;">
@@ -78,7 +85,7 @@
 </div>
 <script>
 
-    var SaveTimeout = 2000;
+    var SaveTimeout = 1500;
 
     function notifySaved() {
         $.jGrowl('SAVED');
@@ -144,7 +151,7 @@
                 $("#odr_tag_design").hide();
                 $("#odr_tag_import").show();
 
-                $(".ODRTagCreationMode").html("Design tags");
+                $(".ODRTagCreationMode").html("Stop importing tags");
                 $(".ODRAddTag").html("Validate tag list");
 
                 resetRemodalInnerHeight();
@@ -169,7 +176,14 @@
         initTags();
     });
 
+    /**
+     * Initializes the tag modal.
+     */
     function initTags() {
+        // Save the current tag order for later use
+        var current_tag_order = getTagOrderHash();
+        $("#tag_order_hash").val(current_tag_order);
+
         $(".ODRTagAnchor").unbind('click').click(function(event) {
             // Don't want #odr_tag_design_modal click event to fire
             event.stopPropagation();
@@ -209,7 +223,7 @@
             DeleteTag(tag_id);
         });
 
-        $(".ODRTagLabel").click(function(event) {
+        $(".ODRTagLabel").unbind('click').click(function(event) {
             // Don't want #odr_tag_design_modal click event to fire
             event.stopPropagation();
             clearTagHighlights();
@@ -223,18 +237,55 @@
             clearTimeout(SaveTagPropertyInterval[tag_id]);
             SaveTagPropertyInterval[tag_id] = setTimeout("SaveTagProperty(" + tag_id + ")", SaveTimeout);
 
-            save_tag_xhr = true;
-
             FindDuplicateTagNames();
         });
     }
 
     var reordering_tags = false;
+
+    /**
+     * clearTagHighlights() is called a lot as the user clicks around the tag form, but don't want
+     * it to keep calling SaveTagPosition() (and therefore repeatedly reloading chunks of the page)
+     * when nothing has actually changed...
+     *
+     * @returns {string}
+     */
+    function getTagOrderHash() {
+        var str = '';
+        $("#ODRTagForm").find(".ODRTagItem").each(function() {
+            // Need to know both the tag's id and how deep it is
+            var tag_id = $(this).attr('rel');
+            var tag_level = $(this).parents(".ODRTagItem").length;
+
+            if (str === '')
+                str = tag_level + ":" + tag_id;
+            else
+                str += ',' + tag_level + ":" + tag_id;
+        });
+
+        return $.md5(str);
+    }
+
+    /**
+     * Removes the border highlights around tags in the modal so users can tell where a tag is
+     * going to get moved to.
+     */
     function clearTagHighlights() {
+
+        var prev_tag_order = $("#tag_order_hash").val();
+        var current_tag_order = getTagOrderHash();
+
         reordering_tags = false;
         $(".ODRTagHighlight").each(function() {
             $(this).removeClass('ODRTagHighlight');
-            SaveTagPosition( $(this) );
+
+            // Only save tag positions when the order has changed
+            if (prev_tag_order !== current_tag_order) {
+                prev_tag_order = current_tag_order;
+                $("#tag_order_hash").val(current_tag_order);
+
+                SaveTagPosition( $(this) );
+            }
         });
         $(".ODRNeighborTag").each(function() {
             $(this).removeClass('ODRNeighborTag');
@@ -243,21 +294,12 @@
 
 {# inverse of allow_multiple_levels == false and sort_by_name == true #}
 {% if allow_multiple_levels == true or sort_by_name == false %}
-    function ensureTagVisibility(element) {
-        var pageTop = $('#ODRTagForm').offset().top;
-        var pageBottom = pageTop + $('#ODRTagForm').height();
-        var elementTop = $(element).offset().top;
-        var elementBottom = elementTop + $(element).height();
-
-        if ( (elementTop > pageBottom) || (elementBottom < pageTop) ) {
-            $("#ODRTagForm").scrollTo(
-                $(element),      // target
-                250,             // duration
-                {margin: 'true'} // options...get scrollTo() to consider margin when scrolling
-            );
-        }
-    }
-
+    /**
+     * Moves a tag element around the tag modal based on which key the user pushed.
+     *
+     * @param {HTMLElement} tag_item
+     * @param {number} which
+     */
     function handleTagMovement(tag_item, which) {
         var parent_tag_group = $(tag_item).parent();
         var prev_tag = $(tag_item).prev();
@@ -349,6 +391,9 @@
     }
 {% endif %}
 
+    /**
+     * Locates and highlights tags in the modal that do not have unique names.
+     */
     function FindDuplicateTagNames() {
         $(".ODRInputError").not(".ODRAlwaysShow").hide();
         var has_duplicates = false;
@@ -379,8 +424,13 @@
             $(".ODRTagCreationMode").removeClass('pure-button-disabled');
     }
 
-    var save_tag_xhr = null;
     var SaveTagPropertyInterval = [];
+
+    /**
+     * Saves changes to a tag's name.
+     *
+     * @param {number} tag_id
+     */
     function SaveTagProperty(tag_id) {
         // Clear the save timeout for this specific tag
         clearTimeout(SaveTagPropertyInterval[tag_id]);
@@ -389,7 +439,7 @@
         var tag_name = $("#ODRTag_" + tag_id + "_name").val().trim();
         var old_tag_name = $("#ODRTag_" + tag_id + "_name").data('old-value');
 
-        // Silently ignore attempts to save the same value
+        // Silently ignore attempts to save unchanged values
         if ( old_tag_name === tag_name )
             return;
 
@@ -404,8 +454,7 @@
         url = url.substring(0, (url.length - 1));
         url += tag_id;
 
-        // alert(url);
-        // return;
+        // alert(url);  return;
 
         var post_data = $("#ODRTagForm").find("#ODRTag_" + tag_id + "_name").serialize();    // only want one tag
 
@@ -417,8 +466,18 @@
             success: function(data) {
                 notifySaved();
 
-                // Replace the previous "old-value" with the one that just got saved
-                $("#ODRTag_" + tag_id + "_name").data('old-value', tag_name);
+                // Always need to reload the datafield to ensure it's displaying the right name
+                {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
+                ReloadTagDatafield(data.d.datafield_id);
+
+                if ( data.d.reload_modal ) {
+                    // ...also reload the list of radio options
+                    loadTagEditDialog(data.d.datafield_id, tag_id);
+                }
+                else {
+                    // Replace the previous "old-value" with the one that just got saved
+                    $("#ODRTag_" + tag_id + "_name").data('old-value', tag_name);
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Revert back to the old value on an error
@@ -437,12 +496,15 @@
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-
-                save_datafield_xhr = null;
             }
         });
     }
 
+    /**
+     * Sends a list of tags in the modal to the server for validation purposes.
+     *
+     * @param {number} datafield_id
+     */
     function ValidateTags(datafield_id) {
         if ( $("#tag_list").val() === '' ) {
             alert('no tags given');
@@ -491,6 +553,11 @@
         });
     }
 
+    /**
+     * Creates a new tag.
+     *
+     * @param {number} datafield_id
+     */
     function AddTag(datafield_id) {
         var url = '{{ path('odr_create_tag', { 'datafield_id': 0 }) }}';
         // Load display template menu
@@ -506,12 +573,9 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                //
-                $(".ODRTopLevelTagGroup").append(data.d.html);
-
-                // Ensure the new tags respond to events
-                initTags();
-                FindDuplicateTagNames();
+                // Reload parts of the page so that the new radio option shows up
+                ReloadTagDatafield(data.d.datafield_id);
+                loadTagEditDialog(data.d.datafield_id, data.d.tag_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -533,9 +597,14 @@
         });
     }
 
+    /**
+     * Deletes a tag.
+     *
+     * @param {number} tag_id
+     */
     function DeleteTag(tag_id) {
         var delete_question = 'Are you sure you want to delete this tag?';
-        if ( $("#ODRTag_" + tag_id + "_name").parent().children(".ODRTagGroup").find('input').length > 0 )
+        if ( $("#ODRTag_" + tag_id + "_name").closest(".ODRTagItem").children(".ODRTagGroup").find('input').length > 0 )
             delete_question = 'Are you sure you want to delete this tag and its children?';
 
         if ( !confirm(delete_question) )
@@ -546,8 +615,7 @@
         url = url.substring(0,(url.length - 1));
         url += tag_id;
 
-        // alert(url);
-        // return;
+        // alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -555,8 +623,13 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                // TODO
-                window.location.reload();
+                // Remove the option from this modal
+                $("#ODRTag_" + tag_id + "_name").closest(".ODRTagItem").remove();
+                clearTagHighlights();
+                initTags();
+
+                // Also reload the datafield on the page so it no longer displays the deleted tag
+                ReloadTagDatafield(data.d.datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -578,8 +651,12 @@
         });
     }
 
+    /**
+     * Saves the order of tags in the modal.
+     *
+     * @param {HTMLElement} item
+     */
     function SaveTagPosition(item) {
-
         // Remove any pre-existing input elements added by this function
         $(".ODRTagPositionForm_input").remove();
 
@@ -617,24 +694,22 @@
         // Duplicate tag names shouldn't prevent this, but should be mentioned
         FindDuplicateTagNames();
 
-        // alert(url);
-        // return;
+        // alert(url);  return;
 
         var post_data = $("#ODRTagPositionForm").serialize();
-        // $("#ODRTagPositionForm").children('input').each(function() {
-        //     console.log( $(this).get(0) );
-        // });
-        // console.log('returning without saving...');
-        // return;
-
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
             success: function(data) {
-                if ( data.d.changes_made === true)
-                    notifySaved();
+                notifySaved();
+
+                // The controller may have made a lot of changes...just reload the datafield on the page
+                {% if sort_by_name %}
+                loadTagEditDialog(datafield_id);
+                {% endif %}
+                ReloadTagDatafield(datafield_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Forcibly reload on error
@@ -653,8 +728,6 @@
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-
-                save_datafield_xhr = null;
             }
         });
     }

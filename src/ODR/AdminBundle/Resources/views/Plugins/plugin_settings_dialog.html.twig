@@ -6,6 +6,12 @@
 
     var render_plugin_dialog_body = '<div id="ODRRenderPluginFormWrapper" class="ODRHidden"> </div>';
 
+    /**
+     * Configures the modal dialog to view/change the current datatype/datafield's render plugin.
+     *
+     * @param {number} datafield_id
+     * @param {number} datatype_id
+     */
     function openPluginSettingsDialog(datafield_id, datatype_id) {
         // open dialog
         modal_options = {
@@ -26,6 +32,12 @@
         loadPluginData(datafield_id, datatype_id);
     }
 
+    /**
+     * Loads the HTML for a list of render plugins that can be used by the datatype or datafield.
+     *
+     * @param {number} datafield_id
+     * @param {number} datatype_id
+     */
     function loadPluginData(datafield_id, datatype_id) {
 
         var url  = '{{ path('odr_render_plugin_dialog', {'datatype_id': 0, 'datafield_id': 0 } ) }}';
@@ -75,7 +87,10 @@
         });
     }
 
-
+    /**
+     * Submits any changes made to the render plugin form, and reloads parts of the page afterwards
+     * to reflect those changes.
+     */
     function submitRenderPluginForm() {
 
         var data = $('#ODRRenderPluginSettingsForm').serialize();
@@ -92,22 +107,35 @@
                 var datatype_id = data.d.datatype_id;
 
                 if (datafield_id != 0) {
-                    // This is a render plugin for a datatype...don't need to reload technically, but reloading indicates saving is done
+                    // A non-zero value means this was a render plugin for a datafield
+                    // Usually don't need to reload, but it indicates saving is finished
                     ReloadDatafield(datafield_id);
                 }
                 else {
                     // This is a render plugin for a datatype
                     var reload_datatype = data.d.reload_datatype;
                     if ( reload_datatype ) {
+                        // The render plugin added at least one field...reload the datatype so all
+                        //  of the added fields show up
                         ReloadChild(datatype_id);
                     }
                     else {
-                        var icons = {};
-                        if (data.d.render_plugin_id == 1)   // set to default render plugin
-                            icons = {"ODRRenderPlugin": 0};
-                        else
-                            icons = {"ODRRenderPlugin": data.d.render_plugin_name};    // highlight to notify a render plugin is being used, and copy name of plugin to title attribute
-                        setDatatypeIcons(datatype_id, icons);
+                        // Don't technically need to reload the page...but ensure the datatype
+                        //  properties are kept up to date
+                        datatype_properties[datatype_id].render_plugin_id = data.d.render_plugin_id;
+                        datatype_properties[datatype_id].render_plugin_name = data.d.render_plugin_name;
+                        datatype_properties[datatype_id].render_plugin_classname = data.d.render_plugin_classname;
+                        // console.log('datatype ' + datatype_id, datatype_properties[datatype_id]);
+
+                        // Do the same thing for the datafield properties
+                        var tmp = data.d.datafield_properties;
+                        tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                        $.each(tmp, function(df_id, df_props) {
+                            datafield_properties[df_id] = df_props;
+                        });
+                        // console.log('datafield properties', datafield_properties);
+
+                        RenderToolSet(datatype_id, 'datatype');
                     }
                 }
 

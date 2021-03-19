@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
+
 <div class="ODRFormWrap ODRResults pure-u-1">
 
     {% if is_top_level == 1 %}
@@ -15,7 +17,7 @@
 
             'is_top_level': is_top_level,
             'is_link': 0,
-            'display_type': 0
+            'display_type': ACCORDION_HEADER
         } %}
 
     {% else %}
@@ -33,7 +35,7 @@
 
             'is_top_level': is_top_level,
             'is_link': 0,
-            'display_type': 0
+            'display_type': ACCORDION_HEADER
         } %}
 
     {% endif %}

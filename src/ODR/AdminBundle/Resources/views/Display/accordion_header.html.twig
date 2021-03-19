@@ -1,6 +1,8 @@
 {% spaceless %}
 
-{% if is_top_level == 0 and display_type == 0 %}     {# accordion display_type...unlike edit page, don't want list display_type (3) here as well #}
+{% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
+
+{% if is_top_level == 0 and display_type == ACCORDION_HEADER %}     {# unlike edit page, don't want list display_type here #}
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <span class="ui-icon ui-icon-triangle-1-s"></span>
 

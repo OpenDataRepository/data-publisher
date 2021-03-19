@@ -21,7 +21,20 @@ var SaveTimeout = 2000;
         // Regex matches "0"
         // OR
         // an optional minus sign followed by a non-zero integer value
-        return this.optional(element) || /^0$|^-?[1-9][0-9]*$/.test(value);
+        var regex_result = /^0$|^-?[1-9][0-9]*$/.test(value);
+        if ( !regex_result ) {
+            // Either the element is empty, or the regular expression failed...don't parse field
+            //  contents
+            return this.optional(element) || regex_result;
+        }
+        else {
+            // Doctrine (and therefore Mysql) use 4 bytes to store values for IntegerValue fields,
+            //  so potential values that require more than 4 bytes to store are invalid...
+            var val = parseInt(value, 10);
+            var inside_range = (val >= -2147483648) && (val <= 2147483647);
+
+            return inside_range;
+        }
     }, "Please enter a valid Integer value.");
     jQuery.validator.addMethod('ODRDecimal', function(value, element) {
         // Regex matches zero, optionally followed by a decimal point then any sequence of digits
@@ -47,6 +60,10 @@ var SaveTimeout = 2000;
         },
     });
 
+    // Change default error message for a validation method: https://stackoverflow.com/a/2457053
+    jQuery.extend(jQuery.validator.messages, {
+        "maxlength": jQuery.validator.format("{0} characters max.")
+    });
 
     // NOTE - This is required...not sure exactly where, why, or how
     // from plugins.js line 158
@@ -90,23 +107,23 @@ var SaveTimeout = 2000;
 
 
 
-// Theme Design Scroll Handler
-function initDesignScrollHandler(offset) {
-    // OnScroll is deprecated due to thread performance.
-    // Will need to update to a CSS-based solution when
-    // web standards finally support them.
-    $(window).on('scroll', function(e){
-        var $el = $('#ThemeLeftColumn');
-        var $tda = $('#ThemeDesignArea');
-        var isPositionFixed = ($el.css('position') == 'fixed');
-        if ($(this).scrollTop() > offset && !isPositionFixed){
-            $el.css({'position': 'fixed', 'top': '0px'});
-            $tda.css({'margin-left': '320px'})
-        }
-        if ($(this).scrollTop() < offset && isPositionFixed)
-        {
-            $el.css({'position': 'static', 'top': '0px'});
-            $tda.css({'margin-left': '15px'})
-        }
-    });
-}
+// // Theme Design Scroll Handler
+// function initDesignScrollHandler(offset) {
+//     // OnScroll is deprecated due to thread performance.
+//     // Will need to update to a CSS-based solution when
+//     // web standards finally support them.
+//     $(window).on('scroll', function(e){
+//         var $el = $('#ThemeLeftColumn');
+//         var $tda = $('#ThemeDesignArea');
+//         var isPositionFixed = ($el.css('position') == 'fixed');
+//         if ($(this).scrollTop() > offset && !isPositionFixed){
+//             $el.css({'position': 'fixed', 'top': '0px'});
+//             $tda.css({'margin-left': '320px'})
+//         }
+//         if ($(this).scrollTop() < offset && isPositionFixed)
+//         {
+//             $el.css({'position': 'static', 'top': '0px'});
+//             $tda.css({'margin-left': '15px'})
+//         }
+//     });
+// }

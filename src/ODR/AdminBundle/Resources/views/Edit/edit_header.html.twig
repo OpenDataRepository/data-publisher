@@ -1,25 +1,25 @@
 {% spaceless %}
 
-{% set can_edit_record = 0 %}
-{% set can_delete_record = 0 %}
-{% set can_add_record = 0 %}
-{% set is_datatype_admin = 0 %}
+{% set can_edit_record = false %}
+{% set can_delete_record = false %}
+{% set can_add_record = false %}
+{% set can_change_public_status = false %}
 
 {% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
     {# Edit page for a datarecord can be accessed if user has permissions for a childtype, need to verify that user has permissions to edit the parent datatype #}
-    {% set can_edit_record = 1 %}
+    {% set can_edit_record = true %}
 {% endif %}
 {% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-    {% set can_delete_record = 1 %}
+    {% set can_delete_record = true %}
 {% endif %}
 {% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-    {% set can_add_record = 1 %}
+    {% set can_add_record = true %}
 {% endif %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-    {% set is_datatype_admin = 1 %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_public' ] is defined %}
+    {% set can_change_public_status = true %}
 {% endif %}
 
-{% if can_edit_record == 1 %}
+{% if can_edit_record %}
 <div class="ODRCreatedBy pure-u-1 PadRight">
     <strong>Created by: </strong>{{ datarecord.createdBy.getuserstring }} <strong>on</strong> {{ datarecord.created|date('Y-m-d h:m:s') }} (UTC-5)
     <strong>Last Modified by: </strong>{{ datarecord.updatedBy.getuserstring }} <strong>on</strong> {{ datarecord.updated|date('Y-m-d h:m:s') }} (UTC-5)
@@ -29,7 +29,16 @@
 <div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
     {% if search_key != '' %}
         <div class="pure-u-1" style="text-align: right">
-            {% include 'ODRAdminBundle:Default:search_header.html.twig' with { 'search_key': search_key, 'page_length': page_length, 'offset': offset, 'prev_datarecord': prev_datarecord, 'next_datarecord': next_datarecord, 'redirect_path': redirect_path, 'search_result_current': search_result_current, 'search_result_count': search_result_count } %}
+            {% include 'ODRAdminBundle:Default:search_header.html.twig' with {
+                'search_key': search_key,
+                'page_length': page_length,
+                'offset': offset,
+                'prev_datarecord': prev_datarecord,
+                'next_datarecord': next_datarecord,
+                'redirect_path': redirect_path,
+                'search_result_current': search_result_current,
+                'search_result_count': search_result_count
+            } %}
         </div>
     {% endif %}
 
@@ -38,7 +47,7 @@
         {# "datarecord.uniqueid" is required because the datarecord variable is hydrated...if it was an array, it would be "datarecord.unique_id" instead #}
         <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export Record</button>
 
-        {% if is_datatype_admin == 1 %}
+        {% if can_change_public_status %}
             {% if datarecord.ispublic %}
                 <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make Record Non-Public</button>
             {% else %}
@@ -46,15 +55,17 @@
             {% endif %}
         {% endif %}
 
-        {% if can_delete_record == 1 %}
+        {% if can_delete_record %}
             <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete Record</button>
         {% endif %}
 
-        {% if can_add_record == 1 and is_top_level == 1 and datatype.isMasterType == 0 %}
+        {% if can_add_record and is_top_level == 1 and datatype.isMasterType == 0 %}
             <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New Record</button>
         {% endif %}
 
         <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
+
+        <button type="button" class="pure-button pure-button-primary" onclick="trackDatarecordChanges( {{ datarecord.id }} );">View Recent Changes</button>
     </div>
 </div>
 
@@ -67,7 +78,7 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
     });
 
-{% if is_datatype_admin == 1 %}
+{% if can_change_public_status %}
     function publicRecord(datarecord_id) {
         var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
@@ -84,6 +95,8 @@
                     $("#ODRPublicRecord").html('Make Record Public');
                 else
                     $("#ODRPublicRecord").html('Make Record Non-Public');
+
+                $.jGrowl('SAVED');
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -117,7 +130,7 @@
         document.location = url;
     }
 
-{% if can_delete_record == 1 %}
+{% if can_delete_record %}
     function deleteRecord(datarecord_id) {
         if ( confirm("Are you sure you want to delete this record?") ) {
             // This is only available to be called from a top-level datarecord, so the value of
@@ -159,7 +172,7 @@
         }
     }
 {% endif %}
-{% if can_add_record == 1 and is_top_level == 1 and datatype.isMasterType == 0 %}
+{% if can_add_record and is_top_level == 1 and datatype.isMasterType == 0 %}
     function addDataRecord(datatype_id) {
         var url = '{{ path('odr_edit_fake_record', { 'datatype_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
@@ -169,6 +182,13 @@
     }
 {% endif %}
 
+    function trackDatarecordChanges(datarecord_id) {
+        var url = "{{ path('odr_track_datarecord_changes', {'datarecord_id': 0}) }}";
+        url = url.substring(0, (url.length - 1));
+        url += datarecord_id;
+
+        UpdateURL(url);
+    }
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

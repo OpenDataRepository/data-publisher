@@ -6,6 +6,9 @@
 
     var markdown_help_body = '<div id="ODRMarkdownHelpDialogWrapper" class="ODRHidden"> </div>';
 
+    /**
+     * Opens ODR's modal to display a couple pages of Markdown syntax help.
+     */
     function openMarkdownHelpDialog() {
         // open dialog
         modal_options = {
@@ -29,6 +32,9 @@
         });
     }
 
+    /**
+     * Loads the actual Markdown syntax dialog contents.
+     */
     function loadMarkdownHelpDialog() {
 
         var url  = '{{ path('odr_markdown_help_dialog') }}';
@@ -73,6 +79,9 @@
         });
     }
 
+    /**
+     * Applies the markdown parser to the relevant parts of the help dialog.
+     */
     function setupMarkdownTabs() {
         //
         var markdown_header_buttons = $("#ODRMarkdown_tabheader > .ODRTabButton");

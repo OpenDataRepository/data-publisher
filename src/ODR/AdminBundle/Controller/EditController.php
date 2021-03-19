@@ -43,6 +43,8 @@ use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Events
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
 use ODR\AdminBundle\Form\DatetimeValueForm;
@@ -63,6 +65,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -70,6 +73,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
@@ -93,6 +97,8 @@ class EditController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        // NOTE - this seems to only be used for directly creating a new metadata record
 
         try {
             // Get Entity Manager and setup repo
@@ -160,7 +166,6 @@ class EditController extends ODRCustomController
 
             $em->persist($datarecord);
             $em->flush();
-
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -258,7 +263,7 @@ class EditController extends ODRCustomController
             if ( in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
-            // Create a new top-level datarecord...
+            // Create a new datarecord...
             $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
 
             // Set parent/grandparent properties so this becomes a child datarecord
@@ -271,7 +276,7 @@ class EditController extends ODRCustomController
             $em->persist($datarecord);
             $em->flush();
 
-            // Get record_ajax.html.twig to re-render the datarecord
+            // Get edit_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'new_datarecord_id' => $datarecord->getId(),
                 'datatype_id' => $datatype_id,
@@ -341,6 +346,8 @@ class EditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
+            /** @var TrackedJobService $tj_service */
+            $tj_service = $this->container->get('odr.tracked_job_service');
 
 
             // Grab the necessary entities
@@ -368,6 +375,10 @@ class EditController extends ODRCustomController
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Also prevent a datarecord from being deleted if certain jobs are in progress
+            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
+            $tj_service->checkActiveJobs($datarecord, $restricted_jobs, "Unable to delete this datarecord");
 
 
             // ----------------------------------------
@@ -441,6 +452,7 @@ class EditController extends ODRCustomController
             $conn->beginTransaction();
 
             // TODO - delete datarecordfield entries as well?
+            // TODO - delete radio/tagSelection entries as well?
 
             // ...delete all linked_datatree entries that reference these datarecords
             $query = $em->createQuery(
@@ -559,7 +571,7 @@ class EditController extends ODRCustomController
                 // This is either a child datarecord, or a request to delete a datarecord from a
                 //  parent datarecord that links to it
 
-                // Get record_ajax.html.twig to re-render the datarecord
+                // Get edit_ajax.html.twig to re-render the datarecord
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
                     'parent_id' => $parent_datarecord->getId(),
@@ -709,14 +721,34 @@ class EditController extends ODRCustomController
 
                     /** @var GraphPluginInterface $plugin */
                     $plugin->onFileChange($datafield, $file_id);
+
+                    // TODO - refactor to use the dispatched event instead?
                 }
             }
 
 
+            // ----------------------------------------
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new FileDeletedEvent($datafield, $datarecord, $user);
+                $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // TODO - do something here?
+            }
+
+
             // -----------------------------------
-            // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
+            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
+            //  the upload button again since this datafield's only file just got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
+
         }
         catch (\Exception $e) {
             $source = 0x08e2fe10;
@@ -791,7 +823,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // TODO - should a new permission be added to control this...potentially one related to changing public status of datarecords?
+            // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -955,7 +987,7 @@ class EditController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // TODO - should a new permission be added to control this...potentially one related to changing public status of datarecords?
+            // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1124,7 +1156,8 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
-            // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
+            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show the
+            //  the upload button again since this datafield's only image got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
 
@@ -1566,8 +1599,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            // TODO - create a new permission specifically for changing public status of datarecords?
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            if ( !$pm_service->canChangePublicStatus($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1792,6 +1824,7 @@ class EditController extends ODRCustomController
     public function updateAction($datarecord_id, $datafield_id, Request $request)
     {
         // TODO - This should be changed to a transaction....
+
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1814,6 +1847,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
 
@@ -1840,6 +1875,11 @@ class EditController extends ODRCustomController
 
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
             // --------------------
 
 
@@ -1908,8 +1948,9 @@ class EditController extends ODRCustomController
 
                         // If the datafield is marked as unique...
                         if ( $datafield->getIsUnique() ) {
-                            // ...determine whether the new value is a duplicate of a value that already exists
-                            if ( self::valueAlreadyExists($datafield, $new_value) )
+                            // ...determine whether the new value is a duplicate of a value that
+                            //  already exists, ignoring the current datarecord
+                            if ( $search_service->valueAlreadyExists($datafield, $new_value, $datarecord) )
                                 throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
                         }
 
@@ -2029,34 +2070,6 @@ class EditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Returns whether the given value already exists in the given datafield.
-     *
-     * Changes made here should also be made in FakeEditController::valueAlreadyExists()
-     *
-     * @param DataFields $datafield
-     * @param string $value
-     *
-     * @return bool
-     */
-    private function valueAlreadyExists($datafield, $value)
-    {
-        // Want to perform an exact search for this value
-        // This is allowed because currently only text and number fields are allowed to be unique
-        $value = '"'.$value.'"';
-
-        /** @var SearchService $search_service */
-        $search_service = $this->container->get('odr.search_service');
-        $search_results = $search_service->searchTextOrNumberDatafield($datafield, $value);
-
-        // If the search returned anything, then the value already exists
-        if ( count($search_results['records']) > 0 )
-            return true;
-        else
-            return false;
     }
 
 
@@ -2351,6 +2364,7 @@ class EditController extends ODRCustomController
                 $file_list[$num] = $file;
             }
 
+
             // Render and return the HTML for the list of files
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -2359,8 +2373,9 @@ class EditController extends ODRCustomController
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-
                         'files' => $file_list,
+
+                        'datarecord_is_fake' => false,    // "Fake" records can't reach this, because they don't have a datarecord_id
                     )
                 )
             );

@@ -1,8 +1,13 @@
 {% spaceless %}
 
     <div class="ODRFileDatafield_header pure-u-1">
-        <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
-        <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+        {% if not datarecord_is_fake %}
+            <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+            <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+        {% else %}
+            <i class="fa fa-download fa-lg ODRDownloadAllFiles"></i>&nbsp;
+            <span>{{ datafield.dataFieldMeta.fieldName }}</span>
+        {% endif %}
     </div>
 
     {% for file in files %}
@@ -28,7 +33,7 @@
                         <span>Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}</span>
                     </div>
                     <div>
-                        <i class="fa fa-trash-o ODRDeleteFile Pointer" rel="{{ file.id }}"></i>&nbsp;
+                        <i class="fa fa-trash-o ODRDeleteFile Pointer" onclick="DeleteFile({{ file.id }}{% if file_delete_callback is defined %}, {{ file_delete_callback }}{% endif %});"></i>
                         <span>Delete File</span>
                     </div>
                     <div>
@@ -56,7 +61,11 @@
     {% else %}
     <div class="ODRFileDatafield_empty pure-u-1">
         <span class="ODRFileSpacer_empty">&nbsp;</span>
-        <a class="Cursor">No Files Uploaded</a>
+        {% if not datarecord_is_fake %}
+            <a class="Cursor">No Files Uploaded</a>
+        {% else %}
+            <a class="Info">Record must be saved before files can be uploaded</a>
+        {% endif %}
     </div>
     {% endfor %}
 

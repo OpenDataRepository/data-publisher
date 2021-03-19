@@ -88,17 +88,6 @@ odr_undelete_user:
     requirements:
         user_id:  \d+
 
-odr_session_pagelength:
-    path:  /session/pagelength/{length}
-    defaults: { _controller: ODRAdminBundle:ODRUser:pagelength }
-    requirements:
-        length: 10|25|50|100
-
-odr_session_toggle_show_editable:
-    path:  /session/toggle/show_editable
-    defaults: { _controller: ODRAdminBundle:ODRUser:toggleshoweditable }
-    methods: [ POST ]
-
 odr_view_effective_permissions:
     path:  /admin/user/view_as/{user_id}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:ODRUser:vieweffectivepermissions }
@@ -113,14 +102,6 @@ odr_view_permissions_result:
         user_id:  \d+
         theme_id:  \d+
 
-
-odr_apply_theme:
-    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
-    defaults: { _controller: ODRAdminBundle:ODRUser:applytheme }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-        persist: 0|1
 #-----------------------------------------
 
 #-----------------------------------------
@@ -197,7 +178,7 @@ odr_save_group_datatype_permission:
         group_id:  \d+
         datatype_id:  \d+
         value: '0|1'
-        permission:  'dt_view|dr_view|dr_add|dr_delete|dt_admin|'
+        permission:  'dt_view|dr_view|dr_add|dr_delete|dr_public|dt_admin|'
 
 odr_save_group_datafield_permission:
     path:  /admin/group/savepermissions/datafield/{group_id}/{datafield_id}/{value}
@@ -317,15 +298,44 @@ odr_add_blank_metadata_datatype:
     requirements:
         datatype_id: \d+
 
+odr_list_copy_databases:
+    path:  /admin/type/copy/list
+    defaults: { _controller: ODRAdminBundle:Datatype:listcopydatabases }
+
+odr_copy_normal_database:
+    path:  /admin/type/copy/start
+    defaults: { _controller: ODRAdminBundle:Datatype:copynormaldatabase }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------
 # Theme Controller
+odr_get_available_themes:
+    path:  /view/getthemes/{datatype_id}/{page_type}
+    defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes }
+    requirements:
+        datatype_id:  \d+
+        page_type:  'display|edit|search_results|table'
+
 odr_save_theme_properties:
     path:  /view/theme_properties/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemeproperties }
     requirements:
         theme_id: \d+
+
+odr_design_hidden_theme_element:
+    path:  /design/hiddenthemeelement/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:hiddenthemeelement }
+    requirements:
+        theme_element_id:  \d+
+
+odr_design_hidden_theme_datafield:
+    path:  /design/hiddenthemedatafield/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:hiddenthemedatafield }
+    requirements:
+        theme_element_id:  \d+
+        datafield_id: \d+
 
 odr_toggle_theme_public:
     path:  /design/togglepublic/{theme_id}
@@ -345,14 +355,6 @@ odr_delete_custom_theme:
     requirements:
         theme_id:  \d+
 
-# This route locates the default 'search_results' theme for the datatype, and then redirects to the
-#  'odr_modify_theme' route...if the default doesn't exist, it is created
-odr_design_derivative_themes:
-    path:  /design/searchtemplate/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Theme:design }
-    requirements:
-        datatype_id:  \d+
-
 odr_modify_theme:
     path:  /design/modify_view/{datatype_id}/{theme_id}/{search_key}
     defaults: { _controller: ODRAdminBundle:Theme:modifytheme, search_key: '' }
@@ -369,24 +371,16 @@ odr_clone_theme:
         new_theme_type: '[a-z\-\_]*'
 
 odr_theme_reload_theme_element:
-    path: /design/theme/themeelementreload/{source_datatype_id}/{theme_element_id}
+    path: /design/theme/themeelementreload/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
     requirements:
-        source_datatype_id: \d+
         theme_element_id: \d+
 
-odr_design_add_theme_element_by_datatype:
-    path:  /design/themeelement2/add/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Theme:addthemeelementbydatatype }
-    requirements:
-        datatype_id:  \d+
-
 odr_design_add_theme_element:
-    path:  /design/themeelement/add/{theme_id}/{full_html}
-    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement, full_html: 0 }
+    path:  /design/themeelement/add/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement }
     requirements:
         theme_id:  \d+
-        full_html: 0|1
 
 odr_design_delete_theme_element:
     path:  /design/themeelement/delete/{theme_element_id}
@@ -469,10 +463,9 @@ odr_design_metadata_theme:
 
 
 odr_design_reload_theme_element:
-    path: /design/displaytemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
+    path: /design/displaytemplate/themeelementreload/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadthemeelement }
     requirements:
-        source_datatype_id: \d+
         theme_element_id: \d+
 
 odr_design_reload_datafield:
@@ -504,6 +497,18 @@ odr_design_get_datafield_properties:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldproperties }
     requirements:
         datafield_id:  \d+
+
+odr_design_get_multi_datafield_properties:
+    path:  /design/displaytemplate/datafieldproperties/get/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getmultiplefieldproperties }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_save_multi_datafield_properties:
+    path:  /design/displaytemplate/datafieldproperties/save/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savemultiplefieldproperties }
+    requirements:
+        datatype_id:  \d+
 
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
@@ -547,58 +552,6 @@ odr_design_copy_datafield:
     requirements:
         theme_element_id:  \d+
         datafield_id:  \d+
-
-odr_design_get_radio_options:
-    path:  /design/displaytemplate/getradiooptions/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:getradiooptions }
-    requirements:
-        datafield_id: \d+
-
-odr_design_save_radio_option_name:
-    path:  /design/displaytemplate/saveradiooptionname/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionname }
-    methods: [ POST ]
-    requirements:
-        radio_option_id: \d+
-
-odr_design_save_radio_option_order:
-    path:  /design/displaytemplate/saveradiooptionorder/{datafield_id}/{alphabetical_sort}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionorder }
-    methods: [ POST ]
-    requirements:
-        datafield_id: \d+
-        alphabetical_sort: 0|1
-
-odr_design_save_radio_option_list:
-    path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:saveradiooptionlist }
-    methods: [ POST ]
-    requirements:
-        datafield_id:  \d+
-
-odr_design_add_radio_option:
-    path:  /design/displaytemplate/addradiooption/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooption }
-    requirements:
-        datafield_id:  \d+
-
-odr_design_add_radio_option_from_list:
-    path:  /design/displaytemplate/addradiooptionfromlist/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooptionfromlist }
-    requirements:
-        datafield_id:  \d+
-
-odr_design_default_radio_option:
-    path:  /design/displaytemplate/defaultradiooption/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:defaultradiooption }
-    requirements:
-        radio_option_id:  \d+
-
-odr_design_delete_radio_option:
-    path:  /design/displaytemplate/deleteradiooption/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
-    requirements:
-        radio_option_id:  \d+
 
 odr_design_public_datatype:
     path:  /design/displaytemplate/publicdatatype/{datatype_id}
@@ -774,11 +727,61 @@ odr_save_fake_record:
     methods: [ POST ]
 
 odr_check_fake_record_field_uniqueness:
-    path:  /edit/check_fake_record/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:FakeEdit:checkfakerecordfieldunique }
+    path:  /edit/check_fake_record/{datafield_id}/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:FakeEdit:checkfakerecordfieldunique, datarecord_id: '' }
     methods: [ POST ]
     requirements:
         datafield_id: \d+
+        datarecord_id: \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Radio Options Controller
+odr_design_get_radio_options:
+    path:  /design/displaytemplate/getradiooptions/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:getradiooptionlist }
+    requirements:
+        datafield_id: \d+
+
+odr_design_add_radio_option:
+    path:  /design/displaytemplate/addradiooption/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:addradiooption }
+    requirements:
+        datafield_id:  \d+
+
+odr_design_delete_radio_option:
+    path:  /design/displaytemplate/deleteradiooption/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:deleteradiooption }
+    requirements:
+        radio_option_id:  \d+
+
+odr_design_save_radio_option_name:
+    path:  /design/displaytemplate/saveradiooptionname/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:saveradiooptionname }
+    methods: [ POST ]
+    requirements:
+        radio_option_id: \d+
+
+odr_design_default_radio_option:
+    path:  /design/displaytemplate/defaultradiooption/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:defaultradiooption }
+    requirements:
+        radio_option_id:  \d+
+
+odr_design_save_radio_option_order:
+    path:  /design/displaytemplate/saveradiooptionorder/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:saveradiooptionorder }
+    methods: [ POST ]
+    requirements:
+        datafield_id: \d+
+
+odr_design_save_radio_option_list:
+    path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:saveradiooptionlist }
+    methods: [ POST ]
+    requirements:
+        datafield_id:  \d+
 
 #-----------------------------------------
 
@@ -841,12 +844,18 @@ odr_tag_selection:
 
 #-----------------------------------------
 # Link Controller
-odr_design_get_link_templates:
-    path:  /design/displaytemplate/getlinktemplates/{datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Link:getlinkabletemplates }
+odr_design_get_clone_link_templates:
+    path:  /design/displaytemplate/getclonelinktemplates/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:getclonelinktemplates }
     requirements:
         datatype_id:  \d+
         theme_element_id:  \d+
+
+odr_design_clone_and_link_datatype:
+    path:  /design/clone_and_link
+    defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
+    methods: [ POST ]
+
 
 odr_design_get_link_datatypes:
     path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
@@ -869,10 +878,6 @@ odr_design_quicklink_datatype:
         remote_datatype_id:  \d+
         theme_element_id:  \d+
 
-odr_design_clone_and_link_datatype:
-    path:  /design/clone_and_link
-    defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
-    methods: [ POST ]
 
 odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_theme_id}/{search_key}
@@ -941,13 +946,6 @@ odr_file_download:
     requirements:
         file_id:  \d+
 
-odr_get_available_themes:
-    path:  /view/getthemes/{datatype_id}/{page_type}
-    defaults: { _controller: ODRAdminBundle:Display:getavailablethemes }
-    requirements:
-        datatype_id:  \d+
-        page_type:  'display|edit|search_results|table'
-
 # deprecated?
 #odr_cancel_file_decrypt:
 #    path:  /view/downloadfile_cancel/{file_id}
@@ -962,12 +960,11 @@ odr_image_download:
         image_id:  \d+
 
 odr_get_file_list:
-    path:  /view/file_list/{grandparent_datarecord_id}/{datarecord_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Display:listallfiles, datarecord_id: 0, datafield_id: 0 }
+    path:  /view/file_list/{grandparent_datarecord_id}/{group_by_datafield}
+    defaults: { _controller: ODRAdminBundle:Display:listallfiles, group_by_datafield: 0 }
     requirements:
         grandparent_datarecord_id: \d+
-        datarecord_id: \d+
-        datafield_id: \d+
+        group_by_datafield: 0|1
 
 odr_start_zip_archive_download:
     path:  /view/start_archive_build/{grandparent_datarecord_id}
@@ -1468,6 +1465,37 @@ odr_update_datatype_names:
     path:  /admin/update_datatype_names
     defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }
 
+odr_compare_datatypes:
+    path:  /admin/type/compare/{left_datatype_id}/{right_datatype_id}/{filter}
+    defaults: { _controller:  ODRAdminBundle:Validation:comparedatatypes, filter: 1 }
+    requirements:
+        left_datatype_id: \d+
+        right_datatype_id: \d+
+        filter: 0|1
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Session Controller
+odr_session_pagelength:
+    path:  /session/pagelength/{length}
+    defaults: { _controller: ODRAdminBundle:Session:pagelength }
+    requirements:
+        length: 10|25|50|100
+
+odr_session_toggle_show_editable:
+    path:  /session/toggle/show_editable
+    defaults: { _controller: ODRAdminBundle:Session:toggleshoweditable }
+    methods: [ POST ]
+
+odr_apply_theme:
+    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
+    defaults: { _controller: ODRAdminBundle:Session:applytheme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+        persist: 0|1
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1818,3 +1846,66 @@ odr_api_user_check:
 #    requirements:
 #        version: 'v\d+'
 #        _format: '|json|xml'
+
+
+#-----------------------------------------
+# Migration Controller
+odr_migrate_1.0:
+    path:  /admin/migrate/1.0
+    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_0_ }
+
+#odr_migrate_1.1:
+#    path:  /admin/migrate/1.1
+#    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Tracking Controller
+#odr_track_datafield_changes:
+#    path:  /admin/track/datafield/{datafield_id}
+#    defaults: { _controller: ODRAdminBundle:Tracking:trackdatafieldchanges }
+#    requirements:
+#        datafield_id: \d+
+
+odr_track_datarecord_changes:
+    path: /admin/track/datarecord/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Tracking:trackdatarecordchanges }
+    requirements:
+        datarecord_id: \d+
+
+odr_track_search_result_changes:
+    path: /admin/track/search/{search_key}
+    defaults: { _controller: ODRAdminBundle:Tracking:tracksearchresultchanges }
+    requirements:
+        search_key: '[^\/]*'
+
+odr_track_datatype_changes:
+    path:  /admin/track/datatype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Tracking:trackdatatypechanges }
+    requirements:
+        datatype_id: \d+
+
+odr_track_user_changes:
+    path: /admin/track/user/{target_user_id}
+    defaults: { _controller: ODRAdminBundle:Tracking:trackuserchanges }
+    requirements:
+        target_user_id: \d+
+
+
+odr_track_changes:
+    path: /admin/track/changes
+    defaults: { _controller: ODRAdminBundle:Tracking:trackchanges }
+    methods: [POST]
+
+
+odr_track_get_datafield_selector:
+    path: /admin/track/datafield_list/{datatype_id_restriction}
+    defaults: { _controller: ODRAdminBundle:Tracking:getdatafieldselector, datatype_id_restriction: '' }
+    requirements:
+        datatype_id_restriction: \d+
+
+odr_track_get_user_selector:
+    path: /admin/track/user_list
+    defaults: { _controller: ODRAdminBundle:Tracking:getuserselector }
+#-----------------------------------------

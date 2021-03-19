@@ -68,8 +68,8 @@ class PermissionsManagementService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param SearchAPIService $searchAPIService
+     * @param DatatypeInfoService $datatype_info_service
+     * @param SearchAPIService $search_api_service
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
@@ -452,9 +452,47 @@ class PermissionsManagementService
     }
 
 
-    // TODO - implement a permission specifically for linking datarecords?  or modify linking datarecords to use the "can_add/delete_datarecord" permissions?
+    /**
+     * Returns whether the given user can change the public status of the given Datarecord.  This
+     * doesn't cover the ability to change public status of files/images/radio options/tags...those
+     * are still controlled by the can_edit_datafield permission.
+     * If the user has this permission, it's implied they can edit the Datarecord.
+     *
+     * Users with this permission are able to...
+     *  - change public status of this datarecord
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     *
+     * @return bool
+     */
+    public function canChangePublicStatus($user, $datarecord)
+    {
+        // If the user isn't logged in, they can't change public status
+        if ($user === "anon.")
+            return false;
 
-    // TODO - implement some kind of "can_change_public_status" permission?  currently need to have the "is_datatype_admin" to change public status...
+        // Otherwise, the user is logged in...ensure they can edit the datarecord first
+        if ( !self::canEditDatarecord($user, $datarecord) )
+            return false;
+
+        $datatype = $datarecord->getDataType();
+        $datatype_permissions = self::getDatatypePermissions($user);
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_public'])
+        ) {
+            // User has the can_change_public_status permission
+            return true;
+        }
+        else {
+            // User does not have the can_change_public_status permission
+            return false;
+        }
+    }
+
+
+    // TODO - implement a permission specifically for linking datarecords?
 
     // TODO - implement the "can_design_datatype" permission?  it's currently controlled by the "is_datatype_admin" permission...
 
@@ -466,7 +504,8 @@ class PermissionsManagementService
      * Users with this permission are able to...
      *  - run CSV Imports for this datatype
      *  - modify the "master" theme for a datatype
-     *  - change public status of datarecords for this datatype
+     *  - change public status of datafields for this datatype
+     *  - change public status of the datatype itself
      *  - create/modify/delete user groups for this datatype
      *
      * @param ODRUser $user
@@ -583,11 +622,12 @@ class PermissionsManagementService
         }
     }
 
+    // TODO - should there be a permission to be able to change public status of files/images?  (would technically work for radio options/tags too...)
+
+    // TODO - does it make sense for "can_view_datarecord" to control viewing non-public files/images, or does that need its own permission?
 
     /**
      * Returns whether the given user can view or download the given File.
-     *
-     * TODO - this really should have its own permission...
      *
      * @param ODRUser $user
      * @param File $file
@@ -631,8 +671,6 @@ class PermissionsManagementService
 
     /**
      * Returns whether the given user can view or download the given Image.
-     *
-     * TODO - this really should have its own permission...
      *
      * @param ODRUser $user
      * @param Image $image
@@ -704,100 +742,180 @@ class PermissionsManagementService
 
             // ----------------------------------------
             // If this point is reached, the user's permissions arrays need to be rebuilt
-            // Determine which groups the user belongs to
-            $query = $this->em->createQuery(
-               'SELECT g.id AS group_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
-                WHERE ug.user = :user_id
-                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user_id) );
-            $results = $query->getArrayResult();
-
-            $user_groups = array();
-            foreach ($results as $result)
-                $user_groups[] = $result['group_id'];
-
-
-            // ----------------------------------------
-            // Attempt to load the cached permissions for each group the user belongs to
-            $group_permissions = array();
-            foreach ($user_groups as $num => $group_id) {
-                // Attempt to load the permissions for this group
-                $permissions = $this->cache_service->get('group_'.$group_id.'_permissions');
-                if ($permissions == false) {
-                    $permissions = self::rebuildGroupPermissionsArray($group_id);
-                    $this->cache_service->set('group_'.$group_id.'_permissions', $permissions);
-                }
-
-                $group_permissions[$group_id] = $permissions;
-            }
-
-//exit( '<pre>'.print_r($group_permissions, true).'</pre>' );
-
-            // ----------------------------------------
-            // The permissions need to be combined into a single array per datatype or datafield
             $user_permissions = array('datatypes' => array(), 'datafields' => array());
 
-            foreach ($group_permissions as $group_id => $group_permission) {
+            if ( $user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // Super admins have permissions for all undeleted datatypes and datafields by default
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, df.id AS df_id
+                    FROM ODRAdminBundle:DataType dt
+                    LEFT JOIN ODRAdminBundle:DataFields df WITH df.dataType = dt
+                    WHERE (df.id IS NULL OR df.deletedAt IS NULL)
+                    AND dt.deletedAt IS NULL'
+                );
+                $results = $query->getArrayResult();
 
-                // Store permissions for datatypes...
-                foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
-                    foreach ($dt_permissions as $permission => $num)
-                        $user_permissions['datatypes'][$dt_id][$permission] = 1;
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $df_id = $result['df_id'];
 
-                    // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
-                    // TODO - shouldn't ODRGroupController ensure this check is unnecessary?
-                    if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
+                    if ( !isset($user_permissions['datatypes'][$dt_id]) ) {
+                        $user_permissions['datatypes'][$dt_id]['dt_view'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dr_public'] = 1;
+//                        $user_permissions['datatypes'][$dt_id]['dt_design'] = 1;
+                        $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
                         $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    }
+
+                    // $df_id will be null when a datatype has no datafields
+                    if ( !is_null($df_id) ) {
+                        $user_permissions['datafields'][$df_id]['view'] = 1;
+                        $user_permissions['datafields'][$df_id]['edit'] = 1;
+                    }
+                }
+            }
+            else {
+                // User is not a super-admin...have to load all groups the user belongs to, and
+                //  compute the union of permissions
+
+                // To make things easier on Doctrine's hydrator, load the GroupDatatypePermission
+                //  entries separately from the GroupDatafieldPermission entries
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, gdtp AS dt_permissions
+                    FROM ODRAdminBundle:UserGroup ug
+                    JOIN ODRAdminBundle:Group g WITH ug.group = g
+                    LEFT JOIN ODRAdminBundle:GroupDatatypePermissions gdtp WITH gdtp.group = g
+                    LEFT JOIN ODRAdminBundle:DataType dt WITH gdtp.dataType = dt
+                    WHERE ug.user = :user_id
+                    AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
+                    AND gdtp.deletedAt IS NULL AND dt.deletedAt IS NULL'
+                )->setParameters( array('user_id' => $user_id) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $gdtp = $result['dt_permissions'];
+
+                    // Don't store permissions for deleted datatypes
+                    if ( is_null($dt_id) )
+                        continue;
+
+                    if ( $gdtp['can_view_datatype'] )
+                        $user_permissions['datatypes'][$dt_id]['dt_view'] = 1;
+                    if ( $gdtp['can_view_datarecord'] )
+                        $user_permissions['datatypes'][$dt_id]['dr_view'] = 1;
+                    if ( $gdtp['can_add_datarecord'] )
+                        $user_permissions['datatypes'][$dt_id]['dr_add'] = 1;
+                    if ( $gdtp['can_delete_datarecord'] )
+                        $user_permissions['datatypes'][$dt_id]['dr_delete'] = 1;
+                    if ( $gdtp['can_change_public_status'] )
+                        $user_permissions['datatypes'][$dt_id]['dr_public'] = 1;
+//                if ( $gdtp['can_design_datatype'] )
+//                    $user_permissions['datatypes'][$dt_id]['dt_design'] = 1;
+                    if ( $gdtp['is_datatype_admin'] )
+                        $user_permissions['datatypes'][$dt_id]['dt_admin'] = 1;
+
+                    // Additionally, if the user has these permissions...
+                    if ( $gdtp['is_datatype_admin'] || $gdtp['can_change_public_status'] ) {
+                        // ...then they're always able to view the record's edit page, even if no datafields exist
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    }
                 }
 
-                // Store permissions for datafields...
-                foreach ($group_permission['datafields'] as $dt_id => $datafields) {
-                    foreach ($datafields as $df_id => $df_permissions) {
-                        if ( isset($df_permissions['view']) )
-                            $user_permissions['datafields'][$df_id]['view'] = 1;
 
-                        if ( isset($df_permissions['edit']) ) {
-                            $user_permissions['datafields'][$df_id]['edit'] = 1;
-                            $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                // Ensure that datarecord_restrictions get stored
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, gm.datarecord_restriction
+                    FROM ODRAdminBundle:UserGroup ug
+                    JOIN ODRAdminBundle:Group g WITH ug.group = g
+                    LEFT JOIN ODRAdminBundle:GroupMeta gm WITH gm.group = g
+                    LEFT JOIN ODRAdminBundle:DataType dt WITH g.dataType = dt
+                    WHERE ug.user = :user_id AND gm.datarecord_restriction IS NOT NULL
+                    AND ug.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
+                    AND dt.deletedAt IS NULL'
+                )->setParameters( array('user_id' => $user_id) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $restriction = $result['datarecord_restriction'];
+
+                    // Don't store permissions for deleted datatypes
+                    if ( is_null($dt_id) )
+                        continue;
+
+                    $user_permissions['datatypes'][$dt_id]['datarecord_restriction'] = $restriction;
+                }
+
+
+                // To make things easier on Doctrine's hydrator, load the GroupDatafieldPermission
+                //  entries separately from the GroupDatatypePermission entries
+                $query = $this->em->createQuery(
+                   'SELECT dt.id AS dt_id, df.id AS df_id, gdfp AS df_permissions
+                    FROM ODRAdminBundle:UserGroup ug
+                    JOIN ODRAdminBundle:Group g WITH ug.group = g
+                    LEFT JOIN ODRAdminBundle:GroupDatafieldPermissions gdfp WITH gdfp.group = g
+                    LEFT JOIN ODRAdminBundle:DataFields df WITH gdfp.dataField = df
+                    LEFT JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
+                    WHERE ug.user = :user_id
+                    AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
+                    AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+                )->setParameters( array('user_id' => $user_id) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $df_id = $result['df_id'];
+                    $dt_id = $result['dt_id'];
+                    $gdfp = $result['df_permissions'];
+
+                    // Don't store permissions for deleted datafields/datatypes
+                    if ( is_null($df_id) || is_null($dt_id) )
+                        continue;
+
+                    if ( $gdfp['can_view_datafield'] )
+                        $user_permissions['datafields'][$df_id]['view'] = 1;
+
+                    if ( $gdfp['can_edit_datafield'] ) {
+                        $user_permissions['datafields'][$df_id]['edit'] = 1;
+
+                        // If the user is able to edit a datafield, ensure they can view the record's
+                        //  edit page
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                    }
+                }
+
+                // If child datatypes have the "dr_edit" permission, ensure their parents do as well
+                $datatree_array = $this->dti_service->getDatatreeArray();
+
+                foreach ($user_permissions['datatypes'] as $dt_id => $gdtp) {
+                    // For each child datatype the user has permissions for...
+                    if ( isset($datatree_array['descendant_of'][$dt_id])
+                        && $datatree_array['descendant_of'][$dt_id] !== ''
+                    ) {
+                        // ...if the user can edit the child datatype...
+                        if ( isset($gdtp['dr_edit']) ) {
+                            // ...then ensure the user can also view the edit page for each of the
+                            //  child's ancestor datatypes
+                            $parent_dt_id = $dt_id;
+                            while ( isset($datatree_array['descendant_of'][$parent_dt_id])
+                                && $datatree_array['descendant_of'][$parent_dt_id] !== ''
+                            ) {
+                                $parent_dt_id = $datatree_array['descendant_of'][$parent_dt_id];
+                                $user_permissions['datatypes'][$parent_dt_id]['dr_edit'] = 1;
+                            }
                         }
                     }
                 }
-
-                // If it exists, store a restriction on which datarecords this permission applies to
-                if(isset($group_permission['top_level_datatype_id'])) {
-                    $top_level_dt_id = $group_permission['top_level_datatype_id'];
-                    if ( isset($group_permission['datarecord_restriction']) && $group_permission['datarecord_restriction'] !== '' )
-                        $user_permissions['datatypes'][$top_level_dt_id]['datarecord_restriction'] = $group_permission['datarecord_restriction'];
-                }
-
-                // TODO - how to handle multiple datarecord_restrictions on the same datatype?
             }
 
-            // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-            $datatree_array = $this->dti_service->getDatatreeArray();
 
-            foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
-                if ( isset($dt_permissions['dr_edit']) ) {
-
-                    $parent_datatype_id = $dt_id;
-                    while(
-                        isset($datatree_array['descendant_of'][$parent_datatype_id])
-                        && $datatree_array['descendant_of'][$parent_datatype_id] !== ''
-                    ) {
-                        $parent_datatype_id = $datatree_array['descendant_of'][$parent_datatype_id];
-                        $user_permissions['datatypes'][$parent_datatype_id]['dr_edit'] = 1;
-                    }
-                }
-            }
-
-//exit( '<pre>'.print_r($user_permissions, true).'</pre>' );
-
+            // ----------------------------------------
             // Store the final permissions array back in the cache
             $this->cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
 
-            // ----------------------------------------
             // Return the permissions for all groups this user belongs to
             return $user_permissions;
         }
@@ -808,13 +926,20 @@ class PermissionsManagementService
 
 
     /**
-     * Rebuilds the cached version of a group's datatype/datafield permissions array
+     * Returns an array with the relevant datatype/datafield permissions for a single group.
+     *
+     * Caching the results of this really isn't useful.  It's generally going to be faster for
+     * getUserPermissionsArray() to use a constant 3 queries total, instead of potentially running
+     * one query for every group a user is a member of.
+     *
+     * Other than the user permissions arrays, the only part of ODR that directly cares about the
+     * datatype/datafield permissions is the interface that gets used to set group permissions.
      *
      * @param integer $group_id
      *
      * @return array
      */
-    public function rebuildGroupPermissionsArray($group_id)
+    public function getGroupPermissionsArray($group_id)
     {
         // Load all permission entities from the database for the given group
         $query = $this->em->createQuery(
@@ -872,6 +997,8 @@ class PermissionsManagementService
                     $datatype_permissions[$dt_id]['dr_add'] = 1;
                 if ($permission['can_delete_datarecord'])
                     $datatype_permissions[$dt_id]['dr_delete'] = 1;
+                if ($permission['can_change_public_status'])
+                    $datatype_permissions[$dt_id]['dr_public'] = 1;
 //                if ($permission['can_design_datatype'])
 //                    $datatype_permissions[$dt_id]['dt_design'] = 1;
                 if ($permission['is_datatype_admin'])
@@ -1049,7 +1176,7 @@ if ($debug)
                 }
 
                 // ...also need to remove files the user isn't allowed to see
-                // TODO - this needs its own permission instead of using "can_view_datarecord"
+                // TODO - does it make sense for "can_view_datarecord" to control viewing non-public files, or does this need its own permission?
                 foreach ($drf['file'] as $file_num => $file) {
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
                         && !$can_view_datarecord[$dt_id]
@@ -1061,7 +1188,7 @@ if ($debug)
                 }
 
                 // ...also need to remove images the user isn't allowed to see
-                // TODO - this needs its own permission instead of using "can_view_datarecord"
+                // TODO - does it make sense for "can_view_datarecord" to control viewing non-public images, or does this need its own permission?
                 foreach ($drf['image'] as $image_num => $image) {
                     if (
                         isset($image['parent']['imageMeta']['publicDate'])

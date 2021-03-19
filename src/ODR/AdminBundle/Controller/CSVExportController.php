@@ -123,7 +123,7 @@ class CSVExportController extends ODRCustomController
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -278,7 +278,7 @@ class CSVExportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1505,7 +1505,7 @@ class CSVExportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 

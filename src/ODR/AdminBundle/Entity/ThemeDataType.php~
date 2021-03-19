@@ -21,6 +21,24 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class ThemeDataType
 {
+    // Child/linked datatype is rendered with each child/linked datarecord preceeded by a header...
+    //  the headers are always visible, but only one datarecord is visible at a time depending on
+    //  which header was clicked last
+    const ACCORDION_HEADER = 0;
+    // Child/linked datatype is rendered with a prepended header, followed by a row of buttons to
+    //  select the single visible child/linked datarecord
+    const TABBED_HEADER = 1;
+    // Child/linked datatype is rendered with a prepended header, containing a <select> element to
+    //  select the single visible child/linked datarecord
+    const DROPDOWN_HEADER = 2;
+    // Child/linked datatype is rendered with a prepended header, and all child/linked datarecords
+    //  are always visible
+    const LIST_HEADER = 3;
+    // Child/linked datatype is rendered with a prepended header, followed by a row of buttons to
+    //  select the desired child/linked datarecord...
+    const NO_HEADER = 4;
+
+
     /**
      * @var integer
      */
@@ -116,6 +134,7 @@ class ThemeDataType
     }
 
     /**
+     * @deprecated
      * Set hidden
      *
      * @param integer $hidden
@@ -130,6 +149,7 @@ class ThemeDataType
     }
 
     /**
+     * @deprecated
      * Get hidden
      *
      * @return integer

@@ -1,10 +1,15 @@
 {% spaceless %}
 
-{% if display_type == 0 or display_type == 4 %}
+{% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+{% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
+
+{% if display_type == ACCORDION_HEADER or display_type == NO_HEADER %}
     </div><!-- End of .FormAccordion -->
-{% elseif display_type == 1 %}
+{% elseif display_type == TABBED_HEADER %}
     </div><!-- End of .TabAccordion -->
-{% elseif display_type == 2 %}
+{% elseif display_type == DROPDOWN_HEADER %}
     </div><!-- End of .DropdownAccordion -->
 {% endif %}
 

@@ -22,7 +22,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // ODR
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
@@ -41,12 +40,12 @@ use ODR\OpenRepository\OAuthServerBundle\OAuth\ClientManager;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
-use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
+use FOS\UserBundle\Doctrine\UserManager;
+use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\Form\FormError;
-use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -80,13 +79,16 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
-            $admin_permission_count = 0;
+            // User has to be an admin of at least one datatype to do this
+            $is_datatype_admin = false;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
-                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
-                    $admin_permission_count++;
+                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 ) {
+                    $is_datatype_admin = true;
+                    break;
+                }
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
+            if ( !$is_datatype_admin )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -122,7 +124,10 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Checks whether a given email address is already in use.
-     * Returns 0 if the email is not in use, otherwise returns the ID of the user that owns the email address.
+     *
+     * Returns a -1 if the user checked their own email or that of a super admin
+     * Returns a 0 if the email is not in use
+     * Otherwise, returns the ID of the user that owns the email address
      *
      * @param Request $request
      *
@@ -143,6 +148,8 @@ class ODRUserController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
 
 
             // --------------------
@@ -151,31 +158,39 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
-            $admin_permission_count = 0;
+            // User has to be an admin of at least one datatype to do this
+            $is_datatype_admin = false;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
-                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
-                    $admin_permission_count++;
+                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 ) {
+                    $is_datatype_admin = true;
+                    break;
+                }
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
+            if ( !$is_datatype_admin )
                 throw new ODRForbiddenException();
             // --------------------
 
             // Attempt to find a user with this email address
             $email = $post['email'];
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var ODRUser $user */
-            $user = $user_manager->findUserByEmail($email);
+            /** @var ODRUser $target_user */
+            $target_user = $user_manager->findUserByEmail($email);
 
             // If found, return their user id
-            if ($user !== null) {
-                if ( $user->getId() !== $admin_user->getId() && !$user->hasRole('ROLE_SUPER_ADMIN') )
-                    $return['d'] = $user->getId();
-                else
+            if ($target_user !== null) {
+                if ( $target_user->getId() === $admin_user->getId() || $target_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                    // Don't "find" super admins, or the user calling this function
                     $return['d'] = -1;
+                }
+                else {
+                    // A user with this email already exists, return their user id
+                    $return['d'] = $target_user->getId();
+                }
             }
-            else
+            else {
+                // No user with this email exists
                 $return['d'] = 0;
+            }
         }
         catch (\Exception $e) {
             $source = 0x4a78400f;
@@ -216,11 +231,13 @@ class ODRUserController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var Router $router */
             $router = $this->get('router');
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
 
 
             // --------------------
@@ -229,24 +246,27 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
-            $admin_permission_count = 0;
+            // User has to be an admin of at least one datatype to do this
+            $is_datatype_admin = false;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
-                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
-                    $admin_permission_count++;
+                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 ) {
+                    $is_datatype_admin = true;
+                    break;
+                }
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
+            if ( !$is_datatype_admin )
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // Ensure a user with the specified email doesn't already exist...
             $email = $post['email'];
-            /** @var ODRUser $user */
-            $user = $user_manager->findUserByEmail($email);
-            if ($user !== null) {
+            /** @var ODRUser $target_user */
+            $target_user = $user_manager->findUserByEmail($email);
+            if ($target_user !== null) {
                 // If user already exists, just return the url to their permissions page
-                $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $user->getId()) );
+                $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $target_user->getId()) );
                 $return['d'] = array('url' => $url);
             }
             else {
@@ -273,10 +293,9 @@ class ODRUserController extends ODRCustomController
 
                         // Save changes to the user
                         $user_manager->updateUser($new_user);
-
-                        // Generate and return the URL to modify the new user's permissions
                         $em->refresh($new_user);
 
+                        // Generate and return the URL to modify the new user's permissions
                         $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $new_user->getId()) );
                         $return['d'] = array('url' => $url);
                     }
@@ -427,53 +446,30 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-            /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null || !$user->isEnabled())
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
-            /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // If the user is a super admin, or doing this action to his own profile for some reason...
-            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+            // If the user is a super admin, or the user is doing this action to his own profile
+            //  for some reason...
+            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
                 // ...then permissions aren't an issue
             }
             else {
-                // If user lacks the admin role, then they're not allowed to do this
-                if ( !$admin->hasRole('ROLE_ADMIN') )
-                    throw new ODRForbiddenException();
-
-                // Grab permissions of both target user and admin
-                $admin_permissions = $pm_service->getDatatypePermissions($admin);
-                $user_permissions = $pm_service->getDatatypePermissions($user);
-
-                $allow = false;
-                foreach ($admin_permissions as $dt_id => $permission) {
-                    if ( isset($permission['dt_admin']) && $permission['dt_admin'] == 1 ) {
-                        // Allow this profile edit if the admin user has the "is_datatype_admin" permission and the target user has the "can_view_datatype" for the same datatype
-                        // TODO - this seems dangerous...
-                        if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['dt_view']) ) {
-                            $allow = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If not allowed, block access
-                if (!$allow)
-                    throw new ODRForbiddenException();
+                // ...otherwise, don't allow a user to see/edit another user's profile
+                throw new ODRForbiddenException();
             }
             // --------------------
 
             // Store whether the user is doing this to his own profile or not
             $self_edit = false;
-            if ($admin->getId() == $user_id)
+            if ($admin_user->getId() == $target_user->getId())
                 $self_edit = true;
 
 
@@ -492,7 +488,7 @@ class ODRUserController extends ODRCustomController
                     $has_oauth_providers = true;
 
                     // Attempt to figure out which OAuth providers the user is already connected to
-                    foreach ($user->getUserLink() as $ul) {
+                    foreach ($target_user->getUserLink() as $ul) {
                         /** @var UserLink $ul */
                         if ($ul->getProviderName() !== null && $ul->getProviderId() !== null)
                             $connected_oauth_resources[] = $ul->getProviderName();
@@ -512,13 +508,19 @@ class ODRUserController extends ODRCustomController
 
                 /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
-                $owned_clients = $client_manager->getOwnedClients($user);
+                $owned_clients = $client_manager->getOwnedClients($target_user);
             }
 
 
             // ----------------------------------------
             // Create a new form to edit the user
-            $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
+            $form = $this->createForm(
+                ODRUserProfileForm::class,
+                $target_user,
+                array(
+                    'target_user_id' => $target_user->getId()
+                )
+            );
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -527,8 +529,8 @@ class ODRUserController extends ODRCustomController
                     'ODRAdminBundle:ODRUser:user_profile.html.twig',
                     array(
                         'profile_form' => $form->createView(),
-                        'current_user' => $admin,
-                        'target_user' => $user,
+                        'current_user' => $admin_user,
+                        'target_user' => $target_user,
                         'self_edit' => $self_edit,
 
                         'has_oauth_providers' => $has_oauth_providers,
@@ -631,47 +633,24 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-            /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null || !$user->isEnabled())
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
-            /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // If the user is a super admin, or doing this action to his own profile for some reason...
-            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+            // If the user is a super admin, or the user is doing this action to his own profile
+            //  for some reason...
+            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
                 // ...then permissions aren't an issue
             }
             else {
-                // If user lacks the admin role, then they're not allowed to do this
-                if ( !$admin->hasRole('ROLE_ADMIN') )
-                    throw new ODRForbiddenException();
-
-                // Grab permissions of both target user and admin
-                $admin_permissions = $pm_service->getDatatypePermissions($admin);
-                $user_permissions = $pm_service->getDatatypePermissions($user);
-
-                $allow = false;
-                foreach ($admin_permissions as $dt_id => $permission) {
-                    if ( isset($permission['dt_admin']) && $permission['dt_admin'] == 1 ) {
-                        // Allow this profile edit if the admin user has the "is_datatype_admin" permission and the target user has the "can_view_datatype" for the same datatype
-                        // TODO - this seems dangerous...
-                        if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['dt_view']) ) {
-                            $allow = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If not allowed, block access
-                if (!$allow)
-                    throw new ODRForbiddenException();
+                // ...otherwise, don't allow a user to see/edit another user's profile
+                throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -705,20 +684,26 @@ class ODRUserController extends ODRCustomController
         // Get required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $user_manager = $this->container->get('fos_user.user_manager');
-        $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
-//        $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+        /** @var UserManager $user_manager */
+        $user_manager = $this->container->get('fos_user.user_manager');
 
         /** @var ODRUser $target_user */
-        $target_user = $repo_user->find($target_user_id);
+        $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
         if ($target_user == null)
             throw new ODRNotFoundException('User');     // theoretically shouldn't happen
 
+        // ----------------------------------------
         $email = $target_user->getEmail();
 
         // Bind the request to a form
-        $form = $this->createForm(ODRUserProfileForm::class, $target_user, array('target_user_id' => $target_user->getId()));
+        $form = $this->createForm(
+            ODRUserProfileForm::class,
+            $target_user,
+            array(
+                'target_user_id' => $target_user->getId()
+            )
+        );
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
@@ -743,7 +728,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Returns the HTML for an admin user to change another user's password
-     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
+     * TODO - this is seriously bad...password changing should be handled over email, not by admins
      * 
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
@@ -762,9 +747,6 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
@@ -772,42 +754,28 @@ class ODRUserController extends ODRCustomController
 
             // --------------------
             // Ensure user has permissions to be doing this
-            /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // If the user is a super admin, or doing this action to his own profile for some reason...
-            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+            // If the user is a super admin, or the user is doing this action to his own profile
+            //  for some reason...
+            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
                 // ...then permissions aren't an issue
             }
             else {
-                // If user lacks the admin role, then they're not allowed to do this
-                if ( !$admin->hasRole('ROLE_ADMIN') )
-                    throw new ODRForbiddenException();
-
-                // Grab permissions of both target user and admin
-                $admin_permissions = $pm_service->getDatatypePermissions($admin);
-                $user_permissions = $pm_service->getDatatypePermissions($target_user);
-
-                $allow = false;
-                foreach ($admin_permissions as $dt_id => $permission) {
-                    if ( isset($permission['dt_admin']) && $permission['dt_admin'] == 1 ) {
-                        // Allow this profile edit if the admin user has the "is_datatype_admin" permission and the target user has the "can_view_datatype" for the same datatype
-                        // TODO - this seems dangerous...
-                        if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['dt_view']) ) {
-                            $allow = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If not allowed, block access
-                if (!$allow)
-                    throw new ODRForbiddenException();
+                // ...otherwise, don't allow a user to see/edit another user's profile
+                throw new ODRForbiddenException();
             }
             // --------------------
 
             // Create a new form to edit the user
-            $form = $this->createForm(ODRAdminChangePasswordForm::class, $target_user, array('target_user_id' => $target_user->getId()));
+            $form = $this->createForm(
+                ODRAdminChangePasswordForm::class,
+                $target_user,
+                array(
+                    'target_user_id' => $target_user->getId()
+                )
+            );
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -816,7 +784,7 @@ class ODRUserController extends ODRCustomController
                     'ODRAdminBundle:ODRUser:change_password.html.twig',
                     array(
                         'form' => $form->createView(),
-                        'current_user' => $admin,
+                        'current_user' => $admin_user,
                         'target_user' => $target_user,
                     )
                 )
@@ -839,7 +807,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves changes an admin makes to another user's password
-     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
+     * TODO - this is seriously bad...password changing should be handled over email, not by admins
      *
      * @param Request $request
      *
@@ -866,10 +834,9 @@ class ODRUserController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $user_manager = $this->container->get('fos_user.user_manager');
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
@@ -879,42 +846,28 @@ class ODRUserController extends ODRCustomController
 
             // --------------------
             // Ensure user has permissions to be doing this
-            /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // If the user is a super admin, or doing this action to his own profile for some reason...
-            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
+            // If the user is a super admin, or the user is doing this action to his own profile
+            //  for some reason...
+            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
                 // ...then permissions aren't an issue
             }
             else {
-                // If user lacks the admin role, then they're not allowed to do this
-                if ( !$admin->hasRole('ROLE_ADMIN') )
-                    throw new ODRForbiddenException();
-
-                // Grab permissions of both target user and admin
-                $admin_permissions = $pm_service->getDatatypePermissions($admin);
-                $user_permissions = $pm_service->getDatatypePermissions($target_user);
-
-                $allow = false;
-                foreach ($admin_permissions as $dt_id => $permission) {
-                    if ( isset($permission['dt_admin']) && $permission['dt_admin'] == 1 ) {
-                        // Allow this profile edit if the admin user has the "is_datatype_admin" permission and the target user has the "can_view_datatype" for the same datatype
-                        // TODO - this seems dangerous...
-                        if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['dt_view']) ) {
-                            $allow = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If not allowed, block access
-                if (!$allow)
-                    throw new ODRForbiddenException();
+                // ...otherwise, don't allow a user to see/edit another user's profile
+                throw new ODRForbiddenException();
             }
             // --------------------
 
             // Bind form to user
-            $form = $this->createForm(ODRAdminChangePasswordForm::class, $target_user, array('target_user_id' => $target_user->getId()));
+            $form = $this->createForm(
+                ODRAdminChangePasswordForm::class,
+                $target_user,
+                array(
+                    'target_user_id' => $target_user->getId()
+                )
+            );
             $form->handleRequest($request);
 
             if ($form->isSubmitted()) {
@@ -965,54 +918,44 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
 
             // --------------------
-            // Ensure user has permissions to be doing this
+            // All users have permissions to view the user list
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
-
-            $admin_permission_count = 0;
-            foreach ($datatype_permissions as $dt_id => $dt_permission) {
-                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
-                    $admin_permission_count++;
-            }
-
-            // Deny access if user does not have any 'is_datatype_admin' permissions, or if user is not admin/super admin
-            if ( !$admin_user->hasRole('ROLE_ADMIN') || $admin_permission_count == 0 )
-                throw new ODRForbiddenException();
             // --------------------
 
+
+            // Determine whether the user is an admin for any datatype
+            $is_datatype_admin = false;
+            foreach ($datatype_permissions as $dt_id => $dt_permission) {
+                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 ) {
+                    $is_datatype_admin = true;
+                    break;
+                }
+            }
+
+            // Determine whether the user can edit any datatype
+            $can_edit_datatype = false;
+            foreach ($datatype_permissions as $dt_id => $dt_permission) {
+                if ( isset($dt_permission['dr_edit']) && $dt_permission['dr_edit'] == 1 ) {
+                    $can_edit_datatype = true;
+                    break;
+                }
+            }
+
+
+            // ----------------------------------------
             // Grab all the users
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser[] $user_list */
-            $user_list = $user_manager->findUsers();    // twig filters out disabled users if needed
-
-            // If the user is not a super admin, then only show users that have the 'can_view_datatype' permission for datatypes that the calling user has 'is_datatype_admin'
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
-                $tmp = array();
-                foreach ($user_list as $user) {
-                    // Because the calling user is not a super admin, don't add super admins to the list of users
-                    if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
-                        $user_permissions = $pm_service->getDatatypePermissions($user);
-
-                        foreach ($user_permissions as $datatype_id => $up) {
-                            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin']) && isset($up['dt_view']) ) {
-                                $tmp[] = $user;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                $user_list = $tmp;
-            }
+            $user_list = $user_manager->findUsers();    // twig will filter out deleted users, if needed
 
             // Render the list of users
             $templating = $this->get('templating');
@@ -1021,7 +964,10 @@ class ODRUserController extends ODRCustomController
                     'ODRAdminBundle:ODRUser:user_list.html.twig',
                     array(
                         'users' => $user_list,
-                        'admin_user' => $admin_user
+
+                        'admin_user' => $admin_user,
+                        'is_datatype_admin' => $is_datatype_admin,
+                        'can_edit_datatype' => $can_edit_datatype,
                     )
                 )
             );
@@ -1056,20 +1002,22 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+
+
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // --------------------
 
             // Grab all the users
-            $user_manager = $this->container->get('fos_user.user_manager');
-            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
-
-            // Prevent the admin from modifying his own role (potentially removing his own admin role)
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $users = $user_manager->findUsers();    // twig will filter out deleted users
 
             // Determine whether the Jupyterhub role needs to be displayed
             $using_jupyterhub = false;
@@ -1124,30 +1072,33 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($target_user == null || !$target_user->isEnabled())
+                throw new ODRNotFoundException('User');
+
+
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // --------------------
 
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $user_manager = $this->container->get('fos_user.user_manager');
-
-            /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null || !$user->isEnabled())
-                throw new ODRNotFoundException('User');
-
-            if (!$user->isEnabled())
-                throw new ODRException('Unable to change role of a deleted User');
-            if ( $user->getId() == $admin_user->getId() && $role !== 'jupyterhub' )
-                throw new ODRException('Unable to change own role');
-//            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
-//                throw new ODRException('Unable to change role of another Super-Admin');
-
+            if ( $target_user->getId() == $admin_user->getId() && $role !== 'jupyterhub' )
+                throw new ODRBadRequestException('Unable to change own role');
+//            if ( $target_user->hasRole('ROLE_SUPER_ADMIN') )
+//                throw new ODRBadRequestException('Unable to change role of another Super-Admin');
 
 /*
             // ----------------------------------------
@@ -1161,10 +1112,10 @@ class ODRUserController extends ODRCustomController
 
             if ($using_jupyterhub && $role == 'jupyterhub') {
                 // Unlike the other roles, this one is a toggle
-                if ( $user->hasRole('ROLE_JUPYTERHUB_USER') )
-                    $user->removeRole('ROLE_JUPYTERHUB_USER');
+                if ( $target_user->hasRole('ROLE_JUPYTERHUB_USER') )
+                    $target_user->removeRole('ROLE_JUPYTERHUB_USER');
                 else
-                    $user->addRole('ROLE_JUPYTERHUB_USER');
+                    $target_user->addRole('ROLE_JUPYTERHUB_USER');
             }
 */
 
@@ -1172,63 +1123,38 @@ class ODRUserController extends ODRCustomController
             // Users are only allowed to have one of the ODR-specific roles at once
             if ($role == 'user') {
                 // User got demoted to the regular user group
-                $user->addRole('ROLE_USER');
-                $user->removeRole('ROLE_ADMIN');
-                $user->removeRole('ROLE_SUPER_ADMIN');
-            }
-            else if ($role == 'admin') {
-                // User got added to the admin group
-                $user->addRole('ROLE_USER');
-                $user->addRole('ROLE_ADMIN');
-                $user->removeRole('ROLE_SUPER_ADMIN');
+                $target_user->addRole('ROLE_USER');
+                $target_user->removeRole('ROLE_SUPER_ADMIN');
             }
             else if ($role == 'sadmin') {
                 // User got added to the super-admin group
-                $user->addRole('ROLE_USER');
-                $user->addRole('ROLE_ADMIN');
-                $user->addRole('ROLE_SUPER_ADMIN');
+                $target_user->addRole('ROLE_USER');
+                $target_user->addRole('ROLE_SUPER_ADMIN');
 
                 // ----------------------------------------
-                // Remove the user from all the non-admin groups they're currently a member of...
+                // Since the user is now a super-admin, they'll be treated as being members of every
+                //  datatype's admin group...this makes membership in other groups pointless, so
+                //  remove them from all the groups they're currently a member of
                 // NOTE - doing it this way because doctrine doesn't support multi-table updates
-                $query_str = '
-                    UPDATE odr_user_group AS ug, odr_group AS g
+                $query_str =
+                   'UPDATE odr_user_group AS ug, odr_group AS g
                     SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
                     WHERE ug.group_id = g.id
-                    AND ug.user_id = :user_id AND g.purpose IN ("", "edit_all", "view_all", "view_only")
+                    AND ug.user_id = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
-                $parameters = array('admin_user_id' => $admin_user->getId(), 'user_id' => $user->getId());
+                $parameters = array(
+                    'admin_user_id' => $admin_user->getId(),
+                    'user_id' => $target_user->getId()
+                );
 
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters);
 
-                // ...so they can be added to all existing "admin" default groups instead
-                /** @var Group[] $admin_groups */
-                $admin_groups = $em->getRepository('ODRAdminBundle:Group')->findBy( array('purpose' => 'admin') );
-                if ( count($admin_groups) > 0 ) {
-                    // Build a single INSERT INTO query to add this user to all existing "admin" default groups
-                    // A unique constraint placed upon (user_id, group_id) in the database will prevent duplicate entries
-                    $query_str = '
-                        INSERT IGNORE INTO odr_user_group (user_id, group_id, created, createdBy)
-                        VALUES ';
-
-                    foreach ($admin_groups as $admin_group)
-                        $query_str .= '("'.$user->getId().'", "'.$admin_group->getId().'", NOW(), "'.$admin_user->getId().'"),'."\n";
-                    $query_str = substr($query_str, 0, -2).';';
-
-                    $conn = $em->getConnection();
-                    $rowsAffected = $conn->executeUpdate($query_str);
-                }
-
-
-                // ----------------------------------------
-                // Delete any cached permissions for the affected user
-                /** @var CacheService $cache_service*/
-                $cache_service = $this->container->get('odr.cache_service');
+                // Delete the cached permissions for this user
                 $cache_service->delete('user_'.$user_id.'_permissions');
             }
 
-            $user_manager->updateUser($user);
+            $user_manager->updateUser($target_user);
         }
         catch (\Exception $e) {
             $source = 0xee335a24;
@@ -1270,18 +1196,21 @@ class ODRUserController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
 
-            /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null || !$user->isEnabled())
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ( $target_user == null )
                 throw new ODRNotFoundException('User');
+            if ( !$target_user->isEnabled() )
+                throw new ODRBadRequestException();
 
             // Prevent super-admins from being deleted?
-//            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+//            if ( $target_user->hasRole('ROLE_SUPER_ADMIN') )
 //                throw new ODRException('Unable to delete another Super-Admin user');
 
             // Remove user from all the groups they're currently a member of
@@ -1292,30 +1221,33 @@ class ODRUserController extends ODRCustomController
                 SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
                 WHERE ug.group_id = g.id AND ug.user_id = :user_id
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
-            $parameters = array('admin_user_id' => $admin_user->getId(), 'user_id' => $user->getId());
+            $parameters = array(
+                'admin_user_id' => $admin_user->getId(),
+                'user_id' => $target_user->getId()
+            );
 
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query_str, $parameters);
 
             // Demote the user to the regular user group
-            $user->addRole('ROLE_USER');
-            $user->removeRole('ROLE_ADMIN');
-            $user->removeRole('ROLE_SUPER_ADMIN');
+            $target_user->addRole('ROLE_USER');
+            $target_user->removeRole('ROLE_SUPER_ADMIN');
 
             // Delete the user's cached permissions
             $cache_service->delete('user_'.$user_id.'_permissions');
 
 
             // This may not be the right way to do it...
-            $user->setEnabled(0);
-            $user_manager->updateUser($user);
+            $target_user->setEnabled(0);
+            $user_manager->updateUser($target_user);
 
 
             // ----------------------------------------
             // Update the user list
-            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
+            $user_manager->findUsers();
 
             // Generate a redirect to the user list
+            /** @var Router $router */
             $router = $this->get('router');
             $return['d'] = array(
                 'url' => $router->generate('odr_user_list')
@@ -1361,23 +1293,28 @@ class ODRUserController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
-            /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null || $user->isEnabled())
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ( $target_user == null )
                 throw new ODRNotFoundException('User');
+            if ( $target_user->isEnabled() )
+                throw new ODRBadRequestException();
 
             // This may not be the right way to do it...
-            $user->setEnabled(1);
-            $user_manager->updateUser($user);
+            $target_user->setEnabled(1);
+            $user_manager->updateUser($target_user);
 
 
             // ----------------------------------------
             // Update the user list
-            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
+            $user_manager->findUsers();
 
             // Generate a redirect to the user list
+            /** @var Router $router */
             $router = $this->get('router');
             $return['d'] = array(
                 'url' => $router->generate('odr_user_list')
@@ -1393,130 +1330,6 @@ class ODRUserController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Changes the number of Datarecords displayed per ShortResults page.  This will also end up
-     * changing the session variable the datatables plugin uses to store page length.
-     *
-     * A page currently using the datatables plugin uses TextResultsController::datatablesrowrequestAction()
-     * to change its own length.
-     *
-     * @param integer $length  How many Datarecords to display on a page.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function pagelengthAction($length, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
-
-            // Grab the tab's id, if it exists
-            $params = $request->query->all();
-            $odr_tab_id = '';
-            if ( isset($params['odr_tab_id']) )
-                $odr_tab_id = $params['odr_tab_id'];
-
-            if ($odr_tab_id !== '') {
-                // Store the change to this tab's page_length in the session
-                $odr_tab_service->setPageLength($odr_tab_id, $length);
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0x1cfad2a4;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Typically, if a user has the permission to edit datarecords for a datatype, then they're
-     * permitted to edit all datarecords they can view.  However, when a user has a datarecord
-     * restriction, then usually there's a difference between the list of datarecords the user can
-     * view and the list of datarecords they can edit.
-     *
-     * When a user with a datarecord restriction on a datatype does a search on that datatype, by
-     * default ODR hides the datarecords they can't edit.  This controller action allows the user
-     * to invert that setting, and store the preference in a browser cookie.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function toggleshoweditableAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $key = '';
-        $value = '';
-
-        try {
-            // Pull the tab id from the current request
-            $post = $request->request->all();
-            if ( !isset($post['odr_tab_id']) || !isset($post['datatype_id']) )
-                throw new ODRBadRequestException('invalid form');
-
-            $odr_tab_id = $post['odr_tab_id'];
-            $datatype_id = $post['datatype_id'];
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            $cookies = $request->cookies;
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( is_null($datatype) )
-                throw new ODRNotFoundException('Datatype');
-
-
-            // Load the current value of the cookie
-            $key = 'datatype_'.$datatype->getId().'_editable_only';
-
-            // Can't use boolean here it seems
-            $display = 1;
-            if ( $cookies->has($key) )
-                $display = intval( $cookies->get($key) );
-
-            // Invert the value stored
-            if ($display === 1)
-                $value = 0;
-            else
-                $value = 1;
-
-            // The value is stored back in the cookie after the response is created below
-        }
-        catch (\Exception $e) {
-            $source = 0xbf591415;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($key, $value));
         return $response;
     }
 
@@ -1567,18 +1380,8 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Require admin user to have at least admin role to do this...
-            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
-                // Grab permissions of both target user and admin
-                $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
-
-                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
-                if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
-                    throw new ODRForbiddenException();
-            }
-            else {
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
-            }
             // --------------------
 
 
@@ -1677,10 +1480,6 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Require admin user to have at least admin role to do this...
-            if ( !$admin_user->hasRole('ROLE_ADMIN') )
-                throw new ODRForbiddenException();
-
             if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1709,91 +1508,4 @@ class ODRUserController extends ODRCustomController
         return $response;
     }
 
-
-    /**
-     * Allows a user to set their session or default theme.
-     *
-     * @param integer $datatype_id
-     * @param integer $theme_id
-     * @param bool $persist If true, then save this choice to the database
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function applythemeAction($datatype_id, $theme_id, $persist = false, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
-
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
-            if ($theme->getDataType()->getId() !== $datatype->getId())
-                throw new ODRBadRequestException('Theme does not match Datatype');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // If the user can't view the datatype, then they shouldn't be setting themes for it
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
-
-            if ($user === 'anon.') {
-                // If the theme isn't shared, an anon user can't use it
-                if ( !$theme->isShared() )
-                    throw new ODRForbiddenException();
-
-                // Otherwise, set it as the session theme
-                $theme_service->setSessionTheme($datatype->getId(), $theme);
-
-                // Silently ignore attempts to save this preference to the database
-            }
-            else {
-                // If the theme isn't shared, or the user doesn't own the theme, then they can't use it
-                if ( !$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId() )
-                    throw new ODRForbiddenException();
-
-                // Otherwise, set it as the session theme
-                $theme_service->setSessionTheme($datatype->getId(), $theme);
-
-                // If the user indicated they wanted to save this as their default, do so
-                if ($persist)
-                    $theme_service->setUserDefaultTheme($user, $theme);
-            }
-
-        }
-        catch (\Exception $e) {
-            $source = 0x1aeac909;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
 }

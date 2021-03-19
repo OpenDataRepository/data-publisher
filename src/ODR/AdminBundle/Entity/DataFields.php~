@@ -22,6 +22,15 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataFields
 {
+    // Field doesn't show up on the search page, and isn't searched through the "general" textbox
+    const NOT_SEARCHED = 0;
+    // Field doesn't show up on the search page, but is searched through the "general" textbox
+    const GENERAL_SEARCH = 1;
+    // Field shows up on the search page, and is also searched through the "general" textbox
+    const ADVANCED_SEARCH = 2;
+    // Field shows up on the search page, but isn't searched through the "general" textbox
+    const ADVANCED_SEARCH_ONLY = 3;
+
     /**
      * @var integer
      */
@@ -801,6 +810,16 @@ class DataFields
     public function getIsUnique()
     {
         return $this->getDataFieldMeta()->getIsUnique();
+    }
+
+    /**
+     * Get preventUserEdits.
+     *
+     * @return bool
+     */
+    public function getPreventUserEdits()
+    {
+        return $this->getDataFieldMeta()->getPreventUserEdits();
     }
 
     /**

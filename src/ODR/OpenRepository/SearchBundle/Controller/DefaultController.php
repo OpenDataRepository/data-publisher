@@ -20,7 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
-// Entites
+// Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
@@ -121,30 +121,61 @@ class DefaultController extends Controller
                 }
             }
 
+
+            // ----------------------------------------
             // Now that a search slug is guaranteed to exist, locate the desired datatype
+
+            /** @var DataType $target_datatype */
+            $target_datatype = null;
+
             /** @var DataTypeMeta $meta_entry */
-            $meta_entry = $em
-                ->getRepository('ODRAdminBundle:DataTypeMeta')
-                ->findOneBy(
+            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+                array(
+                    'searchSlug' => $search_slug
+                )
+            );
+            if ( is_null($meta_entry) ) {
+                // Couldn't find a datatypeMeta entry with that search slug, so check whether the
+                //  search slug is actually a database uuid instead
+                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                     array(
-                        'searchSlug' => $search_slug
+                        'unique_id' => $search_slug
                     )
                 );
-            if ($meta_entry == null)	
-                throw new ODRNotFoundException('Datatype');
 
-            // Check if this is a database properties database
-            if($meta_entry->getDataType()->getMetadataFor() != null) {
-                $target_datatype = $meta_entry->getDataType()->getMetadataFor();
+                if ( is_null($target_datatype) ) {
+                    // $search_slug is neither a search slug nor a database uuid...give up
+                    throw new ODRNotFoundException('Datatype');
+                }
+                else {
+                    // Redirect so the page uses the search slug instead of the uuid
+                    return $this->redirectToRoute(
+                        'odr_search',
+                        array(
+                            'search_slug' => $target_datatype->getSearchSlug()
+                        )
+                    );
+                }
             }
             else {
+                // Found a matching datatypeMeta entry
                 $target_datatype = $meta_entry->getDataType();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
             }
 
-            if ($target_datatype == null)
-                throw new ODRNotFoundException('Datatype');
+            // If this is a metadata datatype...
+            if ( !is_null($target_datatype->getMetadataFor()) ) {
+                // ...only want to run searches on "real" datatypes
+                $target_datatype = $target_datatype->getMetadataFor();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+
+                // ...pretty sure redirecting to the "real" datatype is undesirable here
+            }
 
 
+            // ----------------------------------------
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
             if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
@@ -176,7 +207,7 @@ class DefaultController extends Controller
             // Need to build everything used by the sidebar...
             $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
             $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user);
+            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
 
 
             // ----------------------------------------
@@ -751,7 +782,7 @@ class DefaultController extends Controller
      *
      * @return Response
      */
-    public function inlinelinkAction(Request $request)
+    public function inlinelinksearchAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -800,6 +831,7 @@ class DefaultController extends Controller
                 if ( !is_numeric($key) )
                     throw new ODRBadRequestException();
 
+                // TODO - modify so the search can handle radio options and tags?
                 $search_params[ intval($key) ] = trim($value);
             }
 
@@ -988,7 +1020,7 @@ class DefaultController extends Controller
 
 
             $searchable = $datafield->getSearchable();
-            if ($searchable === 0 || $searchable === 1) {
+            if ( $searchable === DataFields::NOT_SEARCHED || $searchable === DataFields::GENERAL_SEARCH ) {
                 // Don't attempt to re-render the datafield if it's either "not searchable" or
                 //  "general search only"
                 $return['d'] = array(
@@ -1099,7 +1131,7 @@ class DefaultController extends Controller
                 // Need to build everything used by the sidebar...
                 $datatype_array = $ssb_service->getSidebarDatatypeArray($user, $target_datatype->getId());
                 $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
-                $user_list = $ssb_service->getSidebarUserList($user);
+                $user_list = $ssb_service->getSidebarUserList($user, $datatype_array);
 
                 $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
 

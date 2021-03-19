@@ -78,7 +78,10 @@ class FlowController extends ODRCustomController
 
 
     /** 
-     * All HTTP Status codes not specified in self::flowSuccess() and self::flowAbort() are interpreted as "continue"
+     * All HTTP Status codes not specified in self::flowSuccess() and self::flowAbort() are
+     * interpreted as "continue".
+     *
+     * These codes are defined in ODRAdminBundle:Flow:flow_upload.html.twig
      *
      * @param string $message
      *
@@ -87,7 +90,7 @@ class FlowController extends ODRCustomController
     private function flowError($message = '')
     {
         $response = new Response();
-        $response->setStatusCode(503);
+        $response->setStatusCode(503);    // TODO - why 503 and not 500?
         $response->setContent($message);
 
         return $response;
@@ -95,7 +98,9 @@ class FlowController extends ODRCustomController
 
 
     /** 
-     * HTTP Status codes of 404 are interpreted by flow.js as "abort"
+     * HTTP Status codes of 404 are interpreted by flow.js as "abort".
+     *
+     * These codes are defined in ODRAdminBundle:Flow:flow_upload.html.twig
      *
      * @param string $message
      *
@@ -252,7 +257,10 @@ class FlowController extends ODRCustomController
 
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
-                if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
+                if ( $expected_size === 0 ) {
+                    return self::flowAbort("Unable to upload an zero-length file");
+                }
+                else if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
                     // TODO - delete uploaded chunks on abort/cancel?
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
@@ -281,6 +289,12 @@ class FlowController extends ODRCustomController
 
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
+                if ( $expected_size === 0 ) {
+                    // The chunk being uploaded is empty...in case this was a network problem,
+                    //  instruct flow.js to re-attempt upload.  If the user is actually trying to
+                    //  upload an empty file, flow.js will eventually give up
+                    return self::flowError('Unable to upload file');
+                }
                 if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );

@@ -19,6 +19,7 @@ ODR\AdminBundle\Entity\ThemeDataType:
             default: 0
             column: display_type
 
+        # deprecated...not removing immediately because it needs to be transferred before deleting
         hidden:
             type: integer
             nullable: false

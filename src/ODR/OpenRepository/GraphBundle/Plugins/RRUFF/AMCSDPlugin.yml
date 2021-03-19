@@ -1,0 +1,94 @@
+odr_plugins.rruff.amcsd:
+    name: AMCSD Plugin
+    category: RRUFF
+    datatype: true
+    version: 1.0.0
+    override_fields: true
+    override_child: false
+    description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
+
+    ##### IMPORTANT #####
+    # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
+    # AMCSDPlugin.php, AMCSDFileEventSubscriber.php, and twig files for this plugin use them to match renderplugin fields to actual datafields
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
+    #####################
+
+    required_fields:
+        fileno:
+            name: fileno
+            description: An external ID used for the data
+            type: ShortVarchar    # must allow leading zeros
+#            properties: must_be_unique
+        database_code:
+            name: database_code_amcsd
+            description: The value of the "database_code_amcsd" field in the AMC File
+            type: ShortVarchar    # must allow leading zeros
+#            properties: must_be_unique,must_prevent_user_edits
+        authors:
+            name: Authors
+            description: The names of the authors that published the data
+            type: LongText
+#            properties: must_prevent_user_edits
+        contents:
+            name: File Contents
+            description: A copy of the AMC File's contents
+            type: LongText
+#            properties: must_prevent_user_edits
+
+        amc_file:
+            name: AMC File
+            description: The AMC file for this dataset
+            type: File
+#            properties: must_not_allow_multiple_uploads
+        cif_file:
+            name: CIF File
+            description: The CIF file for this dataset
+            type: File
+#            properties: must_not_allow_multiple_uploads
+        dif_file:
+            name: DIF File
+            description: The DIF file for this dataset
+            type: File
+#            properties: must_not_allow_multiple_uploads
+
+        mineral_name:
+            name: Mineral
+            description: The name of the mineral or compound that was examined
+            type: MediumVarchar
+#            properties: must_prevent_user_edits
+        a:
+            name: a
+            description: The value of the "a" cellparameter from the AMC File
+            type: DecimalValue
+#            properties: must_prevent_user_edits
+        b:
+            name: b
+            description: The value of the "b" cellparameter from the AMC File
+            type: DecimalValue
+#            properties: must_prevent_user_edits
+        c:
+            name: c
+            description: The value of the "c" cellparameter from the AMC File
+            type: DecimalValue
+#            properties: must_prevent_user_edits
+        alpha:
+            name: alpha
+            description: The value of the "alpha" cellparameter from the AMC File
+            type: DecimalValue
+#            properties: must_prevent_user_edits
+        beta:
+            name: beta
+            description: The value of the "beta" cellparameter from the AMC File
+            type: DecimalValue
+#            properties: must_prevent_user_edits
+        gamma:
+            name: gamma
+            description: The value of the "gamma" cellparameter from the AMC File
+            type: DecimalValue
+#            properties: must_prevent_user_edits
+        space_group:
+            name: Space Group
+            description: The value of the "Space Group" field in the AMC File
+            type: ShortVarchar
+#            properties: must_prevent_user_edits
+    config_options:

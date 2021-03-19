@@ -14,6 +14,8 @@
 
 namespace ODR\AdminBundle\Form;
 
+// Entities
+use ODR\AdminBundle\Entity\ThemeDataType;
 // ODR
 use ODR\AdminBundle\Form\Type\DatatypeType;
 use ODR\AdminBundle\Form\Type\ThemeElementType;
@@ -23,7 +25,6 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 
 class UpdateThemeDatatypeForm extends AbstractType
@@ -34,17 +35,16 @@ class UpdateThemeDatatypeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-        $is_master_theme = $options['is_master_theme'];
         $multiple_allowed = $options['multiple_allowed'];
 
         $display_choices = array(
-            'Accordion' => '0',
-            'Tabbed' => '1',
-            'Select Box' => '2',
-            'List' => '3'
+            'Accordion' => ThemeDataType::ACCORDION_HEADER,
+            'Tabbed' => ThemeDataType::TABBED_HEADER,
+            'Select Box' => ThemeDataType::DROPDOWN_HEADER,
+            'List' => ThemeDataType::LIST_HEADER,
         );
         if (!$multiple_allowed)
-            $display_choices['Hide Header'] = 4;
+            $display_choices['Hide Header'] = ThemeDataType::NO_HEADER;
 
         $builder->add(
             'dataType',
@@ -55,30 +55,6 @@ class UpdateThemeDatatypeForm extends AbstractType
             'themeElement',
             ThemeElementType::class
         );
-
-        if (!$is_master_theme) {
-            $builder->add(
-                'hidden',
-                ChoiceType::class,
-                array(
-                    'choices' => array(
-                        'Show' => '0',
-                        'Hide' => '1',
-                    ),
-                    'choices_as_values' => true,
-                    'label' => 'Visiblity',
-                    'expanded' => false,
-                    'multiple' => false,
-                    'placeholder' => false
-                )
-            );
-        }
-        else {
-            $builder->add(
-                'hidden',
-                HiddenType::class
-            );
-        }
 
         $builder->add(
             'display_type',
@@ -131,7 +107,6 @@ class UpdateThemeDatatypeForm extends AbstractType
         );
 
         // Required options shouldn't have their defaults set
-        $resolver->setRequired('is_master_theme');
         $resolver->setRequired('multiple_allowed');
     }
 }
