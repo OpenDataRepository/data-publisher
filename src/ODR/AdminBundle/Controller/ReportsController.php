@@ -1267,16 +1267,19 @@ class ReportsController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
-            if ( !file_exists($archive_filepath) )
-                throw new FileNotFoundException($archive_filename);
+            if ( file_exists($archive_filepath) ) {
+                // Load the number of files currently in the archive
+                $zip_archive = new \ZipArchive();
+                $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
 
-            // Load the number of files currently in the archive
-            $zip_archive = new \ZipArchive();
-            $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
-
-            $archive_filecount = $zip_archive->numFiles;
-
-            $return['d'] = array('archive_filecount' => $archive_filecount);
+                $archive_filecount = $zip_archive->numFiles;
+                $return['d'] = array('archive_filecount' => $archive_filecount);
+            }
+            else {
+                // If the file doesn't exist yet, maybe the background is just slow...don't throw
+                //  an error immediately
+                $return['d'] = array('archive_filecount' => 0);
+            }
         }
         catch (\Exception $e) {
             $source = 0xd16f3328;
