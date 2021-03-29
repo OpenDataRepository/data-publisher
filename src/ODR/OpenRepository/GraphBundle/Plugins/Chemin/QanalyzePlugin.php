@@ -94,6 +94,30 @@ class QanalyzePlugin implements DatafieldPluginInterface
 
 
             // ----------------------------------------
+            // The values of these fields are used as regular expressions, so they may need to have
+            //  certain characters escaped first
+            $search = array(
+                ".", "*", "+", "?", "^",
+                "$", "{", "}", "(", ")",
+                "|", "[", "]", "/"
+            );
+            $replacement = array(
+                "\\.", "\\*", "\\+", "\\?", "\\^",
+                "\\$", "\\{", "\\}", "\\(", "\\)",
+                "\\|", "\\[", "\\]", "\\/"
+            );
+
+            if ($label_field !== '')
+                $label_field = str_replace($search, $replacement, $label_field);
+            if ($xrd_field !== '')
+                $xrd_field = str_replace($search, $replacement, $xrd_field);
+            if ($phase_field !== '')
+                $phase_field = str_replace($search, $replacement, $phase_field);
+            if ($wavelength_field !== '')
+                $wavelength_field = str_replace($search, $replacement, $wavelength_field);
+
+
+            // ----------------------------------------
             // Need to determine the value of the associated datafield
             $value = '';
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
