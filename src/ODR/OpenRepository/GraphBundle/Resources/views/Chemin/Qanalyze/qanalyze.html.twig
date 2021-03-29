@@ -18,13 +18,21 @@
     Run Qanalyze
 </button>
 
-
+{% set use_phase_sets = true %}
+{% if phase_field == '' %}
+    {% set use_phase_sets = false %}
+{% endif %}
+{% set use_wavelength = true %}
+{% if wavelength_field == '' %}
+    {% set use_wavelength = false %}
+{% endif %}
 
 <script>
-    var analysis_file_id = ""
+    var analysis_file_id = "";
     var phase_set_file_id = "";
     var sample_name = "";
     var phase_sets = new Array();
+    var wavelength = "";
 
     // Load data from CSV File
     // Present modal with selector for phases
@@ -35,8 +43,8 @@
             "name": "",
             "data": []
         },
-        "selected_phase_group": "",
-        "phases": []
+        {# "selected_phase_group": "", #}
+        {# "phases": [] #}
     };
 
     jQuery(function() {
@@ -44,10 +52,11 @@
             .unbind('click')
             .click(function(ele) {
                 // Reset all variables
-                analysis_file_id = ""
+                analysis_file_id = "";
                 phase_set_file_id = "";
                 sample_name = "";
                 phase_sets = new Array();
+                wavelength = "";
 
                 // Load data from CSV File
                 // Present modal with selector for phases
@@ -58,12 +67,12 @@
                         "name": "",
                         "data": []
                     },
-                    "selected_phase_group": "",
-                    "phases": []
+                    {# "selected_phase_group": "", #}
+                    {# "phases": [] #}
                 };
 
 
-            console.log('click')
+            // console.log('click')
             jQuery(ele.target).parent().parent().parent().find(".ODRFileDownload").each(
                 function() {
                     var file = jQuery(this);
@@ -73,15 +82,17 @@
                         var label = file.parent().parent().parent().parent()
                             .find(".ODRFileDatafield_header span");
 
-                        if(label.html().match(/^XRD pattern$/i)) {
+                        if(label.html().match(/^{{ xrd_field }}$/i)) {
                             // This is the CSV File we are looking for
                             analysis_file_id = file.attr("rel");
                         }
-                        if(label.html().match(/^AMCSD Phase List$/i)) {
+                        {% if use_phase_sets %}
+                        if(label.html().match(/^{{ phase_field }}$/i)) {
                             // This is the CSV File of the phase list
                             phase_set_file_id = file.attr("rel");
-                            console.log("Phase List: ", file.attr("rel"));
+                            // console.log("Phase List: ", file.attr("rel"));
                         }
+                        {% endif %}
                     }
                 }
             );
@@ -90,10 +101,25 @@
                     function() {
                         var ele = jQuery(this);
                         // Check if there is a CSV file
-                        if(ele.html().match(/^Analysis ID$/)) {
+                        if(ele.html().match(/^{{ label_field }}$/)) {
                             var inp = $(ele).parent().find("input");
                             sample_name += inp.val()
                         }
+                        {% if use_wavelength %}
+                        // Check if there is a wavelength value
+                        if(ele.html().match(/^{{ wavelength_field }}$/)) {
+                            var inp = $(ele).parent().find("input");
+                            if ( inp.attr('type') === 'text')
+                                wavelength = inp.val();
+                            else if ( inp.attr('type') === 'radio')
+                                wavelength = inp.parent().text().trim();
+
+                            if ( wavelength.match(/cobalt/i) )
+                                wavelength = "Terra-Co";
+                            else if ( wavelength.match(/copper/i) )
+                                wavelength = "Terra-Cu";
+                        }
+                        {% endif %}
                     }
                 );
                 openQanalyzeModal();
@@ -126,7 +152,7 @@
             }
         }
 
-        qanalyze_data.selected_phase_group = set_name;
+        {# qanalyze_data.selected_phase_group = set_name; #}
         jQuery("#qanalyze-phase-list").html(set_list);
         resetRemodalInnerHeight();
     }
@@ -148,26 +174,43 @@
         };
         openODRRemodal(modal_options);
 
+        {% if use_phase_sets %}
         // Load the phase list and then load the modal body
-        console.log('getting phase data')
+        // console.log('getting phase data')
         getPhaseData(phase_set_file_id)
-
+        {% else %}
+        loadModalBody();
+        {% endif %}
     }
 
     function loadModalBody() {
         // Set the sample name
         qanalyze_data.sample.name = sample_name;
+        {% if use_wavelength %}
+        qanalyze_data.mode = wavelength;
+        {% endif %}
 
         // Build the selector
         var body = '';
-        body += '<div class="pure-u-1 pure-u-md-1 pure-u-lg-1 qanalyze-intro">' +
-            '<p>The phase set list used for this analysis is listed below.</p><p>Click "Run Qanalyze" below to ' +
-            ' open the qanalyze app in a new browser window.</p></div>';
+        body += '<div class="pure-u-1 pure-u-md-1 pure-u-lg-1 qanalyze-intro">';
 
-        body += '<div>' + phase_sets[0].set_name + '</div>';
+        {% if use_phase_sets %}
+        body += '<p>The phase set list used for this analysis is listed below.</p>';
+        {% endif %}
 
-        // display selected phases
-        body += '<div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-3"><table class="pure-table pure-table-bordered">' +
+        body += '<p>Click "Run Qanalyze" below to open the qanalyze app in a new browser window.</p></div>';
+
+        {% if not use_phase_sets %}
+        body += '<div>No phase list was specified.<br>Automated phase initialization might not find the correct phases, so you might have to manually change which phases you include in your refinement.</div>';
+        {% else %}
+        if ( phase_sets[0] === undefined) {
+            body += '<div>No phase list was specified.<br>Automated phase initialization might not find the correct phases, so you might have to manually change which phases you include in your refinement.</div>';
+        }
+        else {
+            body += '<div>' + phase_sets[0].set_name + '</div>';
+
+            // display selected phases
+            body += '<div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-3"><table class="pure-table pure-table-bordered">' +
                 '<thead>' +
                 '<tr>' +
                 '<th>Phase</th>' +
@@ -180,6 +223,8 @@
                 '<tbody id="qanalyze-phase-list">' +
                 '</tbody>' +
                 '</table></div>';
+        }
+        {% endif %}
 
         // Display the modal
         $(".ODRRemodalBody").html(body);
@@ -188,7 +233,10 @@
             $(".ODRRemodalButtons").show();
             $("#ODRFileDownloadFormWrapper").show();
             // Resize ODRFileDownloadModal to take up full height
-            selectPhase(phase_sets[0].set_name);
+            {% if use_phase_sets %}
+            if (phase_sets[0] !== undefined)
+                selectPhase(phase_sets[0].set_name);
+            {% endif %}
             resetRemodalInnerHeight();
         });
 
@@ -224,15 +272,15 @@
                 var status_code = jqXHR.status;
                 if (status_code === 200) {
                     // Just get the file
-                    console.log('got unencrypted file data')
-                    console.log(data)
-                    console.log(textStatus)
+                    // console.log('got unencrypted file data')
+                    // console.log(data)
+                    // console.log(textStatus)
                     setODRRemodalLoadingText("Preparing data");
                     local_getFileData(data)
                 }
                 else if (status_code === 202) {
                     // File needs to be decrypted first
-                    console.log('got encrypted file data')
+                    // console.log('got encrypted file data')
                     setODRRemodalLoadingText("Decrypting 0%");
                     decryptFile(file_id, local_getFileData)
                 }
@@ -264,7 +312,8 @@
         var form = document.createElement("form");
         form.setAttribute("method", "post");
         form.setAttribute("enctype", "x-www-form-urlencoded");
-        form.setAttribute("action", "https://www.qanalyze.com/chemin?mode=chemin");
+        {# form.setAttribute("action", "https://www.qanalyze.com/chemin?mode=chemin"); #}
+        form.setAttribute("action", "https://www.qanalyze.com/odr");
 
         function submitToPopup(f) {
             form.target = 'qanalyze';
@@ -327,7 +376,10 @@
         var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
         file_url = file_url.substr(0, file_url.length-1) + file_id;
 
-        if(file_id != "") {
+        if(file_id == "") {
+            loadModalBody();
+        }
+        else {
             $.ajax({
                 type: "GET",
                 url: file_url,
@@ -338,13 +390,13 @@
                     if (status_code === 200) {
                         // Just get the file
                         // File exists and is ready to download
-                        console.log('got unencrypted data')
+                        // console.log('got unencrypted data')
                         setODRRemodalLoadingText("Preparing data");
                         convertPhaseData(data)
                     }
                     else if (status_code === 202) {
                         // File needs to be decrypted first
-                        console.log("decrypt needed")
+                        // console.log("decrypt needed")
                         setODRRemodalLoadingText("Decrypting 0%");
                         decryptFile(file_id, getPhaseData);
                     }
@@ -355,24 +407,24 @@
 
 
     function convertPhaseData(data_string) {
-        console.log("DATA STRING")
-        console.log(data_string)
-        console.log("DATA STRING")
+        // console.log("DATA STRING")
+        // console.log(data_string)
+        // console.log("DATA STRING")
         var file_data = [];
         if (data_string) {
             var lines = data_string.split(/\n/);
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i];
-                console.log("LINE: ", line)
+                // console.log("LINE: ", line)
                 if (!line.match(/^#/)) {
-                    console.log("VALID LINE: ", line)
+                    // console.log("VALID LINE: ", line)
                     var data = "";
                     // This is tab separated data
                     if (line.match(/,/)) {
                         data = line.split(/,/);
                     }
                     else if (line.match(/\t/)) {
-                        console.log('split:', line)
+                        // console.log('split:', line)
                         data = line.split(/\t/);
                     }
 
@@ -383,7 +435,7 @@
                     ) {
                         var phase_name = data[0];
                         var phase_id = Number(data[1]);
-                        console.log("DATA", data)
+                        // console.log("DATA", data)
                         file_data.push({name: phase_name, "AMCSD_code": phase_id})
                     }
                 }
@@ -395,13 +447,14 @@
         phase_set.phases = []
         phase_set.phases = file_data
         phase_sets.push(phase_set)
-        console.log(phase_sets)
+        // console.log(phase_sets)
         loadModalBody()
     }
 
 
     function local_getFileData(txt) {
-        var file_data = [];
+        var x_values = [];
+        var y_values = [];
         if (txt) {
             var lines = txt.split(/\n/);
             for (var i = 0; i < lines.length; i++) {
@@ -418,11 +471,13 @@
                     if (undefined !== data[0] && undefined !== data[1]) {
                         var xval = 0 + Number(data[0].trim());
                         var yval = 0 + Number(data[1].trim());
-                        file_data.push({x: xval, y: yval})
+                        x_values.push(xval);
+                        y_values.push(yval);
                     }
                 }
             }
         }
+        var file_data = {x: x_values, y: y_values};
         qanalyze_data.sample.data = file_data;
         // Run System
         postData()
@@ -433,7 +488,7 @@
        if(decrypt_interval[file_id] !== undefined) {
            window.clearInterval(decrypt_interval[file_id])
        }
-       console.log('starting decryption')
+       // console.log('starting decryption')
        window.setInterval(local_checkFileDecryptProgress(file_id, cb), 200)
     }
 
@@ -452,13 +507,13 @@
                 var current_value = parseFloat(data.d.current_value);   // already a percentage of max_value
                 // var max_value = parseFloat(data.d.max_value);
                 if (current_value < 100) {
-                    console.log('not decrypted yet')
+                    // console.log('not decrypted yet')
                     setODRRemodalLoadingText("Decrypting " + current_value + "%")
                 }
                 else {
                     window.clearInterval(decrypt_interval[file_id])
                     setODRRemodalLoadingText("Preparing " + current_value + "%")
-                    console.log('fully decrypted - calling getPhaseData')
+                    // console.log('fully decrypted - calling getPhaseData')
                     cb(file_id)
                 }
             },

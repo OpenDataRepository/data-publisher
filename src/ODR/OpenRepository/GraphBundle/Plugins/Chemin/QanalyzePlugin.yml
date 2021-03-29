@@ -2,7 +2,7 @@ odr_plugins.chemin.qanalyze:
     name: Qanalyze XRD Analysis
     category: Chemin
     datatype: false
-    version: 1.0.1
+    version: 1.1.0
     override_fields: true
     override_child: false
     description: Opens XRD spectrum files in Qanalyze and performs peak fitting analysis.
@@ -12,3 +12,24 @@ odr_plugins.chemin.qanalyze:
             description: This is a dummy field required so the template designer doesn't break.
             type: ShortVarchar
     config_options:
+        label_field:
+            name: Sample Label Datafield
+            type: string
+            default:
+            description: The name of the datafield that contains the analysis or sample ID.  Must not be empty.
+        xrd_pattern_field:
+            name: XRD Pattern Datafield
+            type: string
+            default:
+            description: The name of the File datafield that the XRD Patterns have been uploaded to.  Must not be empty.
+
+        phase_list_field:
+            name: AMCSD Phase List Datafield
+            type: string
+            default:
+            description: The name of the File datafield that the AMCSD Phase Lists have been uploaded to.  Can be empty.
+        wavelength_field:
+            name: Wavelength Datafield
+            type: string
+            default:
+            description: The name of the datafield that displays the radiation wavelength used for the XRD file.  Can be empty.
