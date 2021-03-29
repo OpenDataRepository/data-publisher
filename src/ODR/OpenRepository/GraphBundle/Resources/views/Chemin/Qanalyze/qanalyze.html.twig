@@ -77,7 +77,7 @@
                 function() {
                     var file = jQuery(this);
                     // Check if there is a CSV file
-                    if(file.html().match(/\.csv$/)) {
+                    if(file.html().match(/\.csv$/) || file.html().match(/\.txt$/)) {
                         // Check if label is "XRD pattern"
                         var label = file.parent().parent().parent().parent()
                             .find(".ODRFileDatafield_header span");
@@ -123,6 +123,9 @@
                     }
                 );
                 openQanalyzeModal();
+            }
+            else {
+                alert("Unable to find a pattern file to run the Qanalyze Plugin on");
             }
         })
     });
@@ -414,7 +417,7 @@
         if (data_string) {
             var lines = data_string.split(/\n/);
             for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
+                var line = lines[i].trim();
                 // console.log("LINE: ", line)
                 if (!line.match(/^#/)) {
                     // console.log("VALID LINE: ", line)
@@ -458,7 +461,8 @@
         if (txt) {
             var lines = txt.split(/\n/);
             for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
+                var line = lines[i].trim();
+                // console.log('line: ', line);
                 if (!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
                     var data = "";
                     if (line.match(/,/)) {
@@ -467,6 +471,7 @@
                     else if (line.match(/\t/)) {
                         data = line.split(/\t/);
                     }
+                    // console.log('data: ', data);
 
                     if (undefined !== data[0] && undefined !== data[1]) {
                         var xval = 0 + Number(data[0].trim());

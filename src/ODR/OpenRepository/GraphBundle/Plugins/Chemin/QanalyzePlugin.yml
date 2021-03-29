@@ -33,3 +33,10 @@ odr_plugins.chemin.qanalyze:
             type: string
             default:
             description: The name of the datafield that displays the radiation wavelength used for the XRD file.  Can be empty.
+
+        always_display_run_button:
+            name: Always Display "Run" button?
+            type: string
+            default: yes
+            choices: yes||no
+            description: If yes, then the "Run Qanalyze" button will always be displayed.  If no, then the button will only be displayed on records when the field using this plugin has a value of "1".

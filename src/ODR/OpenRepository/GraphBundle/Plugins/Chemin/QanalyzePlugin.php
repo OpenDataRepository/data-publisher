@@ -70,6 +70,7 @@ class QanalyzePlugin implements DatafieldPluginInterface
             $xrd_field = '';
             $phase_field = '';
             $wavelength_field = '';
+            $always_display_run_button = true;
             foreach ($render_plugin_options as $num => $rpo) {
                 switch ($rpo['optionName']) {
                     case 'label_field':
@@ -83,6 +84,10 @@ class QanalyzePlugin implements DatafieldPluginInterface
                         break;
                     case 'wavelength_field':
                         $wavelength_field = $rpo['optionValue'];
+                        break;
+                    case 'always_display_run_button':
+                        if ($rpo['optionValue'] == 'no')
+                            $always_display_run_button = false;
                         break;
                 }
             }
@@ -156,7 +161,7 @@ class QanalyzePlugin implements DatafieldPluginInterface
             // ----------------------------------------
             // If the datafield has a value of "0", then the "Run Qanalyze" button will be hidden
             $output = "";
-            if ($value > 0) {
+            if ($always_display_run_button || $value > 0) {
                 $output = $this->templating->render(
                    'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig',
                     array(
