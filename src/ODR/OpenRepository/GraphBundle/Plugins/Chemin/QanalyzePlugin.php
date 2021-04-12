@@ -62,19 +62,68 @@ class QanalyzePlugin implements DatafieldPluginInterface
     {
 
         try {
-
-//            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
-//            return $str;
-            // Grab various properties from the render plugin array
+            // ----------------------------------------
+            // Load the options from the render plugin array
             $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
 
-            // Remap render plugin by name => value
-            $options = array();
-            foreach($render_plugin_options as $option) {
-                if ( $option['active'] == 1 )
-                    $options[ $option['optionName'] ] = $option['optionValue'];
+            $label_field = '';
+            $xrd_field = '';
+            $phase_field = '';
+            $wavelength_field = '';
+            $always_display_run_button = true;
+            foreach ($render_plugin_options as $num => $rpo) {
+                switch ($rpo['optionName']) {
+                    case 'label_field':
+                        $label_field = $rpo['optionValue'];
+                        break;
+                    case 'xrd_pattern_field':
+                        $xrd_field = $rpo['optionValue'];
+                        break;
+                    case 'phase_list_field':
+                        $phase_field = $rpo['optionValue'];
+                        break;
+                    case 'wavelength_field':
+                        $wavelength_field = $rpo['optionValue'];
+                        break;
+                    case 'always_display_run_button':
+                        if ($rpo['optionValue'] == 'no')
+                            $always_display_run_button = false;
+                        break;
+                }
             }
-            // Grab value of datafield
+
+            if ($label_field == '')
+                throw new \Exception("The \"Sample Label Datafield\" option in the plugin's configuration must have a value");
+            if ($xrd_field == '')
+                throw new \Exception("The \"XRD Pattern Datafield\" option in the plugin's configuration must have a value");
+
+
+            // ----------------------------------------
+            // The values of these fields are used as regular expressions, so they may need to have
+            //  certain characters escaped first
+            $search = array(
+                ".", "*", "+", "?", "^",
+                "$", "{", "}", "(", ")",
+                "|", "[", "]", "/"
+            );
+            $replacement = array(
+                "\\.", "\\*", "\\+", "\\?", "\\^",
+                "\\$", "\\{", "\\}", "\\(", "\\)",
+                "\\|", "\\[", "\\]", "\\/"
+            );
+
+            if ($label_field !== '')
+                $label_field = str_replace($search, $replacement, $label_field);
+            if ($xrd_field !== '')
+                $xrd_field = str_replace($search, $replacement, $xrd_field);
+            if ($phase_field !== '')
+                $phase_field = str_replace($search, $replacement, $phase_field);
+            if ($wavelength_field !== '')
+                $wavelength_field = str_replace($search, $replacement, $wavelength_field);
+
+
+            // ----------------------------------------
+            // Need to determine the value of the associated datafield
             $value = '';
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
@@ -103,22 +152,24 @@ class QanalyzePlugin implements DatafieldPluginInterface
                 $value = trim( $entity[0]['value'] );
             }
             else {
-                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                // No datarecordfield entry for this datarecord/datafield pair...because of the
+                //  allowed fieldtypes, the plugin can just use the empty string in this case
                 $value = '';
             }
 
 
             // ----------------------------------------
-            // The names of the files uploaded to this child datarecord should have two parts...
-            // ...the second part being more or less a description of the contents of the file, which can be ignored
-            // ...the first part being a key that matches across all the different file types
-            // Render and return the graph html
-
-
+            // If the datafield has a value of "0", then the "Run Qanalyze" button will be hidden
             $output = "";
-            if($value > 0) {
+            if ($always_display_run_button || $value > 0) {
                 $output = $this->templating->render(
-                   'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig'
+                   'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig',
+                    array(
+                        'label_field' => $label_field,
+                        'xrd_field' => $xrd_field,
+                        'phase_field' => $phase_field,
+                        'wavelength_field' => $wavelength_field,
+                    )
                 );
             }
             return $output;

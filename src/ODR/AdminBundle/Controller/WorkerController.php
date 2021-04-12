@@ -42,6 +42,7 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\LockService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -690,6 +691,8 @@ $ret .= '  Set current to '.$count."\n";
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var LockService $lock_service */
+            $lock_service = $this->container->get('odr.lock_service');
 
 
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
@@ -794,17 +797,15 @@ $ret .= '  Set current to '.$count."\n";
                     $cache_service->set('file_decryptions', $file_decryptions);
                 }
                 else {
-                    // Attempt to open the specified zip archive
-                    $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
-                    if (!$handle)
-                        throw new \Exception('unable to open "'.$archive_filepath.'" for writing');
+                    // Acquire a lock on this zip archive so that multiple processes don't clobber
+                    //  each other
+                    $offset = strrpos($archive_filepath, '/') + 1;
+                    $lockpath = substr($archive_filepath, $offset);
 
-                    // Attempt to acquire a lock on the zip archive so only one process is adding to it at a time
-                    $lock = false;
-                    while (!$lock) {
-                        $lock = flock($handle, LOCK_EX);
-                        if (!$lock)
-                            usleep(200000);     // sleep for a fifth of a second to try to acquire a lock...
+                    $lockHandler = $lock_service->createLock($lockpath.'.lock', 15);    // 15 second ttl
+                    if ( !$lockHandler->acquire() ) {
+                        // Another process is in the mix...block until it finishes
+                        $lockHandler->acquire(true);
                     }
 
                     // Open the archive for appending, or create if it doesn't exist
@@ -819,15 +820,13 @@ $ret .= '  Set current to '.$count."\n";
                     if (!$base_obj->isPublic())
                         unlink($local_filepath);
 
-                    // Release the lock on the zip archive
-                    flock($handle, LOCK_UN);
-                    fclose($handle);
+                    // Release the previously acquired lock
+                    $lockHandler->release();
                 }
             }
             else {
                 throw new \Exception('bad value for $crypto_type, got "'.$crypto_type.'"');
             }
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
