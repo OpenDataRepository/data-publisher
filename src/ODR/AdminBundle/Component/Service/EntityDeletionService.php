@@ -48,6 +48,11 @@ class EntityDeletionService
     private $cache_service;
 
     /**
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
      * @var DatafieldInfoService
      */
     private $dfi_service;
@@ -58,7 +63,7 @@ class EntityDeletionService
     private $dri_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -103,9 +108,10 @@ class EntityDeletionService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
      * @param SearchCacheService $search_cache_service
@@ -117,9 +123,10 @@ class EntityDeletionService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
         SearchCacheService $search_cache_service,
@@ -130,9 +137,10 @@ class EntityDeletionService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dbi_service = $database_info_service;
         $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
         $this->search_cache_service = $search_cache_service;
@@ -168,7 +176,7 @@ class EntityDeletionService
 
 
             // Check that the datafield isn't being used for something else before deleting it
-            $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
             $props = $this->dfi_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
             if ( !$props['can_delete'] )
                 throw new ODRBadRequestException( $props['delete_message'] );
@@ -372,7 +380,7 @@ class EntityDeletionService
 
                 // TODO - shouldn't this technically be in SortService?
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $this->dti_service->resetDatatypeSortOrder($datatype->getId());
+                $this->dbi_service->resetDatatypeSortOrder($datatype->getId());
             }
 
             // Save any required changes
@@ -449,7 +457,7 @@ class EntityDeletionService
             $this->cache_service->delete('default_radio_options');
 
             // Mark this datatype as updated
-            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Rebuild all cached theme entries the datafield belonged to
             foreach ($all_datafield_themes as $t)
@@ -711,7 +719,7 @@ class EntityDeletionService
 
             // Even though it's getting deleted, mark this datatype as updated so its parents get
             //  updated as well
-            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
+            $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
 
 
             // ----------------------------------------

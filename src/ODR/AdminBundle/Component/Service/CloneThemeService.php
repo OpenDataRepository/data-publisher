@@ -762,7 +762,7 @@ class CloneThemeService
             array_push($theme_element_ids, $te->getId());
         }
         $this->logger->debug('----------------------------------------');
-        $this->logger->debug('CloneThemeService: -- Need to copy theme elements from: ' .$source_theme->getId(). ' ['.join(',', $theme_element_ids). ']'  );;
+        $this->logger->debug('CloneThemeService: -- Need to copy theme elements from: ' .$source_theme->getId(). ' ['.join(',', $theme_element_ids). ']'  );
         $this->logger->debug('----------------------------------------');
         foreach ($theme_elements as $source_te) {
 //            $this->logger->debug('----------------------------------------');

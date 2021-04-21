@@ -24,17 +24,19 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use FOS\UserBundle\Doctrine\UserManager;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 
 class TrackingController extends ODRCustomController
 {
@@ -82,8 +84,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -204,8 +206,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -357,8 +359,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -2126,8 +2128,8 @@ class TrackingController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -2394,11 +2396,13 @@ class TrackingController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 

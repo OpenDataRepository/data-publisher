@@ -34,8 +34,8 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatafieldInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -1293,8 +1293,8 @@ class PluginsController extends ODRCustomController
 
             /** @var DatafieldInfoService $dfi_service */
             $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1628,11 +1628,11 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Now that all the database changes have been made, wipe the relevant cache entries
-            $dti_service->updateDatatypeCacheEntry($target_datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($target_datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
 
             // Changes in render plugin tend to require changes in datafield properties
-            $datatype_array = $dti_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
             // Don't need to filter here
             $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
 

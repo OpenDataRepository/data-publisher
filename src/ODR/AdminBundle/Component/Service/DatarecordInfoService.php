@@ -843,7 +843,7 @@ class DatarecordInfoService
      * TODO - potentially modify this to use SearchService::getCachedSearchDatarecordList()?
      * TODO - ...or create a new CacheClearService and move every single cache clearing function into there instead?
      *
-     * @param array $datarecord_ids array  dr_ids are values in the array, NOT keys
+     * @param array $datarecord_ids the datarecord_ids are values in the array, NOT keys
      */
     public function deleteCachedDatarecordLinkData($datarecord_ids)
     {
@@ -883,7 +883,7 @@ class DatarecordInfoService
     /**
      * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
      *
-     * @param array $datatype_array    @see DatatypeInfoService::buildDatatypeData()
+     * @param array $datatype_array    @see DatabaseInfoService::buildDatatypeData()
      * @param array $datarecord_array  @see DatarecordInfoService::buildDatarecordData()
      *
      * @return array
@@ -923,7 +923,7 @@ class DatarecordInfoService
      * splice this fake datarecord's ids into the cached array of a parent datarecord, if needed.
      * The caller will also need to deal with setting the parent/grandparent attributes in this case.
      *
-     * @param array $datatype_array @see DatatypeInfoService::getDatatypeArray()
+     * @param array $datatype_array @see DatabaseInfoService::getDatatypeArray()
      * @param int $target_datatype_id
      *
      * @return array

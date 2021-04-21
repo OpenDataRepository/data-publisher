@@ -57,8 +57,9 @@ use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
@@ -98,15 +99,17 @@ class EditController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        // NOTE - this seems to only be used for directly creating a new metadata record
+        // NOTE - this seems to only be used for directly creating a new "test record" from the template list
 
         try {
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
@@ -175,7 +178,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            $dbi_service->resetDatatypeSortOrder($datatype->getId());
             // Delete all search results that can change
             $search_cache_service->onDatarecordCreate($datatype);
 
@@ -216,10 +219,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
@@ -287,7 +292,7 @@ class EditController extends ODRCustomController
             $search_cache_service->onDatarecordCreate($datatype);
 
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
             // Refresh the cache entries for the new datarecord's parent
             $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
@@ -1835,10 +1840,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -2046,7 +2051,7 @@ class EditController extends ODRCustomController
 
                         // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
                         if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $dti_service->resetDatatypeSortOrder($datatype->getId());
+                            $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
                         // Delete any cached search results involving this datafield
                         $search_cache_service->onDatafieldModify($datafield);
@@ -2417,8 +2422,8 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRTabHelperService $odr_tab_service */

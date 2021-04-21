@@ -31,7 +31,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -198,8 +198,8 @@ class FakeEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
@@ -230,7 +230,7 @@ class FakeEditController extends ODRCustomController
             // --------------------
 
             // Verify that the datafields and tokens make sense
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
             $found_datafields = array();
 
             // Easier on the database to get the cache entry
@@ -426,7 +426,7 @@ class FakeEditController extends ODRCustomController
             // Since the datarecord is brand new, don't need to delete its cache entry
 
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            $dbi_service->resetDatatypeSortOrder($datatype->getId());
             // Delete all search results that can change
             $search_cache_service->onDatarecordCreate($datatype);
 

@@ -869,7 +869,6 @@ class SearchService
      * array of which datarecords have which selected radio options.
      *
      * @param DataFields $template_datafield
-     * @param string $value
      *
      * @return array
      */
@@ -914,7 +913,6 @@ class SearchService
      * which datarecords have which selected tags.
      *
      * @param DataFields $template_datafield
-     * @param string $value
      *
      * @return array
      */

@@ -7,9 +7,8 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The display controller displays actual record results to the
- * user, executing render plugins as necessary to change how the
- * data looks.  It also handles file and image downloads because
+ * The display controller renders and displays datarecords for the user, executing render plugins
+ * as necessary to change how the data looks.  It also handles file and image downloads because
  * of security concerns and routing constraints within Symfony.
  *
  */
@@ -33,8 +32,8 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -966,7 +965,7 @@ class DisplayController extends ODRCustomController
      *
      * @return Response
      */
-    function listallfilesAction($grandparent_datarecord_id, $group_by_datafield, Request $request)
+    public function listallfilesAction($grandparent_datarecord_id, $group_by_datafield, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -979,8 +978,8 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1017,7 +1016,7 @@ class DisplayController extends ODRCustomController
             // Get all Datarecords and Datatypes that are associated with the datarecord...need to
             //  render an abbreviated view in order to select files
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -1326,8 +1325,8 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1356,7 +1355,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Easier/faster to just load the entire datarecord/datatype arrays...
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
 
             // ...so the permissions service can prevent the user from downloading files/images they're not allowed to see
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);

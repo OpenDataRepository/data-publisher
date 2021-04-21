@@ -16,17 +16,17 @@
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
 
-use ODR\AdminBundle\Entity\ThemeDataType;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\AdminBundle\Entity\ThemeDataType;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
@@ -67,8 +67,8 @@ class GraphController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -104,7 +104,7 @@ class GraphController extends ODRCustomController
 
             // ----------------------------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
@@ -119,7 +119,7 @@ class GraphController extends ODRCustomController
             $include_links = false;
 
             $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId(), $include_links);
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getId(), $include_links);
 
             // This is only going to be rendering the graph as an image, so the master theme can
             //  be used here without any issue

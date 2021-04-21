@@ -31,9 +31,9 @@ class DatafieldInfoService
     private $em;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
      */
-    private $dti_service;
+    private $dbi_service;
 
     /**
      * @var Logger
@@ -45,13 +45,16 @@ class DatafieldInfoService
      * DatafieldInfoService constructor.
      *
      * @param EntityManager $entity_manager
+     * @param DatabaseInfoService $database_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
+        DatabaseInfoService $database_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
+        $this->dbi_service = $database_info_service;
         $this->logger = $logger;
     }
 
@@ -360,7 +363,7 @@ class DatafieldInfoService
         // ...but can use the cached datatype array to get the rest of the data for determining this
         $datatype = $datafield->getDataType();
         if ( is_null($datatype_array) )
-            $datatype_array = $this->dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+            $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
 
         $dt = $datatype_array[$datatype->getId()];
         $df = $dt['dataFields'][$datafield->getId()];

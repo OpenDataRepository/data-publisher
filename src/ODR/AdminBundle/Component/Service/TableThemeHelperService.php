@@ -1,6 +1,5 @@
 <?php
 
-
 /**
  * Open Data Repository Data Publisher
  * Table Theme Helper Service
@@ -12,7 +11,6 @@
  */
 
 namespace ODR\AdminBundle\Component\Service;
-
 
 // Entities
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
@@ -40,7 +38,7 @@ class TableThemeHelperService
     private $cache_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
      */
     private $dbi_service;
 
@@ -85,9 +83,9 @@ class TableThemeHelperService
      *
      * @param ContainerInterface $container
      * @param CacheService $cache_service
+     * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
-     * @param DatatypeInfoService $datatype_info_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
      * @param Router $router
@@ -96,9 +94,9 @@ class TableThemeHelperService
     public function __construct(
         ContainerInterface $container,
         CacheService $cache_service,
+        DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
         DatatreeInfoService $datatree_info_service,
-        DatatypeInfoService $datatype_info_service,    // TODO - rename to DatabaseInfoService
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         Router $router,
@@ -106,7 +104,7 @@ class TableThemeHelperService
     ) {
         $this->container = $container;
         $this->cache_service = $cache_service;
-        $this->dbi_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
         $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatree_info_service;
         $this->pm_service = $permissions_service;

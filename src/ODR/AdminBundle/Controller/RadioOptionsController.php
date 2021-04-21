@@ -19,7 +19,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -61,8 +61,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -104,7 +104,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             // Locate cached array entries
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
             $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
             // Render the template
@@ -151,8 +151,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -220,7 +220,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             // Update the cached version of the datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached versions of datarecords or themes
 
@@ -274,8 +274,8 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -395,7 +395,7 @@ class RadioOptionsController extends ODRCustomController
             $cache_service->delete('default_radio_options');
 
             // Mark this datatype as updated
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Wipe cached data for all the datatype's datarecords
             $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
@@ -454,8 +454,8 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -534,7 +534,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             // Update the cached version of the datatype...
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Determine whether cached entries for table themes need to get deleted...
             $delete_table_data = false;
@@ -607,8 +607,8 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -705,7 +705,7 @@ class RadioOptionsController extends ODRCustomController
             $cache_service->delete('default_radio_options');
 
             // Force an update of this datatype's cached entries
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
         }
         catch (\Exception $e) {
             $source = 0x5567b2f9;
@@ -740,8 +740,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -847,7 +847,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             // Update cached version of datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached versions of datarecords or themes
 
@@ -891,8 +891,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -985,7 +985,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             // Update the cached version of the datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Also need to clear a few search cache entries
             $search_cache_service->onDatafieldModify($datafield);

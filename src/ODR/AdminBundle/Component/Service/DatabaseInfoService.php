@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * Datatype Info Service
+ * Database Info Service
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -14,12 +14,8 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -32,7 +28,7 @@ use Symfony\Bridge\Monolog\Logger;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
-class DatatypeInfoService
+class DatabaseInfoService
 {
 
     /**
@@ -56,11 +52,6 @@ class DatatypeInfoService
     private $th_service;
 
     /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
-
-    /**
      * @var string
      */
     private $odr_web_dir;
@@ -72,13 +63,12 @@ class DatatypeInfoService
 
 
     /**
-     * DatatypeInfoService constructor.
+     * DatabaseInfoService constructor.
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
-     * @param SeachCacheService $search_cache_service
      * @param string $odr_web_dir
      * @param Logger $logger
      */
@@ -87,7 +77,6 @@ class DatatypeInfoService
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
-        SearchCacheService $search_cache_service,
         $odr_web_dir,
         Logger $logger
     ) {
@@ -95,7 +84,6 @@ class DatatypeInfoService
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
-        $this->search_cache_service = $search_cache_service;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -130,146 +118,6 @@ class DatatypeInfoService
 
 
     /**
-     * Returns an array of top-level datatype ids.
-     *
-     * @return int[]
-     */
-    public function getTopLevelDatatypes()
-    {
-        // ----------------------------------------
-        // If list of top level datatypes exists in cache, return that
-        $top_level_datatypes = $this->cache_service->get('top_level_datatypes');
-        if ( $top_level_datatypes !== false && count($top_level_datatypes) > 0 )
-            return $top_level_datatypes;
-
-
-        // ----------------------------------------
-        // Otherwise, rebuild the list of top-level datatypes
-        // TODO - enforce dt.is_master_type = 0  here?
-        // TODO - cut out metadata datatypes from this?
-        $query = $this->em->createQuery(
-           'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
-            WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
-            AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
-        $results = $query->getArrayResult();
-
-        // AND dt.metadataFor IS NULL
-        $top_level_datatypes = array();
-        foreach ($results as $result)
-            $top_level_datatypes[] = $result['datatype_id'];
-
-
-        // ----------------------------------------
-        // Store the list in the cache and return
-        $this->cache_service->set('top_level_datatypes', $top_level_datatypes);
-        return $top_level_datatypes;
-    }
-
-
-    // TODO - create something to return top-level templates?
-
-
-    /**
-     * @deprecated replace with DatatreeInfoService::getGrandparentDatatypeId()
-     *
-     * Traverses the cached version of the datatree array in order to return the grandparent id
-     * of the given datatype id.
-     *
-     * @param int $initial_datatype_id
-     * @param array|null $datatree_array
-     *
-     * @return int
-     */
-    public function getGrandparentDatatypeId($initial_datatype_id, $datatree_array = null)
-    {
-        if ( is_null($datatree_array) )
-            $datatree_array = $this->dti_service->getDatatreeArray();
-
-        $grandparent_datatype_id = $initial_datatype_id;
-        while (
-            isset($datatree_array['descendant_of'][$grandparent_datatype_id])
-            && $datatree_array['descendant_of'][$grandparent_datatype_id] !== ''
-        ) {
-            // This isn't a top-level datatype, so grab it's immediate parent datatype's id
-            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
-        }
-
-        return $grandparent_datatype_id;
-    }
-
-
-    /**
-     * @deprecated replace with DatatreeInfoService::getDatatreeArray()
-     *
-     * Utility function to returns the DataTree table in array format
-     *
-     * @return array
-     */
-    public function getDatatreeArray()
-    {
-        // ----------------------------------------
-        // If datatree data exists in cache and user isn't demanding a fresh version, return that
-        $datatree_array = $this->cache_service->get('cached_datatree_array');
-        if ( $datatree_array !== false && count($datatree_array) > 0 )
-            return $datatree_array;
-
-
-        // ----------------------------------------
-        // Otherwise...get all the datatree data
-        $query = $this->em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.setup_step IN (:setup_step) AND descendant.setup_step IN (:setup_step)
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
-            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        )->setParameters( array('setup_step' => DataType::STATE_VIEWABLE) );
-        $results = $query->getArrayResult();
-
-        $datatree_array = array(
-            'descendant_of' => array(),
-            'linked_from' => array(),
-            'multiple_allowed' => array(),
-        );
-        foreach ($results as $num => $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
-            $is_link = $result['is_link'];
-            $multiple_allowed = $result['multiple_allowed'];
-
-            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
-                $datatree_array['descendant_of'][$ancestor_id] = '';
-
-            if ($is_link == 0) {
-                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
-            }
-            else {
-                if ( !isset($datatree_array['linked_from'][$descendant_id]) )
-                    $datatree_array['linked_from'][$descendant_id] = array();
-
-                $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
-            }
-
-            if ($multiple_allowed == 1) {
-                if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
-                    $datatree_array['multiple_allowed'][$descendant_id] = array();
-
-                $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
-            }
-        }
-
-        // Store in cache and return
-        $this->cache_service->set('cached_datatree_array', $datatree_array);
-        return $datatree_array;
-    }
-
-
-    /**
      * Loads and returns the cached data array for the requested datatype.  The returned array
      * contains data of all datatypes with the requested datatype as their grandparent, as
      * well as any datatypes that are linked to by the requested datatype or its children.
@@ -289,7 +137,7 @@ class DatatypeInfoService
             // Need to locate all linked datatypes for the provided datatype
             $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$grandparent_datatype_id);
             if ($associated_datatypes == false) {
-                $associated_datatypes = self::getAssociatedDatatypes(array($grandparent_datatype_id));
+                $associated_datatypes = $this->dti_service->getAssociatedDatatypes($grandparent_datatype_id);
 
                 // Save the list of associated datatypes back into the cache
                 $this->cache_service->set('associated_datatypes_for_'.$grandparent_datatype_id, $associated_datatypes);
@@ -314,93 +162,6 @@ class DatatypeInfoService
         return $datatype_array;
     }
 
-
-    /**
-     * @deprecated replace with DatatreeInfoService::getAssociatedDatatypes()
-     *
-     * This function locates all datatypes whose grandparent id is in $grandparent_datatype_ids,
-     * then calls self::getLinkedDatatypes() to locate all datatypes linked to by these datatypes,
-     * which calls this function again to locate any datatypes that are linked to by those
-     * linked datatypes...
-     *
-     * The end result is an array of top-level datatype ids.  Due to recursive shennanigans,
-     * these functions don't attempt to cache the results.
-     *
-     * @param int[] $grandparent_datatype_ids
-     *
-     * @return int[]
-     */
-    public function getAssociatedDatatypes($grandparent_datatype_ids)
-    {
-        // TODO - convert to use the datatree array?
-
-        // Locate all datatypes that are children of the datatypes listed in $grandparent_datatype_ids
-        $query = $this->em->createQuery(
-           'SELECT dt.id AS id
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
-            WHERE grandparent.id IN (:grandparent_ids)
-            AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('grandparent_ids' => $grandparent_datatype_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $datatype_ids = array();
-        foreach ($results as $result)
-            $datatype_ids[] = $result['id'];
-
-        // Locate all datatypes that are linked to by the datatypes listed in $grandparent_datatype_ids
-        $linked_datatype_ids = self::getLinkedDatatypes($datatype_ids);
-
-        // Don't want any duplicate datatype ids...
-        $associated_datatype_ids = array_unique( array_merge($grandparent_datatype_ids, $linked_datatype_ids) );
-
-        return $associated_datatype_ids;
-    }
-
-
-    /**
-     * @deprecated replace with DatatreeInfoService::getLinkedDescendants()
-     *
-     * Builds and returns a list of all datatypes linked to from the provided datatype ids.
-     *
-     * @param int[] $ancestor_ids
-     *
-     * @return int[]
-     */
-    public function getLinkedDatatypes($ancestor_ids)
-    {
-        // TODO - convert to use the datatree array?
-
-        // Locate all datatypes that are linked to from any datatype listed in $datatype_ids
-        $query = $this->em->createQuery(
-           'SELECT descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree AS dt
-            JOIN dt.dataTreeMeta AS dtm
-            JOIN dt.ancestor AS ancestor
-            JOIN dt.descendant AS descendant
-            WHERE ancestor.id IN (:ancestor_ids) AND dtm.is_link = 1
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
-            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        )->setParameters( array('ancestor_ids' => $ancestor_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $linked_datatype_ids = array();
-        foreach ($results as $result)
-            $linked_datatype_ids[] = $result['descendant_id'];
-
-        // If there were datatypes found, get all of their associated child/linked datatypes
-        $associated_datatype_ids = array();
-        if ( count($linked_datatype_ids) > 0 )
-            $associated_datatype_ids = self::getAssociatedDatatypes($linked_datatype_ids);
-
-        // Don't want any duplicate datatype ids...
-        $linked_datatype_ids = array_unique( array_merge($linked_datatype_ids, $associated_datatype_ids) );
-
-        return $linked_datatype_ids;
-    }
-    
 
     /**
      * Gets all datatype, datafield, and their associated render plugin information...the array

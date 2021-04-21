@@ -62,7 +62,7 @@ class ThemeInfoService
     private $cache_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -82,20 +82,20 @@ class ThemeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatatypeInfoService $dti_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param Session $session
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         Session $session,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->session = $session;
         $this->logger = $logger;
     }

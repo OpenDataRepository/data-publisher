@@ -66,7 +66,12 @@ class CloneTemplateService
     private $ct_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -160,42 +165,45 @@ class CloneTemplateService
      * CloneTemplateService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param EntityMetaModifyService $entity_meta_modify_service
      * @param CacheService $cache_service
-     * @param SearchCacheService $search_cache_service
      * @param CloneThemeService $clone_theme_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatabaseInfoService $database_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param EntityCreationService $entity_creation_service
+     * @param EntityMetaModifyService $entity_meta_modify_service
      * @param LockService $lock_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
+     * @param SearchCacheService $search_cache_service
      * @param UUIDService $uuid_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        EntityMetaModifyService $entity_meta_modify_service,
         CacheService $cache_service,
-        SearchCacheService $search_cache_service,
         CloneThemeService $clone_theme_service,
-        DatatypeInfoService $datatype_info_service,
+        DatabaseInfoService $database_info_service,
+        DatatreeInfoService $datatree_info_service,
         EntityCreationService $entity_creation_service,
+        EntityMetaModifyService $entity_meta_modify_service,
         LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
+        SearchCacheService $search_cache_service,
         UUIDService $uuid_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->emm_service = $entity_meta_modify_service;
         $this->cache_service = $cache_service;
-        $this->search_cache_service = $search_cache_service;
         $this->ct_service = $clone_theme_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->ec_service = $entity_creation_service;
+        $this->emm_service = $entity_meta_modify_service;
         $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->ti_service = $theme_info_service;
+        $this->search_cache_service = $search_cache_service;
         $this->uuid_service = $uuid_service;
         $this->logger = $logger;
 
@@ -316,8 +324,9 @@ class CloneTemplateService
         // ----------------------------------------
         // Load, stack, and clean the cached_datatype array for the master template
         $master_datatype = $datatype->getMasterDataType();
-        $template_datatype = $this->dti_service->getDatatypeArray($datatype->getMasterDataType()->getId());
-        $template_datatype[ $master_datatype->getId() ] = $this->dti_service->stackDatatypeArray($template_datatype, $master_datatype->getId());
+
+        $template_datatype = $this->dbi_service->getDatatypeArray($master_datatype->getId());
+        $template_datatype[ $master_datatype->getId() ] = $this->dbi_service->stackDatatypeArray($template_datatype, $master_datatype->getId());
 
         // TODO - stackDatatypeArray() apparently leaves the child/linked datatypes lying around in the stacked array?
         foreach ($template_datatype as $dt_id => $dt) {
@@ -329,8 +338,8 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Load, stack, and clean the cached_datatype array for the derived datatype
-        $derived_datatype = $this->dti_service->getDatatypeArray($datatype->getId());
-        $derived_datatype[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($derived_datatype, $datatype->getId());
+        $derived_datatype = $this->dbi_service->getDatatypeArray($datatype->getId());
+        $derived_datatype[ $datatype->getId() ] = $this->dbi_service->stackDatatypeArray($derived_datatype, $datatype->getId());
 
         // TODO - stackDatatypeArray() apparently leaves the child/linked datatypes lying around in the stacked array?
         foreach ($derived_datatype as $dt_id => $dt) {
@@ -936,14 +945,7 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Need to get a list of all top-level datatypes associated with the master template
-        // TODO - this looks weird...
-        $template_grandparents = $this->cache_service->get('associated_datatypes_for_'.$master_datatype->getId());
-        if ($template_grandparents == false) {
-            $template_grandparents = $this->dti_service->getAssociatedDatatypes( array($master_datatype->getId()) );
-
-            // Save the list of associated datatypes back into the cache
-            $this->cache_service->set('associated_datatypes_for_'.$master_datatype->getId(), $template_grandparents);
-        }
+        $template_grandparents = $this->dti_service->getAssociatedDatatypes($master_datatype->getId());
 
         // Convert the arrays of datatype/datafield/radio option ids into a format for querying
         $query_datatypes = array_keys($this->template_datatypes);
@@ -966,14 +968,16 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Also need to get a list of all top-level datatypes associated with the derived datatype
-        // TODO - this looks weird...
-        $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
-        if ($derived_grandparents == false) {
-            $derived_grandparents = $this->dti_service->getAssociatedDatatypes( array($datatype->getId()) );
+        $derived_grandparents = $this->dti_service->getAssociatedDatatypes($datatype->getId());
 
-            // Save the list of associated datatypes back into the cache
-            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $derived_grandparents);
-        }
+//        // TODO - this looks weird...
+//        $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
+//        if ($derived_grandparents == false) {
+//            $derived_grandparents = $this->dbi_service->getAssociatedDatatypes( array($datatype->getId()) );
+//
+//            // Save the list of associated datatypes back into the cache
+//            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $derived_grandparents);
+//        }
 
 
         // Convert the arrays of datatype/datafield/radio option ids into a format for querying
@@ -2279,7 +2283,7 @@ class CloneTemplateService
             $properties['sortField'] = null;
 
             // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-            $this->dti_service->resetDatatypeSortOrder($derived_dt->getId());
+            $this->dbi_service->resetDatatypeSortOrder($derived_dt->getId());
         }
         else
             unset( $properties['sortField'] );

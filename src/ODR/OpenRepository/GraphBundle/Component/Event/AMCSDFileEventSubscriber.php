@@ -18,7 +18,6 @@
 namespace ODR\OpenRepository\GraphBundle\Component\Event;
 
 // Entities
-use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
@@ -31,13 +30,14 @@ use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Events
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -57,14 +57,14 @@ class AMCSDFileEventSubscriber implements EventSubscriberInterface
     private $em;
 
     /**
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
      * @var DatarecordInfoService
      */
     private $dri_service;
-
-    /**
-     * @var DatatypeInfoService
-     */
-    private $dti_service;
 
     /**
      * @var EntityCreationService
@@ -91,8 +91,8 @@ class AMCSDFileEventSubscriber implements EventSubscriberInterface
      * AMCSDFileEventSubscriber constructor.
      *
      * @param EntityManager $entity_manager
+     * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param DatatypeInfoService $datatype_info_service
      * @param EntityCreationService $entity_creation_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param SearchCacheService $search_cache_service
@@ -100,16 +100,16 @@ class AMCSDFileEventSubscriber implements EventSubscriberInterface
      */
     public function __construct(
         EntityManager $entity_manager,
+        DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
-        DatatypeInfoService $datatype_info_service,
         EntityCreationService $entity_creation_service,
         EntityMetaModifyService $entity_meta_modify_service,
         SearchCacheService $search_cache_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
+        $this->dbi_service = $database_info_service;
         $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatype_info_service;
         $this->ec_service = $entity_creation_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->search_cache_service = $search_cache_service;
@@ -382,7 +382,7 @@ class AMCSDFileEventSubscriber implements EventSubscriberInterface
     private function getRenderPluginFieldsMapping($datatype)
     {
         // Going to use the cached datatype array for this
-        $datatype_array = $this->dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
+        $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dt = $datatype_array[$datatype->getId()];
 
         // Already verified that the datatype is using the AMCSD plugin in self::isEventRelevant(),

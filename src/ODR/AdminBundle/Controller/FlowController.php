@@ -28,7 +28,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
@@ -177,7 +177,7 @@ class FlowController extends ODRCustomController
 
             // ----------------------------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_id = $user->getId();
 

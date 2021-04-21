@@ -47,8 +47,9 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -95,8 +96,8 @@ class CSVImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -289,8 +290,10 @@ class CSVImportController extends ODRCustomController
             $session = $request->getSession();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -394,7 +397,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Grab all datafields belonging to that datatype
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_target_datatype->getId(), false);
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_target_datatype->getId(), false);
             $datafields = $datatype_array[$target_datatype_id]['dataFields'];
             uasort($datafields, "self::name_sort");
 
@@ -2526,8 +2529,10 @@ class CSVImportController extends ODRCustomController
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             $templating = $this->get('templating');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TagHelperService $th_service */
@@ -2658,7 +2663,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Grab all datafields belonging to the correct datatype
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't load linked datatypes
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't load linked datatypes
             $datafields = $datatype_array[$datatype->getId()]['dataFields'];
             uasort($datafields, "self::name_sort");
 
@@ -2867,8 +2872,8 @@ class CSVImportController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
@@ -3133,7 +3138,7 @@ class CSVImportController extends ODRCustomController
                 $em->flush();
 
                 // Update cached versions of datatype and master theme since new datafields were added
-                $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
                 $theme_service->updateThemeCacheEntry($theme, $user);
 
                 // Don't need to worry about datafield permissions here, those are taken care of
@@ -3148,7 +3153,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Create any needed tags based on the additional_data stored in the tracked job...
-            $dt_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), false);
+            $dt_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'];
 
             // The validation process will have stored an array of every tag that will get selected
@@ -3223,7 +3228,7 @@ print_r($new_mapping);
                 }
 
                 // Update the cached version of the datatype
-                $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
                 // Shouldn't need to worry about the search cache...
             }
@@ -3473,8 +3478,10 @@ print_r($new_mapping);
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -3499,7 +3506,7 @@ print_r($new_mapping);
                 throw new ODRBadRequestException('Unable to import into a master template');
 
             // Going to need the cached datatype array if tags are involved...
-            $cached_dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+            $cached_dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
 
 
             // ----------------------------------------
@@ -4250,7 +4257,7 @@ exit();
 
                 // Mark the datatype as updated and rebuild its cache entries if needed
                 if ( isset($additional_data['rebuild_datatype_cache']) ) {
-                    $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                    $dbi_service->updateDatatypeCacheEntry($datatype, $user);
                     $status .= ' == updated datatype cache entry for datatype '.$datatype->getId().' ("'.$datatype->getShortName().'")'."\n";
                 }
 
@@ -4272,7 +4279,7 @@ exit();
 
             // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
             // Mark this datarecord as updated...
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
@@ -4325,7 +4332,7 @@ exit();
      * @param array $stacked_tag_array
      * @param string[] $tag_chain
      *
-     * @param int|null
+     * @return int|null
      */
     private function locateTagForCSVSelection($stacked_tag_array, $tag_chain)
     {

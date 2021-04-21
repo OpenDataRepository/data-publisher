@@ -62,9 +62,9 @@ class CloneMasterDatatypeService
     private $clone_master_template_theme_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
      */
-    private $dti_service;
+    private $dbi_service;
 
     /**
      * @var EntityCreationService
@@ -155,7 +155,7 @@ class CloneMasterDatatypeService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatabaseInfoService $database_info_service
      * @param EntityCreationService $entity_creation_service
      * @param ThemeInfoService $theme_info_service
      * @param UUIDService $uuid_service
@@ -166,7 +166,7 @@ class CloneMasterDatatypeService
         EntityManager $entity_manager,
         CacheService $cache_service,
         CloneMasterTemplateThemeService $clone_master_template_theme_service,
-        DatatypeInfoService $datatype_info_service,
+        DatabaseInfoService $database_info_service,
         EntityCreationService $entity_creation_service,
         ThemeInfoService $theme_info_service,
         UUIDService $uuid_service,
@@ -176,7 +176,7 @@ class CloneMasterDatatypeService
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->clone_master_template_theme_service = $clone_master_template_theme_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
         $this->ec_service = $entity_creation_service;
         $this->tif_service = $theme_info_service;
         $this->uuid_service = $uuid_service;
@@ -287,7 +287,7 @@ class CloneMasterDatatypeService
             $this->logger->debug('CloneDatatypeService: Master Datatype ID:' . $this->master_datatype->getId());
 
             $include_links = true;
-            $datatype_data = $this->dti_service->getDatatypeArray($this->master_datatype->getId(), $include_links);
+            $datatype_data = $this->dbi_service->getDatatypeArray($this->master_datatype->getId(), $include_links);
             $grandparent_datatype_ids = array_keys($datatype_data);
             $this->logger->debug('CloneDatatypeService: $grandparent_datatype_ids: '.print_r($grandparent_datatype_ids, true));
 

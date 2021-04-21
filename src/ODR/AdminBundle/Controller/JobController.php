@@ -19,7 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
@@ -107,7 +107,7 @@ class JobController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             $jobs = preg_split('/,/',$job_ids);
@@ -159,7 +159,7 @@ class JobController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
@@ -203,7 +203,7 @@ class JobController extends ODRCustomController
             /** @var TrackedJobService $tj_service */
             $tj_service = $this->container->get('odr.tracked_job_service');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $tracked_jobs = array();
             if ($user !== 'anon.') {
@@ -248,7 +248,7 @@ class JobController extends ODRCustomController
             /** @var TrackedJobService $tj_service */
             $tj_service = $this->container->get('odr.tracked_job_service');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
@@ -336,7 +336,7 @@ class JobController extends ODRCustomController
                 }
                 else {
                     // Since the Job and the Datatype still exist, check whether the user has permission to delete this Job
-                    /** @var User $user */
+                    /** @var ODRUser $user */
                     $user = $this->container->get('security.token_storage')->getToken()->getUser();
                     $datatype_permissions = $pm_service->getDatatypePermissions($user);
 

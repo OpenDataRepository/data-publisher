@@ -45,7 +45,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -285,8 +285,8 @@ class MassEditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchRedirectService $search_redirect_service */
@@ -302,7 +302,7 @@ class MassEditController extends ODRCustomController
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
                 throw new ODRBadRequestException();
 
-            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');

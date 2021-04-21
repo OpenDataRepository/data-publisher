@@ -15,10 +15,13 @@ namespace ODR\AdminBundle\Controller;
 use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Model\UserManager;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataRecordMeta;
@@ -62,7 +65,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
@@ -168,8 +170,8 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -305,10 +307,10 @@ class APIController extends ODRCustomController
 
     /**
      * Utility function to recursively inflate the datatype array for self::datatypelistAction()
-     * Can't use the one in the DatatypeInfoService because this array has a different structure
+     * Can't use the one in the DatabaseInfoService because this array has a different structure
      *
      * @param array $source_data
-     * @param array $datatree_array @see DatatypeInfoService::getDatatreeArray()
+     * @param array $datatree_array @see DatatreeInfoService::getDatatreeArray()
      * @param integer $parent_datatype_id
      *
      * @return array
@@ -374,8 +376,8 @@ class APIController extends ODRCustomController
 
             /** @var DatatypeExportService $dte_service */
             $dte_service = $this->container->get('odr.datatype_export_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -466,8 +468,8 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
@@ -657,8 +659,8 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
@@ -902,7 +904,6 @@ class APIController extends ODRCustomController
                 /** @var CacheService $cache_service */
                 $cache_service = $this->container->get('odr.cache_service');
                 $cache_service->delete('user_'.$user->getId().'_permissions');
-
 
                 // Now get the json record and update it with the correct user_id ant date times
                 $json_metadata_record = $cache_service
@@ -3421,8 +3422,8 @@ class APIController extends ODRCustomController
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -3553,19 +3554,19 @@ class APIController extends ODRCustomController
             $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
             $dri_service->updateDatarecordCacheEntry($data_record, $user); // Actual User
-            $dti_service->updateDatatypeCacheEntry($data_type, $api_user);
-            $dti_service->updateDatatypeCacheEntry($data_type, $user);
+            $dbi_service->updateDatatypeCacheEntry($data_type, $api_user);
+            $dbi_service->updateDatatypeCacheEntry($data_type, $user);
 
             // $dri_service->updateDatarecordCacheEntry($data_record, 'anon.');
-            // $dti_service->updateDatatypeCacheEntry($data_type, 'anon.');
+            // $dbi_service->updateDatatypeCacheEntry($data_type, 'anon.');
 
             if($actual_data_record != "") {
                 $dri_service->updateDatarecordCacheEntry($actual_data_record, $user);
                 $dri_service->updateDatarecordCacheEntry($actual_data_record, $api_user);
                 // $dri_service->updateDatarecordCacheEntry($actual_data_record, 'anon.');
-                $dti_service->updateDatatypeCacheEntry($actual_data_type, $api_user);
-                $dti_service->updateDatatypeCacheEntry($actual_data_type, $user);
-                // $dti_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
+                $dbi_service->updateDatatypeCacheEntry($actual_data_type, $api_user);
+                $dbi_service->updateDatatypeCacheEntry($actual_data_type, $user);
+                // $dbi_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
             }
 
             // Clear the AssociatedDatarecordArray so it will rebuild...

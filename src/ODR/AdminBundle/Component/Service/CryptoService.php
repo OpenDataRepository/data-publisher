@@ -139,6 +139,7 @@ class CryptoService
         // Decrypt the specified file prior to acquiring a lock on the archive
         $local_filepath = self::decryptFile($file_id, $target_filename);
 
+        // TODO - flock() seems unreliable, but can ignore for now since the function is unused...
         // Attempt to acquire a lock on the zip archive so only one process is adding to it at a time
         $lock = false;
         while (!$lock) {

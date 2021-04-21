@@ -36,9 +36,9 @@ class DatarecordExportService
     private $dri_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
      */
-    private $dti_service;
+    private $dbi_service;
 
     /**
      * @var PermissionsManagementService
@@ -60,23 +60,23 @@ class DatarecordExportService
      * DatarecordExportService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatarecordInfoService $dri_service
-     * @param DatatypeInfoService $dti_service
-     * @param PermissionsManagementService $pm_service
+     * @param DatabaseInfoService $database_info_service
+     * @param DatarecordInfoService $datarecord_info_service
+     * @param PermissionsManagementService $permissions_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
+        DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
-        DatatypeInfoService $datatype_info_service,
         PermissionsManagementService $permissions_service,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
+        $this->dbi_service = $database_info_service;
         $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatype_info_service;
         $this->pm_service = $permissions_service;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -150,7 +150,7 @@ class DatarecordExportService
 
         $datatype_array = array();
         foreach ($top_level_dt_ids as $dt_id => $num) {
-            $dt_data = $this->dti_service->getDatatypeArray($dt_id, $include_links);
+            $dt_data = $this->dbi_service->getDatatypeArray($dt_id, $include_links);
 
             foreach ($dt_data as $local_dt_id => $data)
                 $datatype_array[$local_dt_id] = $data;
@@ -174,7 +174,7 @@ class DatarecordExportService
         $stacked_datatype_array = array();
         foreach ($top_level_dt_ids as $dt_id => $num) {
             $stacked_datatype_array[$dt_id] = array(
-                $dt_id => $this->dti_service->stackDatatypeArray($datatype_array, $dt_id)
+                $dt_id => $this->dbi_service->stackDatatypeArray($datatype_array, $dt_id)
             );
         }
 

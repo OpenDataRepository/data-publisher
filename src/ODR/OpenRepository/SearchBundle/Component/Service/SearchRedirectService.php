@@ -52,7 +52,7 @@ class SearchRedirectService
     /**
      * SearchRedirectService constructor.
      *
-     * @param ODRTabHelperService $tabHelperService
+     * @param ODRTabHelperService $tab_helper_service
      * @param Router $router
      * @param EngineInterface $templating
      * @param Logger $logger

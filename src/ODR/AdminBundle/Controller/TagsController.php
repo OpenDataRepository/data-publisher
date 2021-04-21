@@ -21,8 +21,8 @@ use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -67,8 +67,8 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -123,7 +123,7 @@ class TagsController extends ODRCustomController
             // Since tag design can be modified from the edit page, and by people without the
             //  "is_datatype_admin" permission, it makes more sense for tag design to be in a modal
             // This also reduces the chances that jQuery Sortable will mess something up
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());
 
             $df_array = array();
             $stacked_tag_list = array();
@@ -188,8 +188,8 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -260,7 +260,7 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Update the cached version of the datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached versions of datarecords or themes
 
@@ -315,8 +315,8 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRTabHelperService $tab_helper_service */
@@ -415,7 +415,7 @@ class TagsController extends ODRCustomController
             $templating = $this->get('templating');
             if ( count($errors) === 0 ) {
                 // ...going to need the datafield array entry for later
-                $dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
                 $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 // Convert any existing tags into a slightly different format
@@ -511,8 +511,8 @@ class TagsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -607,7 +607,7 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Going to need a stacked array version of the tags to combine with the posted data
-            $dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+            $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
             $stacked_tag_array = $th_service->convertTagsForListImport($df_array['tags']);
 
@@ -647,7 +647,7 @@ class TagsController extends ODRCustomController
 
 
             // Update the cached version of the datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Also need to clear a few search cache entries
             $search_cache_service->onDatafieldModify($datafield);
@@ -782,8 +782,8 @@ class TagsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -962,7 +962,7 @@ class TagsController extends ODRCustomController
                 $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
             // Mark this datatype as updated
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Delete the separately cached tag tree for this datatype's grandparent
             if ( $grandparent_datatype->getIsMasterType() ) {
@@ -1038,8 +1038,8 @@ class TagsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1279,7 +1279,7 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             if ($tag_hierarchy_changed || $tag_sort_order_changed) {
                 // Update cached version of datatype
-                $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
                 // Don't need to update cached versions of datarecords or search results unless tag
                 //  parentage got changed...
@@ -1363,8 +1363,8 @@ class TagsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1436,7 +1436,7 @@ class TagsController extends ODRCustomController
 
 
             // Update the cached version of the datatype...
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);

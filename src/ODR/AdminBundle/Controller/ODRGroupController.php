@@ -35,7 +35,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
@@ -778,8 +778,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1198,8 +1198,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */

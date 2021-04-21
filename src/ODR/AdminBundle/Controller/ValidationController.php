@@ -43,7 +43,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -1241,6 +1241,7 @@ class ValidationController extends ODRCustomController
                         $dt_cache[$descendant_id] = $repo_datatype->find($descendant_id);
                 }
             }
+            /** @var DataType[] $dt_cache */
 
             $new_dts = array();
             foreach ($extra_ancestors as $ancestor_id => $tmp) {
@@ -1661,8 +1662,8 @@ class ValidationController extends ODRCustomController
             'DataRecord',
             'Group',
             'GroupDatatypePermissions',
-            'RenderPluginInstance',
-            'RenderPluginMap',
+//            'RenderPluginInstance',
+//            'RenderPluginMap',
         );
         print "The process of deleting datatypes currently ignores these entities...\n";
         foreach ($datatype_entities as $key => $classname) {
@@ -1780,6 +1781,7 @@ class ValidationController extends ODRCustomController
      * Finds and reports datatypes that don't have a master theme...most likely going to be caused
      * by a critical error during their creation...
      *
+     * @param int $check_top_level
      * @param Request $request
      *
      * @return Response
@@ -2519,8 +2521,8 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $site_baseurl = $this->getParameter('site_baseurl');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -2543,8 +2545,8 @@ class ValidationController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Load the array version of both datatypes
-            $left = $dti_service->getDatatypeArray($left_datatype->getId());
-            $right = $dti_service->getDatatypeArray($right_datatype->getId());
+            $left = $dbi_service->getDatatypeArray($left_datatype->getId());
+            $right = $dbi_service->getDatatypeArray($right_datatype->getId());
 
             // Get rid of the masterDataType and masterDataField entries since they cause mis-alignments
             self::inflateTemplateInfo($left);
@@ -2598,7 +2600,7 @@ class ValidationController extends ODRCustomController
     /**
      * Adds entries to masterDataType and masterDataField properties so they line up better
      *
-     * @param array &$array @see DatatypeInfoService::buildDatatypeData()
+     * @param array &$array @see DatabaseInfoService::buildDatatypeData()
      */
     private function inflateTemplateInfo(&$array)
     {
