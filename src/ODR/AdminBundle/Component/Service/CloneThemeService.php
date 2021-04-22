@@ -890,9 +890,7 @@ class CloneThemeService
             // There's no ThemeDatatype entry to clone (theoretically only when creating a link to
             //  some remote datatype), so just create a new ThemeDatatype entry
             $new_theme_datatype = new ThemeDataType();
-
             $new_theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
-            $new_theme_datatype->setHidden(0);    // Default to "not-hidden"
 
             $logger_msg = 'created new';
         }

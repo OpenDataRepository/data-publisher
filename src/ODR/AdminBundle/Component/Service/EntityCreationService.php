@@ -1985,7 +1985,6 @@ class EntityCreationService
         $theme_datatype->setChildTheme($child_theme);
 
         $theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
-        $theme_datatype->setHidden(0);
 
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);

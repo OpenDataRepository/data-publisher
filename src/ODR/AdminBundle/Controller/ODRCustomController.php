@@ -502,10 +502,8 @@ class ODRCustomController extends Controller
                             // ...and the theme_element contains a child/linked datatype...
                             $tdt = $te['themeDataType'][0];
 
-                            // ...then this datatype is rendered only if the child/linked datatype
-                            //  is not hidden
-                            if ( $tdt['hidden'] === 0 )
-                                self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
+                            // ...then check whether the child/linked datatype should be rendered
+                            self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
                         }
                     }
                 }
