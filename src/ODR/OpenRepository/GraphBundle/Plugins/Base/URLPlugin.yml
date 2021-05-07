@@ -2,10 +2,13 @@ odr_plugins.base.url:
     name: URL Field
     category: Base
     datatype: false
-    version: 1.0.1
+    version: 1.1.0
     override_fields: false
     override_child: false
     description: The contents of this datafield will be used as the basis for a URL link.
+    registered_events:
+        PluginOptionsChangedEvent: onPluginOptionsChanged
+        PluginPreRemoveEvent: onPluginPreRemove
     required_fields:
         url_field:
             name: URL Field

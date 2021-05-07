@@ -23,10 +23,15 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class FileDeletedEvent extends Event
+class FileDeletedEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_deleted_event';
+
+    /**
+     * @var int
+     */
+    private $file_id;
 
     /**
      * @var DataFields
@@ -43,21 +48,36 @@ class FileDeletedEvent extends Event
      */
     private $user;
 
+
     /**
      * FileDeletedEvent constructor.
      *
+     * @param int $file_id
      * @param DataFields $datafield
      * @param DataRecord $datarecord
      * @param ODRUser $user
      */
     public function __construct(
+        int $file_id,
         DataFields $datafield,
         DataRecord $datarecord,
         ODRUser $user
     ) {
+        $this->file_id = $file_id;
         $this->datafield = $datafield;
         $this->datarecord = $datarecord;
         $this->user = $user;
+    }
+
+
+    /**
+     * Returns the id of the file that was just deleted
+     *
+     * @return int
+     */
+    public function getFileId()
+    {
+        return $this->file_id;
     }
 
     /**
@@ -90,5 +110,28 @@ class FileDeletedEvent extends Event
     public function getUser()
     {
         return $this->user;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getEventName()
+    {
+        return self::NAME;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorInfo()
+    {
+        return array(
+            self::NAME,
+            'file '.$this->file_id,
+            'df '.$this->datafield->getId(),
+            'dr '.$this->datarecord->getId(),
+        );
     }
 }

@@ -45,7 +45,7 @@
                     {% set prev_category = render_plugin.category %}
                     <optgroup label="{{ prev_category }}">
                 {% endif %}
-
+                        {# TODO - ...shouldn't this only be displaying compatible plugins in the first place? #}
                         <option value="{{ render_plugin.id }}" {% if render_plugin.id == selected_plugin_id %}selected{% endif %}>
                             {{ render_plugin.pluginname }}
                         </option>

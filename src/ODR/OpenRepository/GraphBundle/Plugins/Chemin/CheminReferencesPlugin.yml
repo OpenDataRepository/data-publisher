@@ -2,10 +2,11 @@ odr_plugins.chemin.chemin_references:
     name: Chemin References Plugin
     category: Chemin
     datatype: true
-    version: 1.0.1
+    version: 1.1.0
     override_fields: true
     override_child: false
-    description: A custom version of the References Plugin, customized to have an additional "Supporting Files" field.
+    description: A modified version of the References Plugin that has an additional "Supporting Files" field.
+    registered_events:
     required_fields:
         authors:
             name: Authors

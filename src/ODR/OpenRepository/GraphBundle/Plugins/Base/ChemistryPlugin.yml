@@ -2,10 +2,13 @@ odr_plugins.base.chemistry:
     name: Chemistry Field
     category: Base
     datatype: false
-    version: 1.0.1
+    version: 1.1.0
     override_fields: false
     override_child: false
     description: A datafield containing a chemical formula.
+    registered_events:
+        PluginOptionsChangedEvent: onPluginOptionsChanged
+        PluginPreRemoveEvent: onPluginPreRemove
     required_fields:
         chemistry_field:
             name: Chemistry Field

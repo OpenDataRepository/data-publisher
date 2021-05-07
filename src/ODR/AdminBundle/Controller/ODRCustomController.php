@@ -1018,11 +1018,15 @@ class ODRCustomController extends Controller
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new FilePreEncryptEvent($my_obj);
+                $event = new FilePreEncryptEvent($my_obj, $my_obj->getDataField());
                 $dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // TODO - do something here?
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event...having file encryption interrupted is not
+                //  acceptable though, so any errors need to disappear
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // NOTE - the event is dispatched prior to the file encryption so that file encryption

@@ -2,10 +2,11 @@ odr_plugins.ahed.sample:
     name: Sample Plugin
     category: AHED
     datatype: true
-    version: 1.0.1
+    version: 1.1.0
     override_fields: false
     override_child: false
     description: The Sample plugin provides the basic framework for storing metadata about a sample.
+    registered_events:
     required_fields:
         sample_label:
             name: Sample Label

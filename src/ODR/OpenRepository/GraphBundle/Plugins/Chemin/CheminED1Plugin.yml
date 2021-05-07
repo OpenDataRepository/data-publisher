@@ -2,10 +2,11 @@ odr_plugins.chemin.chemined1:
     name: Chemin ED1 Plugin
     category: Chemin
     datatype: true
-    version: 1.0.1
+    version: 1.1.0
     override_fields: false
     override_child: true
     description: Plugin to display Chemin ED1 Data
+    registered_events:
     required_fields:
         ed1_raw_tiff_file:
             name: ED1 Raw Tiff File

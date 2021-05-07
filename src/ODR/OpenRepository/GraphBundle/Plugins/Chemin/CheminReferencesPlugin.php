@@ -16,7 +16,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Chemin;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -84,34 +83,35 @@ class CheminReferencesPlugin implements DatatypePluginInterface
             // ----------------------------------------
             // Grab various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
-            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
+            $fields = $render_plugin_instance['renderPluginMap'];
 
             // There *should* only be a single datarecord in $datarecords...
             $datarecord = array();
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
+
+            // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
-            foreach ($render_plugin_map as $rpm) {
-                // Get the entities connected by the render_plugin_map entity??
-                $rpf = $rpm['renderPluginFields'];
-                $df_id = $rpm['dataField']['id'];
+            foreach ($fields as $rpf_name => $rpf_df) {
+                // Need to find the real datafield entry in the primary datatype array
+                $rpf_df_id = $rpf_df['id'];
 
                 $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
-                    $df = $datatype['dataFields'][$df_id];
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
+                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
                 $pluginClassName = $df['dataFieldMeta']['renderPlugin']['pluginClassName'];
 
                 // Grab the fieldname specified in the plugin's config file to use as an array key
-                $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
+                $key = strtolower( str_replace(' ', '_', $rpf_name) );
 
-                if ( !isset($datarecord['dataRecordFields'][$df_id]) ) {
+                if ( !isset($datarecord['dataRecordFields'][$rpf_df_id]) ) {
                     // As far as the reference plugin is concerned, empty strings are acceptable values when datarecordfield entries don't exist
                     $datafield_mapping[$key] = '';
                 }
@@ -122,14 +122,14 @@ class CheminReferencesPlugin implements DatatypePluginInterface
                     $datafield_mapping[$key] = array(
                         'datafield' => $df,
                         'render_plugin' => $df['dataFieldMeta']['renderPlugin'],
-                        'datarecordfield' => $datarecord['dataRecordFields'][$df_id]
+                        'datarecordfield' => $datarecord['dataRecordFields'][$rpf_df_id]
                     );
                 }
                 else {
                     // Don't need to execute a render plugin on this datafield's value...extract it
                     //  directly from the datarecord array
                     // $drf is guaranteed to exist at this point
-                    $drf = $datarecord['dataRecordFields'][$df_id];
+                    $drf = $datarecord['dataRecordFields'][$rpf_df_id];
                     $value = '';
 
                     switch ($typeclass) {
@@ -186,30 +186,5 @@ class CheminReferencesPlugin implements DatatypePluginInterface
             // Just rethrow the exception
             throw $e;
         }
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

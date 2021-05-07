@@ -16,6 +16,9 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
+use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -29,7 +32,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MigrationController extends ODRCustomController
 {
-
 
     /**
      * Performs the following migration actions to update the backend database from ODR v1.0 to v1.1
@@ -323,6 +325,256 @@ class MigrationController extends ODRCustomController
                 $conn->rollBack();
 
             $source = 0xe36aba84;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Performs the following migration actions to update the backend database from ODR v1.1 to v1.2
+     * 1a) Load the relevant parts of the existing RenderPluginOption entries
+     * 1b) ...hydrate all the ODR entities found in step 1a...
+     * 1c) ...then create a new RenderPluginOptionsMap entry for each of the existing RenderPluginOptions entries
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function migrate_1_1_Action(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $conn = null;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            $ret = '<html>';
+            $ret .= '<br>----------------------------------------<br>';
+
+            $conn = $em->getConnection();
+            $conn->beginTransaction();
+
+
+            // ----------------------------------------
+            // Ensure there's already stuff in the new RenderPluginOptionsDef table
+            $query = $em->createQuery(
+               'SELECT rpod
+                FROM ODRAdminBundle:RenderPluginOptionsDef rpod'
+            );
+            $results = $query->getArrayResult();
+            if ( empty($results) ) {
+                $ret .= 'All existing RenderPlugins must be updated first';
+                $ret .= '</html>';
+                print $ret;
+                exit();
+            }
+
+            // 1a) Load the relevant parts of the existing RenderPluginOption entries
+            $query =
+               'SELECT rp.id AS rp_id, rpi.id AS rpi_id, rpo.option_name, rpo.option_value,
+                    rpo.created, rpo.createdBy, rpo.updated, rpo.updatedBy
+                FROM odr_render_plugin_instance rpi
+                JOIN odr_render_plugin_options rpo ON rpo.render_plugin_instance_id = rpi.id
+                JOIN odr_render_plugin rp ON rpi.render_plugin_id = rp.id
+                WHERE rpo.deletedAt IS NULL AND rpi.deletedAt IS NULL';
+            $conn = $em->getConnection();
+            $results = $conn->executeQuery($query);
+
+            $existing_rpo = array();
+            $check = array();
+
+            // Going to need to hydrate these
+            $rpi_ids = array();
+            $user_ids = array();
+            foreach ($results as $result) {
+                $rp_id = $result['rp_id'];
+                $rpi_id = $result['rpi_id'];
+                $optionName = $result['option_name'];
+                $optionValue = $result['option_value'];
+                $created = $result['created'];
+                $updated = $result['updated'];
+                $createdBy = $result['createdBy'];
+                $updatedBy = $result['updatedBy'];
+
+                if ( $createdBy === '' )
+                    $createdBy = null;
+                if ( $updatedBy === '' )
+                    $updatedBy = null;
+
+                if ( is_null($createdBy) && !is_null($updatedBy) )
+                    $createdBy = $updatedBy;
+                if ( is_null($updatedBy) && !is_null($createdBy) )
+                    $updatedBy = $createdBy;
+
+                // Save ids for hydration...
+                if ( !isset($rpi_ids[$rpi_id]) )
+                    $rpi_ids[$rpi_id] = 1;
+                if ( !isset($user_ids[$createdBy]) )
+                    $user_ids[$createdBy] = 1;
+                if ( !isset($user_ids[$updatedBy]) )
+                    $user_ids[$updatedBy] = 1;
+
+                // Save actual data...
+                if ( !isset($existing_rpo[$rpi_id]) )
+                    $existing_rpo[$rpi_id] = array();
+                $existing_rpo[$rpi_id][$optionName] = array(
+                    'value' => $optionValue,
+                    'created' => $created,
+                    'createdBy' => intval($createdBy),
+                    'updated' => $updated,
+                    'updatedBy' => intval($updatedBy),
+                );
+
+                // Apparently there's a possibility that an rpi entry has a "leftover" rpo entry that
+                //  belongs to a different render plugin than the current rpi is using
+                $check[$rpi_id] = intval($rp_id);
+            }
+//            $ret .= '<pre>'.print_r($existing_rpo, true).'</pre>';
+
+            // To prevent this migration from running more than once, load any existing
+            //  RenderPluginOptionsMap entries
+            $query = $em->createQuery(
+               'SELECT partial rpom.{id}, partial rpi.{id}, partial rpo.{id}
+                FROM ODRAdminBundle:RenderPluginOptionsMap rpom
+                JOIN rpom.renderPluginInstance rpi
+                JOIN rpom.renderPluginOptionsDef rpo'
+            );
+            $results = $query->getArrayResult();
+
+            $existing_rpom = array();
+            foreach ($results as $rpom) {
+                $rpi_id = $rpom['renderPluginInstance']['id'];
+                $rpod_id = $rpom['renderPluginOptionsDef']['id'];
+
+                if ( !isset($existing_rpom[$rpi_id]) )
+                    $existing_rpom[$rpi_id] = array();
+                $existing_rpom[$rpi_id][$rpod_id] = 0;
+            }
+
+
+            // ----------------------------------------
+            // 1b) ...hydrate all the ODR entities found in step 1a...
+            $rpi_ids = array_keys($rpi_ids);
+            $query = $em->createQuery(
+               'SELECT rpi
+                FROM ODRAdminBundle:RenderPluginInstance rpi
+                WHERE rpi IN (:rpi_ids)'
+            )->setParameters(array('rpi_ids' => $rpi_ids));
+            $results = $query->getResult();
+
+            $rpi_entries = array();
+            foreach ($results as $rpi)
+                $rpi_entries[$rpi->getId()] = $rpi;
+            /** @var RenderPluginInstance[] $rpi_entries */
+
+            // ...and all the Users...
+            $user_ids = array_keys($user_ids);
+            $query = $em->createQuery(
+               'SELECT u
+                FROM ODROpenRepositoryUserBundle:User u
+                WHERE u IN (:user_ids)'
+            )->setParameters(array('user_ids' => $user_ids));
+            $results = $query->getResult();
+
+            $user_entries = array();
+            foreach ($results as $u)
+                $user_entries[$u->getId()] = $u;
+            /** @var ODRUser[] $user_entries */
+
+            // ...and hydrate all the existing RenderPluginOptionDefs too
+            $query = $em->createQuery(
+               'SELECT rpod
+                FROM ODRAdminBundle:RenderPluginOptionsDef rpod'
+            );
+            $results = $query->getResult();
+
+            $rpod_entries = array();
+            foreach ($results as $rpo)
+                $rpod_entries[$rpo->getName()] = $rpo;
+            /** @var RenderPluginOptionsDef[] $rpod_entries */
+
+
+            // ----------------------------------------
+            // 1c) ...then create a new RenderPluginOptionsMap entry for each of the existing
+            //  RenderPluginOptions entries
+            foreach ($existing_rpo as $rpi_id => $rpo) {
+                $rpi = $rpi_entries[$rpi_id];
+
+                foreach ($rpo as $option_key => $data) {
+                    // Find the RenderPluginOptionsDef entry
+                    if ( !isset($rpod_entries[$option_key]) ) {
+                        $ret .= '<p>Unrecognized RenderPluginOption name: "'.$option_key.'" for RenderPlugin "'.$rpi->getRenderPlugin()->getPluginClassName().'", skipping...</p>';
+                        continue;
+                    }
+
+                    $rpod = $rpod_entries[$option_key];
+                    $rpod_id = $rpod->getId();
+
+                    // Verify that this RenderPluginOption belongs to the correct RenderPlugin...
+                    if ( $rpod->getRenderPlugin()->getId()  !== $check[$rpi_id] ) {
+                        $ret .= '<p>RenderPluginOption "'.$option_key.'" does not belong to the RenderPlugin "'.$rpod->getRenderPlugin()->getPluginClassName().'", skipping...</p>';
+                    }
+                    else {
+                        // If this RenderPluginOption has already been transferred, don't create a
+                        //  new RenderPluginOptionsMap
+                        if ( isset($existing_rpom[$rpi_id]) && isset($existing_rpom[$rpi_id][$rpod_id]) )
+                            continue;
+
+                        // Otherwise, this is a valid RenderPluginOption...transfer the setting
+                        //  value into a new RenderPluginOptionsMap entry
+                        $rpom = new RenderPluginOptionsMap();
+                        $rpom->setRenderPluginInstance($rpi);
+                        $rpom->setRenderPluginOptionsDef($rpod);
+                        $rpom->setValue($data['value']);
+
+                        $rpom->setCreated(new \DateTime($data['created']));
+                        $rpom->setUpdated(new \DateTime($data['updated']));
+
+                        $createdBy = $user_entries[$data['createdBy']];
+                        $rpom->setCreatedBy($createdBy);
+                        $updatedBy = $user_entries[$data['updatedBy']];
+                        $rpom->setUpdatedBy($updatedBy);
+
+                        $em->persist($rpom);
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Done with the changes
+//            $conn->rollBack();
+            $conn->commit();
+
+            // Only flush after the transaction is committed
+            $em->flush();
+
+            $ret .= '</html>';
+            print $ret;
+        }
+        catch (\Exception $e) {
+
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0xe8094252;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

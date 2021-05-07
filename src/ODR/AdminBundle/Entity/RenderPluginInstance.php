@@ -47,12 +47,17 @@ class RenderPluginInstance
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $renderPluginOptions;
+    private $renderPluginOptions;    // TODO - get rid of this
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $renderPluginMap;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginOptionsMap;
 
     /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
@@ -86,6 +91,7 @@ class RenderPluginInstance
     {
         $this->renderPluginOptions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginMap = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginOptionsMap = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -191,6 +197,7 @@ class RenderPluginInstance
     }
 
     /**
+     * @deprecated
      * Add renderPluginOptions
      *
      * @param \ODR\AdminBundle\Entity\RenderPluginOptions $renderPluginOptions
@@ -204,6 +211,7 @@ class RenderPluginInstance
     }
 
     /**
+     * @deprecated
      * Remove renderPluginOptions
      *
      * @param \ODR\AdminBundle\Entity\RenderPluginOptions $renderPluginOptions
@@ -214,6 +222,7 @@ class RenderPluginInstance
     }
 
     /**
+     * @deprecated
      * Get renderPluginOptions
      *
      * @return \Doctrine\Common\Collections\Collection 
@@ -254,6 +263,42 @@ class RenderPluginInstance
     public function getRenderPluginMap()
     {
         return $this->renderPluginMap;
+    }
+
+    /**
+     * Add renderPluginOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginOptionsMap $renderPluginOptionsMap
+     *
+     * @return RenderPluginInstance
+     */
+    public function addRenderPluginOptionsMap(\ODR\AdminBundle\Entity\RenderPluginOptionsMap $renderPluginOptionsMap)
+    {
+        $this->renderPluginOptionsMap[] = $renderPluginOptionsMap;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginOptionsMap.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginOptionsMap $renderPluginOptionsMap
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginOptionsMap(\ODR\AdminBundle\Entity\RenderPluginOptionsMap $renderPluginOptionsMap)
+    {
+        return $this->renderPluginOptionsMap->removeElement($renderPluginOptionsMap);
+    }
+
+    /**
+     * Get renderPluginOptionsMap.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginOptionsMap()
+    {
+        return $this->renderPluginOptionsMap;
     }
 
     /**

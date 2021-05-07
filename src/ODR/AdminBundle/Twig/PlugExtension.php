@@ -144,17 +144,6 @@ class PlugExtension extends \Twig_Extension
                     unset( $datarecord['dataRecordFields'][$df_id] );
             }
 
-            // Several other parts of the arrays should be pruned to avoid duplicate/excessive data
-            // TODO This is totally wrong - the plugin data is not duplicative.
-            /*
-            if ( isset($datafield['dataFieldMeta']) && isset($datafield['dataFieldMeta']['renderPlugin']) )
-                unset( $datafield['dataFieldMeta']['renderPlugin'] );
-
-            if ( isset($datarecord['dataType']) )
-                unset( $datarecord['dataType'] );
-            */
-
-
             // Load and execute the render plugin
             /** @var DatafieldPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);

@@ -3,19 +3,11 @@ services:
     odr_plugins.rruff.amcsd:
         class: '%odr_plugin_base_classpath%\RRUFF\AMCSDPlugin'
         arguments:
-            $templating: "@templating"
-
-
-    # Define an event subscriber that listens to several of the File-related events
-    odr_plugins.amcsd.file_event_subscriber:
-        class: ODR\OpenRepository\GraphBundle\Component\Event\AMCSDFileEventSubscriber
-        arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $search_cache_service: "@odr.search_cache_service"
+            $templating: "@templating"
             $logger: "@logger"
-        tags:
-            - { name: "kernel.event_subscriber" }

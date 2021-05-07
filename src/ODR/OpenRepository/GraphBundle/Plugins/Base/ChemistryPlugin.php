@@ -14,9 +14,13 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
-// ODR
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+// Entities
 use ODR\AdminBundle\Entity\RenderPluginInstance;
+// Events
+use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
+use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
+// Services
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -64,19 +68,14 @@ class ChemistryPlugin implements DatafieldPluginInterface
 
         try {
             // ----------------------------------------
-            // Grab various properties from the render plugin array
-            $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
-
-            // Remap render plugin by name => value
-            $options = array();
-            foreach($render_plugin_options as $option) {
-                if ( $option['active'] == 1 )
-                    $options[ $option['optionName'] ] = $option['optionValue'];
-            }
+            // Extract various properties from the render plugin array
+            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
 
 
             // ----------------------------------------
-            // Grab value of datafield
+            // Locate value of datafield
             $str = '';
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
@@ -105,7 +104,8 @@ class ChemistryPlugin implements DatafieldPluginInterface
                 $str = trim( $entity[0]['value'] );
             }
             else {
-                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                // No datarecordfield entry for this datarecord/datafield pair...because of the
+                //  allowed fieldtypes, the plugin can just use the empty string in this case
                 $str = '';
             }
 
@@ -113,11 +113,11 @@ class ChemistryPlugin implements DatafieldPluginInterface
             // Extract subscript/superscript characters from render plugin options
             $sub = "_";
             $super = "^";
-            if (isset($options['subscript_delimiter']) && $options['subscript_delimiter'] != '')
+            if ( isset($options['subscript_delimiter']) && $options['subscript_delimiter'] != '' )
                 $sub = $options['subscript_delimiter'];
             else
                 $sub = "_";
-            if (isset($options['superscript_delimiter']) && $options['superscript_delimiter'] != '')
+            if ( isset($options['superscript_delimiter']) && $options['superscript_delimiter'] != '' )
                 $super = $options['superscript_delimiter'];
             else
                 $super = "^";
@@ -164,36 +164,38 @@ class ChemistryPlugin implements DatafieldPluginInterface
 
 
     /**
-     * Called when a user removes a specific instance of this render plugin
+     * Called when a user changes RenderPluginOptions or RenderPluginMaps entries for this plugin.
      *
-     * @param RenderPluginInstance $render_plugin_instance
+     * @param PluginOptionsChangedEvent $event
      */
-    public function onRemoval($render_plugin_instance)
+    public function onPluginOptionsChanged(PluginOptionsChangedEvent $event)
     {
-        // The 'cached_table_data' entries store the values of datafields so the plugins don't have
-        //  to be executed every single time a search results page is loaded...therefore, when this
-        //  plugin is removed or a setting is changed, these cache entries need to get deleted
-
-        // This is a datafield plugin, so getting the datatype via the datafield...
-        $datatype_id = $render_plugin_instance->getDataField()->getDataType()->getGrandparent()->getId();
-        $this->dri_service->deleteCachedTableData($datatype_id);
+        self::clearCacheEntries($event->getRenderPluginInstance());
     }
 
 
     /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
+     * Called when a user removes this render plugin from a datafield.
      *
-     * @param RenderPluginInstance $render_plugin_instance
+     * @param PluginPreRemoveEvent $event
      */
-    public function onSettingsChange($render_plugin_instance)
+    public function onPluginPreRemove(PluginPreRemoveEvent $event)
     {
-        // The 'cached_table_data' entries store the values of datafields so the plugins don't have
-        //  to be executed every single time a search results page is loaded...therefore, when this
-        //  plugin is removed or a setting is changed, these cache entries need to get deleted
+        self::clearCacheEntries($event->getRenderPluginInstance());
+    }
 
+
+    /**
+     * The 'cached_table_data' entries store the values of datafields so the plugins don't have
+     * to be executed every single time a search results page is loaded...therefore, when this
+     * plugin is removed or a setting is changed, these cache entries need to get deleted
+     *
+     * @param RenderPluginInstance $rpi
+     */
+    private function clearCacheEntries($rpi)
+    {
         // This is a datafield plugin, so getting the datatype via the datafield...
-        $datatype_id = $render_plugin_instance->getDataField()->getDataType()->getGrandparent()->getId();
+        $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
         $this->dri_service->deleteCachedTableData($datatype_id);
     }
 }

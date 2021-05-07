@@ -2,10 +2,11 @@ odr_plugins.chemin.cheminetr:
     name: Chemin ETR Plugin
     category: Chemin
     datatype: true
-    version: 1.0.1
+    version: 1.1.0
     override_fields: false
     override_child: true
     description: Plugin to display Chemin ETR Data
+    registered_events:
     required_fields:
         etr_raw_tiff_file:
             name: ETR Raw Tiff File

@@ -2,10 +2,11 @@ odr_plugins.base.references:
     name: References Plugin
     category: Base
     datatype: true
-    version: 1.0.1
+    version: 1.1.0
     override_fields: true
     override_child: false
-    description: The References Plugin parses multiple linked DataRecords and returns HTML that looks like something you would expect to see for multiple references... 
+    description: The References Plugin parses multiple linked DataRecords and returns HTML that looks like something you would expect to see for multiple references...
+    registered_events:
     required_fields:
         authors:
             name: Authors

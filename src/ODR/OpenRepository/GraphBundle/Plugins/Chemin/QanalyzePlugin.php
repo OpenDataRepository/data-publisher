@@ -14,7 +14,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Chemin;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
@@ -64,29 +63,31 @@ class QanalyzePlugin implements DatafieldPluginInterface
         try {
             // ----------------------------------------
             // Load the options from the render plugin array
-            $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
+            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
 
             $label_field = '';
             $xrd_field = '';
             $phase_field = '';
             $wavelength_field = '';
             $always_display_run_button = true;
-            foreach ($render_plugin_options as $num => $rpo) {
-                switch ($rpo['optionName']) {
+            foreach ($options as $option_name => $option_value) {
+                switch ($option_name) {
                     case 'label_field':
-                        $label_field = $rpo['optionValue'];
+                        $label_field = $option_value;
                         break;
                     case 'xrd_pattern_field':
-                        $xrd_field = $rpo['optionValue'];
+                        $xrd_field = $option_value;
                         break;
                     case 'phase_list_field':
-                        $phase_field = $rpo['optionValue'];
+                        $phase_field = $option_value;
                         break;
                     case 'wavelength_field':
-                        $wavelength_field = $rpo['optionValue'];
+                        $wavelength_field = $option_value;
                         break;
                     case 'always_display_run_button':
-                        if ($rpo['optionValue'] == 'no')
+                        if ($option_value == 'no')
                             $always_display_run_button = false;
                         break;
                 }
@@ -178,30 +179,5 @@ class QanalyzePlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

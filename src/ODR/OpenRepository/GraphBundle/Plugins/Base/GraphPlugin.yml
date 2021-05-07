@@ -6,13 +6,16 @@ odr_plugins.base.graph:
     override_fields: false
     override_child: true
     description: The Graph Plugin plots XY data in a line plot on a linear or log chart.  A data type with the required fields is required and multiple instances of the XY data files are allowed.  If more than one XY file is found, it will be labeled and displayed on a roll-up graph initially.  The plugin then allows filtering to a specific file using the meta data provided.
+    registered_events:
+        FileDeletedEvent: onFileDelete
+        PluginOptionsChangedEvent: onPluginOptionsChanged
     required_fields:
         graph_file:
             name: Graph File
             description: A file containing XY values for plotting.
             type: File
         pivot:
-            name: Pivot Field 
+            name: Pivot Field
             description: If multiple data sets are plotted, the pivot field will be displayed to allow the user to switch between data sets.
             type: IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar
     config_options:
@@ -33,7 +36,7 @@ odr_plugins.base.graph:
         graph_width:
             name: Graph Width
             type: string
-            default: 900 
+            default: 900
             description: Enter a width in pixels for the graph. 
         graph_height: 
             name: Graph Height

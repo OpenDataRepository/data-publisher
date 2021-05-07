@@ -106,6 +106,16 @@ class RenderPlugin
     private $renderPluginFields;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginEvents;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginOptionsDef;    // TODO - rename to renderPluginOptions
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -124,6 +134,8 @@ class RenderPlugin
         $this->dataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginEvents = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginOptionsDef = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -520,6 +532,78 @@ class RenderPlugin
     public function getRenderPluginFields()
     {
         return $this->renderPluginFields;
+    }
+
+    /**
+     * Add renderPluginEvent.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent
+     *
+     * @return RenderPlugin
+     */
+    public function addRenderPluginEvent(\ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent)
+    {
+        $this->renderPluginEvents[] = $renderPluginEvent;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginEvent.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginEvent(\ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent)
+    {
+        return $this->renderPluginEvents->removeElement($renderPluginEvent);
+    }
+
+    /**
+     * Get renderPluginEvents.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginEvents()
+    {
+        return $this->renderPluginEvents;
+    }
+
+    /**
+     * Add renderPluginOptionsDef.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef
+     *
+     * @return RenderPlugin
+     */
+    public function addRenderPluginOptionsDef(\ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef)
+    {
+        $this->renderPluginOptionsDef[] = $renderPluginOptionsDef;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginOptionsDef.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginOptionsDef(\ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef)
+    {
+        return $this->renderPluginOptionsDef->removeElement($renderPluginOptionsDef);
+    }
+
+    /**
+     * Get renderPluginOptionsDef.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginOptionsDef()
+    {
+        return $this->renderPluginOptionsDef;
     }
 
     /**

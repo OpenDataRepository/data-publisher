@@ -2,10 +2,11 @@ odr_plugins.metadata.ahed_properties_core:
     name: AHED Properties - Core
     category: Metadata
     datatype: true
-    version: 1.0.0
+    version: 1.1.0
     override_fields: false
     override_child: true
     description: TODO
+    registered_events:
     required_fields:
         # TODO - should anything go in here?
     config_options:

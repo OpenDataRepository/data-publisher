@@ -47,6 +47,8 @@ use ODR\AdminBundle\Entity\RenderPluginFields;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
+use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
+use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
@@ -1411,6 +1413,12 @@ class EntityCreationService
         else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN && is_null($datafield) )
             throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datafield');
 
+        // Ensure a RenderPlugin for a Datatype doesn't mention a Datafield, and vice versa
+        if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN )
+            $datafield = null;
+        else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN )
+            $datatype = null;
+
         // Create the new RenderPluginInstance
         $rpi = new RenderPluginInstance();
         $rpi->setRenderPlugin($render_plugin);
@@ -1467,34 +1475,32 @@ class EntityCreationService
 
 
     /**
-     * Creates and persists a new RenderPluginOption entity.
+     * Creates and persists a new RenderPluginOptionsMap entity.
      *
      * @param ODRUser $user
      * @param RenderPluginInstance $render_plugin_instance
-     * @param string $option_name
+     * @param RenderPluginOptionsDef $render_plugin_option TODO - rename to RenderPluginOptions
      * @param string $option_value
      * @param bool $delay_flush
      *
-     * @return RenderPluginOptions
+     * @return RenderPluginOptionsMap
      */
-    public function createRenderPluginOption($user, $render_plugin_instance, $option_name, $option_value, $delay_flush = false)
+    public function createRenderPluginOptionsMap($user, $render_plugin_instance, $render_plugin_option, $option_value, $delay_flush = false)
     {
-        $rpo = new RenderPluginOptions();
-        $rpo->setRenderPluginInstance($render_plugin_instance);
-        $rpo->setOptionName($option_name);
-        $rpo->setOptionValue($option_value);
+        $rpom = new RenderPluginOptionsMap();
+        $rpom->setRenderPluginInstance($render_plugin_instance);
+        $rpom->setRenderPluginOptionsDef($render_plugin_option);
+        $rpom->setValue($option_value);
 
-        $rpo->setActive(true);
+        $rpom->setCreatedBy($user);
+        $rpom->setUpdatedBy($user);
 
-        $rpo->setCreatedBy($user);
-        $rpo->setUpdatedBy($user);
-
-        $this->em->persist($rpo);
+        $this->em->persist($rpom);
 
         if ( !$delay_flush )
             $this->em->flush();
 
-        return $rpo;
+        return $rpom;
     }
 
 

@@ -1,0 +1,79 @@
+ODR\AdminBundle\Entity\RenderPluginEvents:
+    type: entity
+    table: odr_render_plugin_events
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        eventName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: event_name
+        eventCallable:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: event_callable
+
+        deletedAt:
+            type: date
+            nullable: true
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
+    indexes:
+        rpe_name:
+            columns: ["event_name"]
+
+    manyToOne:
+        renderPlugin:
+            targetEntity: RenderPlugin
+            cascade: {  }
+            mappedBy: null
+            inversedBy: renderPluginEvents
+            joinColumns:
+                render_plugin_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

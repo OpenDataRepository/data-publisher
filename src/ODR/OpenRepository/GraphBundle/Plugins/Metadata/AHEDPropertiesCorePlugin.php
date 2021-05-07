@@ -14,7 +14,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Metadata;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -117,30 +116,5 @@ class AHEDPropertiesCorePlugin implements DatatypePluginInterface
             // Just rethrow the exception
             throw $e;
         }
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

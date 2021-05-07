@@ -17,7 +17,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -87,17 +86,10 @@ class LinkPlugin implements DatatypePluginInterface
 
         try {
             // ----------------------------------------
-            // Grab various properties from the render plugin array
+            // Extract various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
-            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
-            $render_plugin_options = $render_plugin_instance['renderPluginOptions'];
-
-            // Remap render plugin by name => value
-            $options = array();
-            foreach($render_plugin_options as $option) {
-                if ( $option['active'] == 1 )
-                    $options[ $option['optionName'] ] = $option['optionValue'];
-            }
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
 
 
             // ----------------------------------------
@@ -134,30 +126,5 @@ class LinkPlugin implements DatatypePluginInterface
             // Just rethrow the exception
             throw $e;
         }
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

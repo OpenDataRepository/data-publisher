@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\RenderPlugin:
     type: entity
     table: odr_render_plugin
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
 
@@ -21,15 +20,12 @@ ODR\AdminBundle\Entity\RenderPlugin:
             fixed: false
             nullable: false
             column: plugin_name
-#            gedmo:
-#                - versioned
         description:
             type: text
             fixed: false
             nullable: true
             column: description
-#            gedmo:
-#                - versioned
+
         category:
             type: string
             length: 32
@@ -42,29 +38,22 @@ ODR\AdminBundle\Entity\RenderPlugin:
             fixed: false
             nullable: false
             column: plugin_class_name
-#            gedmo:
-#                - versioned
+
         active:
             type: boolean
             nullable: false
             column: active
-#            gedmo:
-#                - versioned
 
         overrideChild:
             type: boolean
             nullable: false
             column: override_child
             default: false
-#            gedmo:
-#                - versioned
         overrideFields:
             type: boolean
             nullable: false
             column: override_fields
             default: false
-#            gedmo:
-#                - versioned
 
         plugin_type:
             type: smallint
@@ -72,14 +61,10 @@ ODR\AdminBundle\Entity\RenderPlugin:
             unsigned: false
             nullable: false
             column: plugin_type
-#            gedmo:
-#                - versioned
 
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
         created:
             type: datetime
             gedmo:
@@ -90,6 +75,10 @@ ODR\AdminBundle\Entity\RenderPlugin:
             gedmo:
                 timestampable:
                     on: update
+
+    indexes:
+        rp_classname:
+            columns: ["plugin_class_name"]
 
     oneToMany:
         dataFields:
@@ -117,6 +106,22 @@ ODR\AdminBundle\Entity\RenderPlugin:
 #            fetch: LAZY
             orphanRemoval: false
 
+        renderPluginEvents:
+            targetEntity: RenderPluginEvents
+            cascade: {  }
+            mappedBy: renderPlugin
+            inversedBy: null
+#            fetch: LAZY
+            orphanRemoval: false
+
+        renderPluginOptionsDef:
+            targetEntity: RenderPluginOptionsDef    # TODO - change to RenderPluginOptions
+            cascade: { }
+            mappedBy: renderPlugin
+            inversedBy: null
+#            fetch: LAZY
+            orphanRemoval: false
+
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -127,9 +132,7 @@ ODR\AdminBundle\Entity\RenderPlugin:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-#                blameable:
-#                    on: create
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -139,7 +142,5 @@ ODR\AdminBundle\Entity\RenderPlugin:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-#                blameable:
-#                    on: update
+
     lifecycleCallbacks: {  }

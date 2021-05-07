@@ -1854,9 +1854,9 @@ odr_migrate_1.0:
     path:  /admin/migrate/1.0
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_0_ }
 
-#odr_migrate_1.1:
-#    path:  /admin/migrate/1.1
-#    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
+odr_migrate_1.1:
+    path:  /admin/migrate/1.1
+    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
 
 #-----------------------------------------
 

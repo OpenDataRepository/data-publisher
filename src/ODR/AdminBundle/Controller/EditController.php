@@ -35,7 +35,6 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -694,44 +693,6 @@ class EditController extends ODRCustomController
             $search_cache_service->onDatafieldModify($datafield);
 
 
-            // -----------------------------------
-            // Need to locate and load any render plugins affecting this datafield to determine
-            //  whether one of them is a graph-type plugin...
-            $query = $em->createQuery(
-               'SELECT rp.pluginClassName
-                FROM ODRAdminBundle:RenderPluginMap rpm
-                JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpi.renderPlugin = rp
-                WHERE rpm.dataField = :datafield_id
-                AND rpm.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rp.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafield_id' => $datafield->getId(),
-//                    'plugin_type' => RenderPlugin::DATATYPE_PLUGIN    // TODO - should this be required?
-                )
-            );
-            $results = $query->getArrayResult();
-
-            // Currently, there's going to be at most 2 results in here...one of them being a
-            //  datatype render plugin that uses this datafield, the other being a datafield render
-            //  plugin
-            foreach ($results as $result) {
-                $plugin_classname = $result['pluginClassName'];
-                $plugin = $plugin = $this->get($plugin_classname);
-
-                // If the datafield is being used by a graph-type plugin...
-                if ( $plugin instanceof GraphPluginInterface ) {
-                    // ...then that graph plugin needs to be notified that a file got deleted, so it
-                    //  can delete any cached entries/files it has created based off this file
-
-                    /** @var GraphPluginInterface $plugin */
-                    $plugin->onFileChange($datafield, $file_id);
-
-                    // TODO - refactor to use the dispatched event instead?
-                }
-            }
-
-
             // ----------------------------------------
             // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
             //  event subscribers will prevent file encryption otherwise...
@@ -740,11 +701,15 @@ class EditController extends ODRCustomController
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new FileDeletedEvent($datafield, $datarecord, $user);
+                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
                 $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // TODO - do something here?
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
             }
 
 

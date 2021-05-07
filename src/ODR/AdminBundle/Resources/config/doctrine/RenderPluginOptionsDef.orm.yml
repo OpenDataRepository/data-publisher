@@ -1,0 +1,106 @@
+# TODO - change to RenderPluginOptions
+ODR\AdminBundle\Entity\RenderPluginOptionsDef:
+    type: entity
+    table: odr_render_plugin_options_def
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        name:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: name
+        displayName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: display_name
+
+        defaultValue:
+            type: string
+            length: 255
+            fixed: false
+            nullable: true
+            column: default_value
+        choices:
+            type: text
+            fixed: false
+            nullable: true
+            column: choices
+        description:
+            type: text
+            fixed: false
+            nullable: true
+            column: description
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    indexes:
+        rpo_name:
+            columns: ["name"]
+
+    oneToMany:
+        renderPluginOptionsMap:
+            targetEntity: RenderPluginOptionsMap
+            cascade: { }
+            mappedBy: renderPluginOptionsDef    # TODO - change to RenderPluginOptions
+            inversedBy: null
+#            fetch: LAZY
+            orphanRemoval: false
+
+    manyToOne:
+        renderPlugin:
+            targetEntity: RenderPlugin
+            cascade: {  }
+            mappedBy: null
+            inversedBy: renderPluginOptionsDef
+            joinColumns:
+                render_plugin_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }
