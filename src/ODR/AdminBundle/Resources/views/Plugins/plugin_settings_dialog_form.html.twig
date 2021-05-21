@@ -3,81 +3,78 @@
 <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="pure-form pure-form-aligned" id="ODRRenderPluginSettingsForm">
 
     <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
-    {% if local_datafield == null %}
-        <input type="hidden" name="local_datafield_id" value="0" />
-        <input type="hidden" name="previous_render_plugin" value="{{ local_datatype.renderplugin.id }}" />
-    {% else %}
-        <input type="hidden" name="local_datafield_id" value="{{ local_datafield.id }}" />
-        <input type="hidden" name="previous_render_plugin" value="{{ local_datafield.renderplugin.id }}" />
-    {% endif %}
-    <input type="hidden" name="render_plugin_instance_id" value="{% if render_plugin_instance != null %}{{ render_plugin_instance.id }}{% endif %}" />
+{% if local_datafield == null %}
+    <input type="hidden" name="local_datafield_id" value="0" />
+{% else %}
+    <input type="hidden" name="local_datafield_id" value="{{ local_datafield.id }}" />
+{% endif %}
 
-    <fieldset>
-        <div class="pure-control-group">
-            <label for="selected_render_plugin">
-                <strong>Render Plugin: </strong>
+    <div class="pure-u-6-24">
+        <fieldset>
+            <label class="ODRPluginListLabel" for="selected_render_plugins">
+                Available Render Plugins
             </label>
-
-            {% set selected_plugin_id = '' %}
-            {% if local_datafield == null %}
-                {% set selected_plugin_id = local_datatype.dataTypeMeta.renderplugin.id %}
-            {% else %}
-                {% set selected_plugin_id = local_datafield.dataFieldMeta.renderplugin.id %}
-            {% endif %}
-
-            <select name="selected_render_plugin" id="selected_render_plugin" onchange="updatePluginData();">
-            {# Print out the default render plugin separately, so it's always at the top of the list #}
-                <optgroup label="Default">
-                    <option value="{{ default_render_plugin.id }}" {% if default_render_plugin.id == selected_plugin_id %}selected{% endif %}>
-                        {{ default_render_plugin.pluginname }}
-                    </option>
-                </optgroup>
-
+            <div id="selected_render_plugins" class="pure-control-group pure-u-1">
             {% set prev_category = '' %}
-            {% for render_plugin in render_plugins %}
-                {% if render_plugin.category != prev_category %}
-                    {# If this isn't the first render plugin category encountered, then close out the previous category's <optgroup> tag #}
-                    {% if prev_category != '' %}
-                    </optgroup>
-                    {% endif %}
-
+            {% for rp in all_render_plugins %}
+                {% if rp.category != prev_category %}
                     {# Start a new <optgroup> with the current plugin's category #}
-                    {% set prev_category = render_plugin.category %}
-                    <optgroup label="{{ prev_category }}">
+                    {% set prev_category = rp.category %}
+                    <div class="ODRPluginCategoryLabel pure-u-1">{{ prev_category }}</div>
                 {% endif %}
-                        {# TODO - ...shouldn't this only be displaying compatible plugins in the first place? #}
-                        <option value="{{ render_plugin.id }}" {% if render_plugin.id == selected_plugin_id %}selected{% endif %}>
-                            {{ render_plugin.pluginname }}
-                        </option>
+
+                    <div id="rp_{{ rp.id }}" class="ODRPluginEntry pure-u-1">
+                        <span class="ODRPluginIcon">{% if attached_render_plugins[rp.id] is defined %}<i class="fa fa-plug"></i>{% endif %}</span>
+                        <span class="ODRPluginName" rel="{{ rp.id }}">{{ rp.pluginname }}</span>
+                    </div>
             {% endfor %}
 
-                    {# Close out the last remaining <optgroup> tag #}
-                    </optgroup>
+            </div>
+        </fieldset>
+    </div>
 
-            </select>
+    {# plugin data div #}
+    <div class="pure-u-18-24">
+        <div id="ODRRenderPluginData" class="pure-control-group">
+            <fieldset>
+                <span>The {% if local_datafield is null %}Database{% else %}Datafield{% endif %} is not using a Render Plugin.<br>Select a Render Plugin from the left side of this dialog.</span>
+            </fieldset>
         </div>
-    </fieldset>
-
-    <div id="ODRRenderPluginData" class="pure-control-group"></div>
+    </div>
 
 </form>
 
 <script>
     $( function() {
+        {% if plugin_to_load is not null %}
         // Load initial plugin settings
-        updatePluginData();
+        loadPluginConfig({{ plugin_to_load }});
+        {% endif %}
+
+        $(".ODRPluginName").unbind('click').click(function() {
+            var render_plugin_id = $(this).attr('rel');
+            loadPluginConfig(render_plugin_id);
+        });
     });
 
-    function updatePluginData() {
+
+    /**
+     * Loads the description, plugin fields, and plugin options for the specified render plugin.
+     *
+     * @param {number} render_plugin_id
+     */
+    function loadPluginConfig(render_plugin_id) {
         var datatype_id = {{ local_datatype.id }};
         var datafield_id = {% if local_datafield == null %}0{% else %}{{ local_datafield.id }}{% endif %};
-        var render_plugin_id = $('#selected_render_plugin').val();
 
         var url  = '{{ path('odr_load_plugin_data', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
         url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
 
         $("#ODRRenderPluginSettingsForm").hide();
         $(".ODRRemodalLoading").show();
+
+        $(".ODRSelectedPlugin").removeClass("ODRSelectedPlugin");
+        $("#rp_" + render_plugin_id).addClass("ODRSelectedPlugin");
 
         $.ajax({
             cache: false,

@@ -29,7 +29,7 @@
             {% for dr_id, file_name in odr_chart_output_files %}
                 {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
-                        <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
+                        <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
                         <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
                     </div><!-- end of .ODRGraph -->
                 {% endif %}

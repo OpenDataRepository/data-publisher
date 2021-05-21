@@ -14,7 +14,15 @@
             {% endif %}
         </h1>
         {% if datatype.setup_step != "complete" %}
-            {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
+            {% if datatype.metadata_for != null %} {# Master Template Creation #}
+                {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+                    'wizard_step': 2,
+                    'datatype_id': datatype.id,
+                    'edit_properties': false,
+                    'create_master': false,
+                    'master_templates': null,
+                    'master_type_id': 0,
+                } %}
             {% else %}
                 {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
                     'wizard_step': 3,
@@ -802,15 +810,7 @@
                 // Render Plugin
                 tools.render.removeClass('faded');
                 tools.render.find('i').addClass('ODRActiveIcon');
-
-                if (props.render_plugin_classname === "odr_plugins.base.default") {
-                    tools.render.find('.link-text').html('Change Render Plugin');
-                    tools.render.attr('title', 'Change Render Plugin');
-                }
-                else {
-                    tools.render.find('.link-text').html('Custom Render');
-                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '"');
-                }
+                tools.render.find('.link-text').html('Change Render Plugin');
 
                 if ( is_datatype_admin ) {
                     tools.render.unbind('click').click(function () {
@@ -1089,21 +1089,7 @@
                 // Render Plugin
                 tools.render.removeClass('faded');
                 tools.render.find('i').addClass('ODRActiveIcon');
-
-                if (props.render_plugin_classname === "odr_plugins.base.default") {
-                    if ( is_datatype_admin ) {
-                        tools.render.find('.link-text').html('Change Render Plugin');
-                        tools.render.attr('title', 'Change Render Plugin');
-                    }
-                    else {
-                        tools.render.find('.link-text').html('Default Render Plugin');
-                        // tools.render.attr('title', 'Change Render Plugin');
-                    }
-                }
-                else {
-                    tools.render.find('.link-text').html('Custom Render Plugin');
-                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '"');
-                }
+                tools.render.find('.link-text').html('Change Render Plugin');
 
                 if ( is_datatype_admin ) {
                     tools.render.unbind('click').click(function () {

@@ -72,8 +72,8 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
         dataType:
             targetEntity: DataType
             cascade: {  }
-            mappedBy: null
-            inversedBy:  null
+            mappedBy: dataType
+            inversedBy: renderPluginInstances
             joinColumns:
                 data_type_id:
                     referencedColumnName: id
@@ -82,8 +82,8 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
         dataField:
             targetEntity: DataFields
             cascade: {  }
-            mappedBy: null
-            inversedBy: null
+            mappedBy: dataFields
+            inversedBy: renderPluginInstances
             fetch: LAZY
             joinColumns:
                 data_field_id:

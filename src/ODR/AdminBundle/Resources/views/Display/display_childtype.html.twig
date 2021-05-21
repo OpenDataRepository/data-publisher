@@ -3,24 +3,28 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-
-{% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'display'} %}
 
-{# Don't attempt to execute the default render_plugin #}
+{# Determine whether a render plugin needs to be run #}
+{% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
-{% if render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
-    {% set can_execute_plugin = render_plugin|can_execute_plugin(datatype, rendering_options) %}
-{% endif %}
+{% for rpi_num,rpi in datatype.renderPluginInstances %}
+    {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+        {% set can_execute_plugin = rpi|can_execute_plugin(datatype, rendering_options) %}
+
+        {# Only want to save the render_plugin_instance if it's render-able #}
+        {% set render_plugin_instance = rpi %}
+    {% endif %}
+{% endfor %}
 
 {% set content = '' %}
-{% if can_execute_plugin and render_plugin.overrideChild %}
+{% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideChild %}
     {# Display mode doesn't have datatype_permissions, datafield_permissions, or a token_list #}
-    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin, theme_array, rendering_options) %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
     {% if content|length > 0 %}
-        <!-- Start {{ render_plugin.pluginName }} override child html -->
+        <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
         {{ content|raw }}
-        <!-- End {{ render_plugin.pluginName }} override child html -->
+        <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
     {% endif %}
 {% endif %}
 
@@ -49,16 +53,16 @@
             <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
                 {% set content = '' %}
-                {% if can_execute_plugin and (render_plugin.overrideChild or render_plugin.overrideFields) %}
+                {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
                     {# [datarecord] converts datarecord into a single-element array #}
-                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options) %}
+                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
                     {% if content|length > 0 %}
-                        <!-- html for {{ render_plugin.pluginName }} -->
+                        <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
                         {{ content|raw }}
                     {% endif %}
                 {% endif %}
 
-                {% if can_execute_plugin and render_plugin.overrideFields and content|length > 0 %}
+                {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
                     {# If using render plugin and it overrides datafield display, do nothing here #}
                 {% else %}
                     {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {

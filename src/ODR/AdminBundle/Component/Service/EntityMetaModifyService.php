@@ -263,7 +263,6 @@ class EntityMetaModifyService
         $existing_values = array(
             // These entities can be set here since they're never null
             'fieldType' => $old_meta_entry->getFieldType()->getId(),
-            'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
 
             'fieldName' => $old_meta_entry->getFieldName(),
             'description' => $old_meta_entry->getDescription(),
@@ -322,8 +321,6 @@ class EntityMetaModifyService
         // Set any new properties
         if ( isset($properties['fieldType']) )
             $new_datafield_meta->setFieldType( $this->em->getRepository('ODRAdminBundle:FieldType')->find( $properties['fieldType'] ) );
-        if ( isset($properties['renderPlugin']) )
-            $new_datafield_meta->setRenderPlugin( $this->em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
         if ( isset($properties['fieldName']) )
             $new_datafield_meta->setFieldName( $properties['fieldName'] );
@@ -609,9 +606,6 @@ class EntityMetaModifyService
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            // This entity can be set here since it's never null
-            'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
-
             'searchSlug' => $old_meta_entry->getSearchSlug(),
             'shortName' => $old_meta_entry->getShortName(),
             'longName' => $old_meta_entry->getLongName(),
@@ -685,8 +679,6 @@ class EntityMetaModifyService
 
 
         // Set any new properties
-        if ( isset($properties['renderPlugin']) )
-            $new_datatype_meta->setRenderPlugin( $this->em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
         // isset() will return false when ('externalIdField' => null), so need to use
         //  array_key_exists() instead

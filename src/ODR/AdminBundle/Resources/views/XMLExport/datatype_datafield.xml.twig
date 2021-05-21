@@ -6,7 +6,7 @@
 
 {% set tag_start = '' %}
 {% set tag_end = '' %}
-{% if version == 'v1' %}
+{% if version == 'v1' or version == 'v3' %}
     {% set tag_start = '<field_' ~ datafield.id ~ '><field_name>' ~ datafield_meta.fieldName|xml|raw ~ '</field_name>' %}
     {% set tag_end = '</field_' ~ datafield.id ~ '>' %}
 {% elseif version == 'v2' %}
@@ -23,9 +23,11 @@
     <template_field_uuid>{{ datafield.templateFieldUuid }}</template_field_uuid>
     <updated_at>{{ datafield_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 
-    {% if datafield_meta.renderPlugin.id != 1 %}
-    <render_plugin>{{ datafield_meta.renderPlugin.pluginName }}</render_plugin>
-    {% endif %}
+    {% for rpi_num,rpi in datatype.renderPluginInstances %}
+        {% if rpi.renderPlugin.render == true %}
+        <render_plugin>{{ rpi.renderPlugin.pluginName }}</render_plugin>
+        {% endif %}
+    {% endfor %}
 
     {% if datafield_meta.is_unique == 1 %}
     <is_unique/>

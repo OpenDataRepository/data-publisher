@@ -103,10 +103,10 @@ class ODREventSubscriber implements EventSubscriberInterface
 
         // Either of these could be null...
         $datatype_id = 0;
-        if (!is_null($datatype))
+        if ( !is_null($datatype) )
             $datatype_id = $datatype->getId();
         $datafield_id = 0;
-        if (!is_null($datafield))
+        if ( !is_null($datafield) )
             $datafield_id = $datafield->getId();
 
         $query = null;

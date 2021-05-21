@@ -56,6 +56,11 @@ class RenderPlugin
     private $active;
 
     /**
+     * @var bool
+     */
+    private $render;
+
+    /**
      * @var boolean
      */
     private $overrideChild;
@@ -84,16 +89,6 @@ class RenderPlugin
      * @var \DateTime
      */
     private $updated;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $dataFields;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $dataType;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -130,8 +125,6 @@ class RenderPlugin
      */
     public function __construct()
     {
-        $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->dataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginEvents = new \Doctrine\Common\Collections\ArrayCollection();
@@ -262,6 +255,30 @@ class RenderPlugin
     public function getActive()
     {
         return $this->active;
+    }
+
+    /**
+     * Set render.
+     *
+     * @param bool $render
+     *
+     * @return RenderPlugin
+     */
+    public function setRender($render)
+    {
+        $this->render = $render;
+
+        return $this;
+    }
+
+    /**
+     * Get render.
+     *
+     * @return bool
+     */
+    public function getRender()
+    {
+        return $this->render;
     }
 
     /**
@@ -400,72 +417,6 @@ class RenderPlugin
     public function getUpdated()
     {
         return $this->updated;
-    }
-
-    /**
-     * Add dataFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
-     * @return RenderPlugin
-     */
-    public function addDataField(\ODR\AdminBundle\Entity\DataFields $dataFields)
-    {
-        $this->dataFields[] = $dataFields;
-
-        return $this;
-    }
-
-    /**
-     * Remove dataFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
-     */
-    public function removeDataField(\ODR\AdminBundle\Entity\DataFields $dataFields)
-    {
-        $this->dataFields->removeElement($dataFields);
-    }
-
-    /**
-     * Get dataFields
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getDataFields()
-    {
-        return $this->dataFields;
-    }
-
-    /**
-     * Add dataType
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $dataType
-     * @return RenderPlugin
-     */
-    public function addDataType(\ODR\AdminBundle\Entity\DataType $dataType)
-    {
-        $this->dataType[] = $dataType;
-
-        return $this;
-    }
-
-    /**
-     * Remove dataType
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $dataType
-     */
-    public function removeDataType(\ODR\AdminBundle\Entity\DataType $dataType)
-    {
-        $this->dataType->removeElement($dataType);
-    }
-
-    /**
-     * Get dataType
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getDataType()
-    {
-        return $this->dataType;
     }
 
     /**

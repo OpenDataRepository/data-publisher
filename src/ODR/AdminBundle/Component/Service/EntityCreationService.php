@@ -131,12 +131,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param FieldType $fieldtype
-     * @param RenderPlugin $render_plugin
      * @param bool $delay_flush
      *
      * @return DataFields
      */
-    public function createDatafield($user, $datatype, $fieldtype, $render_plugin, $delay_flush = false)
+    public function createDatafield($user, $datatype, $fieldtype, $delay_flush = false)
     {
         // Poplulate new DataFields form
         $datafield = new DataFields();
@@ -159,7 +158,6 @@ class EntityCreationService
         $datafield_meta = new DataFieldsMeta();
         $datafield_meta->setDataField($datafield);
         $datafield_meta->setFieldType($fieldtype);
-        $datafield_meta->setRenderPlugin($render_plugin);
 
         // Master Revision defaults to zero.  When created from a Master Template field, this will
         //  track the data field Master Published Revision.
@@ -636,12 +634,6 @@ class EntityCreationService
         $datatype_meta->setNameField(null);
         $datatype_meta->setSortField(null);
         $datatype_meta->setBackgroundImageField(null);
-
-        /** @var RenderPlugin $default_render_plugin */
-        $default_render_plugin = $this->em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy(
-            array('pluginClassName' => 'odr_plugins.base.default')
-        );
-        $datatype_meta->setRenderPlugin($default_render_plugin);
 
         $datatype_meta->setCreatedBy($user);
         $datatype_meta->setUpdatedBy($user);

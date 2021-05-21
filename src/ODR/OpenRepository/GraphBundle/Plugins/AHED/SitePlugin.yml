@@ -2,6 +2,7 @@ odr_plugins.ahed.site:
     name: Site Identifier Plugin
     category: AHED
     datatype: true
+    render: false
     version: 1.1.0
     override_fields: false
     override_child: false

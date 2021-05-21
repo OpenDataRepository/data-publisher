@@ -27,10 +27,6 @@
     datatype_properties[{{ datatype_id }}].is_public = 0;
     {% endif %}
 
-    datatype_properties[{{ datatype_id }}].render_plugin_id = {{ datatype_meta.renderPlugin.id }};
-    datatype_properties[{{ datatype_id }}].render_plugin_name = "{{ datatype_meta.renderPlugin.pluginName }}";
-    datatype_properties[{{ datatype_id }}].render_plugin_classname = "{{ datatype_meta.renderPlugin.pluginClassName }}";
-
     {#console.log('datatype ' + {{ datatype_id }}, datatype_properties[{{ datatype_id }}]);#}
 </script>
 {% endspaceless %}

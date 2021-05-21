@@ -27,6 +27,7 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
@@ -126,13 +127,13 @@ class AMCSDPlugin implements DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // This render plugin does most of its work when in Edit mode, but also needs to get
         //  executed in Display mode so the user can be notified of problems with the AMC file
@@ -148,7 +149,7 @@ class AMCSDPlugin implements DatatypePluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -159,12 +160,11 @@ class AMCSDPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
         try {
             // ----------------------------------------
             // Extract various properties from the render plugin array
-            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
@@ -605,10 +605,17 @@ class AMCSDPlugin implements DatatypePluginInterface
     private function isEventRelevant($datafield)
     {
         $dt = $datafield->getDataType();
-        $rp = $dt->getRenderPlugin();
 
         // Sanity check for whether the datatype is currently using the AMCSD render plugin...
-        if ( $rp->getPluginClassName() !== 'odr_plugins.rruff.amcsd' )
+        $rp = null;
+        foreach ($dt->getRenderPluginInstances() as $rpi) {
+            /** @var RenderPluginInstance $rpi */
+            if ( $rpi->getRenderPlugin()->getPluginClassName() === 'odr_plugins.rruff.amcsd' ) {
+                $rp = $rpi->getRenderPlugin();
+                break;
+            }
+        }
+        if ( is_null($rp) )
             return false;
 
         // The datafield the field got uploaded to must be mapped to the "AMC File" field
@@ -655,9 +662,15 @@ class AMCSDPlugin implements DatatypePluginInterface
         $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dt = $datatype_array[$datatype->getId()];
 
-        // Already verified that the datatype is using the AMCSD plugin in self::isEventRelevant(),
-        //  so diving this deep into the array should work
-        $renderPluginMap = $dt['dataTypeMeta']['renderPlugin']['renderPluginInstance'][0]['renderPluginMap'];
+        // The datatype could be using multiple render plugins, so need to find the mapping specifically
+        //  for the AMCSD plugin...it's already verified to exist due to self::isEventRelevant()
+        $renderPluginMap = null;
+        foreach( $dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.amcsd' ) {
+                $renderPluginMap = $rpi['renderPluginMap'];
+                break;
+            }
+        }
 
         $datafield_mapping = array();
         foreach ($renderPluginMap as $rpf_name => $rpf_df) {

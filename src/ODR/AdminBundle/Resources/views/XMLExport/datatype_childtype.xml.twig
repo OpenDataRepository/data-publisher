@@ -7,7 +7,7 @@
 
 {% set tag_start = '' %}
 {% set tag_end = '' %}
-{% if version == 'v1' %}
+{% if version == 'v1' or version == 'v3' %}
     {% set tag_start = '<database_' ~ datatype.id ~ '>' %}
     {% set tag_end = '</database_' ~ datatype.id ~ '>' %}
 {% elseif version == 'v2' %}
@@ -24,9 +24,11 @@
     <template_uuid>{% if datatype.masterDataType != null %}{{ datatype.masterDataType.unique_id }}{% endif %}</template_uuid>
     <updated_at>{{ datatype_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 
-    {% if datatype_meta.renderPlugin.id != 1 %}
-    <render_plugin>{{ datatype_meta.renderPlugin.pluginName }}</render_plugin>
-    {% endif %}
+    {% for rpi_num,rpi in datatype.renderPluginInstances %}
+        {% if rpi.renderPlugin.render == true %}
+        <render_plugin>{{ rpi.renderPlugin.pluginName }}</render_plugin>
+        {% endif %}
+    {% endfor %}
 
     {% if is_top_level == 1 %}
     <search_slug>{{ datatype_meta.searchSlug|xml }}</search_slug>

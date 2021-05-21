@@ -1,7 +1,6 @@
 odr_plugin_graph_static:
-    path:  /graph/static/{plugin_id}/{datatype_id}/{datarecord_id}.{_format}
+    path:  /graph/static/{datatype_id}/{datarecord_id}.{_format}
     defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static, _format: 'svg' }
     requirements:
-        plugin_id: \d+
         datatype_id: \d+
         datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it

@@ -158,7 +158,6 @@ ODR\AdminBundle\Entity\DataTypeMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -169,15 +168,5 @@ ODR\AdminBundle\Entity\DataTypeMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-
-        renderPlugin:
-            targetEntity: RenderPlugin
-            cascade: {  }
-            inversedBy: dataType
-            joinColumns:
-                render_plugin_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            fetch: EXTRA_LAZY
 
     lifecycleCallbacks: {  }

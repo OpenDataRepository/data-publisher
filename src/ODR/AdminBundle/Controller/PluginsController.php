@@ -208,6 +208,7 @@ class PluginsController extends ODRCustomController
             'name',
             'category',
             'datatype',
+            'render',
             'version',
             'override_fields',
             'override_child',
@@ -425,7 +426,7 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         // Going to need to be able to convert typeclasses into fieldtype ids
         $query = $em->createQuery(
-            'SELECT ft.id AS ft_id, ft.typeClass AS type_class
+           'SELECT ft.id AS ft_id, ft.typeClass AS type_class
             FROM ODRAdminBundle:FieldType AS ft'
         );
         $results = $query->getArrayResult();
@@ -456,6 +457,9 @@ class PluginsController extends ODRCustomController
             if ( $installed_plugin_data['category'] !== $plugin_config['category'] )
                 $plugins_needing_updates[$plugin_classname]['properties'][] = 'category';
 
+            if ( $installed_plugin_data['render'] !== $plugin_config['render'] )
+                $plugins_needing_updates[$plugin_classname]['properties'][] = 'render';
+
             if ( $installed_plugin_data['overrideChild'] !== $plugin_config['override_child'] )
                 $plugins_needing_updates[$plugin_classname]['properties'][] = 'override_child';
 
@@ -465,9 +469,7 @@ class PluginsController extends ODRCustomController
 
             // Should doublecheck the plugin type too...
             $plugin_type = null;
-            if ( $plugin_classname === 'odr_plugins.base.default' )
-                $plugin_type = RenderPlugin::DEFAULT_PLUGIN;
-            else if ( $plugin_config['datatype'] === true )
+            if ( $plugin_config['datatype'] === true )
                 $plugin_type = RenderPlugin::DATATYPE_PLUGIN;
             else
                 $plugin_type = RenderPlugin::DATAFIELD_PLUGIN;
@@ -724,9 +726,12 @@ class PluginsController extends ODRCustomController
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
-            if ( $plugin_classname === 'odr_plugins.base.default' )
-                $render_plugin->setPluginType( RenderPlugin::DEFAULT_PLUGIN );
-            else if ( $plugin_data['datatype'] === false )
+            if ( $plugin_data['render'] === false )    // Yaml parser sets this to true/false values
+                $render_plugin->setRender(false);
+            else
+                $render_plugin->setRender(true);
+
+            if ( $plugin_data['datatype'] === false )
                 $render_plugin->setPluginType( RenderPlugin::DATAFIELD_PLUGIN );
             else
                 $render_plugin->setPluginType( RenderPlugin::DATATYPE_PLUGIN );
@@ -952,9 +957,12 @@ class PluginsController extends ODRCustomController
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
-            if ( $plugin_classname === 'odr_plugins.base.default' )
-                $render_plugin->setPluginType( RenderPlugin::DEFAULT_PLUGIN );
-            else if ( $plugin_data['datatype'] === false )
+            if ( $plugin_data['render'] === false )    // Yaml parser sets this to true/false values
+                $render_plugin->setRender(false);
+            else
+                $render_plugin->setRender(true);
+
+            if ( $plugin_data['datatype'] === false )
                 $render_plugin->setPluginType( RenderPlugin::DATAFIELD_PLUGIN );
             else
                 $render_plugin->setPluginType( RenderPlugin::DATATYPE_PLUGIN );
@@ -1065,7 +1073,7 @@ class PluginsController extends ODRCustomController
                 if ( is_array($plugin_data['config_options']) ) {
                     foreach ($plugin_data['config_options'] as $key => $tmp) {
                         // TODO - is there a way to have a better key than optionName?
-                        if ( $rpo->getName() === $tmp['name'] )
+                        if ( $rpo->getName() === $key )
                             $found = true;
                     }
                 }
@@ -1362,15 +1370,12 @@ class PluginsController extends ODRCustomController
             // --------------------
 
 
-            $current_render_plugin = null;
             $render_plugins = null;
-            $render_plugin_instance = null;
+            $render_plugin_instances = null;
 
             if ($datafield_id == 0) {
-                // If datafield id isn't defined, this is a render plugin for a datatype
-                $current_render_plugin = $datatype->getRenderPlugin();
-
-                // Load all available datatype render plugins, including the disabled ones
+                // If datafield id isn't defined, this is a request for a datatype...load all
+                //  available datatype render plugins
                 $query = $em->createQuery(
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
@@ -1387,20 +1392,17 @@ class PluginsController extends ODRCustomController
                 /** @var RenderPlugin[] $render_plugins */
                 $render_plugins = $query->getResult();
 
-                // Attempt to grab the field mapping between this render plugin and this datatype
-                /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(
+                // Load the currently active plugin instances for this datatype
+                /** @var RenderPluginInstance[]|null $render_plugin_instances */
+                $render_plugin_instances = $repo_render_plugin_instance->findBy(
                     array(
-                        'renderPlugin' => $current_render_plugin,
                         'dataType' => $datatype
                     )
                 );
             }
             else {
-                // ...otherwise, this is a render plugin for a datafield
-                $current_render_plugin = $datafield->getRenderPlugin();
-
-                // Load all available datafield render plugins, including the disabled ones
+                // ...otherwise, this is a request for a datafield...load all available datafield
+                //  render plugins
                 $query = $em->createQuery(
                    'SELECT rp
                     FROM ODRAdminBundle:RenderPlugin AS rp
@@ -1417,24 +1419,39 @@ class PluginsController extends ODRCustomController
                 /** @var RenderPlugin[] $render_plugins */
                 $render_plugins = $query->getResult();
 
-                // TODO - ...shouldn't this only be displaying compatible plugins in the first place?
-
-                /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(
+                // Load the currently active plugin instances for this datafield
+                /** @var RenderPluginInstance[]|null $render_plugin_instances */
+                $render_plugin_instances = $repo_render_plugin_instance->findBy(
                     array(
-                        'renderPlugin' => $current_render_plugin,
                         'dataField' => $datafield
                     )
                 );
             }
 
-            // Also need the default render plugin
-            /** @var RenderPlugin $default_render_plugin */
-            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy(
-                array(
-                    'pluginClassName' => 'odr_plugins.base.default'
-                )
-            );
+
+            // ----------------------------------------
+            // Cleaner to determine these variables in here, instead of in twig
+            $attached_render_plugins = array();
+            $plugin_to_load = null;
+            foreach ($render_plugin_instances as $rpi) {
+                $rp_id = $rpi->getRenderPlugin()->getId();
+                $attached_render_plugins[$rp_id] = 1;
+
+                // If this datatype/datafield is using a plugin...
+                if ( is_null($plugin_to_load) ) {
+                    // ...then get the javascript load its description, fields, and options after
+                    //  the dialog opens
+                    $plugin_to_load = $rp_id;
+                }
+                else if ( $rpi->getRenderPlugin()->getRender() === true ) {
+                    // ...if the datatype/datafield is using more than one plugin, then preferentially
+                    //  load the data for the plugin that actually renders something
+                    $plugin_to_load = $rp_id;
+
+                    // There should only be one plugin per datatype/datafield that actually renders
+                    //  something
+                }
+            }
 
 
             // ----------------------------------------
@@ -1446,10 +1463,12 @@ class PluginsController extends ODRCustomController
                     array(
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
-                        'render_plugins' => $render_plugins,
-                        'default_render_plugin' => $default_render_plugin,
 
-                        'render_plugin_instance' => $render_plugin_instance
+                        'all_render_plugins' => $render_plugins,
+                        'plugin_to_load' => $plugin_to_load,
+
+                        'attached_render_plugins' => $attached_render_plugins,
+                        'render_plugin_instances' => $render_plugin_instances,
                     )
                 )
             );
@@ -1470,6 +1489,7 @@ class PluginsController extends ODRCustomController
 
     /**
      * Loads and renders required DataFields and plugin options for the selected Render Plugin.
+     * TODO - display events?
      *
      * @param integer|null $datatype_id  The id of the Datatype that might be having its RenderPlugin changed
      * @param integer|null $datafield_id The id of the Datafield that might be having its RenderPlugin changed
@@ -1522,9 +1542,9 @@ class PluginsController extends ODRCustomController
                     throw new ODRNotFoundException('Datatype');
             }
 
-            /** @var RenderPlugin $current_render_plugin */
-            $current_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find($render_plugin_id);
-            if ( is_null($current_render_plugin) )
+            /** @var RenderPlugin $target_render_plugin */
+            $target_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find($render_plugin_id);
+            if ( is_null($target_render_plugin) )
                 throw new ODRNotFoundException('RenderPlugin');
 
 
@@ -1552,6 +1572,7 @@ class PluginsController extends ODRCustomController
                 $all_fieldtypes[ $ft['id'] ] = $ft['typeClass'];
 
 
+            // ----------------------------------------
             // Load the details on the requested RenderPlugin
             // TODO - change to RenderPluginOptions
             $query = $em->createQuery(
@@ -1561,14 +1582,14 @@ class PluginsController extends ODRCustomController
                 LEFT JOIN rp.renderPluginOptionsDef rpo
                 WHERE rp.id = :render_plugin_id
                 AND rp.deletedAt IS NULL AND rpf.deletedAt IS NULL AND rpo.deletedAt IS NULL'
-            )->setParameters( array('render_plugin_id' => $render_plugin_id) );
+            )->setParameters( array('render_plugin_id' => $target_render_plugin->getId()) );
             $results = $query->getArrayResult();
 
             // Only going to be one result in here
             $render_plugin = $results[0];
 
             // Rekey the RenderPluginFields and the RenderPluginOptions arrays to use their respective
-            //  ids, so it'll be easier for the RenderPluginInstance to look up values if needed
+            //  ids, so it'll be easier for the RenderPluginInstance to look up values when needed
             $tmp = array();
             foreach ($render_plugin['renderPluginFields'] as $num => $rpf)
                 $tmp[ $rpf['id'] ] = $rpf;
@@ -1618,59 +1639,66 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Attempt to load the field mapping between this render plugin and this datatype/datafield
-            $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows, because we want to display old selected mappings/options
+            // Need to load the most recent renderPluginInstance for each renderPlugin ever used
+            //  by this datatype/datafield...so have to temporarily disable softdeleteable
+            $em->getFilters()->disable('softdeleteable');
 
             $query = null;
             if ( is_null($datafield) ) {
                 $query = $em->createQuery(
-                   'SELECT rpi
+                   'SELECT rpi, rp
                     FROM ODRAdminBundle:RenderPluginInstance rpi
-                    WHERE rpi.renderPlugin = :renderPlugin AND rpi.dataType = :dataType'
+                    JOIN rpi.renderPlugin AS rp
+                    WHERE rpi.dataType = :dataType'
                 )->setParameters(
                     array(
-                        'renderPlugin' => $current_render_plugin,
                         'dataType' => $datatype
                     )
                 );
             }
             else {
                 $query = $em->createQuery(
-                   'SELECT rpi
+                   'SELECT rpi, rp
                     FROM ODRAdminBundle:RenderPluginInstance rpi
-                    WHERE rpi.renderPlugin = :renderPlugin AND rpi.dataField = :dataField'
+                    JOIN rpi.renderPlugin AS rp
+                    WHERE rpi.dataField = :dataField'
                 )->setParameters(
                     array(
-                        'renderPlugin' => $current_render_plugin,
                         'dataField' => $datafield
                     )
                 );
             }
+            $all_render_plugin_instances = $query->getArrayResult();
 
-            $results = $query->getResult();
-
-            $render_plugin_instance = null;
-            if ( count($results) > 0 ) {
+            $current_render_plugin_instance = null;
+            if ( !empty($all_render_plugin_instances) ) {
                 // The most recent RenderPluginInstance will be the last one in the results array
-                foreach ($results as $result)
-                    $render_plugin_instance = $result;
+                foreach ($all_render_plugin_instances as $result) {
+                    if ( $result['renderPlugin']['id'] === $target_render_plugin->getId() )
+                        $current_render_plugin_instance = $result;
+                }
             }
-            /** @var RenderPluginInstance|null $render_plugin_instance */
 
-
-            // If the render plugin is currently in use, load the fields and options mapping
-            if ( !is_null($render_plugin_instance) ) {
+            // If the datatype/datafield has (or had) an instance for this render plugin, then load
+            //  the renderPluginFieldsMap and renderPluginOptionsMap entries for this instance
+            $render_plugin_instance = null;
+            if ( !is_null($current_render_plugin_instance) ) {
                 // TODO - change to RenderPluginOptions
                 $query = $em->createQuery(
-                   'SELECT rpi, rpm, partial rpf.{id}, partial rpm_df.{id}, rpom, partial rpo.{id}
+                   'SELECT rpi, rp, rpm, partial rpf.{id}, partial rpm_df.{id}, rpom, partial rpo.{id}
                     FROM ODRAdminBundle:RenderPluginInstance rpi
+                    LEFT JOIN rpi.renderPlugin rp
                     LEFT JOIN rpi.renderPluginMap rpm
                     LEFT JOIN rpm.renderPluginFields rpf
                     LEFT JOIN rpm.dataField rpm_df
                     LEFT JOIN rpi.renderPluginOptionsMap rpom
                     LEFT JOIN rpom.renderPluginOptionsDef rpo
                     WHERE rpi.id = :render_plugin_instance_id'
-                )->setParameters( array('render_plugin_instance_id' => $render_plugin_instance->getId()) );
+                )->setParameters(
+                    array(
+                        'render_plugin_instance_id' => $current_render_plugin_instance['id']
+                    )
+                );
                 $results = $query->getArrayResult();
 
                 // Should only have one result
@@ -1682,14 +1710,58 @@ class PluginsController extends ODRCustomController
                 foreach ($render_plugin_instance['renderPluginOptionsMap'] as $num => $rpom) {
                     $rpo_id = $rpom['renderPluginOptionsDef']['id'];
                     unset( $rpom['renderPluginOptionsDef'] );
-                    // The more recent RenderPluginOption entries will have larger ids, and so will
-                    //  overwrite older RenderPluginOption entries
+                    // The values of the more recent RenderPluginOptionMap entries will end up
+                    //  overwriting the older RenderPluginOptionMap entries
                     $tmp[$rpo_id] = $rpom;
                 }
                 $render_plugin_instance['renderPluginOptionsMap'] = $tmp;
             }
 
             $em->getFilters()->enable('softdeleteable');    // Re-enable the filter
+
+
+            // ----------------------------------------
+            // Should also check whether the datatype/datafield is allowed to use this render plugin
+            $is_illegal_render_plugin = false;
+            $illegal_render_plugin_message = '';
+
+            if ( !is_null($datafield) ) {
+                // Need to verify whether the datafield's fieldtype is allowed by the target render
+                //  plugin...
+                $ft_id = $datafield->getFieldType()->getId();
+                // There should only be one renderPluginField in the renderPlugin array...
+                foreach ($render_plugin['renderPluginFields'] as $rpf_id => $rpf) {
+                    if ( !in_array($ft_id, $allowed_fieldtypes[$rpf_id]) ) {
+                        $is_illegal_render_plugin = true;
+                        $illegal_render_plugin_message = 'This Render Plugin is not compatible with a "'.$datafield->getFieldType()->getTypeClass().'" Datafield';
+                    }
+                }
+            }
+
+
+            // The datatype/datafield can only use one render plugin that "renders" stuff at a time
+            $twig_render_plugin_id = null;
+            $twig_render_plugin_name = null;
+            if ( !empty($all_render_plugin_instances) ) {
+                foreach ($all_render_plugin_instances as $rpi) {
+                    // $all_render_plugin_instances might have deleted rpi entries in it
+                    if ( is_null($rpi['deletedAt']) && $rpi['renderPlugin']['render'] === true ) {
+                        $twig_render_plugin_id = $rpi['renderPlugin']['id'];
+                        $twig_render_plugin_name = $rpi['renderPlugin']['pluginName'];
+                    }
+                }
+            }
+
+            // So, if the datatype/datafield is using a render plugin that "renders" stuff...
+            if ( !is_null($twig_render_plugin_id) ) {
+                // ...and the plugin requested by the controller action doesn't match the current
+                //  plugin that's "rendering" stuff...
+                if ( $target_render_plugin->getId() !== $twig_render_plugin_id && $render_plugin['render'] === true ) {
+                    // ...then the datatype/datafield is not allowed to also use this plugin
+                    $is_illegal_render_plugin = true;
+                    $illegal_render_plugin_message = 'This Render Plugin cannot be used at the same time as the "'.$twig_render_plugin_name.'" Render Plugin';
+                }
+            }
 
 
             // ----------------------------------------
@@ -1707,6 +1779,9 @@ class PluginsController extends ODRCustomController
                         'render_plugin' => $render_plugin,
                         'allowed_fieldtypes' => $allowed_fieldtypes,
                         'render_plugin_instance' => $render_plugin_instance,
+
+                        'is_illegal_render_plugin' => $is_illegal_render_plugin,
+                        'illegal_render_plugin_message' => $illegal_render_plugin_message,
                     )
                 )
             );
@@ -1726,7 +1801,175 @@ class PluginsController extends ODRCustomController
 
 
     /**
-     * Changes the RenderPlugin (or its settings) being used by a Datatype or a Datafield.
+     * Detaches a render plugin from the datafield/datatype.
+     *
+     * @param $datatype_id
+     * @param $datafield_id
+     * @param $render_plugin_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function detachrenderpluginAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $dfi_service */
+            $dfi_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Ensure the relevant entities exist
+            /** @var DataType $datatype */
+            $datatype = null;
+            /** @var DataFields|null $datafield */
+            $datafield = null;
+
+            if ($datafield_id == 0) {
+                // This is a render plugin for a datatype
+                $datatype = $repo_datatype->find($datatype_id);
+                if ( is_null($datatype) )
+                    throw new ODRNotFoundException('Datatype');
+            }
+            else {
+                // This is a render plugin for a datafield
+                $datafield = $repo_datafield->find($datafield_id);
+                if ( is_null($datafield) )
+                    throw new ODRNotFoundException('Datafield');
+
+                $datatype = $datafield->getDataType();
+                if ( !is_null($datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+            }
+
+            /** @var RenderPlugin $target_render_plugin */
+            $target_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find($render_plugin_id);
+            if ( is_null($target_render_plugin) )
+                throw new ODRNotFoundException('RenderPlugin');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // There should be a RenderPluginInstance for this RenderPlugin and Datatype/Datafield
+            $rpi_array = null;
+            if ( is_null($datafield) ) {
+                $rpi_array = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findBy(
+                    array(
+                        'dataType' => $datatype->getId(),
+                        'renderPlugin' => $target_render_plugin->getId()
+                    )
+                );
+            }
+            else {
+                $rpi_array = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findBy(
+                    array(
+                        'dataField' => $datafield->getId(),
+                        'renderPlugin' => $target_render_plugin->getId()
+                    )
+                );
+            }
+
+            // If there's no renderPluginInstance entity, then the datafield/datatype isn't using
+            //  this render plugin
+            if ( is_null($rpi_array) )
+                throw new ODRNotFoundException('RenderPluginInstance');
+
+            // If there's more than one renderPluginInstance, something went wrong somewhere?
+            if ( count($rpi_array) > 1 ) {
+                if ( is_null($datafield) )
+                    throw new ODRException('The RenderPlugin "'.$target_render_plugin->getPluginClassName().'" is attached to Datatype '.$datatype_id.' more than once??');
+                else
+                    throw new ODRException('The RenderPlugin "'.$target_render_plugin->getPluginClassName().'" is attached to Datafield '.$datafield_id.' more than once??');
+            }
+
+            // So, should only be one renderPluginInstance in here
+            /** @var RenderPluginInstance $rpi */
+            $rpi = $rpi_array[0];
+
+
+            // ----------------------------------------
+            // Some render plugins need to do stuff when they're no longer active
+            // e.g. Graph plugins deleting cached graph images
+
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown
+            //  by the event subscribers will prevent further progress...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new PluginPreRemoveEvent($rpi, $user);
+                $dispatcher->dispatch(PluginPreRemoveEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
+
+
+            // Remove/detach this plugin instance from the datafield/datatype
+            $em->remove($rpi);
+            $em->flush();
+
+
+            // ----------------------------------------
+            // Now that all the database changes have been made, wipe the relevant cache entries
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // Changes in render plugin tend to require changes in datafield properties
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());
+            // Don't need to filter here
+            $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
+
+            $return['d'] = array(
+                'datafield_id' => $datafield_id,     // the entity may be null, so use the param that was passed in
+                'datatype_id' => $datatype->getId(), // this entity won't be null
+
+                'datafield_properties' => $datafield_properties,
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x2680077f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves changes to the fields or options of a RenderPlugin currently in use by a Datatype or a
+     * Datafield.  Also handles attaching RenderPlugins to Datatypes/Datafields.
      *
      * @param Request $request
      *
@@ -1746,8 +1989,6 @@ class PluginsController extends ODRCustomController
 
             if ( !isset($post['local_datafield_id'])
                 || !isset($post['local_datatype_id'])
-                || !isset($post['render_plugin_instance_id'])
-                || !isset($post['previous_render_plugin'])
                 || !isset($post['selected_render_plugin'])
             ) {
                 throw new ODRBadRequestException('Invalid Form');
@@ -1755,8 +1996,6 @@ class PluginsController extends ODRCustomController
 
             $local_datatype_id = $post['local_datatype_id'];
             $local_datafield_id = $post['local_datafield_id'];
-            $render_plugin_instance_id = $post['render_plugin_instance_id'];
-            $previous_plugin_id = $post['previous_render_plugin'];
             $selected_plugin_id = $post['selected_render_plugin'];
 
             $plugin_fieldtypes = array();
@@ -1804,6 +2043,8 @@ class PluginsController extends ODRCustomController
             $target_datatype = null;    // the datatype that is getting its render plugin modified, or the datatype of the datafield getting its render plugin modified
             /** @var DataFields|null $target_datafield */
             $target_datafield = null;   // the datafield that is getting its render plugin modified
+            /** @var RenderPluginInstance[] $all_render_plugin_instances */
+            $all_render_plugin_instances = array();
 
             $changing_datatype_plugin = false;
             $changing_datafield_plugin = false;
@@ -1813,6 +2054,12 @@ class PluginsController extends ODRCustomController
                 $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
                 if ( is_null($target_datatype) )
                     throw new ODRNotFoundException('Datatype');
+
+                $all_render_plugin_instances = $repo_render_plugin_instance->findBy(
+                    array(
+                        'dataType' => $target_datatype->getId()
+                    )
+                );
 
                 $changing_datatype_plugin = true;
             }
@@ -1826,6 +2073,12 @@ class PluginsController extends ODRCustomController
                 if ( !is_null($target_datatype->getDeletedAt()) )
                     throw new ODRNotFoundException('Datatype');
 
+                $all_render_plugin_instances = $repo_render_plugin_instance->findBy(
+                    array(
+                        'dataField' => $target_datafield->getId()
+                    )
+                );
+
                 $changing_datafield_plugin = true;
             }
 
@@ -1833,6 +2086,16 @@ class PluginsController extends ODRCustomController
             $selected_render_plugin = $repo_render_plugin->find($selected_plugin_id);
             if ( is_null($selected_render_plugin) )
                 throw new ODRNotFoundException('RenderPlugin');
+
+            // Need to know whether the user just saved changes to a plugin the datatype/datafield
+            //  is already using...
+            $selected_render_plugin_instance = null;
+            foreach ($all_render_plugin_instances as $rpi) {
+                /** @var RenderPluginInstance $rpi */
+                if ( $rpi->getRenderPlugin()->getId() === $selected_render_plugin->getId() )
+                    $selected_render_plugin_instance = $rpi;
+            }
+
 
             // --------------------
             // Determine user privileges
@@ -1859,11 +2122,24 @@ class PluginsController extends ODRCustomController
             ) {
                 throw new ODRBadRequestException('Unable to save a Datafield plugin to a Datatype');
             }
-            else if ( is_null($target_datatype)
-                && is_null($target_datafield)
-                && $selected_render_plugin->getPluginType() == RenderPlugin::DEFAULT_PLUGIN
-            ) {
-                throw new ODRBadRequestException('No target specified for the Render Plugin');
+
+
+            // If the datatype/datafield is already "rendering" something with a plugin...
+            $already_renders = null;
+            foreach ($all_render_plugin_instances as $rpi) {
+                /** @var RenderPluginInstance $rpi */
+                if ( $rpi->getRenderPlugin()->getRender() === true )
+                    $already_renders = $rpi;
+            }
+
+            if ( !is_null($already_renders) ) {
+                // ...then ensure the user didn't just attempt to attach a second plugin that also
+                //  "renders" something
+                if ( $already_renders->getRenderPlugin()->getId() !== $selected_render_plugin->getId()
+                    && $selected_render_plugin->getRender() === true
+                ) {
+                    throw new ODRBadRequestException('Only allowed to have a single Plugin that actually "renders" at a time');
+                }
             }
 
 
@@ -1936,6 +2212,8 @@ class PluginsController extends ODRCustomController
             }
 
 
+            $plugin_fields_added = false;
+            $plugin_fields_changed = false;
             $plugin_settings_changed = false;
             $reload_datatype = false;
 
@@ -1955,13 +2233,6 @@ class PluginsController extends ODRCustomController
                     $theme_element = $ec_service->createThemeElement($user, $theme, true);
 
                 // Load information for the new datafield
-                /** @var RenderPlugin $default_render_plugin */
-                $default_render_plugin = $repo_render_plugin->findOneBy(
-                    array(
-                        'pluginClassName' => 'odr_plugins.base.default'
-                    )
-                );
-
                 /** @var FieldType $fieldtype */
                 $fieldtype = $repo_fieldtype->find($ft_id);
                 if ( is_null($fieldtype) )
@@ -1971,7 +2242,7 @@ class PluginsController extends ODRCustomController
                 $rpf = $rpf_lookup[$rpf_id];
 
                 // Create the Datafield and set basic properties from the render plugin settings
-                $datafield = $ec_service->createDatafield($user, $target_datatype, $fieldtype, $default_render_plugin, true);    // Don't flush immediately...
+                $datafield = $ec_service->createDatafield($user, $target_datatype, $fieldtype, true);    // Don't flush immediately...
 
                 $datafield_meta = $datafield->getDataFieldMeta();
                 $datafield_meta->setFieldName( $rpf->getFieldName() );
@@ -1996,202 +2267,144 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark the Datafield/Datatype as using the selected RenderPlugin
-            if ($changing_datatype_plugin) {
-                $properties = array(
-                    'renderPlugin' => $selected_render_plugin->getId()
-                );
-                $emm_service->updateDatatypeMeta($user, $target_datatype, $properties);
-            }
-            else if ($changing_datafield_plugin) {
-                $properties = array(
-                    'renderPlugin' => $selected_render_plugin->getId()
-                );
-                $emm_service->updateDatafieldMeta($user, $target_datafield, $properties);
+            // If the datatype/datafield isn't already using this render plugin...
+            if ( is_null($selected_render_plugin_instance) ) {
+                // ...then create a renderPluginInstance entity tying the two together
+                $selected_render_plugin_instance = $ec_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
+                /** @var RenderPluginInstance $selected_render_plugin_instance */
             }
 
 
-            // ...delete the old render plugin instance object if the user changed render plugins
-            $render_plugin_instance = null;
-            if ($render_plugin_instance_id != '') {
-                /** @var RenderPluginInstance|null $render_plugin_instance */
-                $render_plugin_instance = $repo_render_plugin_instance->find($render_plugin_instance_id);
+            // ----------------------------------------
+            // Save any changes to the RenderPluginField mapping
+            foreach ($plugin_map as $rpf_id => $df_id) {
+                // Attempt to locate the mapping for this render plugin field field in this instance
+                /** @var RenderPluginMap $render_plugin_map */
+                $render_plugin_map = $repo_render_plugin_map->findOneBy(
+                    array(
+                        'renderPluginInstance' => $selected_render_plugin_instance->getId(),
+                        'renderPluginFields' => $rpf_id
+                    )
+                );
 
-                if ( intval($previous_plugin_id) != intval($selected_plugin_id) && !is_null($render_plugin_instance) ) {
-                    // ----------------------------------------
-                    // Some render plugins need to do stuff when they're no longer active
-                    // e.g. Graph plugins deleting cached graph images
+                // If the render plugin map entity doesn't exist, create it
+                if ( is_null($render_plugin_map) ) {
+                    // Locate the render plugin field object being referenced
+                    /** @var RenderPluginFields $render_plugin_field */
+                    $render_plugin_field = $rpf_lookup[$rpf_id];
 
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PluginPreRemoveEvent($render_plugin_instance, $user);
-                        $dispatcher->dispatch(PluginPreRemoveEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
-                    }
+                    // Locate the desired datafield object...already checked for its existence earlier
+                    /** @var DataFields $df */
+                    $df = $repo_datafield->find($df_id);
 
+                    $ec_service->createRenderPluginMap($user, $selected_render_plugin_instance, $render_plugin_field, $target_datatype, $df, true);    // don't need to flush...
+                    $plugin_fields_added = true;
+                }
+                else {
+                    // ...otherwise, update the existing entity
+                    $properties = array(
+                        'dataField' => $df_id
+                    );
+                    $changes_made = $emm_service->updateRenderPluginMap($user, $render_plugin_map, $properties, true);    // don't need to flush...
 
-                    // ----------------------------------------
-                    // Remove/detach this plugin instance from the datafield/datatype
-                    $em->remove($render_plugin_instance);
-                    $em->detach($render_plugin_instance);
-                    $render_plugin_instance = null;
+                    if ($changes_made)
+                        $plugin_fields_changed = true;
+                }
+            }
+
+            // Save any changes to the RenderPluginOptions mapping
+            foreach ($plugin_options as $rpo_id => $value) {
+                // Attempt to locate the existing RenderPluginOptionsMap entity
+                /** @var RenderPluginOptionsMap $render_plugin_option_map */
+                $render_plugin_option_map = $repo_render_plugin_options_map->findOneBy(
+                    array(
+                        'renderPluginInstance' => $selected_render_plugin_instance->getId(),
+                        'renderPluginOptionsDef' => $rpo_id,
+                    )
+                );
+                // TODO - rename to renderPluginOptions
+
+                // If the RenderPluginOptionsMap entity doesn't exist, create it
+                if ( is_null($render_plugin_option_map) ) {
+                    // Load the RenderPluginOptions object being referenced
+                    /** @var RenderPluginOptionsDef $render_plugin_option */
+                    $render_plugin_option = $rpo_lookup[$rpo_id];
+
+                    $ec_service->createRenderPluginOptionsMap($user, $selected_render_plugin_instance, $render_plugin_option, $value, true);    // don't need to flush...
+                    $plugin_settings_changed = true;
+                }
+                else {
+                    // ...otherwise, update the existing entity
+                    $properties = array(
+                        'value' => $value
+                    );
+                    $changes_made = $emm_service->updateRenderPluginOptionsMap($user, $render_plugin_option_map, $properties, true);    // don't need to flush...
+
+                    if ($changes_made)
+                        $plugin_settings_changed = true;
                 }
             }
 
 
             // ----------------------------------------
-            // If the datatype/datafield is no longer using the default render plugin...
-            if ($selected_render_plugin->getPluginClassName() !== 'odr_plugins.base.default') {
-                // ...figure out whether to create a new RenderPluginInstance
-                if ( is_null($render_plugin_instance) )
-                    $render_plugin_instance = $ec_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
-                /** @var RenderPluginInstance $render_plugin_instance */
+            // Should be able to flush here
+            $em->flush();
 
-                // Save any changes to the RenderPluginField mapping
-                foreach ($plugin_map as $rpf_id => $df_id) {
-                    // Attempt to locate the mapping for this render plugin field field in this instance
-                    /** @var RenderPluginMap $render_plugin_map */
-                    $render_plugin_map = $repo_render_plugin_map->findOneBy(
-                        array(
-                            'renderPluginInstance' => $render_plugin_instance->getId(),
-                            'renderPluginFields' => $rpf_id
-                        )
-                    );
+            if ( $plugin_fields_added || $plugin_fields_changed || $plugin_settings_changed ) {
+                // Some render plugins need to do stuff when their settings get changed
+                // e.g. Graph plugins deleting cached graph images
 
-                    // If the render plugin map entity doesn't exist, create it
-                    if ( is_null($render_plugin_map) ) {
-                        // Locate the render plugin field object being referenced
-                        /** @var RenderPluginFields $render_plugin_field */
-                        $render_plugin_field = $rpf_lookup[$rpf_id];
-
-                        // Locate the desired datafield object...already checked for its existence earlier
-                        /** @var DataFields $df */
-                        $df = $repo_datafield->find($df_id);
-
-                        $ec_service->createRenderPluginMap($user, $render_plugin_instance, $render_plugin_field, $target_datatype, $df, true);    // don't need to flush...
-                        $plugin_settings_changed = true;
-                    }
-                    else {
-                        // ...otherwise, update the existing entity
-                        $properties = array(
-                            'dataField' => $df_id
-                        );
-                        $changes_made = $emm_service->updateRenderPluginMap($user, $render_plugin_map, $properties, true);    // don't need to flush...
-
-                        if ($changes_made)
-                            $plugin_settings_changed = true;
-                    }
+                // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                //  by the event subscribers will prevent further progress...
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new PluginOptionsChangedEvent($selected_render_plugin_instance, $user);
+                    $dispatcher->dispatch(PluginOptionsChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't particularly want to rethrow the error since it'll interrupt
+                    //  everything downstream of the event (such as file encryption...), but
+                    //  having the error disappear is less ideal on the dev environment...
+                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
                 }
 
 
                 // ----------------------------------------
-                // Save any changes to the RenderPluginOptions mapping
-                foreach ($plugin_options as $rpo_id => $value) {
-                    // Attempt to locate the existing RenderPluginOptionsMap entity
-                    /** @var RenderPluginOptionsMap $render_plugin_option_map */
-                    $render_plugin_option_map = $repo_render_plugin_options_map->findOneBy(
-                        array(
-                            'renderPluginInstance' => $render_plugin_instance->getId(),
-                            'renderPluginOptionsDef' => $rpo_id,
-                        )
-                    );
-                    // TODO - rename to renderPluginOptions
+                // Due to changes being made, the cached datatype array needs to be rebuilt
+                $dbi_service->updateDatatypeCacheEntry($target_datatype, $user);
 
-                    // If the RenderPluginOptionsMap entity doesn't exist, create it
-                    if ( is_null($render_plugin_option_map) ) {
-                        // Load the RenderPluginOptions object being referenced
-                        /** @var RenderPluginOptionsDef $render_plugin_option */
-                        $render_plugin_option = $rpo_lookup[$rpo_id];
+                // Only need to update the theme entry if plugin fields were created
+                if ( $plugin_fields_added )
+                    $theme_service->updateThemeCacheEntry($theme, $user);
 
-                        $ec_service->createRenderPluginOptionsMap($user, $render_plugin_instance, $render_plugin_option, $value, true);    // don't need to flush...
-                        $plugin_settings_changed = true;
-                    }
-                    else {
-                        // ...otherwise, update the existing entity
-                        $properties = array(
-                            'value' => $value
-                        );
-                        $changes_made = $emm_service->updateRenderPluginOptionsMap($user, $render_plugin_option_map, $properties, true);    // don't need to flush...
 
-                        if ($changes_made)
-                            $plugin_settings_changed = true;
-                    }
+                // Also need to ensure that changes to plugin settings update the "master_revision"
+                //  property of template datafields/datatypes
+                if ($local_datafield_id == 0) {
+                    if ($target_datatype->getIsMasterType())
+                        $emm_service->incrementDatatypeMasterRevision($user, $target_datatype);
                 }
-
-
-                // ----------------------------------------
-                // Should be able to flush here
-                $em->flush();
-
-                if ($plugin_settings_changed) {
-                    // Some render plugins need to do stuff when their settings get changed
-                    // e.g. Graph plugins deleting cached graph images
-
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PluginOptionsChangedEvent($render_plugin_instance, $user);
-                        $dispatcher->dispatch(PluginOptionsChangedEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
-                    }
-
-
-                    // ----------------------------------------
-                    // Also need to ensure that changes to plugin settings update the "master_revision"
-                    //  property of template datafields/datatypes
-                    if ($local_datafield_id == 0) {
-                        if ($target_datatype->getIsMasterType())
-                            $emm_service->incrementDatatypeMasterRevision($user, $target_datatype);
-                    }
-                    else {
-                        if ($target_datafield->getIsMasterField())
-                            $emm_service->incrementDatafieldMasterRevision($user, $target_datafield);
-                    }
+                else {
+                    if ($target_datafield->getIsMasterField())
+                        $emm_service->incrementDatafieldMasterRevision($user, $target_datafield);
                 }
             }
 
 
             // ----------------------------------------
-            // Now that all the database changes have been made, wipe the relevant cache entries
-            $dbi_service->updateDatatypeCacheEntry($target_datatype, $user);
-            $theme_service->updateThemeCacheEntry($theme, $user);
-
-            // Changes in render plugin tend to require changes in datafield properties
+            // Ensure datafield properties are up to date
             $datatype_array = $dbi_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
-            // Don't need to filter here
             $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
 
             $return['d'] = array(
                 'datafield_id' => $local_datafield_id,
                 'datatype_id' => $local_datatype_id,
-                'render_plugin_id' => $selected_render_plugin->getId(),
-                'render_plugin_name' => $selected_render_plugin->getPluginName(),
-                'render_plugin_classname' => $selected_render_plugin->getPluginClassName(),
-                'html' => '',
 
                 'datafield_properties' => $datafield_properties,
-
                 'reload_datatype' => $reload_datatype,
             );
         }

@@ -33,7 +33,6 @@ use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
@@ -3047,8 +3046,6 @@ class CSVImportController extends ODRCustomController
             $new_datafields = array();
             $new_mapping = array();
             $created = false;
-            /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
 
@@ -3082,7 +3079,7 @@ class CSVImportController extends ODRCustomController
 
                     // Create new datafield...not delaying flush on purpose, need datafield id...
                     $created = true;
-                    $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin);
+                    $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype);
 
                     // Set the datafield's name
                     $datafield_meta = $datafield->getDataFieldMeta();

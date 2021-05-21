@@ -62,24 +62,25 @@ class PlugExtension extends \Twig_Extension
     /**
      * Returns whether the Datatype RenderPlugin should be run in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      * @throws \Exception
      */
-    public function canExecutePluginFilter($render_plugin, $datatype, $rendering_options)
+    public function canExecutePluginFilter($render_plugin_instance, $datatype, $rendering_options)
     {
         try {
             // Ensure this is only run on render plugins for datatypes
+            $render_plugin = $render_plugin_instance['renderPlugin'];
             if ( $render_plugin['plugin_type'] === RenderPlugin::DATAFIELD_PLUGIN )
                 return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datafields, but was called on Datatype '.$datatype['id'].'</div>';
 
             // Determine whether the render plugin should be run
             /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->canExecutePlugin($render_plugin, $datatype, $rendering_options);
+            return $svc->canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
         }
         catch (\Exception $e) {
             return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
@@ -92,7 +93,7 @@ class PlugExtension extends \Twig_Extension
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -103,17 +104,18 @@ class PlugExtension extends \Twig_Extension
      * @return string
      * @throws \Exception
      */
-    public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function datatypePluginFilter($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
         try {
             // Ensure this only is run on a render plugin for a datatype
+            $render_plugin = $render_plugin_instance['renderPlugin'];
             if ( $render_plugin['plugin_type'] === RenderPlugin::DATAFIELD_PLUGIN )
                 return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datafields, but was called on Datatype '.$datatype['id'].'</div>';
 
             // Load and execute the render plugin
             /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord, $datatype_permissions, $datafield_permissions, $token_list);
+            return $svc->execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord, $datatype_permissions, $datafield_permissions, $token_list);
         }
         catch (\Exception $e) {
             return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
@@ -126,15 +128,17 @@ class PlugExtension extends \Twig_Extension
      *
      * @param array $datafield
      * @param array $datarecord
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
+     * @param string|null $themeType
      *
      * @return string
      * @throws \Exception
      */
-    public function datafieldPluginFilter($datafield, $datarecord, $render_plugin, $themeType = 'master')
+    public function datafieldPluginFilter($datafield, $datarecord, $render_plugin_instance, $themeType = 'master')
     {
         try {
             // Ensure this only is run on a render plugin for a datafield
+            $render_plugin = $render_plugin_instance['renderPlugin'];
             if ( $render_plugin['plugin_type'] === RenderPlugin::DATATYPE_PLUGIN )
                 return '<div class="ODRPluginErrorDiv">RenderPlugin "'.$render_plugin['pluginName'].'" only works on Datatypes, but was called on Datafield '.$datafield['id'].'</div>';
 
@@ -147,7 +151,7 @@ class PlugExtension extends \Twig_Extension
             // Load and execute the render plugin
             /** @var DatafieldPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->execute($datafield, $datarecord, $render_plugin, $themeType);
+            return $svc->execute($datafield, $datarecord, $render_plugin_instance, $themeType);
         }
         catch (\Exception $e) {
             return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';

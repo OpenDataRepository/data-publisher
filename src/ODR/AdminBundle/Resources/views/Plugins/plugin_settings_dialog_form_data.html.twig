@@ -1,32 +1,26 @@
 {% spaceless %}
 
-    {% set is_valid_fieldtype = true %}
-    {% if local_datafield != null and render_plugin.pluginClassName != "odr_plugins.base.default" %}
-        {% for rpf_id,rpf in render_plugin['renderPluginFields'] %}
-            {% if local_datafield.fieldtype.id not in allowed_fieldtypes[rpf_id] %}
-                {% set is_valid_fieldtype = false %}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
+    <input type="hidden" name="selected_render_plugin" value="{{ render_plugin.id }}"/>
 
     <fieldset>
-        {% if is_valid_fieldtype == false %}
-            <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
-            <span>&nbsp;The "{{ render_plugin.pluginName }}" Render Plugin is not compatible with a "{{ local_datafield.fieldtype.typeclass }}" Datafield</span>
-        {% else %}
-            {{ render_plugin.description }}
-        {% endif %}
+    {% if is_illegal_render_plugin %}
+        <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+        <span>&nbsp;{{ illegal_render_plugin_message }}</span>
+    {% elseif render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
+        <span>The {% if local_datafield == null %}Database{% else %}Datafield{% endif %} is currently using this Render Plugin.</span>
+        &nbsp;&nbsp;
+        <button class="ODRDetachPlugin pure-button pure-button-primary">Detach Render Plugin</button>
+    {% endif %}
+    </fieldset>
+
+    <fieldset>
+        {{ render_plugin.description }}
     </fieldset>
 
 {% if local_datafield == null %}    {# if render plugin is for a datatype #}
     <fieldset>
         {# Determine if the rendering plugin has any required fields #}
-        {% set has_fields = 0 %}
-        {% if render_plugin['renderPluginFields']|length > 0 %}
-            {% set has_fields = 1 %}
-        {% endif %}
-
-        {% if has_fields == 0 %}
+        {% if render_plugin['renderPluginFields']|length == 0 %}
             This Render Plugin does not require specific fields.
         {% else %}
             {# Print out all required fields for this plugin #}
@@ -84,7 +78,7 @@
 
                 if (datafield_id != '-1') {
                     // Prevent user from changing fieldtype of existing datafield
-                    $("#plugin_fieldtype_" + render_plugin_field_id).attr('disabled', 'disabled');
+                    $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', true);
                     // Select fieldtype of selected datafield, for consistency
                     $("#plugin_fieldtype_" + render_plugin_field_id).val(fieldtype_id);
 
@@ -104,7 +98,7 @@
                 }
                 else {
                     // Let user select fieldtype of new datafield
-                    $("#plugin_fieldtype_" + render_plugin_field_id).removeAttr('disabled');
+                    $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', false);
                      // Show warning about creating new datafields
                     $("#plugin_datafield_creation_warn").show();
                 }
@@ -128,16 +122,9 @@
     {% endfor %}
 {% endif %}
 
-{% if is_valid_fieldtype == true %}
     <fieldset style="text-align: left;">
-
         {# Determine if the rendering plugin has any available options #}
-        {% set has_options = 0 %}
-        {% if render_plugin['renderPluginOptions']|length > 0 %}
-            {% set has_options = 1 %}
-        {% endif %}
-
-        {% if has_options == 0 %}
+        {% if render_plugin['renderPluginOptions']|length == 0 %}
             <div style="text-align: center;">This Render Plugin has no options.</div>
         {% else %}
             {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
@@ -171,11 +158,102 @@
                     <input id="plugin_option_{{ rpo_id }}" size="20" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
                 {% endif %}
                 </div>
-
             {% endfor %}
-
         {% endif %}
     </fieldset>
-{% endif %}
 
+    <script>
+        $(function() {
+            $(".ODRDetachPlugin").unbind('click').click(function(event) {
+                // Don't submit the form
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                var datatype_id = {{ local_datatype.id }};
+                var datafield_id = {% if local_datafield == null %}0{% else %}{{ local_datafield.id }}{% endif %};
+                var render_plugin_id = {{ render_plugin.id }};
+
+                var url  = '{{ path('odr_detach_plugin', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
+                url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
+
+                // alert(url);  return;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        // Ensure that render plugin info doesn't get screwed up if user modifies some other
+                        //  datafield or datatype property after setting render plugin
+                        var datafield_id = data.d.datafield_id;
+                        var datatype_id = data.d.datatype_id;
+
+                        if (datafield_id != 0) {
+                            // A non-zero value means this was a render plugin for a datafield
+                            // Usually don't need to reload, but it indicates saving is finished
+                            ReloadDatafield(datafield_id);
+                        }
+                        else {
+                            // Don't want to reload the page...but need to ensure the javascript
+                            //  array of datafield properties is kept up to date
+                            var tmp = data.d.datafield_properties;
+                            tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                            $.each(tmp, function(df_id, df_props) {
+                                datafield_properties[df_id] = df_props;
+                            });
+                            // console.log('datafield properties', datafield_properties);
+
+                            // The javascript array of datatype properties won't have changed, but should
+                            //  reset the left panel just in case
+                            RenderToolSet(datatype_id, 'datatype');
+                        }
+
+                        closeODRRemodal();
+                        notifySaved();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Close the dialog so it's not in some half-initialized state
+                        closeODRRemodal();
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            });
+
+            $("#ODRRenderPluginFormSubmit").unbind('click').click(function(event) {
+                // Don't automatically submit the form...
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                {% if not is_illegal_render_plugin %}
+                // ...use this function instead
+                submitRenderPluginForm();
+                {% endif %}
+            });
+
+            {% if is_illegal_render_plugin %}
+            // The datatype/datafield can't use this render plugin for whatever reason
+            $("#ODRRenderPluginFormSubmit").html('Update Render Plugin').prop('disabled', true);
+            {% elseif render_plugin_instance is null %}
+            // Either the datatype/datafield doesn't have a render plugin, or this is a different
+            //  render plugin that the datatype/datafield can use
+            $("#ODRRenderPluginFormSubmit").html('Use This Render Plugin').prop('disabled', false);
+            {% elseif render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
+            // The datatype/datafield is using this render plugin
+            $("#ODRRenderPluginFormSubmit").html('Update Render Plugin').prop('disabled', false);
+            {% endif %}
+        });
+    </script>
 {% endspaceless %}

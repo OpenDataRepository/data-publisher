@@ -22,7 +22,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -1466,10 +1465,6 @@ class DatatypeController extends ODRCustomController
                     // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
                     $submitted_data->setDataType($datatype);
                     $submitted_data->setLongName($short_name);
-
-                    /** @var RenderPlugin $default_render_plugin */
-                    $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
-                    $submitted_data->setRenderPlugin($default_render_plugin);
 
                     if ($submitted_data->getDescription() == null)
                         $submitted_data->setDescription('');

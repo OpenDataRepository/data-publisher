@@ -42,13 +42,13 @@ class CommentPlugin implements DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // This render plugin isn't allowed to work when in edit mode
         if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
@@ -63,7 +63,7 @@ class CommentPlugin implements DatatypePluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -74,13 +74,12 @@ class CommentPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {
             // ----------------------------------------
             // Extract various properties from the render plugin array
-            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
@@ -99,7 +98,7 @@ class CommentPlugin implements DatatypePluginInterface
 
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
-                $datafield_mapping[$key] = array('datafield' => $df, 'render_plugin' => $df['dataFieldMeta']['renderPlugin']);
+                $datafield_mapping[$key] = $df;
             }
 
 
@@ -108,8 +107,8 @@ class CommentPlugin implements DatatypePluginInterface
             $comments = array();
             $count = 0;
             foreach ($datarecords as $dr_id => $dr) {
-                $comment_datafield_id = $datafield_mapping['comment']['datafield']['id'];
-                $comment_datafield_typeclass = $datafield_mapping['comment']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
+                $comment_datafield_id = $datafield_mapping['comment']['id'];
+                $comment_datafield_typeclass = $datafield_mapping['comment']['dataFieldMeta']['fieldType']['typeClass'];
 
                 if ( isset($dr['dataRecordFields'][$comment_datafield_id]) ) {
                     $entity = array();

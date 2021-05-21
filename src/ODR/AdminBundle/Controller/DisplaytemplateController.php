@@ -29,7 +29,6 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -645,11 +644,9 @@ class DisplaytemplateController extends ODRCustomController
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
             $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
-            /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
 
             // Create the datafield...works the same whether it's for a local or a linked datatype
-            $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin, true);    // Don't flush immediately...
+            $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, true);    // Don't flush immediately...
 
             // Don't need to worry about datafield permissions here, those are taken care of inside createDatafield()
 
@@ -918,8 +915,6 @@ class DisplaytemplateController extends ODRCustomController
             $theme_element->addThemeDataField($new_tdf);
             self::persistObject($em, $new_tdf, $user, true);    // Don't flush immediately...
 
-
-            // TODO - can't copy fields with render plugins?  why was that again?
             if ($add_to_linked_datatype) {
                 // When copying to a linked datatype...at this point there's a ThemeDatafield entry
                 //  in the local datatype's copy of the linked datatype's theme.  The new datafield
@@ -1744,8 +1739,6 @@ class DisplaytemplateController extends ODRCustomController
                     // Convert the submitted Form entity into an array of relevant properties
                     // This should only have properties listed in the UpdateDataTypeForm
                     $properties = array(
-//                        'renderPlugin' => $datatype->getRenderPlugin()->getId(),    // Not allowed to change this value through this controller action
-
                         'externalIdField' => null,
                         'nameField' => null,
                         'sortField' => null,
@@ -2438,7 +2431,6 @@ class DisplaytemplateController extends ODRCustomController
                     // Save all changes made via the submitted form
                     $properties = array(
                         'fieldType' => $submitted_data->getFieldType()->getId(),
-//                        'renderPlugin' => $datafield->getRenderPlugin()->getId(),    // Not allowed to change this value through this controller action
 
                         'fieldName' => $submitted_data->getFieldName(),
                         'description' => $submitted_data->getDescription(),
@@ -2611,7 +2603,8 @@ class DisplaytemplateController extends ODRCustomController
         $results = $query->getResult();
 
         if ( count($results) > 0 ) {
-            // Need to determine the top-level datatype this datafield belongs to, so other background processes won't attempt to render any part of it and disrupt the migration
+            // Need to determine the top-level datatype this datafield belongs to, so other
+            //  background processes won't attempt to render any part of it and disrupt the migration
             $top_level_datatype_id = $datatype->getGrandparent()->getId();
 
 

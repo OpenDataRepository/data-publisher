@@ -41,13 +41,13 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // This render plugin is only allowed to work when in Edit mode
         // TODO - pass in stuff so the plugin is only executed when in wizard mode?
@@ -63,7 +63,7 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -74,7 +74,7 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
         try {
             // ----------------------------------------

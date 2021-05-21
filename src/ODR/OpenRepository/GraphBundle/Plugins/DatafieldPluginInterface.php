@@ -22,11 +22,11 @@ interface DatafieldPluginInterface
      *
      * @param array $datafield
      * @param array $datarecord
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin, $themeType = 'master');
+    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master');
 }

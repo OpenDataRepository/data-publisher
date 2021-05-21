@@ -339,9 +339,11 @@ class MigrationController extends ODRCustomController
 
     /**
      * Performs the following migration actions to update the backend database from ODR v1.1 to v1.2
-     * 1a) Load the relevant parts of the existing RenderPluginOption entries
-     * 1b) ...hydrate all the ODR entities found in step 1a...
-     * 1c) ...then create a new RenderPluginOptionsMap entry for each of the existing RenderPluginOptions entries
+     * 1) Delete the database entry for the default render plugin
+     * 2a) Load the relevant parts of the existing RenderPluginOption entries
+     * 2b) ...hydrate all the ODR entities found in step 1a...
+     * 2c) ...then create a new RenderPluginOptionsMap entry for each of the existing RenderPluginOptions entries
+     * 3) RenderPluginInstances should only mention either a Datatype or a Datafield, not both
      *
      * @param Request $request
      *
@@ -369,6 +371,28 @@ class MigrationController extends ODRCustomController
             $ret .= '<br>----------------------------------------<br>';
 
             $conn = $em->getConnection();
+
+            // ----------------------------------------
+            // 1) Delete the database entry for the default render plugin
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RenderPlugin rp
+                SET rp.deletedAt = :now
+                WHERE rp.pluginClassName = :classname AND rp.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'classname' => 'odr_plugins.base.default'
+                )
+            );
+            $query->execute();
+
+            $ret .= 'default render_plugin deleted';
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
+
+
+            // Want the above to always execute, but the rest of this stuff should be in a transaction
             $conn->beginTransaction();
 
 
@@ -380,13 +404,13 @@ class MigrationController extends ODRCustomController
             );
             $results = $query->getArrayResult();
             if ( empty($results) ) {
-                $ret .= 'All existing RenderPlugins must be updated first';
+                $ret .= 'Update all existing RenderPlugins first, then re-run this controller action';
                 $ret .= '</html>';
                 print $ret;
                 exit();
             }
 
-            // 1a) Load the relevant parts of the existing RenderPluginOption entries
+            // 2a) Load the relevant parts of the existing RenderPluginOption entries
             $query =
                'SELECT rp.id AS rp_id, rpi.id AS rpi_id, rpo.option_name, rpo.option_value,
                     rpo.created, rpo.createdBy, rpo.updated, rpo.updatedBy
@@ -468,10 +492,46 @@ class MigrationController extends ODRCustomController
                 $existing_rpom[$rpi_id][$rpod_id] = 0;
             }
 
+            // To prevent problems with the messages for deleted datatypes/datafields, also load the
+            //  array version of the rpi entities
+            $rpi_ids = array_keys($rpi_ids);
+
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+               'SELECT partial rpi.{id},
+                    partial dt.{id}, partial dtm.{id, shortName},
+                        partial gdt.{id}, partial gdt_dtm.{id, shortName},
+                    partial df.{id}, partial dfm.{id, fieldName},
+                        partial df_dt.{id}, partial df_dtm.{id, shortName},
+                            partial df_gdt.{id}, partial df_gdt_dtm.{id, shortName}
+
+                FROM ODRAdminBundle:RenderPluginInstance rpi
+
+                LEFT JOIN rpi.dataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.grandparent AS gdt
+                LEFT JOIN gdt.dataTypeMeta AS gdt_dtm
+
+                LEFT JOIN rpi.dataField AS df
+                LEFT JOIN df.dataFieldMeta AS dfm
+                LEFT JOIN df.dataType AS df_dt
+                LEFT JOIN df_dt.dataTypeMeta AS df_dtm
+                LEFT JOIN df_dt.grandparent AS df_gdt
+                LEFT JOIN df_gdt.dataTypeMeta AS df_gdt_dtm
+
+                WHERE rpi IN (:rpi_ids)'
+            )->setParameters(array('rpi_ids' => $rpi_ids));
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+            $rpi_array = array();
+            foreach ($results as $result) {
+                $rpi_id = $result['id'];
+                $rpi_array[$rpi_id] = $result;
+            }
 
             // ----------------------------------------
-            // 1b) ...hydrate all the ODR entities found in step 1a...
-            $rpi_ids = array_keys($rpi_ids);
+            // 2b) ...hydrate all the ODR entities found in step 1a...
             $query = $em->createQuery(
                'SELECT rpi
                 FROM ODRAdminBundle:RenderPluginInstance rpi
@@ -512,7 +572,7 @@ class MigrationController extends ODRCustomController
 
 
             // ----------------------------------------
-            // 1c) ...then create a new RenderPluginOptionsMap entry for each of the existing
+            // 2c) ...then create a new RenderPluginOptionsMap entry for each of the existing
             //  RenderPluginOptions entries
             foreach ($existing_rpo as $rpi_id => $rpo) {
                 $rpi = $rpi_entries[$rpi_id];
@@ -553,9 +613,53 @@ class MigrationController extends ODRCustomController
                         $rpom->setUpdatedBy($updatedBy);
 
                         $em->persist($rpom);
+
+                        // ...can't use $rpi->getDataField() or $rpi->getDataType() because those
+                        //  will return NULL when the entity in question is deleted
+                        if ( is_null($rpi_array[$rpi_id]['dataField']) ) {
+                            $tmp = $rpi_array[$rpi_id];
+                            $dt_id = $tmp['dataType']['id'];
+                            $dt_name = $tmp['dataType']['dataTypeMeta'][0]['shortName'];
+                            $gp_dt_id = $tmp['dataType']['grandparent']['id'];
+                            $gp_dt_name = $tmp['dataType']['grandparent']['dataTypeMeta'][0]['shortName'];
+                            $rp_name = $rpi->getRenderPlugin()->getPluginClassName();
+
+                            $ret .= 'Grandparent Datatype '.$gp_dt_id.' "'.$gp_dt_name.'", Datatype '.$dt_id.' "'.$dt_name.'"...render_plugin "'.$rp_name.'": transferred option "'.$rpod->getName().'"<br>';
+                        }
+                        else {
+                            $tmp = $rpi_array[$rpi_id];
+                            $df_id = $tmp['dataField']['id'];
+                            $df_name = $tmp['dataField']['dataFieldMeta'][0]['fieldName'];
+                            $dt_name = $tmp['dataField']['dataType']['dataTypeMeta'][0]['shortName'];
+                            $dt_id = $tmp['dataField']['dataType']['id'];
+                            $gp_dt_id = $tmp['dataField']['dataType']['grandparent']['id'];
+                            $gp_dt_name = $tmp['dataField']['dataType']['grandparent']['dataTypeMeta'][0]['shortName'];
+                            $rp_name = $rpi->getRenderPlugin()->getPluginClassName();
+
+                            $ret .= 'Grandparent Datatype '.$gp_dt_id.' "'.$gp_dt_name.'", Datatype '.$dt_id.' "'.$dt_name.'" Datafield '.$df_id.' "'.$df_name.'"...render_plugin "'.$rp_name.'": transferred option "'.$rpod->getName().'"<br>';
+                        }
                     }
                 }
             }
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
+
+            // ----------------------------------------
+            // 3) RenderPluginInstances should only mention either a Datatype or a Datafield, not both
+            $ret .= '<div>Clearing the datatype_id from all RenderPluginInstances that mention both datatypes and datafields:<br>';
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RenderPluginInstance rpi
+                SET rpi.dataType = NULL
+                WHERE rpi.dataField IS NOT NULL AND rpi.dataType IS NOT NULL'
+            );
+            $num = $query->execute();
+
+            $ret .= 'success, '.$num.' rows updated';
+
+            $ret .= '</div>';
+            $ret .= '<br>----------------------------------------<br>';
 
 
             // ----------------------------------------

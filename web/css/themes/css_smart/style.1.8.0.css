@@ -1622,3 +1622,34 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     font-family: monospace !important;
     font-size: 1.1em !important;
 }
+
+
+.ODRPluginListLabel {
+    font-size: 1em;
+    font-weight: bold;
+}
+.ODRPluginCategoryLabel {
+    text-align: left;
+    font-weight: bold;
+    font-size: 0.8em;
+    cursor: default;
+}
+.ODRPluginEntry {
+    text-align: left;
+    font-size: 0.8em;
+    color: #555;
+    padding: 3px 0px 3px 15px;
+    cursor: default;
+}
+.ODRPluginName {
+    cursor: pointer;
+}
+.ODRSelectedPlugin {
+    -webkit-box-shadow: inset 0 0 0 3px rgba(54, 187, 114, 0.80);
+    -moz-box-shadow: inset 0 0 0 3px rgba(54, 187, 114, 0.80);
+    box-shadow: inset 0 0 0 3px rgba(54, 187, 114, 0.80);
+    border-radius: 10px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}

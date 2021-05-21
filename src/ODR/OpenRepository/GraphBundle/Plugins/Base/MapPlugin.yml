@@ -2,6 +2,7 @@ odr_plugins.base.map:
     name: Map Plugin
     category: Base
     datatype: true
+    render: true
     version: 1.2.0
     override_fields: true
     override_child: true

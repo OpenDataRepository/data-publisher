@@ -43,6 +43,10 @@ ODR\AdminBundle\Entity\RenderPlugin:
             type: boolean
             nullable: false
             column: active
+        render:
+            type: boolean
+            nullable: false
+            column: render
 
         overrideChild:
             type: boolean
@@ -81,15 +85,6 @@ ODR\AdminBundle\Entity\RenderPlugin:
             columns: ["plugin_class_name"]
 
     oneToMany:
-        dataFields:
-            targetEntity: DataFields
-            mappedBy: renderPlugin
-            cascade: {  }
-        dataType:
-            targetEntity: DataType
-            mappedBy: renderPlugin
-            cascade: {  }
-
         renderPluginInstance:
             targetEntity: RenderPluginInstance
             cascade: {  }

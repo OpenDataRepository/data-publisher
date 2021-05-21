@@ -221,6 +221,14 @@ odr_load_plugin_data:
         datafield_id:  \d+
         render_plugin_id:  \d+
 
+odr_detach_plugin:
+    path:  /design/displaytemplate/detachplugin/{datatype_id}/{datafield_id}/{render_plugin_id}
+    defaults: { _controller: ODRAdminBundle:Plugins:detachrenderplugin }
+    requirements:
+        datatype_id:  \d+
+        datafield_id:  \d+
+        render_plugin_id:  \d+
+
 odr_save_render_plugin_settings:
     path:  /design/displaytemplate/saverenderpluginsettings
     defaults: { _controller: ODRAdminBundle:Plugins:saverenderpluginsettings }

@@ -329,7 +329,7 @@ class EntityDeletionService
             )->setParameters(
                 array(
                     'datafield_id' => $datafield->getId(),
-                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it'll be taken care of next
+                    'datatype_id' => $datatype->getId()    // don't want the datatype of the datafield that's getting deleted...it'll be taken care of next
                 )
             );
             $results = $query->getResult();
@@ -338,7 +338,7 @@ class EntityDeletionService
                 /** @var DataType $dt */
                 $dt = $result;
 
-                $props['sortField'] = null;
+                $props = array('sortField' => null);
                 $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
 
                 // Shouldn't need to clear cache entries as a result of this...
@@ -752,6 +752,20 @@ class EntityDeletionService
 
             //print '<pre>'.print_r($datatypes_to_delete, true).'</pre>'; exit();
 
+            // Need to also find which datafields are affected by this
+            $query = $this->em->createQuery(
+               'SELECT df.id AS df_id
+                FROM ODRAdminBundle:DataFields AS df
+                WHERE df.dataType IN (:datatype_ids)
+                AND df.deletedAt IS NULL'
+            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
+            $results = $query->getArrayResult();
+
+            $datafields_to_delete = array();
+            foreach ($results as $result)
+                $datafields_to_delete[] = $result['df_id'];
+
+
             // Determine all Groups and all Users affected by this
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
@@ -1048,6 +1062,28 @@ class EntityDeletionService
                 AND ug.deletedAt IS NULL';
             $parameters = array(1 => $groups_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            // Delete all RenderPluginInstance entries
+            $query_str =
+               'UPDATE odr_render_plugin_instance AS rpi
+                SET rpi.deletedAt = NOW()
+                WHERE rpi.data_type_id IN (?) OR rpi.data_field_id IN (?)
+                AND rpi.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // Delete all RenderPluginMap entries
+            $query_str =
+               'UPDATE odr_render_plugin_map AS rpm
+                SET rpm.deletedAt = NOW()
+                WHERE rpm.data_type_id IN (?) OR rpm.data_field_id IN (?)
+                AND rpm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 

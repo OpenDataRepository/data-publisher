@@ -43,13 +43,13 @@ class CheminReferencesPlugin implements DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // TODO - make changes so it can actually run in Edit mode?
         // This render plugin isn't allowed to work when in edit mode
@@ -65,7 +65,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -76,13 +76,12 @@ class CheminReferencesPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {
             // ----------------------------------------
             // Grab various properties from the render plugin array
-            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
             $fields = $render_plugin_instance['renderPluginMap'];
 
             // There *should* only be a single datarecord in $datarecords...
@@ -106,22 +105,37 @@ class CheminReferencesPlugin implements DatatypePluginInterface
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                $pluginClassName = $df['dataFieldMeta']['renderPlugin']['pluginClassName'];
 
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
 
+                // The datafield may have a render plugin that should be executed...
+                if ( !empty($df['renderPluginInstances']) ) {
+                    foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                        if ( $rpi['renderPlugin']['render'] === true ) {
+                            // ...if it does, then create an array entry for it
+                            $datafield_mapping[$key] = array(
+                                'datafield' => $df,
+                                'render_plugin_instance' => $rpi
+                            );
+                        }
+                    }
+                }
+
+                // If it does have a render plugin, then don't bother looking in the datarecord array
+                //  for the value
+                if ( isset($datafield_mapping[$key]) )
+                    continue;
+
+
+                // Otherwise, look for the value in the datarecord array
                 if ( !isset($datarecord['dataRecordFields'][$rpf_df_id]) ) {
-                    // As far as the reference plugin is concerned, empty strings are acceptable values when datarecordfield entries don't exist
+                    // As far as the reference plugin is concerned, empty strings are acceptable
+                    //  values when datarecordfield entries don't exist
                     $datafield_mapping[$key] = '';
                 }
-                elseif ( $pluginClassName !== 'odr_plugins.base.default' || $typeclass === 'File' ) {
-                    // Either this is a file datafield, or ODR needs to execute a render plugin on
-                    //  this datafield's value...have to leave the data in this format so twig can
-                    //  either call the required render plugin or iterate over the files
+                elseif ($typeclass === 'File') {
                     $datafield_mapping[$key] = array(
-                        'datafield' => $df,
-                        'render_plugin' => $df['dataFieldMeta']['renderPlugin'],
                         'datarecordfield' => $datarecord['dataRecordFields'][$rpf_df_id]
                     );
                 }

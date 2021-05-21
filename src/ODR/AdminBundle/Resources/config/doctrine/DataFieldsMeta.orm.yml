@@ -195,16 +195,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
                     referencedColumnName: id
             orphanRemoval: false
 
-        renderPlugin:
-            targetEntity: RenderPlugin
-            cascade: {  }
-            mappedBy: null
-            inversedBy: dataFields
-            joinColumns:
-                render_plugin_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
