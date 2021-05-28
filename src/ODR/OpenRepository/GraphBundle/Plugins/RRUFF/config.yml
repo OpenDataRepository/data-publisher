@@ -8,6 +8,8 @@ services:
             $datarecord_info_service: "@odr.datarecord_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $lock_service: "@odr.lock_service"
             $search_cache_service: "@odr.search_cache_service"
+            $token_manager: "@security.csrf.token_manager"
             $templating: "@templating"
             $logger: "@logger"

@@ -51,3 +51,16 @@ services:
         arguments:
             $templating: "@templating"
             $logger: "@logger"
+
+
+    odr_plugins.chemin.chemin_analog:
+        class: '%odr_plugin_base_classpath%\Chemin\CheminAnalogPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $lock_service: "@odr.lock_service"
+            $search_cache_service: "@odr.search_cache_service"
+            $templating: "@templating"
+            $token_manager: "@security.csrf.token_manager"
+            $logger: "@logger"

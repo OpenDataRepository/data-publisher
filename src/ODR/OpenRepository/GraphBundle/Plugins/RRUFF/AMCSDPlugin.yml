@@ -8,6 +8,7 @@ odr_plugins.rruff.amcsd:
     override_child: false
     description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
     registered_events:
+        DatarecordCreatedEvent: onDatarecordCreate
         FileDeletedEvent: onFileDeleted
         FilePreEncryptEvent: onFilePreEncrypt
 
@@ -28,7 +29,6 @@ odr_plugins.rruff.amcsd:
             description: The value of the "database_code_amcsd" field in the AMC File
             type: ShortVarchar    # must allow leading zeros
 #            properties: must_be_unique,must_prevent_user_edits
-            # TODO - having both of these properties at once currently blocks creation of a new datarecord via FakeEdit
         authors:
             name: Authors
             description: The names of the authors that published the data

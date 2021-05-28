@@ -15,6 +15,7 @@ namespace ODR\AdminBundle\Controller;
 use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Model\UserManager;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
@@ -71,6 +72,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -972,6 +974,24 @@ class APIController extends ODRCustomController
                 // TODO Naming is a little weird here
                 $metadata_record->setProvisioned(false);
                 $em->flush();
+
+                // This is wrapped in a try/catch block because any uncaught exceptions will abort
+                //  creation of the new datarecord...
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordCreatedEvent($metadata_record, $user);
+                    $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't particularly want to rethrow the error since it'll interrupt
+                    //  everything downstream of the event (such as file encryption...), but
+                    //  having the error disappear is less ideal on the dev environment...
+                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
+                }
             }
 
             // Retrieve first (and only) record ...
@@ -994,6 +1014,24 @@ class APIController extends ODRCustomController
                     // TODO Naming is a little weird here
                     $actual_data_record->setProvisioned(false);
                     $em->flush();
+
+                    // This is wrapped in a try/catch block because any uncaught exceptions will abort
+                    //  creation of the new datarecord...
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatarecordCreatedEvent($actual_data_record, $user);
+                        $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
+                    }
                 }
 
             }

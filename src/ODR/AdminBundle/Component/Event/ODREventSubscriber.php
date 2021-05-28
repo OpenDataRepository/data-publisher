@@ -77,6 +77,7 @@ class ODREventSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents()
     {
         return array(
+            DatarecordCreatedEvent::NAME => 'onDatarecordCreated',
             FileDeletedEvent::NAME => 'onFileDeleted',
             FilePreEncryptEvent::NAME => 'onFilePreEncrypt',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
@@ -88,6 +89,8 @@ class ODREventSubscriber implements EventSubscriberInterface
     /**
      * Determines whether any render plugins need to respond to the given event, and determines
      * which function to call inside the render plugin definition file if so.
+     *
+     * Don't really need to cache this, it seems.
      *
      * @param string $event_name
      * @param DataType|null $datatype
@@ -200,6 +203,43 @@ class ODREventSubscriber implements EventSubscriberInterface
                     //  the error disappear is less ideal on the dev environment...
                     throw new ODRException($plugin_classname.' handling '.$event->getEventName().': '.$e->getMessage(), 500, 0x03e8b958);
                 }
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatarecordCreated events
+     *
+     * @param DatarecordCreatedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordCreated(DatarecordCreatedEvent $event)
+    {
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datarecord = $event->getDatarecord();
+
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datarecord->getDataType(), null);
+            if ( !empty($relevant_plugins) ) {
+                // If so, then load each plugin and call their required function
+                self::relayEvent($relevant_plugins, $event);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
             }
         }
     }

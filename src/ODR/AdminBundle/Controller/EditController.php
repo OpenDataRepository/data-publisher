@@ -43,6 +43,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
@@ -161,11 +162,28 @@ class EditController extends ODRCustomController
             }
 
             // Create a new top-level datarecord
-            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype);
+
+            // This is wrapped in a try/catch block because any uncaught exceptions will abort
+            //  creation of the new datarecord...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordCreatedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
 
             // Datarecord is ready, remove provisioned flag
             $datarecord->setProvisioned(false);
-
             $em->persist($datarecord);
             $em->flush();
 
@@ -268,18 +286,39 @@ class EditController extends ODRCustomController
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create a new datarecord...
-            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush until parent/grandparent is set
 
             // Set parent/grandparent properties so this becomes a child datarecord
             $datarecord->setGrandparent($grandparent_datarecord);
             $datarecord->setParent($parent_datarecord);
-
-            // Datarecord is ready, remove provisioned flag
-            $datarecord->setProvisioned(false);
-
             $em->persist($datarecord);
             $em->flush();
 
+            // This is wrapped in a try/catch block because any uncaught exceptions will abort
+            //  creation of the new datarecord...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordCreatedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
+
+            // Datarecord is ready, remove provisioned flag
+            $datarecord->setProvisioned(false);
+            $em->persist($datarecord);
+            $em->flush();
+
+
+            // ----------------------------------------
             // Get edit_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'new_datarecord_id' => $datarecord->getId(),

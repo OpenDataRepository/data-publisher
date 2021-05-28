@@ -39,6 +39,8 @@ use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -59,6 +61,7 @@ use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -3635,8 +3638,10 @@ exit();
 
             // ----------------------------------------
             // Determine whether to create a new datarecord or not
+            $datarecord_created = false;
             if ($datarecord == null) {
                 // Create a new datarecord, since one doesn't exist
+                $datarecord_created = true;
                 $datarecord = $ec_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
                 if ( !is_null($parent_datarecord) ) {
                     $datarecord->setParent($parent_datarecord);
@@ -3675,6 +3680,28 @@ exit();
             }
             $em->flush($datarecord);
             $em->refresh($datarecord);
+
+
+            // If a datarecord got created, fire off the DatarecordCreated event
+            if ($datarecord_created) {
+                // This is wrapped in a try/catch block because any uncaught exceptions will abort
+                //  creation of the new datarecord...
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordCreatedEvent($datarecord, $user);
+                    $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't particularly want to rethrow the error since it'll interrupt
+                    //  everything downstream of the event (such as file encryption...), but
+                    //  having the error disappear is less ideal on the dev environment...
+                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
+                }
+            }
 
 
             // ----------------------------------------

@@ -23,6 +23,8 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -45,6 +47,7 @@ use ODR\AdminBundle\Component\Utility\UserUtility;
 use FOS\UserBundle\Doctrine\UserManager;
 // Symfony
 use Doctrine\ORM\EntityManager;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -269,7 +272,25 @@ class DatatypeController extends ODRCustomController
 
                 if ( count($results) == 0 ) {
                     // A metadata datarecord doesn't exist...create one
-                    $datarecord = $ec_service->createDatarecord($user, $properties_datatype, true);    // don't flush immediately...
+                    $datarecord = $ec_service->createDatarecord($user, $properties_datatype);
+
+                    // This is wrapped in a try/catch block because any uncaught exceptions will abort
+                    //  creation of the new metadata datarecord...
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatarecordCreatedEvent($datarecord, $user);
+                        $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
+                    }
 
                     // Don't need to do anything else to the metadata datarecord, immediately
                     //  remove provisioned flag

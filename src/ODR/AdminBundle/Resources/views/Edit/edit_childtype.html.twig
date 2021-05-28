@@ -4,6 +4,9 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
+{% if parent_datarecord.is_fake is defined and parent_datarecord.is_fake %}
+    {% set rendering_options = rendering_options|merge({'context': 'fake_edit'}) %}
+{% endif %}
 
 {# Determine whether a render plugin needs to be run #}
 {% set render_plugin_instance = null %}
@@ -59,7 +62,7 @@
             <div class="ODRFieldArea accordion-content pure-u-1{% if dr_is_fake %} ODRFakeRecord{% endif %}" id="FieldArea_{{ datarecord.id }}">
 
                 {% set content = '' %}
-                {% if not dr_is_fake and can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
+                {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
                     {# [datarecord] converts datarecord into a single-element array #}
                     {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
                     {% if content|length > 0 %}
