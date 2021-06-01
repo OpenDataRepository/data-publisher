@@ -1472,7 +1472,7 @@ class DisplaytemplateController extends ODRCustomController
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = '';
+        $return['d'] = array();
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1806,9 +1806,7 @@ class DisplaytemplateController extends ODRCustomController
                     $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
                     $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
-                    $return['d'] = array(
-                        'datafield_properties' => $datafield_properties
-                    );
+                    $return['d']['datafield_properties'] = $datafield_properties;
 
                     // Any change to the search slug needs to be reflected in the URL, otherwise
                     //  any subsequent attempt to search or view dashboard will immediately throw errors
@@ -1969,7 +1967,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Return the slideout html
                 $templating = $this->get('templating');
-                $return['d'] = $templating->render(
+                $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
                     array(
                         'show_name' => $show_name,
@@ -2124,6 +2122,8 @@ class DisplaytemplateController extends ODRCustomController
 
             // Need to immediately force a reload of the right design slideout if certain fieldtypes change
             $force_slideout_reload = false;
+            // May also need to force a reload of the datafield itself
+            $reload_datafield = false;
             // Only allowed to begin migrating data under specific situations
             $migrate_data = false;
             // Migration to an image field requires a check for image size entities
@@ -2350,6 +2350,10 @@ class DisplaytemplateController extends ODRCustomController
 
                     // If the fieldtype changed, then ensure several of the properties are cleared
                     if ( $old_fieldtype_id !== $new_fieldtype_id ) {
+                        // While not technically needed 100% of the time, it's easier if the datafield
+                        //  always gets reloaded when the fieldtype gets changed
+                        $reload_datafield = true;
+
                         // Reset a datafield's markdown text if it's not longer a markdown field
                         if ($new_fieldtype_typeclass !== 'Markdown')
                             $submitted_data->setMarkdownText('');
@@ -2414,7 +2418,8 @@ class DisplaytemplateController extends ODRCustomController
                     if ( $has_tag_hierarchy )
                         $submitted_data->setTagsAllowMultipleLevels(true);
 
-                    // If the unique status of the datafield got changed at all, force a slideout reload so the fieldtype will have the correct state
+                    // If the unique status of the datafield got changed at all, force a slideout
+                    //  reload so the fieldtype will have the correct state
                     if ( $datafield->getIsUnique() !== $submitted_data->getIsUnique() )
                         $force_slideout_reload = true;
 
@@ -2423,8 +2428,13 @@ class DisplaytemplateController extends ODRCustomController
                     // If the radio options or tags are now supposed to be sorted by name, ensure
                     //  that happens
                     $sort_radio_options = false;
-                    if ( $datafield->getRadioOptionNameSort() == false && $submitted_data->getRadioOptionNameSort() == true )
+                    if ( $datafield->getRadioOptionNameSort() == false && $submitted_data->getRadioOptionNameSort() == true ) {
                         $sort_radio_options = true;
+
+                        // Also need to reload the datafield so the options show up in the correct
+                        // order on the page
+                        $reload_datafield = true;
+                    }
 
 
                     // ----------------------------------------
@@ -2532,10 +2542,13 @@ class DisplaytemplateController extends ODRCustomController
                 $prevent_fieldtype_change = $ret['prevent_change'];
                 $prevent_fieldtype_change_message = $ret['prevent_change_message'];
 
-                // The return may already have some datafield properties in it, don't want to
+                // The return array may already have some datafield properties in it, don't want to
                 //  completely overwrite...
                 $return['d']['force_slideout_reload'] = $force_slideout_reload;
+                $return['d']['reload_datafield'] = $reload_datafield;
 
+
+                // ----------------------------------------
                 // Render the html for the form
                 $templating = $this->get('templating');
                 $return['d']['html'] = $templating->render(

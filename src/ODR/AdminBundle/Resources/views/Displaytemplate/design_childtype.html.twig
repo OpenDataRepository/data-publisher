@@ -8,7 +8,8 @@
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
-        <h3 title="Click to display properties."
+        <h3 id="Datatype_{{ datatype.id }}_header"
+            title="Click to display properties."
             class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRDatatypeProperties {% if not is_datatype_admin %}ODRForbidden{% endif %}"
             role="tab" aria-expanded="true" aria-selected="true" tabindex="0"
         >
@@ -57,7 +58,8 @@
 
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
-                <h3 title="Click to display properties."
+                <h3 id="Datatype_{{ datatype.id }}_header"
+                    title="Click to display properties."
                     class="ODRHeader ODRDatatypeProperties tooltip{% if not is_datatype_admin %} ODRForbidden{% endif %}"
                 >
                     <i id="ODRDatatype_{{datatype.id }}_publicStatus"

@@ -55,6 +55,11 @@
             var render_plugin_id = $(this).attr('rel');
             loadPluginConfig(render_plugin_id);
         });
+
+        {% if not is_datatype_admin %}
+        // Don't allow saving when the user isn't allowed to make changes
+        $("#ODRRenderPluginFormSubmit").unbind('click').prop('disabled', true);
+        {% endif %}
     });
 
 

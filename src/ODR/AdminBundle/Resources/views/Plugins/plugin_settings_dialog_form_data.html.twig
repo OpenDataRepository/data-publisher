@@ -8,8 +8,9 @@
         <span>&nbsp;{{ illegal_render_plugin_message }}</span>
     {% elseif render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
         <span>The {% if local_datafield == null %}Database{% else %}Datafield{% endif %} is currently using this Render Plugin.</span>
-        &nbsp;&nbsp;
-        <button class="ODRDetachPlugin pure-button pure-button-primary">Detach Render Plugin</button>
+        {% if is_datatype_admin %}
+        &nbsp;&nbsp;<button class="ODRDetachPlugin pure-button pure-button-primary">Detach Render Plugin</button>
+        {% endif %}
     {% endif %}
     </fieldset>
 
@@ -107,11 +108,14 @@
         {% if render_plugin_instance != null %}
             // Pre-select any existing datafield mappings
             {% for num,rpm in render_plugin_instance['renderPluginMap'] %}
-            $("#plugin_map_{{ rpm['renderPluginFields']['id'] }}").val("{{ rpm['dataField']['id'] }}");
-            $("#plugin_map_{{ rpm['renderPluginFields']['id'] }}").trigger('change');
+            $("#plugin_map_{{ rpm['renderPluginFields']['id'] }}").val("{{ rpm['dataField']['id'] }}").trigger('change');
             {% endfor %}
         {% endif %}
 
+        {% if not is_datatype_admin %}
+            // Not strictly needed, but don't allow modification if the user isn't allowed to
+            $(".ODRRenderPluginMap").prop('disabled', true);
+        {% endif %}
         });
     </script>
 
@@ -148,14 +152,14 @@
 
                 {% if rpo['choices'] is defined and rpo['choices'] != null %}
                     {# Create a dropdown to display the available choices for this RenderPluginOption #}
-                    <select id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]">
+                    <select id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" name="plugin_options[{{ rpo_id }}]">
                     {% for key,value in rpo['choices'] %}
                         <option value="{{ key }}" {% if key == current_value %}selected{% endif %}>{{ value }}</option>
                     {% endfor %}
                     </select>
                 {% else %}
                     {# Create a textfield so the user can enter a value for this RenderPluginOption #}
-                    <input id="plugin_option_{{ rpo_id }}" size="20" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
+                    <input id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" size="32" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
                 {% endif %}
                 </div>
             {% endfor %}
@@ -164,6 +168,7 @@
 
     <script>
         $(function() {
+        {% if is_datatype_admin %}
             $(".ODRDetachPlugin").unbind('click').click(function(event) {
                 // Don't submit the form
                 event.preventDefault();
@@ -254,6 +259,11 @@
             // The datatype/datafield is using this render plugin
             $("#ODRRenderPluginFormSubmit").html('Update Render Plugin').prop('disabled', false);
             {% endif %}
+        {% else %}
+            {# user is not allowed to make changes to this #}
+            $(".ODRDetachPlugin").unbind('click').prop('disabled', true);
+            $(".ODRRenderPluginOptionsMap").prop('disabled', true);
+        {% endif %}
         });
     </script>
 {% endspaceless %}

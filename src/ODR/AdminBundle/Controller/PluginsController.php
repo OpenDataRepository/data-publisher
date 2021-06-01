@@ -1365,8 +1365,12 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if( !$pm_service->isDatatypeAdmin($user, $datatype) )
+//            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+//                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
 
@@ -1463,6 +1467,7 @@ class PluginsController extends ODRCustomController
                     array(
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
+                        'is_datatype_admin' => $is_datatype_admin,
 
                         'all_render_plugins' => $render_plugins,
                         'plugin_to_load' => $plugin_to_load,
@@ -1554,8 +1559,12 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+//            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+//                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
 
@@ -1775,6 +1784,7 @@ class PluginsController extends ODRCustomController
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
                         'datafields' => $all_datafields,
+                        'is_datatype_admin' => $is_datatype_admin,
 
                         'render_plugin' => $render_plugin,
                         'allowed_fieldtypes' => $allowed_fieldtypes,
