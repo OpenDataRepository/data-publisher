@@ -4,11 +4,3 @@ imports:
     - { resource: "../../Plugins/AHED/config.yml" }
     - { resource: "../../Plugins/Metadata/config.yml" }
 #    - { resource: "../../Plugins/RRUFF/config.yml" }    # TODO - need a more robust plugin management system...these plugins shouldn't be active/available to the entirety of ODR...
-
-parameters:
-    # This should point to the base directory for the render plugin yml and php files...used to
-    #  determine which plugins are on the server
-    odr_plugin_basedir: "%kernel.root_dir%/../src/ODR/OpenRepository/GraphBundle/Plugins"
-
-    # This should NOT have a trailing backslash...also shouldn't be quoted apparently
-    odr_plugin_base_classpath: ODR\OpenRepository\GraphBundle\Plugins

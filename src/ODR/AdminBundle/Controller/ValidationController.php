@@ -30,7 +30,6 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -383,7 +382,6 @@ class ValidationController extends ODRCustomController
 
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 //            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -393,8 +391,6 @@ class ValidationController extends ODRCustomController
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            /** @var RenderPlugin $default_render_plugin */
-            $default_render_plugin = $repo_render_plugin->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
             /** @var FieldType $default_fieldtype */
             $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
 
@@ -439,7 +435,6 @@ class ValidationController extends ODRCustomController
                     $dfm = new DataFieldsMeta();
                     $dfm->setDataField($df);
                     $dfm->setFieldType($default_fieldtype);
-                    $dfm->setRenderPlugin($default_render_plugin);
 
                     $dfm->setMasterRevision(0);
                     $dfm->setTrackingMasterRevision(0);
@@ -568,7 +563,6 @@ class ValidationController extends ODRCustomController
 
                     $dtm = new DataTypeMeta();
                     $dtm->setDataType($dt);
-                    $dtm->setRenderPlugin($default_render_plugin);
 
                     $dtm->setSearchSlug($dt->getUniqueId());
                     $dtm->setShortName("New Datatype");

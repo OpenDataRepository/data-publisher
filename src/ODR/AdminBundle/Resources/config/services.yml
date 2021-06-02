@@ -41,6 +41,16 @@ services:
     odr.markdown.parser:
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
+    # Defines an event subscriber to disseminate events to relevant render plugins
+    odr.event_subscriber:
+        class: ODR\AdminBundle\Component\Event\ODREventSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
 
     # Services for improved data retrieval model
     odr.cache_service:

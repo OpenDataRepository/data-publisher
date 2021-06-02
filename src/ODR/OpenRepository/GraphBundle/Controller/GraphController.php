@@ -44,14 +44,13 @@ class GraphController extends ODRCustomController
      * when the cached version of the desired graph doesn't exist...this controller action calls
      * the GraphPlugin again, but this time instructs it to actually build the graph.
      *
-     * @param integer $plugin_id
      * @param integer $datatype_id
      * @param integer $datarecord_id
      * @param Request $request
      *
      * @return RedirectResponse|Response
      */
-    public function staticAction($plugin_id, $datatype_id, $datarecord_id, Request $request)
+    public function staticAction($datatype_id, $datarecord_id, Request $request)
     {
         try {
             $is_rollup = false;
@@ -131,19 +130,25 @@ class GraphController extends ODRCustomController
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-
-            // Call Render Plugin
-            // Filter Data Records to only include desired datatype
+            // Need to locate cached datarecord, datatype, and render plugin entries
             foreach ($datarecord_array as $dr_id => $dr) {
-                if ($dr['dataType']['id'] != $datatype_id) {
-                    unset($datarecord_array[$dr_id]);
+                if ( $dr['dataType']['id'] != $datatype_id ) {
+                    unset( $datarecord_array[$dr_id]) ;
                 }
             }
-
-            // Load and execute the render plugin
             $datatype = $datatype_array[$datatype_id];
-            $render_plugin = $datatype['dataTypeMeta']['renderPlugin'];
 
+            // The datatype could technically have multiple render plugins, so need to find the
+            //  correct one
+            $render_plugin_instance = null;
+            foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.graph') {
+                    $render_plugin_instance = $rpi;
+                    break;
+                }
+            }
+            if ( is_null($render_plugin_instance) )
+                throw new \Exception('{ "message": "Item Deleted", "detail": "RenderPluginInstance does not exist."}');
 
             // Build Graph - Static Option
             // {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType} %}
@@ -167,8 +172,8 @@ class GraphController extends ODRCustomController
             // ----------------------------------------
             // Render the static graph
             /** @var DatatypePluginInterface $svc */
-            $svc = $this->container->get($render_plugin['pluginClassName']);
-            $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme_array, $rendering_options);
+            $svc = $this->container->get('odr_plugins.base.graph');
+            $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
 
             return $this->redirect($filename);
         }

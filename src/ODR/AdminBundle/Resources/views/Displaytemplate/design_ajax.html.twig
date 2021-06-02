@@ -14,7 +14,15 @@
             {% endif %}
         </h1>
         {% if datatype.setup_step != "complete" %}
-            {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
+            {% if datatype.metadata_for != null %} {# Master Template Creation #}
+                {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+                    'wizard_step': 2,
+                    'datatype_id': datatype.id,
+                    'edit_properties': false,
+                    'create_master': false,
+                    'master_templates': null,
+                    'master_type_id': 0,
+                } %}
             {% else %}
                 {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
                     'wizard_step': 3,
@@ -478,6 +486,7 @@
         for(var x in tools) {
             var obj = tools[x];
             obj.addClass('faded');
+            obj.find('i').removeClass('ODRActiveIcon');
             obj.unbind('click').click(function () {
                 sidebarDefaultClick();
             });
@@ -486,24 +495,24 @@
         // Reset link text
         tools.add_te.find('.link-text').html('Add Group Box');
         tools.add_df.find('.link-text').html('Add Field');
+        tools.copy_df.find('.link-text').html('Copy Field');
         tools.add_cdt.find('.link-text').html('Add Child Field Set');
         tools.link_dt.find('.link-text').html('Link to Dataset');
         tools.link_ft.find('.link-text').html('Add from Template');
-        tools.render.find('.link-text').html('Change Render Plugin');
+        tools.render.find('.link-text').html('Change Active Render Plugins');
         tools.pub_stat.find('.link-text').html('Change Public Status');
         tools.del_dt.find('.link-text').html('Delete Dataset');
-        tools.copy_df.find('.link-text').html('Copy Field');
 
         // Reset tooltips
         tools.add_te.attr('title',   'Add Group Box');
         tools.add_df.attr('title',   'Add Field');
+        tools.copy_df.attr('title',  'Copy Field');
         tools.add_cdt.attr('title',  'Add Child Field Set');
         tools.link_dt.attr('title',  'Link to Dataset');
         tools.link_ft.attr('title',  'Add from Template');
-        tools.render.attr('title',   'Change Render Plugin');
+        tools.render.attr('title',   'Change Active Render Plugins');
         tools.pub_stat.attr('title', 'Change Public Status');
-        tools.del_dt.attr('title',   'Delete');
-        tools.copy_df.attr('title', 'Copy Field');
+        tools.del_dt.attr('title',   'Delete Dataset');
 
         // Hide the datafield copy
         // console.log('hiding copy df');
@@ -512,7 +521,7 @@
 
 
         // Hide fields for master templates
-        if(isMasterType) {
+        if (isMasterType) {
             tools.link_ft.hide();
             tools.link_dt.find('.link-text').html('Link to Template');
             tools.link_dt.attr('title', 'Link to Template');
@@ -558,6 +567,8 @@
                 //  to the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
                 tools.add_te.removeClass('faded');
+                tools.add_te.find('i').addClass('ODRActiveIcon');
+
                 tools.add_te.unbind('click').click(function () {
                     var theme_id = datatype_properties[datatype_id].theme_id;
                     // console.log('adding theme_element to theme ' + theme_id);
@@ -565,12 +576,13 @@
                 });
 
                 // ----------------------------------------
-                // Add Field
+                // Add Field is only available when the user is an admin of the selected datatype
                 if ( is_datatype_admin ) {
                     tools.add_df.removeClass('faded');
                     tools.add_df.find('i').addClass('ODRActiveIcon');
                     tools.add_df.find('.link-text').html('Add Field');
                     tools.add_df.attr('title', 'Click to add a field to this dataset.');
+
                     tools.add_df.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
 
@@ -603,22 +615,15 @@
                         }
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datatype
-                    tools.add_df.addClass('faded');
-                    tools.add_df.find('i').removeClass('ODRActiveIcon');
-                    // tools.add_df.find('.link-text').html('Add Field');
-                    // tools.add_df.attr('title', 'Click to add a field to this dataset.');
-                    tools.add_df.unbind('click');
-                }
 
                 // ----------------------------------------
-                // Add child dataset
+                // Add child dataset is only available when the user is an admin of the selected datatype
                 if ( is_datatype_admin) {
                     tools.add_cdt.removeClass('faded');
                     tools.add_cdt.find('i').addClass('ODRActiveIcon');
                     tools.add_cdt.find('.link-text').html('Add a Child Field Set');
                     tools.add_cdt.attr('title', 'Click to add a child field set.');
+
                     tools.add_cdt.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
 
@@ -652,20 +657,9 @@
                         }
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datatype
-                    tools.add_cdt.addClass('faded');
-                    tools.add_cdt.find('i').removeClass('ODRActiveIcon');
-                    // tools.add_cdt.find('.link-text').html('Add a Child Field Set');
-                    // tools.add_cdt.attr('title', 'Click to add a child field set.');
-                    tools.add_cdt.unbind('click');
-                }
 
                 // ----------------------------------------
                 // Link to dataset
-                tools.link_dt.removeClass('faded');
-                tools.link_dt.find('i').addClass('ODRActiveIcon');
-
                 if ( isMasterType ) {
                     if ( props.is_link ) {
                         // User clicked on a datatype that is a linked template
@@ -695,6 +689,9 @@
                     // User clicked on a datatype that is a linked dataset/template...all users are
                     //  allowed to open the related modal, though they still need permissions to
                     //  actually make changes
+                    tools.link_dt.removeClass('faded');
+                    tools.link_dt.find('i').addClass('ODRActiveIcon');
+
                     tools.link_dt.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
 
@@ -711,6 +708,9 @@
                 else if ( is_datatype_admin ) {
                     // User clicked on a datatype that's not a linked dataset/template
                     // The tool should only do something if they're an admin for this datatype
+                    tools.link_dt.removeClass('faded');
+                    tools.link_dt.find('i').addClass('ODRActiveIcon');
+
                     tools.link_dt.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
 
@@ -744,18 +744,16 @@
                         }
                     });
                 }
-                else {
-                    // User can't link to or unlink from anything here
-                    tools.link_dt.unbind('click');
-                }
 
                 // ----------------------------------------
-                // Any non linked datatype can link from a template
+                // Any non linked datatype can link from a template, although the option is only
+                //  available when the user is an admin of the selected datatype
                 if ( !props.is_link && is_datatype_admin ) {
                     tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
                     tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
+
                     tools.link_ft.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
 
@@ -789,54 +787,42 @@
                         }
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datatype
-                    tools.link_ft.addClass('faded');
-                    tools.link_ft.find('i').removeClass('ODRActiveIcon');
-                    // tools.link_ft.find('.link-text').html('Add from Template');
-                    // tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
-                    tools.link_ft.unbind('click');
-                }
 
                 // ----------------------------------------
-                // Render Plugin
+                // Render Plugin is always available, although users are only allowed to change the
+                //  currently used plugins if they're an admin of the selected datatype
                 tools.render.removeClass('faded');
                 tools.render.find('i').addClass('ODRActiveIcon');
-
-                if (props.render_plugin_classname === "odr_plugins.base.default") {
-                    tools.render.find('.link-text').html('Change Render Plugin');
-                    tools.render.attr('title', 'Change Render Plugin');
-                }
-                else {
-                    tools.render.find('.link-text').html('Custom Render');
-                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '"');
-                }
+                tools.render.unbind('click').click(function() {
+                    // console.log('Changing render plugin for datatype: ', datatype_id);
+                    changeRenderPlugin(datatype_id, 'datatype');
+                });
 
                 if ( is_datatype_admin ) {
-                    tools.render.unbind('click').click(function () {
-                        // console.log('Changing render plugin for datatype: ', datatype_id);
-                        changeRenderPlugin(datatype_id, 'datatype');
-                    });
+                    // User is allowed to modify this datatype
+                    tools.render.find('.link-text').html('Change Active Render Plugins');
+                    tools.render.attr('title', 'Change Active Render Plugins');
                 }
                 else {
                     // User isn't allowed to modify this datatype
-                    tools.render.addClass('faded');
-                    tools.render.find('i').removeClass('ODRActiveIcon');
-                    tools.render.unbind('click');
+                    tools.render.find('.link-text').html('View Active Render Plugins');
+                    tools.render.attr('title', 'View Active Render Plugins');
                 }
 
                 // ----------------------------------------
-                // Dataset public status
+                // Dataset public status is always viewable, but users are only allowed to change
+                //  the public status if they're an admin of the selected datatype
                 tools.pub_stat.removeClass('faded');
+
                 if (props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Dataset is Public');
                     tools.pub_stat.attr('title', 'Users may view any record or field in the dataset that has been marked public without additional permissions.');
                 }
                 else {
-                    tools.pub_stat.find('i').removeClass('ODRActiveIcon');
+                    // tools.pub_stat.find('i').removeClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Dataset is Private');
-                    tools.pub_stat.attr('title', 'Only logged in users with specific rights to this dataset may view the dataset.');
+                    tools.pub_stat.attr('title', 'This dataset will only be visible to admins or users with specific rights.');
                 }
 
                 if ( is_datatype_admin ) {
@@ -844,35 +830,26 @@
                         togglePublic(datatype_id, 'datatype');
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datatype
-                    tools.pub_stat.unbind('click');
-                }
 
                 // ----------------------------------------
-                // Delete dataset
+                // Delete dataset is only avaialble when the user is an admin of the selected child
+                //  or linked datatype...the "current" top-level datatype can't be deleted from
+                //  this interface
                 if ( !props.is_top_level && is_datatype_admin ) {
-                    // Only allowed on not-top-level datatypes the user can modify
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.removeClass('faded');
                     tools.del_dt.attr('title', 'Click to delete this dataset.');
+
                     if ( !props.is_link )
                         tools.del_dt.find('.link-text').html('Delete Child Field Set');
                     else
                         tools.del_dt.find('.link-text').html('Delete Linked Field Set');
+
                     tools.del_dt.unbind('click').click(function () {
-                        if (confirm("This will delete the selected dataset and ALL its data (including files and images).\n\nAre you certain you want to proceed?")) {
+                        if ( confirm("This will delete the selected dataset and ALL its data (including files and images).\n\nAre you certain you want to proceed?") ) {
                             DeleteDatatype(datatype_id);
                         }
                     });
-                }
-                else {
-                    // User can't modify this datatype
-                    tools.del_dt.find('i').removeClass('ODRActiveIcon');
-                    tools.del_dt.addClass('faded');
-                    // tools.del_dt.attr('title', 'Click to delete this dataset.');
-                    // tools.del_dt.find('.link-text').html('Delete Child Field Set');
-                    tools.del_dt.unbind('click');
                 }
 
                 break;
@@ -895,49 +872,35 @@
                 // Can't add a ThemeElement/Group Box to a ThemeElement
 
                 // ----------------------------------------
-                // Add Field
+                // Add Field is only available when the user is an admin of the selected datatype,
+                //  and when the ThemeElement doesn't already have a child/linked datatype in it
                 if ( is_datatype_admin && !props.has_childtype && props.child_is_link === 0 ) {
                     tools.add_df.removeClass('faded');
                     tools.add_df.find('i').addClass('ODRActiveIcon');
                     tools.add_df.find('.link-text').html('Add Field');
                     tools.add_df.attr('title', 'Click to add a field to this dataset.');
+
                     tools.add_df.unbind('click').click(function () {
                         addDataField(theme_element_id);
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datatype, or it already has a child/linked datatype
-                    tools.add_df.addClass('faded');
-                    tools.add_df.find('i').removeClass('ODRActiveIcon');
-                    // tools.add_df.find('.link-text').html('Add Field');
-                    // tools.add_df.attr('title', 'Click to add a field to this dataset.');
-                    tools.add_df.unbind('click');
-                }
 
                 // ----------------------------------------
-                // Add child dataset
+                // Add child dataset is only available when the user is an admin of the selected
+                //  datatype, and when the TheemElement is completely empty
                 if ( is_datatype_admin && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
                     tools.add_cdt.removeClass('faded');
                     tools.add_cdt.find('i').addClass('ODRActiveIcon');
                     tools.add_cdt.find('.link-text').html('Add a Child Field Set');
                     tools.add_cdt.attr('title', 'Click to add a child field set.');
+
                     tools.add_cdt.unbind('click').click(function () {
                         addChildType(theme_element_id);
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datatype, or it's not empty
-                    tools.add_cdt.addClass('faded');
-                    tools.add_cdt.find('i').removeClass('ODRActiveIcon');
-                    // tools.add_cdt.find('.link-text').html('Add a Child Field Set');
-                    // tools.add_cdt.attr('title', 'Click to add a child field set.');
-                    tools.add_cdt.unbind('click');
-                }
 
                 // ----------------------------------------
                 // Link to dataset
-                tools.link_dt.removeClass('faded');
-                tools.link_dt.find('i').addClass('ODRActiveIcon');
 
                 if ( isMasterType ) {
                     if ( props.child_is_link ) {
@@ -967,6 +930,9 @@
                 if ( is_datatype_admin ) {
                     if ( props.child_is_link ) {
                         // User clicked on a theme_element that has a linked dataset/template
+                        tools.link_dt.removeClass('faded');
+                        tools.link_dt.find('i').addClass('ODRActiveIcon');
+
                         tools.link_dt.unbind('click').click(function () {
                             // Open the modal to view/modify the link's properties
                             linkDatatype(theme_element_id);
@@ -974,29 +940,24 @@
                     }
                     else if ( !props.has_childtype && !props.has_datafields ) {
                         // User clicked on an empty theme_element
+                        tools.link_dt.removeClass('faded');
+                        tools.link_dt.find('i').addClass('ODRActiveIcon');
+
                         tools.link_dt.unbind('click').click(function () {
                             // Open the modal to view/modify the link's properties
                             linkDatatype(theme_element_id);
                         });
                     }
-                    else {
-                        // User clicked on a theme_element that isn't eligible for linking
-                        tools.link_dt.addClass('faded');
-                        tools.link_dt.unbind('click');
-                    }
-                }
-                else {
-                    // User can't link to or unlink from anything here
-                    tools.link_dt.addClass('faded');
-                    tools.link_dt.unbind('click');
                 }
 
                 // ----------------------------------------
-                // Any non linked datatype can link from a template
+                // Any non linked datatype can link from a template, although the option is only
+                //  available when the user is an admin of the selected datatype
                 if ( is_datatype_admin && !props.has_childtype && !props.has_datafields && props.child_is_link === 0 ) {
                     tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
+
                     tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
                     tools.link_ft.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
@@ -1004,14 +965,6 @@
                         // console.log('using existing empty ThemeElement: ' + te_id, te_props);
                         linkFromTemplate(theme_element_id);
                     });
-                }
-                else {
-                    // User isn't allowed to modify this datatype, or the theme_element isn't empty
-                    tools.link_ft.addClass('faded');
-                    tools.link_ft.find('i').removeClass('ODRActiveIcon');
-                    // tools.link_ft.find('.link-text').html('Add from Template');
-                    // tools.link_ft.attr('title', 'Click to create a dataset from a template and link it to this dataset.');
-                    tools.link_ft.unbind('click');
                 }
 
                 // ----------------------------------------
@@ -1029,13 +982,13 @@
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
                     tools.del_dt.attr('title', 'Click to delete this group box.');
+
                     tools.del_dt.unbind('click').click(function () {
                         deleteThemeElement(theme_element_id);
                     });
                 }
                 else {
                     tools.del_dt.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
-                    tools.del_dt.unbind('click');
                 }
                 break;
 
@@ -1065,15 +1018,10 @@
                 if ( is_datatype_admin && props.can_copy ) {
                     tools.copy_df.removeClass('faded');
                     tools.copy_df.find('i').addClass('ODRActiveIcon');
+
                     tools.copy_df.unbind('click').click(function () {
                         CopyDatafield(datafield_id);
                     });
-                }
-                else {
-                    // User isn't allowed to modify this datatype, or the datafield can't be copied
-                    tools.copy_df.addClass('faded');
-                    tools.copy_df.find('i').removeClass('ODRActiveIcon');
-                    tools.copy_df.unbind('click');
                 }
 
                 // ----------------------------------------
@@ -1086,47 +1034,39 @@
                 // Can't link to a template in a Datafield
 
                 // ----------------------------------------
-                // Render Plugin
+                // Render Plugin is always available, although users are only allowed to change the
+                //  currently used plugins if they're an admin of the selected datatype
                 tools.render.removeClass('faded');
                 tools.render.find('i').addClass('ODRActiveIcon');
-
-                if (props.render_plugin_classname === "odr_plugins.base.default") {
-                    if ( is_datatype_admin ) {
-                        tools.render.find('.link-text').html('Change Render Plugin');
-                        tools.render.attr('title', 'Change Render Plugin');
-                    }
-                    else {
-                        tools.render.find('.link-text').html('Default Render Plugin');
-                        // tools.render.attr('title', 'Change Render Plugin');
-                    }
-                }
-                else {
-                    tools.render.find('.link-text').html('Custom Render Plugin');
-                    tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '"');
-                }
+                tools.render.unbind('click').click(function() {
+                    // console.log('Changing render plugin for datafield: ', datafield_id);
+                    changeRenderPlugin(datafield_id, 'datafield');
+                });
 
                 if ( is_datatype_admin ) {
-                    tools.render.unbind('click').click(function () {
-                        // console.log('Changing render plugin for datafield: ', datafield_id);
-                        changeRenderPlugin(datafield_id, 'datafield');
-                    });
+                    // User is allowed to modify this datafield
+                    tools.render.find('.link-text').html('Change Active Render Plugins');
+                    tools.render.attr('title', 'Change Active Render Plugins');
                 }
                 else {
-                    // User isn't allowed to modify this datatype
-                    tools.render.find('i').removeClass('ODRActiveIcon');
-                    tools.render.unbind('click');
+                    // NOTE - currently the click event doesn't go through on datafields that the
+                    //  user can't modify
+                    // User isn't allowed to modify this datafield
+                    tools.render.find('.link-text').html('View Active Render Plugins');
+                    tools.render.attr('title', 'View Active Render Plugins');
                 }
 
                 // ----------------------------------------
                 // Public status
                 tools.pub_stat.removeClass('faded');
+
                 if (props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Field is Public');
                     tools.pub_stat.attr('title', 'Users may view fields marked public without additional permissions if the parent record is also public.');
                 }
                 else {
-                    tools.pub_stat.find('i').removeClass('ODRActiveIcon');
+                    // tools.pub_stat.find('i').removeClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Field is Private');
                     tools.pub_stat.attr('title', 'Only logged in users may view this field.');
                 }
@@ -1136,18 +1076,15 @@
                         togglePublic(datafield_id, 'datafield');
                     });
                 }
-                else {
-                    // User isn't allowed to modify this datafield, or public status can't be changed
-                    tools.pub_stat.unbind('click');
-                }
 
                 // ----------------------------------------
-                // Delete Datafield
+                // Delete datafield is only avaialble when the user is an admin of the selected datatype
                 if ( is_datatype_admin && props.can_delete) {
                     tools.del_dt.removeClass('faded');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.attr('title', 'Click to delete this field.');
                     tools.del_dt.find('.link-text').html('Delete Field');
+
                     tools.del_dt.unbind('click').click(function () {
                         if (confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
                             DeleteDatafield(datafield_id);
@@ -1156,10 +1093,7 @@
                 }
                 else {
                     // User isn't allowed to modify this datafield, or the field can't be deleted
-                    tools.del_dt.addClass('faded');
-                    tools.del_dt.find('i').removeClass('ODRActiveIcon');
                     tools.del_dt.attr('title', props.delete_message);
-                    tools.del_dt.unbind('click');
                 }
                 break;
 
@@ -1168,9 +1102,17 @@
         }
     }
 
+    /**
+     * Displays a popup notification to the user when they try to click a disabled action for a
+     * datafield/datatype on the page...such as attempting to add a child datatype while a datafield
+     * is selected, or attempting to delete a datafield that's marked as unique.
+     */
     function sidebarDefaultClick() {
         // console.log('default click');
-        $.jGrowl('You must first select an element from the page to modify its settings.');
+        if ( $(".ODRFieldSelected").length > 0 )
+            $.jGrowl('Unable to perform this action on this element.');
+        else
+            $.jGrowl('You must first select an element from the page to modify its settings.');
     }
 
     /**
@@ -1505,7 +1447,11 @@
                         // Change the locally stored properties value and re-render the tools section
                         var props = datatype_properties[datatype_id];
                         props.is_public = !props.is_public;
+                        // clearAllFields();
                         RenderToolSet(datatype_id, 'datatype');
+
+                        // Reload the properties on the left
+                        $("#Datatype_" + datatype_id + "_header").trigger('click');
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
@@ -1555,7 +1501,11 @@
                         // Change the locally stored properties value and re-render the tools section
                         var props = datafield_properties[datafield_id];
                         props.is_public = !props.is_public;
+                        // clearAllFields();
                         RenderToolSet(datafield_id, 'datafield');
+
+                        // Reload the properties on the left
+                        $("#Field_" + datafield_id).trigger('click');
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
@@ -1639,6 +1589,9 @@
         });
     }
 
+    // Only want one properties form load request (be it datatype or datafield) active at a time
+    var load_properties_xhr = null;
+
     /**
      * Attaches selection handles to every ThemeElement on the page, and attaches click events to
      * each datatype header so the datatype properties form can be loaded.
@@ -1683,14 +1636,29 @@
             // console.log('setup tool set datatype');
             setupElement(this, 'datatype');
 
+            var form_div = $("#ThemeDesignForm");
+
             // Locate this datatype's id
             var datatype = $(this).parents('.ODRDataType').first();
             var id_data = $(datatype).attr('id').split(/_/);
             var datatype_id = id_data[1];
 
+            // Determine if this datatype's properties form is already loaded
+            var loaded_datatype_id = "";
+            var form = $(form_div).find("form.ODRDatatypePropertiesForm");
+            if (form.length > 0) {
+                var loaded_datatype_id_data = form.attr("id").split(/_/);
+                loaded_datatype_id = loaded_datatype_id_data[1];
+            }
+
+            // Don't load this datatype's form if it's already being displayed
+            // console.log('loaded_datatype_id: ' + loaded_datatype_id + ',  datatype_id: ' + datatype_id);
+            if (loaded_datatype_id == datatype_id)
+                return;
+
+
             // Determine if this Datatype has a parent, and locate its id if possible
             var parent_datatype_id = '';
-
             var parents = $(datatype).parents('.ODRDataType');
             if ( $(parents).length > 0 ) {
                 var id_data = $(parents).first().attr('id').split(/_/);
@@ -1700,7 +1668,6 @@
             // Also need the theme_element id when this is a child/linked datatype, since there could
             //  be multiple instances of this datatype on the page
             var theme_element_id = '';
-
             var theme_element = $(datatype).parents('.ODRThemeElement');
             if ( $(theme_element).length > 0 ) {
                 var id_data = $(theme_element).first().attr('id').split(/_/);
@@ -1712,9 +1679,7 @@
             RenderToolSet(datatype_id, 'datatype', theme_element_id);    // Need to pass in the theme_element id to distinguish between instances of this datatype
             // console.log('Datatype Props 1:', datatype_properties[datatype_id]);
 
-
             // Reset the theme design form prior to reloading its contents
-            var form_div = $("#ThemeDesignForm");
             $(form_div).hide().html("");
 
             var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0, 'theme_element_id': 0 } ) }}';
@@ -1723,19 +1688,27 @@
             if (parent_datatype_id !== '')
                 url += '/' + parent_datatype_id + '/' + theme_element_id;
 
-            // Load the datatype properties
-            $.ajax({
+            // If a properties form request is already in progress...
+            if (load_properties_xhr !== null) {
+                // ...then abort it so the new one can work
+                // console.log('previous load request aborted', load_properties_xhr);
+                load_properties_xhr.abort();
+            }
+
+            // console.log('load request started for datatype', datatype_id);
+            load_properties_xhr = $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    $(form_div).html(data.d);
-
-                    // Prepend the DataTypeTools
-                    $(form_div).fadeIn('fast');
-                    // InitDatatypeTools();
+                    $(form_div).html(data.d.html).fadeIn('fast');
                     InitDatatypePropertiesForm();
+
+                    // Only want to set this to null once a properties form request successfully
+                    //  loads...setting to null on error/complete can overwrite current requests
+                    // console.log('load request success for datatype', datatype_id, data);
+                    load_properties_xhr = null;
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
@@ -1757,7 +1730,11 @@
         });
     }
 
-
+    /**
+     * Performs basic setup of the page.
+     *
+     * @param {boolean} [reset_tools]
+     */
     function initPage(reset_tools) {
         if(reset_tools === undefined) {
             reset_tools = true
@@ -1891,26 +1868,32 @@
         $("#content").find(".ODRInnerBox").disableSelection();
     }
 
-    var datafield_properties_xhr = null;
-    var save_datafield_xhr = null;
-    var SaveDatafieldPropertyInterval = [];
+    // Need to be able to delay saving changes to the datafield properties form for a couple seconds
+    //  so that users aren't getting constantly interrupted
+    var SaveDatafieldProperty_Interval = [];
+    var SaveDatafieldProperty_Data = [];
 
     /**
      * Saves properties in a datafield form...name, description, search status, etc.
      *
      * @param {number} datafield_id
-     * @param {boolean} reload_datafield
      */
-    function SaveDatafieldProperty(datafield_id, reload_datafield) {
-        if (SaveDatafieldPropertyInterval[datafield_id] !== undefined)
-            SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+    function SaveDatafieldProperties(datafield_id) {
+        // Clear the save interval for this field if there is one
+        if (SaveDatafieldProperty_Interval[datafield_id] !== undefined)
+            SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
+
+        // Load the saved form data for this field
+        if ( SaveDatafieldProperty_Data[datafield_id] === undefined)
+            return;
+        var post_data = SaveDatafieldProperty_Data[datafield_id];
+        SaveDatafieldProperty_Data[datafield_id] = null;
+        // console.log('entered SaveDatafieldProperties() for datafield', datafield_id, post_data);
 
         var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
         url += datafield_id;
 
-        var form_div = $("#ThemeDesignForm");
-        var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
         $.ajax({
             type: 'POST',
             url: url,
@@ -1919,23 +1902,46 @@
             success: function(data) {
                 notifySaved();
 
-                if (data.d.force_slideout_reload === true) {
+                // console.log('succeeded SaveDatafieldProperties() for datafield', datafield_id, data);
+
+                // Check if the field that just got saved is still displaying its properties
+                var form_div = $("#ThemeDesignForm");
+
+                var loaded_datafield_id = "";
+                var form = $(form_div).find("form.ODRDatafieldPropertiesForm");
+                if (form.length > 0) {
+                    var loaded_datafield_id_data = form.attr("id").split(/_/);
+                    loaded_datafield_id = loaded_datafield_id_data[1];
+                }
+
+                // console.log('loaded_datafield_id: ' + loaded_datafield_id + ', datafield_id: ' + datafield_id);
+                if (data.d.force_slideout_reload == true && loaded_datafield_id == datafield_id) {
+                    // console.log(' -- reloading slideout');
                     $(form_div).fadeOut('slow').html("");
                     $(form_div).html(data.d.html).fadeIn('slow');
 
                     InitDatafieldPropertiesForm();
                 }
 
-                if (reload_datafield === true) {
+                if (data.d.reload_datafield === true) {
                     // Only reload datafield if necessary
                     ReloadDatafield(datafield_id);
+
+                    // If the user hasn't switched away from the datafield that just got reloaded...
+                    if (loaded_datafield_id == datafield_id) {
+                        // ...then clear the properties form.  Can't highlight the field because the
+                        //  datafield reloading could trigger multiple theme_element reloads...not
+                        //  only is that process asynchronous, but there's no way to highlight the
+                        //  correct one afterwards...
+                        $(form_div).html('').fadeIn('fast');
+                    }
                 }
                 else {
                     // ...otherwise, since the datafield isn't being reloaded, ensure that the
                     //  javascript always has the most recent state of what can be done to the datafield
                     var tmp = data.d.datafield_properties;
                     datafield_properties[datafield_id] = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
-                    // console.log("new datafield properties", datafield_properties);
+                    // console.log("new datafield properties", datafield_properties[datafield_id]);
                 }
             },
             error: function() {
@@ -1956,8 +1962,6 @@
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
-
-                save_datafield_xhr = null;
             }
         });
     }
@@ -2003,101 +2007,94 @@
         });
     }
 
-    // This function is needed for setTimeout() a couple lines down in SetupDataFields()
-    function triggerClick(datafield_id) {
-        $("#Field_" + datafield_id).trigger('click');
-    }
-
     /**
      * Attaches a click handler to every Datafield element on the page, so that a properties form
      * can be loaded.
      */
     function SetupDataFields() {
         $(".ODRDataField").unbind('click').click(function(event) {
+            // The icon to open RadioOption properties will be overridden by this click
+            // event unless this if statement is active
+            if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
+                return;
+            // ...same deal with datafield public status
+            if ( event.target.className.indexOf('ODRPublicDatafield') !== -1 )
+                return;
+
+            var form_div = $("#ThemeDesignForm");
 
             // Grab datafield id
             var id_data = $(this).attr('id').split(/_/);
             var datafield_id = id_data[1];
 
-            // Setup Resizeable
-            setupElement(this, 'datafield');
-
-            // Render Tool Set
-            RenderToolSet(datafield_id, 'datafield');
-
-            // The icon to open RadioOption properties will be overridden by this click
-            // event unless this if statement is active
-            if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
-                return;
-
-            // ...same deal with datafield public status
-            if ( event.target.className.indexOf('ODRPublicDatafield') !== -1 )
-                return;
-
-            // Wait for a datafield property save to finish if required
-            if (save_datafield_xhr != null) {
-                // TODO This is probably not a great way to do this
-                window.setTimeout("triggerClick(" + datafield_id + ")", SaveTimeout);
-                return;
-            }
-
-            var form_div = $("#ThemeDesignForm");
-
-            // Check if this field is already loaded
-            var form_id = "";
+            // Determine if this datafield's properties form is already loaded
+            var loaded_datafield_id = "";
             var form = $(form_div).find("form.ODRDatafieldPropertiesForm");
             if (form.length > 0) {
-                var form_id_data = form.attr("id").split(/_/);
-                form_id = form_id_data[1];
+                var loaded_datafield_id_data = form.attr("id").split(/_/);
+                loaded_datafield_id = loaded_datafield_id_data[1];
             }
 
-            // Load form for current datafield if not already loaded
-            if (form_id !== datafield_id) {
-                // Don't attempt to load the properties form for a datafield the user can't view
-                // This will prevent an unecessary error message from popping up...
-                $(form_div).html('').fadeIn('fast');
-                if ( $(this).hasClass('ODRForbidden') )
-                    return;
+            // Don't load this datafield's form if it's already being displayed
+            // console.log('loaded_datafield_id: ' + loaded_datafield_id + ',  datafield_id: ' + datafield_id);
+            if (loaded_datafield_id == datafield_id)
+                return;
 
-                var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
-                url = url.substring(0, (url.length - 1));
-                url += datafield_id;
+            // Don't attempt to load the properties form for a datafield the user can't view
+            // This will prevent an unecessary error message from popping up...
+            $(form_div).html('').fadeIn('fast');
+            if ( $(this).hasClass('ODRForbidden') )
+                return;
 
-                // Attempt to ensure only the most recent datafield property request goes through
-                if (datafield_properties_xhr !== null)
-                    datafield_properties_xhr.abort();
 
-                // Ajax Load Form in box
-                datafield_properties_xhr = $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function(data) {
-                        $(form_div).html(data.d.html).fadeIn('fast');
-                        InitDatafieldPropertiesForm();
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function(jqXHR) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+            // Setup Resizeable and Render toolset here
+            setupElement(this, 'datafield');
+            RenderToolSet(datafield_id, 'datafield');
 
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
+            var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datafield_id;
 
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
+            // If a properties form request is already in progress...
+            if (load_properties_xhr !== null) {
+                // ...then abort it so the new one can work
+                // console.log('previous load request aborted', load_properties_xhr);
+                load_properties_xhr.abort();
+            }
 
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                        }
+            // console.log('load request started for datafield', datafield_id);
+            load_properties_xhr = $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    $(form_div).html(data.d.html).fadeIn('fast');
+                    InitDatafieldPropertiesForm();
 
-                        datafield_properties_xhr = null;
+                    // Only want to set this to null once a properties form request successfully
+                    //  loads...setting to null on error/complete can overwrite current requests
+                    // console.log('load request success for datafield', datafield_id, data);
+                    load_properties_xhr = null;
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }
-                });
-            }
+                }
+            });
         });
     }
 
@@ -2158,15 +2155,14 @@
 
             // Save changes
             $(this).unbind('change').change(function() {
-                // fieldtype selector gets overridden further down
-                var reload_datafield = 'false';
-                if ( $(this).hasClass('ODRDatafieldChildren') )
-                    reload_datafield = 'true';   // reload datafield upon change of images/radio options per row?
+                // This also affects the fieldtype selector, but that gets overridden again further
+                //  down in the function
 
-                // Don't want a delay here...otherwise a change could get lost
-                SaveDatafieldProperty(datafield_id, reload_datafield);
-
-                save_datafield_xhr = true;
+                // Trigger a delayed save of the properties form for this datafield
+                // console.log('<select> changed, triggering delayed save for datafield', datafield_id);
+                SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
+                SaveDatafieldProperty_Interval[datafield_id] = window.setInterval("SaveDatafieldProperties(" + datafield_id + ")", SaveTimeout);
+                SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
             });
         });
 
@@ -2190,10 +2186,11 @@
                     $("#Field_" + datafield_id).find(".ODRMarkdownContent").html(markdown_text);
                 }
 
-                SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-                SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ",  false)", SaveTimeout);
-
-                save_datafield_xhr = true;
+                // Trigger a delayed save of the properties form for this datafield
+                // console.log('<textarea> changed, triggering delayed save for datafield', datafield_id);
+                SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
+                SaveDatafieldProperty_Interval[datafield_id] = window.setInterval("SaveDatafieldProperties(" + datafield_id + ")", SaveTimeout);
+                SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
             });
         });
         tdf_odpf.find("input").each(function() {
@@ -2204,31 +2201,33 @@
             // Save changes
             if ($(this).is(":checkbox")) {
                 $(this).unbind('change').change(function() {
-                    //
-                    var reload_datafield = false;
-                    if ( $(this).hasClass('ODRDatafieldNameSort') )
-                        reload_datafield = true;   // reload datafield upon setting radio options to sort by name in the datafield
 
-                    SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-                    SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
-
-                    save_datafield_xhr = true;
+                    // Trigger a delayed save of the properties form for this datafield
+                    // console.log('checkbox changed, triggering delayed save for datafield', datafield_id);
+                    SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
+                    SaveDatafieldProperty_Interval[datafield_id] = window.setInterval("SaveDatafieldProperties(" + datafield_id + ")", SaveTimeout);
+                    SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
                 });
             }
             else {
                 $(this).unbind('keyup');
                 $(this).unbind('paste');
                 $(this).on('keyup paste', function() {
-                    //
-                    if ( $(this).hasClass('ODRDatafieldName') ) {   // inline update of datafield name  TODO - error handling?
+                    // If the textfield being changed is for the datafield's name...
+                    if ( $(this).hasClass('ODRDatafieldName') ) {
+                        // ...then immediately update it on the page without having to wait for a
+                        //  datafield reload
                         var text = $(this).val();
                         $("#ODRDatafield_" + datafield_id + "_name").text(text);
+
+                        // TODO - error handling?
                     }
 
-                    SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-                    SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", false)", SaveTimeout);
-
-                    save_datafield_xhr = true;
+                    // Trigger a delayed save of the properties form for this datafield
+                    // console.log('input changed, triggering delayed save for datafield', datafield_id);
+                    SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
+                    SaveDatafieldProperty_Interval[datafield_id] = window.setInterval("SaveDatafieldProperties(" + datafield_id + ")", SaveTimeout);
+                    SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
                 });
             }
         });
@@ -2332,8 +2331,12 @@
 
                 if ( $("#has_datarecords").val() === '' || str === '' || confirm(str) ) {
                     // Datatype has no datarecords attached, or user doesn't care...save the change
-                    SaveDatafieldProperty(datafield_id, true);  // reload datafield because fieldtype changed
-                    save_datafield_xhr = true;
+                    // console.log('fieldtype changed, triggering instant save for datafield', datafield_id);
+                    SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
+
+                    // Trigger an immediate save because changing the fieldtype may change the valid
+                    //  options in the datafield properties form
+                    SaveDatafieldProperties(datafield_id);
 
                     str = '';
                     if (current_fieldtype === 'Paragraph Text')
@@ -2362,7 +2365,10 @@
         $(form_div).fadeIn('fast');
     }
 
-    var SaveDataTypeInterval = [];
+    // Need to be able to delay saving changes to the datatype properties form for a couple seconds
+    //  so that users aren't getting constantly interrupted
+    var SaveDatatypeProperty_Interval = [];
+    var SaveDatatypeProperty_Data = [];
 
     /**
      * Saves properties of a datatype form...name, description, external id field, etc
@@ -2370,27 +2376,36 @@
      * @param {number} datatype_id
      */
     function SaveDatatypeProperties(datatype_id) {
-        if (SaveDataTypeInterval[datatype_id] !== undefined)
-            SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+        // Clear the save interval for this datatype if there is one
+        if (SaveDatatypeProperty_Interval[datatype_id] !== undefined)
+            SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
 
         // Set Short Name equal to Long Name for Datatype Properties
         $('#UpdateDataTypeForm_short_name').val($('#UpdateDataTypeForm_long_name').val());
+
+        // Load the saved form data for this datatype
+        if ( SaveDatatypeProperty_Data[datatype_id] === undefined)
+            return;
+        var post_data = SaveDatatypeProperty_Data[datatype_id];
+        SaveDatatypeProperty_Data[datatype_id] = null;
+        // console.log('entered SaveDatatypeProperties() for datatype', datatype_id, post_data);
 
         var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
         url += datatype_id;
 
-        var form_data = $("#DatatypePropertiesForm_" + datatype_id).serialize();
         $.ajax({
             type: 'POST',
             url: url,
-            data: form_data,
+            data: post_data,
             dataType: "json",
             success: function(data) {
                 // TODO - ...would be nice to not have to reload when the search slug changes, but
                 //  it seems unavoidable
                 if ( data.d.new_url !== undefined )
                     window.location.href = data.d.new_url;
+
+                // console.log('succeeded SaveDatatypeProperties() for datatype', datatype_id, data);
 
                 // Changing several datatype properties (like external id field) can completely
                 //  change what can be done to a datafield (like deletion)
@@ -2399,7 +2414,7 @@
                 $.each(tmp, function(df_id, df_props) {
                     datafield_properties[df_id] = df_props;
                 });
-                // console.log("datafield properties", datafield_properties);
+                // console.log("new datafield properties", datafield_properties);
 
                 notifySaved();
             },
@@ -2713,7 +2728,13 @@
 
             $(this).unbind('change').change(function() {
                 // Don't want a delay here, otherwise a change could get lost
-                SaveDatatypeProperties(datatype_id);
+                // SaveDatatypeProperties(datatype_id);
+
+                // Trigger a delayed save of the properties form for this datatype
+                // console.log('<select> changed, triggering delayed save for datatype', datatype_id);
+                SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
+                SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
             });
         });
 
@@ -2724,8 +2745,11 @@
             $(this).unbind('keyup');
             $(this).unbind('paste');
             $(this).on('keyup paste', function() {
-                SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
-                SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                // Trigger a delayed save of the properties form for this datatype
+                // console.log('<textarea> changed, triggering delayed save for datatype', datatype_id);
+                SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
+                SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
             });
         });
 
@@ -2735,22 +2759,32 @@
 
             if( $(this).is(":checkbox") ) {
                 $(this).unbind('change').change(function() {
-                    SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
-                    SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                    // Trigger a delayed save of the properties form for this datatype
+                    // console.log('checkbox changed, triggering delayed save for datatype', datatype_id);
+                    SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
+                    SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
                 });
             }
             else {
                 $(this).unbind('keyup');
                 $(this).unbind('paste');
                 $(this).on('keyup paste', function() {
-                    // If the short_name field got changed, grab the new value
+                    // If the textfield being changed is for the datatype's name...
                     if ( $(this).hasClass("ODRDatasetName") ) {
+                        // ...then immediately update it on the page without having to wait for a
+                        //  datatype reload
                         var short_name = $(this).val();
                         $("#Datatype_" + datatype_id + "_ShortName").html(short_name);
+
+                        // TODO - error handling?
                     }
 
-                    SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
-                    SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                    // Trigger a delayed save of the properties form for this datatype
+                    // console.log('input changed, triggering delayed save for datatype', datatype_id);
+                    SaveDatatypeProperty_Interval[datatype_id] = window.clearInterval(SaveDatatypeProperty_Interval[datatype_id]);
+                    SaveDatatypeProperty_Interval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                    SaveDatatypeProperty_Data[datatype_id] = $("#DatatypePropertiesForm_" + datatype_id).serialize();
                 });
             }
         });

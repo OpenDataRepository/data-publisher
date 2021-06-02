@@ -196,10 +196,12 @@ class DatabaseInfoService
         //  datafield with its master datafield...same deal with master datatypes
         $query = $this->em->createQuery(
            'SELECT
-                partial dt.{id}, partial mdt.{id, unique_id}, partial df.{id}, partial mdf.{id}
+                partial dt.{id}, partial mdt.{id, unique_id}, partial mdt_dtm.{id, shortName},
+                partial df.{id}, partial mdf.{id}
 
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.masterDataType AS mdt
+                LEFT JOIN mdt.dataTypeMeta AS mdt_dtm
                 LEFT JOIN dt.dataFields AS df
                 LEFT JOIN df.masterDataField AS mdf
 
@@ -220,9 +222,15 @@ class DatabaseInfoService
             $dt_id = $dt['id'];
             $mdt_data = null;
             if ( isset($dt['masterDataType']) && !is_null($dt['masterDataType']) ) {
+                // Due to loading deleted entries, need to find the most recent dataTypeMeta entry
+                $short_name = '';
+                foreach ($dt['masterDataType']['dataTypeMeta'] as $mdt_dtm_num => $mdt_dtm)
+                    $short_name = $mdt_dtm['shortName'];
+
                 $mdt_data = array(
                     'id' => $dt['masterDataType']['id'],
-                    'unique_id' => $dt['masterDataType']['unique_id']
+                    'unique_id' => $dt['masterDataType']['unique_id'],
+                    'shortName' => $short_name,
                 );
             }
             $derived_dt_data[$dt_id] = $mdt_data;
@@ -253,13 +261,17 @@ class DatabaseInfoService
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 
-                dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
+                partial dt_rpi.{id}, dt_rpi_rp,
+                partial dt_rpom.{id, value}, partial dt_rpo.{id, name},
+                partial dt_rpm.{id}, partial dt_rpf.{id, fieldName, allowedFieldtypes}, dt_rpm_df,
 
                 df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
 
                 ro, rom, t, tm,
-                df_rp, df_rpi, df_rpo, df_rpm, df_rpf
+                partial df_rpi.{id}, df_rpi_rp,
+                partial df_rpom.{id, value}, partial df_rpo.{id, name},
+                partial df_rpm.{id}, partial df_rpf.{id, fieldName, allowedFieldtypes}
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -273,9 +285,10 @@ class DatabaseInfoService
             LEFT JOIN dtm.sortField AS dt_sf
             LEFT JOIN dtm.backgroundImageField AS dt_bif
 
-            LEFT JOIN dtm.renderPlugin AS dt_rp
-            LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
-            LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
+            LEFT JOIN dt.renderPluginInstances AS dt_rpi
+            LEFT JOIN dt_rpi.renderPlugin AS dt_rpi_rp
+            LEFT JOIN dt_rpi.renderPluginOptionsMap AS dt_rpom
+            LEFT JOIN dt_rpom.renderPluginOptionsDef AS dt_rpo
             LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
             LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
@@ -291,9 +304,10 @@ class DatabaseInfoService
             LEFT JOIN df.tags AS t
             LEFT JOIN t.tagMeta AS tm
 
-            LEFT JOIN dfm.renderPlugin AS df_rp
-            LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
-            LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
+            LEFT JOIN df.renderPluginInstances AS df_rpi
+            LEFT JOIN df_rpi.renderPlugin AS df_rpi_rp
+            LEFT JOIN df_rpi.renderPluginOptionsMap AS df_rpom
+            LEFT JOIN df_rpom.renderPluginOptionsDef AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
             LEFT JOIN df_rpm.renderPluginFields AS df_rpf
 
@@ -306,7 +320,7 @@ class DatabaseInfoService
                 'grandparent_datatype_id' => $grandparent_datatype_id
             )
         );
-
+        // TODO - rename above RenderPluginOptionsDef to RenderPluginOptions
         $datatype_data = $query->getArrayResult();
 
         // TODO - if $datatype_data is empty, then $grandparent_datatype_id was deleted...should this return something special in that case?
@@ -335,6 +349,11 @@ class DatabaseInfoService
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
             $datatype_data[$dt_num]['updatedBy'] = UserUtility::cleanUserData( $dt['updatedBy'] );
 
+            // Flatten the renderPluginFields and renderPluginOptions sections of the render plugin
+            //  data, if it exists
+            if ( !empty($datatype_data[$dt_num]['renderPluginInstances']) )
+                $datatype_data[$dt_num]['renderPluginInstances'] = self::flattenRenderPlugin($datatype_data[$dt_num]['renderPluginInstances']);
+
 
             // ----------------------------------------
             // Organize the datafields by their datafield_id instead of a random number
@@ -355,6 +374,11 @@ class DatabaseInfoService
 
                 // Scrub irrelevant data from the datafield's createdBy property
                 $df['createdBy'] = UserUtility::cleanUserData( $df['createdBy'] );
+
+                // Flatten the renderPluginFields and renderPluginOptions sections of the render
+                //  plugin data, if it exists
+                if ( !empty($df['renderPluginInstances']) )
+                    $df['renderPluginInstances'] = self::flattenRenderPlugin($df['renderPluginInstances']);
 
                 // Attach the id of this datafield's masterDatafield if it exists
                 $df['masterDataField'] = $derived_df_data[$df_id];
@@ -453,6 +477,67 @@ class DatabaseInfoService
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datatype_'.$grandparent_datatype_id, $formatted_datatype_data);
         return $formatted_datatype_data;
+    }
+
+
+    /**
+     * The renderPluginFields and renderPluginOptions sections of the datatype array have their
+     * labels at a deeper level of the array because they're loaded via the renderPluginInstance...
+     * this is kind of "backwards", and these sections of the array are easier to understand and
+     * use after some modifications.
+     *
+     * @param array $data
+     *
+     * @return array
+     */
+    private function flattenRenderPlugin($data)
+    {
+        // Easier to modify a copy of the original array
+        $render_plugin_instances = $data;
+
+        // The default render plugin won't have an instance
+        foreach ($render_plugin_instances as $rpi_num => $rpi) {
+            // Don't need to do anything with the render plugin entry
+            // All plugins will have an entry for required fields, althought it might be empty
+
+            foreach ($rpi['renderPluginMap'] as $rpm_num => $rpm) {
+                // ...then each renderPluginMap will have a single renderPluginField entry...
+                $rpf_fieldName = $rpm['renderPluginFields']['fieldName'];
+                $rpf_allowedFieldtypes = $rpm['renderPluginFields']['allowedFieldtypes'];
+                // ...and will have a single dataField entry if it's a datatype plugin (but won't have
+                //  one if it's a datafield plugin)
+                $rpf_df = array();
+                if ( isset($rpm['dataField']) )
+                    $rpf_df = $rpm['dataField'];
+
+                // The datafield entry in here should also have the allowedFieldtype values
+                $rpf_df['allowedFieldtypes'] = $rpf_allowedFieldtypes;
+
+                // ...so the label of the renderPluginField can just point to the datafield that's
+                //  fulfilling the role defined by the rendrPluginField
+                $render_plugin_instances[$rpi_num]['renderPluginMap'][$rpf_fieldName] = $rpf_df;
+
+                // Don't want the old array structure
+                unset( $render_plugin_instances[$rpi_num]['renderPluginMap'][$rpm_num] );
+            }
+
+            // All plugins will have an entry for required options, although it might be empty
+            $tmp_rpo = array();
+            foreach ($rpi['renderPluginOptionsMap'] as $rpom_num => $rpom) {
+                // ...then each RenderPluginOptionsMap will have a single renderPluginOptionsDef entry
+                $rpom_value = $rpom['value'];
+                $rpo_name = $rpom['renderPluginOptionsDef']['name'];
+
+                // ...so the renderPluginOption name can just point to the renderPluginOption value
+                $render_plugin_instances[$rpi_num]['renderPluginOptionsMap'][$rpo_name] = $rpom_value;
+
+                // Don't want the old array structure
+                unset( $render_plugin_instances[$rpi_num]['renderPluginOptionsMap'][$rpom_num] );
+            }
+        }
+
+        // Done cleaning the render plugin data
+        return $render_plugin_instances;
     }
 
 

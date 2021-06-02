@@ -56,6 +56,11 @@ class RenderPlugin
     private $active;
 
     /**
+     * @var bool
+     */
+    private $render;
+
+    /**
      * @var boolean
      */
     private $overrideChild;
@@ -88,22 +93,22 @@ class RenderPlugin
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $dataFields;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $dataType;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
     private $renderPluginInstance;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $renderPluginFields;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginEvents;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginOptionsDef;    // TODO - rename to renderPluginOptions
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -120,10 +125,10 @@ class RenderPlugin
      */
     public function __construct()
     {
-        $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->dataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginEvents = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginOptionsDef = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -250,6 +255,30 @@ class RenderPlugin
     public function getActive()
     {
         return $this->active;
+    }
+
+    /**
+     * Set render.
+     *
+     * @param bool $render
+     *
+     * @return RenderPlugin
+     */
+    public function setRender($render)
+    {
+        $this->render = $render;
+
+        return $this;
+    }
+
+    /**
+     * Get render.
+     *
+     * @return bool
+     */
+    public function getRender()
+    {
+        return $this->render;
     }
 
     /**
@@ -391,72 +420,6 @@ class RenderPlugin
     }
 
     /**
-     * Add dataFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
-     * @return RenderPlugin
-     */
-    public function addDataField(\ODR\AdminBundle\Entity\DataFields $dataFields)
-    {
-        $this->dataFields[] = $dataFields;
-
-        return $this;
-    }
-
-    /**
-     * Remove dataFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
-     */
-    public function removeDataField(\ODR\AdminBundle\Entity\DataFields $dataFields)
-    {
-        $this->dataFields->removeElement($dataFields);
-    }
-
-    /**
-     * Get dataFields
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getDataFields()
-    {
-        return $this->dataFields;
-    }
-
-    /**
-     * Add dataType
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $dataType
-     * @return RenderPlugin
-     */
-    public function addDataType(\ODR\AdminBundle\Entity\DataType $dataType)
-    {
-        $this->dataType[] = $dataType;
-
-        return $this;
-    }
-
-    /**
-     * Remove dataType
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $dataType
-     */
-    public function removeDataType(\ODR\AdminBundle\Entity\DataType $dataType)
-    {
-        $this->dataType->removeElement($dataType);
-    }
-
-    /**
-     * Get dataType
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getDataType()
-    {
-        return $this->dataType;
-    }
-
-    /**
      * Add renderPluginInstance
      *
      * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
@@ -520,6 +483,78 @@ class RenderPlugin
     public function getRenderPluginFields()
     {
         return $this->renderPluginFields;
+    }
+
+    /**
+     * Add renderPluginEvent.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent
+     *
+     * @return RenderPlugin
+     */
+    public function addRenderPluginEvent(\ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent)
+    {
+        $this->renderPluginEvents[] = $renderPluginEvent;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginEvent.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginEvent(\ODR\AdminBundle\Entity\RenderPluginEvents $renderPluginEvent)
+    {
+        return $this->renderPluginEvents->removeElement($renderPluginEvent);
+    }
+
+    /**
+     * Get renderPluginEvents.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginEvents()
+    {
+        return $this->renderPluginEvents;
+    }
+
+    /**
+     * Add renderPluginOptionsDef.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef
+     *
+     * @return RenderPlugin
+     */
+    public function addRenderPluginOptionsDef(\ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef)
+    {
+        $this->renderPluginOptionsDef[] = $renderPluginOptionsDef;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginOptionsDef.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginOptionsDef(\ODR\AdminBundle\Entity\RenderPluginOptionsDef $renderPluginOptionsDef)
+    {
+        return $this->renderPluginOptionsDef->removeElement($renderPluginOptionsDef);
+    }
+
+    /**
+     * Get renderPluginOptionsDef.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginOptionsDef()
+    {
+        return $this->renderPluginOptionsDef;
     }
 
     /**

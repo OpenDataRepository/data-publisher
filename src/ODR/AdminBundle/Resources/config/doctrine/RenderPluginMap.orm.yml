@@ -2,9 +2,9 @@ ODR\AdminBundle\Entity\RenderPluginMap:
     type: entity
     table: odr_render_plugin_map
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
+
     fields:
         id:
             id: true
@@ -27,8 +27,6 @@ ODR\AdminBundle\Entity\RenderPluginMap:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         renderPluginFields:
@@ -40,8 +38,6 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 render_plugin_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         renderPluginInstance:
             targetEntity: RenderPluginInstance
@@ -52,8 +48,6 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 render_plugin_instance_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         dataType:
             targetEntity: DataType
@@ -64,8 +58,7 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataField:
             targetEntity: DataFields
             cascade: {  }
@@ -76,8 +69,6 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -88,9 +79,7 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -100,8 +89,5 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

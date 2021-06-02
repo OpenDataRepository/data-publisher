@@ -2,9 +2,9 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
     type: entity
     table: odr_render_plugin_options
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
+
     fields:
         id:
             id: true
@@ -20,21 +20,16 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
             fixed: false
             nullable: false
             column: option_name
-#            gedmo:
-#                - versioned
         optionValue:
             type: text
             fixed: false
             nullable: true
             column: option_value
-#            gedmo:
-#                - versioned
+
         active:
             type: boolean
             nullable: false
             column: active
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -47,10 +42,8 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 timestampable:
                     on: update
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         renderPluginInstance:
@@ -62,8 +55,6 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 render_plugin_instance_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -74,9 +65,7 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -86,8 +75,5 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

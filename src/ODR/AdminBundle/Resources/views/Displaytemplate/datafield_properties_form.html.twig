@@ -37,18 +37,6 @@
         </div>
 
 {#
-# Render plugin for a datafield isn't set through this form
-        <div class="">
-            <label for="render_plugin_id">
-                Render Plugin
-            </label>
-            <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-23-24"/>
-            <span class="pure-u-1">
-                <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
-            </span>
-        </div>
-#}
-{#
         <div class="">
             <label for="{{ datafield_form.regex_validator.vars.id }}">
                 {{ datafield_form.regex_validator.vars.label }}

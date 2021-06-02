@@ -13,8 +13,6 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-
 
 interface DatafieldPluginInterface
 {
@@ -24,28 +22,11 @@ interface DatafieldPluginInterface
      *
      * @param array $datafield
      * @param array $datarecord
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin, $themeType = 'master');
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance);
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance);
+    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master');
 }

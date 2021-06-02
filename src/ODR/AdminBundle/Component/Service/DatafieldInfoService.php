@@ -71,29 +71,24 @@ class DatafieldInfoService
     public function getDatafieldProperties($datatype_array, $datafield_id = null)
     {
         $datafield_properties = array();
-        $all_datafield_ids = array();
 
         // ----------------------------------------
         // Load properties for all datafields by default, or a single datafield if defined
         foreach ($datatype_array as $dt_id => $dt) {
             foreach ($dt['dataFields'] as $df_id => $df) {
                 if ( is_null($datafield_id) || $df_id === $datafield_id ) {
-                    // Store this id for the queries required later
-                    $all_datafield_ids[] = $df_id;
                     $dfm = $df['dataFieldMeta'];
 
                     // Store these values directly in the array
                     $typeclass = $dfm['fieldType']['typeClass'];
 //                    $typename = $dfm['fieldType']['typeName'];
 
-                    $render_plugin_id = $dfm['renderPlugin']['id'];
-                    $render_plugin_name = $dfm['renderPlugin']['pluginName'];
-                    $render_plugin_classname = $dfm['renderPlugin']['pluginClassName'];
 
                     // These values require a bit of calculation first...
+                    $has_render_plugin = !empty( $df['renderPluginInstances'] );
                     // TODO - can't copy fields with render plugins?  why was that again?
                     $can_copy = true;
-                    if ( $typeclass === 'Radio' || $typeclass === 'Tag' || $render_plugin_classname !== 'odr_plugins.base.default' )
+                    if ( $typeclass === 'Radio' || $typeclass === 'Tag' || $has_render_plugin )
                         $can_copy = false;
 
                     $is_public = true;
@@ -126,10 +121,6 @@ class DatafieldInfoService
                         'is_public' => $is_public,
                         'can_change_public_status' => $can_change_public_status,
 //                        'public_status_message' => $public_status_message,
-
-                        'render_plugin_id' => $render_plugin_id,
-                        'render_plugin_classname' => $render_plugin_classname,
-                        'render_plugin_name' => $render_plugin_name,
 
                         'has_tag_hierarchy' => $has_tag_hierarchy,
                     );
@@ -183,15 +174,15 @@ class DatafieldInfoService
             );
         }
 
-        // Also shouldn't delete datafields that are being used by the Datatype's render plugin...
-        if ( $dtm['renderPlugin']['pluginClassName'] !== 'odr_plugins.base.default' ) {
-            if ( !empty($dtm['renderPlugin']['renderPluginInstance']) ) {
-                $rpi = $dtm['renderPlugin']['renderPluginInstance'][0];
-                foreach ($rpi['renderPluginMap'] as $rpm) {
-                    if ( $rpm['dataField']['id'] === $datafield_id ) {
+        // Also shouldn't delete datafields that are being used by the Datatype's render plugins...
+        if ( !empty($dt['renderPluginInstances']) ) {
+            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                    if ( $rpf_df['id'] === $datafield_id ) {
+                        $render_plugin_name = $rpi['renderPlugin']['pluginName'];
                         return array(
                             'can_delete' => false,
-                            'delete_message' => "This Datafield can't be deleted because it's currently required by the \"".$dtm['renderPlugin']['pluginName']."\" this Datatype is using"
+                            'delete_message' => "This Datafield can't be deleted because it's currently required by the \"".$render_plugin_name."\" this Datatype is using"
                         );
                     }
                 }
@@ -371,29 +362,30 @@ class DatafieldInfoService
 
         // ----------------------------------------
         // If the datafield is using a render plugin...
-        if ( $df['dataFieldMeta']['renderPlugin']['pluginClassName'] !== 'odr_plugins.base.default' ) {
-            $rpi = $df['dataFieldMeta']['renderPlugin']['renderPluginInstance'][0];
-            $rpm = $rpi['renderPluginMap'][0];
-            $rpf = $rpm['renderPluginFields'];
-
-            // ...then the fieldtype can't be changed from what the render plugin requires
-            $df_fieldtypes = explode(',', $rpf['allowedFieldtypes']);
-            $allowed_fieldtypes = array_intersect($allowed_fieldtypes, $df_fieldtypes);
+        if ( !empty($df['renderPluginInstances']) ) {
+            foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                // There's only going to be one rpf in here, but the key will be different
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                    // ...then the fieldtype can't be changed from what the render plugin requires
+                    $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                    $allowed_fieldtypes = array_intersect($allowed_fieldtypes, $df_fieldtypes);
+                }
+            }
         }
 
         // If the datatype is using a render plugin...
-        if ( $dt['dataTypeMeta']['renderPlugin']['pluginClassName'] !== 'odr_plugins.base.default' ) {
-            $rpi = $dt['dataTypeMeta']['renderPlugin']['renderPluginInstance'][0];
+        if ( !empty($dt['renderPluginInstances']) ) {
+            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                // ...then if this datafield is required by the render plugin...
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                    if ( $rpf_df['id'] === $datafield->getId() ) {
+                        // ...then the fieldtype can't be changed from what the render plugin requires
+                        $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $allowed_fieldtypes = array_intersect($allowed_fieldtypes, $dt_fieldtypes);
 
-            // ...then if this datafield is required by the render plugin...
-            foreach ($rpi['renderPluginMap'] as $rpm) {
-                if ( $rpm['dataField']['id'] === $datafield->getId() ) {
-                    // ...then the fieldtype can't be changed from what the render plugin requires
-                    $dt_fieldtypes = explode(',', $rpm['renderPluginFields']['allowedFieldtypes']);
-                    $allowed_fieldtypes = array_intersect($allowed_fieldtypes, $dt_fieldtypes);
-
-                    // No point looking through the render plugin's config any longer
-                    break;
+                        // No point looking through the rest of the cached array
+                        break;
+                    }
                 }
             }
         }

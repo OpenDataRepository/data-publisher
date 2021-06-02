@@ -91,24 +91,7 @@ class UpdateDataFieldsForm extends AbstractType
                 'placeholder' => false,
             )
         );
-/*
-        // This property isn't changed through this form
-        $builder->add(
-            'render_plugin',
-            'entity',
-            array(
-                'class' => 'ODR\AdminBundle\Entity\RenderPlugin',
-                'query_builder' => function(EntityRepository $er) {
-                    return $er->createQueryBuilder('rp')
-                        ->where('rp.plugin_type >= '.RenderPlugin::DEFAULT_PLUGIN);
-                },
-                'property' => 'pluginName',
-                'label' => 'Render Plugin',
-                'expanded' => false,
-                'multiple' => false,
-            )
-        );
-*/
+
         $builder->add(
             'internal_reference_name',
             TextType::class,

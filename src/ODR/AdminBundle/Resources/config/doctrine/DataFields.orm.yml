@@ -107,6 +107,13 @@ ODR\AdminBundle\Entity\DataFields:
             inversedBy: null
             orphanRemoval: false
 
+        renderPluginInstances:
+            targetEntity: RenderPluginInstance
+            cascade: { }
+            mappedBy: dataField
+            inversedBy: null
+            orphanRemoval: false
+
     manyToOne:
         # TODO These will probably need to be moved to map tables
         # so that child types can be re-used across multiple master
@@ -126,20 +133,6 @@ ODR\AdminBundle\Entity\DataFields:
             inversedBy: dataFields
             joinColumns:
                 data_type_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-
-        # This property is only defined because of Doctrine ORM limitations...
-        # The Datafield needs to be able to record a history of which RenderPlugin it has used, but
-        #  the RenderPlugin needs to reference a static datafield_id
-        # This property SHOULD NOT be changed, use the one in DataFieldsMeta should be used instead
-        renderPlugin:
-            targetEntity: RenderPlugin
-            cascade: {  }
-            mappedBy: null
-            inversedBy: dataFields
-            joinColumns:
-                render_plugin_id:
                     referencedColumnName: id
             orphanRemoval: false
 

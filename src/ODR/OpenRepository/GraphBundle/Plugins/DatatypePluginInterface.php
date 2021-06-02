@@ -13,8 +13,6 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-
 
 interface DatatypePluginInterface
 {
@@ -22,20 +20,20 @@ interface DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options);
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
 
     /**
      * Executes this RenderPlugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -46,22 +44,5 @@ interface DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array());
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance);
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance);
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array());
 }

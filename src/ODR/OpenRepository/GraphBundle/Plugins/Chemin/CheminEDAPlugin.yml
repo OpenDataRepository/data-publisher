@@ -2,10 +2,12 @@ odr_plugins.chemin.chemineda:
     name: Chemin EDA Plugin
     category: Chemin
     datatype: true
-    version: 1.0.1
+    render: true
+    version: 1.1.0
     override_fields: false
     override_child: true
     description: Plugin to display Chemin EDA Data
+    registered_events:
     required_fields:
         eda_tiff_file:
             name: EDA Tiff File

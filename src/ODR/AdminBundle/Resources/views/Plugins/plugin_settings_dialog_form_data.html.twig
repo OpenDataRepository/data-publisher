@@ -1,34 +1,27 @@
 {% spaceless %}
 
-    {% set valid_fieldtype = true %}
-    {% if local_datafield != null and plugin.pluginClassName != "odr_plugins.base.default" %}
-        {% for plugin_field in render_plugin_fields %}
-            {% if local_datafield.fieldtype.id not in allowed_fieldtypes[plugin_field.id] %}
-                {% set valid_fieldtype = false %}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
+    <input type="hidden" name="selected_render_plugin" value="{{ render_plugin.id }}"/>
 
     <fieldset>
-        {% if valid_fieldtype == false %}
-            <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
-            <span>&nbsp;The "{{ plugin.pluginName }}" Render Plugin is not compatible with a "{{ local_datafield.fieldtype.typeclass }}" Datafield</span>
-        {% else %}
-            {{ plugin.description }}
+    {% if is_illegal_render_plugin %}
+        <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+        <span>&nbsp;{{ illegal_render_plugin_message }}</span>
+    {% elseif render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
+        <span>The {% if local_datafield == null %}Database{% else %}Datafield{% endif %} is currently using this Render Plugin.</span>
+        {% if is_datatype_admin %}
+        &nbsp;&nbsp;<button class="ODRDetachPlugin pure-button pure-button-primary">Detach Render Plugin</button>
         {% endif %}
+    {% endif %}
+    </fieldset>
+
+    <fieldset>
+        {{ render_plugin.description }}
     </fieldset>
 
 {% if local_datafield == null %}    {# if render plugin is for a datatype #}
     <fieldset>
         {# Determine if the rendering plugin has any required fields #}
-        {% set has_fields = 0 %}
-        {% for plugin_field in render_plugin_fields %}
-            {% if plugin_field.renderplugin.id == plugin.id %}
-                {% set has_fields = 1 %}
-            {% endif %}
-        {% endfor %}
-
-        {% if has_fields == 0 %}
+        {% if render_plugin['renderPluginFields']|length == 0 %}
             This Render Plugin does not require specific fields.
         {% else %}
             {# Print out all required fields for this plugin #}
@@ -40,26 +33,26 @@
                     <th>Map to DataField...</th>
                 </tr></thead>
                 <tbody>
-                {% for plugin_field in render_plugin_fields %}
+                {% for rpf_id,rpf in render_plugin['renderPluginFields'] %}
                     <tr>
-                        <td><strong>{{ plugin_field.fieldname }}: </strong></td>
-                        <td>{{ plugin_field.description }}</td>
+                        <td><strong>{{ rpf.fieldName }}: </strong></td>
+                        <td>{{ rpf.description }}</td>
                         <td>
-                            <select id="plugin_fieldtype_{{ plugin_field.id }}" class="ODRRenderPluginFieldtype" name="plugin_fieldtypes[{{ plugin_field.id }}]">
-                                {% for ft_id,ft in all_fieldtypes %}
-                                    {% if ft_id in allowed_fieldtypes[plugin_field.id] %}
-                                        <option value="{{ ft_id }}">{{ ft.gettypeclass }}</option>
+                            <select id="plugin_fieldtype_{{ rpf_id }}" class="ODRRenderPluginFieldtype" name="plugin_fieldtypes[{{ rpf_id }}]">
+                                {% for ft_id,typeClass in all_fieldtypes %}
+                                    {% if ft_id in allowed_fieldtypes[rpf_id] %}
+                                        <option value="{{ ft_id }}">{{ typeClass }}</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
                             {# Print out a dropdown of fields in this datatype that match the fieldtype of the required field #}
-                            <select id="plugin_map_{{ plugin_field.id }}" class="ODRRenderPluginMap" name="plugin_map[{{ plugin_field.id }}]" rel="{{ plugin_field.id }}">
+                            <select id="plugin_map_{{ rpf_id }}" class="ODRRenderPluginMap" name="plugin_map[{{ rpf_id }}]" rel="{{ rpf_id }}">
                                 <option value="-1" selected>Create new datafield...</option>
                                 {% for df in datafields %}
-                                    {% if df.fieldtype.id in allowed_fieldtypes[plugin_field.id] %}
-                                        <option value="{{ df.id }}" rel="{{ df.fieldtype.id }}">{{ df.fieldname }}</option>
+                                    {% if df.fieldtype.id in allowed_fieldtypes[rpf_id] %}
+                                        <option value="{{ df.id }}" rel="{{ df.fieldtype.id }}">{{ df.fieldName }}</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>
@@ -76,166 +69,201 @@
         {% endif %}
     </fieldset>
 
-<script>
-    $(function() {
-        {# apparently this block of code can't be moved to plugin_settings_dialog_form.html.twig #}
-        $(".ODRRenderPluginMap").unbind('change').change(function() {
-            var datafield_id = $(this).val();
-            var plugin_field_id = $(this).attr('rel');
-            var fieldtype_id = $(this).children(':selected').attr('rel');
+    <script>
+        $(function() {
+            {# apparently this block of code can't be moved to plugin_settings_dialog_form.html.twig #}
+            $(".ODRRenderPluginMap").unbind('change').change(function() {
+                var datafield_id = $(this).val();
+                var render_plugin_field_id = $(this).attr('rel');
+                var fieldtype_id = $(this).children(':selected').attr('rel');
 
-            if (datafield_id != '-1') {
-                // Prevent user from changing fieldtype of existing datafield
-                $("#plugin_fieldtype_" + plugin_field_id).attr('disabled', 'disabled');
-                // Select fieldtype of selected datafield, for consistency
-                $("#plugin_fieldtype_" + plugin_field_id).val(fieldtype_id);
+                if (datafield_id != '-1') {
+                    // Prevent user from changing fieldtype of existing datafield
+                    $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', true);
+                    // Select fieldtype of selected datafield, for consistency
+                    $("#plugin_fieldtype_" + render_plugin_field_id).val(fieldtype_id);
 
-                // Show warning about creating new datafields if needed
-                var show_warning = false;
-                $(".ODRRenderPluginMap").each(function() {
-                    if ( $(this).val() == '-1' ) {
-                        show_warning = true;
-                        return false;
-                    }
-                });
+                    // Show warning about creating new datafields if needed
+                    var show_warning = false;
+                    $(".ODRRenderPluginMap").each(function() {
+                        if ( $(this).val() == '-1' ) {
+                            show_warning = true;
+                            return false;
+                        }
+                    });
 
-                if (show_warning)
+                    if (show_warning)
+                        $("#plugin_datafield_creation_warn").show();
+                    else
+                        $("#plugin_datafield_creation_warn").hide();
+                }
+                else {
+                    // Let user select fieldtype of new datafield
+                    $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', false);
+                     // Show warning about creating new datafields
                     $("#plugin_datafield_creation_warn").show();
-                else
-                    $("#plugin_datafield_creation_warn").hide();
-            }
-            else {
-                // Let user select fieldtype of new datafield
-                $("#plugin_fieldtype_" + plugin_field_id).removeAttr('disabled');
-                 // Show warning about creating new datafields
-                $("#plugin_datafield_creation_warn").show();
-            }
-        });
+                }
+            });
 
-    {% if render_plugin_map != null %}
-        // Pre-select any existing datafield mappings
-        {% for plugin_field in render_plugin_fields %}
-            {% for map in render_plugin_map %}
-                {% if map.renderpluginfields.id == plugin_field.id %}
-                $("#plugin_map_{{ plugin_field.id }}").val("{{ map.datafield.id }}");
-                $("#plugin_map_{{ plugin_field.id }}").trigger('change');
-                {% endif %}
+        {% if render_plugin_instance != null %}
+            // Pre-select any existing datafield mappings
+            {% for num,rpm in render_plugin_instance['renderPluginMap'] %}
+            $("#plugin_map_{{ rpm['renderPluginFields']['id'] }}").val("{{ rpm['dataField']['id'] }}").trigger('change');
             {% endfor %}
-        {% endfor %}
-    {% endif %}
+        {% endif %}
 
-    });
-</script>
+        {% if not is_datatype_admin %}
+            // Not strictly needed, but don't allow modification if the user isn't allowed to
+            $(".ODRRenderPluginMap").prop('disabled', true);
+        {% endif %}
+        });
+    </script>
 
 {% else %}  {# render plugin is for a datafield #}
-    {% for plugin_field in render_plugin_fields %}
-        <input type="hidden" name="plugin_map[{{ plugin_field.id }}]" value="{{ local_datafield.id }}" />
+    {# Should only be one rpf entry... #}
+    {% for rpf_id,rpf in render_plugin['renderPluginFields'] %}
+        <input type="hidden" name="plugin_map[{{ rpf_id }}]" value="{{ local_datafield.id }}" />
     {% endfor %}
 {% endif %}
 
-{% if valid_fieldtype == true %}
     <fieldset style="text-align: left;">
-
         {# Determine if the rendering plugin has any available options #}
-        {% set has_options = 0 %}
-        {% for plugin_id, plugin_options in available_options %}
-            {% if plugin_id == plugin.id %}
-                {% set has_options = 1 %}
-            {% endif %}
-        {% endfor %}
-
-        {% if has_options == 0 %}
+        {% if render_plugin['renderPluginOptions']|length == 0 %}
             <div style="text-align: center;">This Render Plugin has no options.</div>
         {% else %}
-            {% for plugin_id, plugin_options in available_options %}
-                {% if plugin_id == plugin.id %}
-
-                    {% for option_key,option in plugin_options %}
-                        {# Save the default value for the option, if there is one #}
-                        {% set default = '' %}
-                        {% if option.default is defined %}
-                            {% set default = option.default %}
-                        {% endif %}
-
-                        <div class="pure-u-1 pure-u-lg-1-2 {#pure-u-xl-1-3#}">
-                            <label for="plugin_option_{{ option_key }}">{{ option.name }}<span class="ODRRenderPlugin_option_description" title="{{ option.description }}">?</span></label>
-                            {% if option.choices is defined %}
-
-                                {# Create a dropdown to hold the available choices #}
-                                <select id="plugin_option_{{ option_key }}" name="plugin_options[{{ option_key }}]">
-                                    {% if "," in option.choices %}
-                                        {% set choices = option.choices|split(',') %}
-                                        {% for choice in choices %}
-                                            {% set mychoice = choice|split('||') %}
-                                            {% if current_plugin_options == null %}
-                                                {# Use the default value to set the initial selection for the dropdown #}
-                                                <option value="{{ mychoice[0] }}" {% if mychoice[0] == default %}selected{% endif %}>{{ mychoice[1] }}</option>
-                                            {% else %}
-                                                {# Locate the previously saved value for this plugin option and use that to set the initial selection for the dropdown #}
-                                                {% set found = false %}
-                                                {% for current_option in current_plugin_options %}
-                                                    {% if current_option.optionname == option_key %}
-                                                        {% set found = true %}
-                                                        <option value="{{ mychoice[0] }}" {% if current_option.optionvalue == mychoice[0] %}selected{% endif %}>{{ mychoice[1] }}</option>
-                                                    {% endif %}
-                                                {% endfor %}
-                                                {% if found == false %}
-                                                    <option value="{{ mychoice[0] }}" {% if mychoice[0] == default %}selected{% endif %}>{{ mychoice[1] }}</option>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% else %}
-                                        {% set choices = option.choices|split('||') %}
-                                        {% for choice in choices %}
-                                            {% if current_plugin_options == null %}
-                                                {# Use the default value to set the initial selection for the dropdown #}
-                                                <option value="{{ choice }}" {% if choice == default %}selected{% endif %}>{{ choice }}</option>
-                                            {% else %}
-                                                {# Locate the previously saved value for this plugin option and use that to set the initial selection for the dropdown #}
-                                                {% set found = false %}
-                                                {% for current_option in current_plugin_options %}
-                                                    {% if current_option.optionname == option_key %}
-                                                        {% set found = true %}
-                                                        <option value="{{ choice }}" {% if current_option.optionvalue == choice %}selected{% endif %}>{{ choice }}</option>
-                                                    {% endif %}
-                                                {% endfor %}
-                                                {% if found == false %}
-                                                    <option value="{{ choice }}" {% if choice == default %}selected{% endif %}>{{ choice }}</option>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endif %}
-                                </select>
-
-                            {% else %}
-
-                                {# Create a textfield so the user can enter a value #}
-                                {% if current_plugin_options == null %}
-                                    {# Fill the textfield with the default value for the option #}
-                                    <input id="plugin_option_{{ option_key }}" size="20" type="text" name="plugin_options[{{ option_key }}]" value="{{ default }}" />
-                                {% else %}
-                                    {# Locate the previously saved value for this plugin option and use that to fill the textfield #}
-                                    {% set found = false %}
-                                    {% for current_option in current_plugin_options %}
-                                        {% if current_option.optionname == option_key %}
-                                            {% set found = true %}
-                                            <input id="plugin_option_{{ option_key }}" size="20" type="text" name="plugin_options[{{ option_key }}]" value="{{ current_option.optionvalue }}" />
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if found == false %}
-                                        <input id="plugin_option_{{ option_key }}" size="20" type="text" name="plugin_options[{{ option_key }}]" value="{{ default }}" />
-                                    {% endif %}
-                                {% endif %}
-
-                            {% endif %}
-                        </div>
-
-                    {% endfor %}
-
+            {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+                {# Save the default value for the RenderPluginOption #}
+                {% set default_value = '' %}
+                {% if rpo['defaultValue'] is defined %}
+                    {% set default_value = rpo['defaultValue'] %}
                 {% endif %}
+
+                {# Locate the existing selection/value for this RenderPluginOption, if there is one #}
+                {% set current_value = default_value %}
+                {% if render_plugin_instance != null and render_plugin_instance['renderPluginOptionsMap'][rpo_id] is defined %}
+                    {% set current_value = render_plugin_instance['renderPluginOptionsMap'][rpo_id]['value'] %}
+                {% endif %}
+
+                <div class="pure-u-1 pure-u-lg-1-2 {#pure-u-xl-1-3#}">
+                    <label for="plugin_option_{{ rpo_id }}">
+                        {{ rpo['displayName'] }}
+                        <span class="ODRRenderPlugin_option_description" title="{{ rpo['description'] }}">?</span>
+                    </label>
+
+                {% if rpo['choices'] is defined and rpo['choices'] != null %}
+                    {# Create a dropdown to display the available choices for this RenderPluginOption #}
+                    <select id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" name="plugin_options[{{ rpo_id }}]">
+                    {% for key,value in rpo['choices'] %}
+                        <option value="{{ key }}" {% if key == current_value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                    </select>
+                {% else %}
+                    {# Create a textfield so the user can enter a value for this RenderPluginOption #}
+                    <input id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" size="32" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
+                {% endif %}
+                </div>
             {% endfor %}
         {% endif %}
     </fieldset>
-{% endif %}
 
+    <script>
+        $(function() {
+        {% if is_datatype_admin %}
+            $(".ODRDetachPlugin").unbind('click').click(function(event) {
+                // Don't submit the form
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                var datatype_id = {{ local_datatype.id }};
+                var datafield_id = {% if local_datafield == null %}0{% else %}{{ local_datafield.id }}{% endif %};
+                var render_plugin_id = {{ render_plugin.id }};
+
+                var url  = '{{ path('odr_detach_plugin', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
+                url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
+
+                // alert(url);  return;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        // Ensure that render plugin info doesn't get screwed up if user modifies some other
+                        //  datafield or datatype property after setting render plugin
+                        var datafield_id = data.d.datafield_id;
+                        var datatype_id = data.d.datatype_id;
+
+                        if (datafield_id != 0) {
+                            // A non-zero value means this was a render plugin for a datafield
+                            // Usually don't need to reload, but it indicates saving is finished
+                            ReloadDatafield(datafield_id);
+                        }
+                        else {
+                            // Don't want to reload the page...but need to ensure the javascript
+                            //  array of datafield properties is kept up to date
+                            var tmp = data.d.datafield_properties;
+                            tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
+                            $.each(tmp, function(df_id, df_props) {
+                                datafield_properties[df_id] = df_props;
+                            });
+                            // console.log('datafield properties', datafield_properties);
+
+                            // The javascript array of datatype properties won't have changed, but should
+                            //  reset the left panel just in case
+                            RenderToolSet(datatype_id, 'datatype');
+                        }
+
+                        closeODRRemodal();
+                        notifySaved();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Close the dialog so it's not in some half-initialized state
+                        closeODRRemodal();
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            });
+
+            $("#ODRRenderPluginFormSubmit").unbind('click').click(function(event) {
+                // Don't automatically submit the form...
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                {% if not is_illegal_render_plugin %}
+                // ...use this function instead
+                submitRenderPluginForm();
+                {% endif %}
+            });
+
+            {% if is_illegal_render_plugin %}
+            // The datatype/datafield can't use this render plugin for whatever reason
+            $("#ODRRenderPluginFormSubmit").html('Update Render Plugin').prop('disabled', true);
+            {% elseif render_plugin_instance is null %}
+            // Either the datatype/datafield doesn't have a render plugin, or this is a different
+            //  render plugin that the datatype/datafield can use
+            $("#ODRRenderPluginFormSubmit").html('Use This Render Plugin').prop('disabled', false);
+            {% elseif render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
+            // The datatype/datafield is using this render plugin
+            $("#ODRRenderPluginFormSubmit").html('Update Render Plugin').prop('disabled', false);
+            {% endif %}
+        {% else %}
+            {# user is not allowed to make changes to this #}
+            $(".ODRDetachPlugin").unbind('click').prop('disabled', true);
+            $(".ODRRenderPluginOptionsMap").prop('disabled', true);
+        {% endif %}
+        });
+    </script>
 {% endspaceless %}

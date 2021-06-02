@@ -2,10 +2,12 @@ odr_plugins.chemin.cheminefm:
     name: Chemin EFM Plugin
     category: Chemin
     datatype: true
-    version: 1.0.1
+    render: true
+    version: 1.1.0
     override_fields: false
     override_child: true
     description: Plugin to display Chemin EFM Data
+    registered_events:
     required_fields:
         efm_raw_tiff_file:
             name: EFM Raw Tiff File

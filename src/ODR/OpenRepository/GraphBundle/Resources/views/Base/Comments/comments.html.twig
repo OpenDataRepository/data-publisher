@@ -14,7 +14,14 @@
             <tbody class="pure-u-1">
             {% for sort_value, comment_data in comments %}
                 <tr id="datarecordchild_{{ sort_value }}" class="pure-u-1">
-                    {% set comment_text = mapping.comment.datafield|datafield_plugin(comment_data.datarecord, mapping.comment.render_plugin, 'text')|raw %}
+                    {% set comment_text = comment_data.entity.value %}
+
+                    {% set df = mapping.comment %}
+                    {% for rpi_num,rpi in df.renderPluginInstances %}
+                        {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+                            {% set comment_text = df|datafield_plugin(comment_data.datarecord, rpi, 'text')|raw %}
+                        {% endif %}
+                    {% endfor %}
 
                     <td class="pure-u-1-4">{{ comment_data.entity.updated|date("Y-m-d") }}</td>
                     <td class="pure-u-1-2">{{ comment_text|raw }}</td>

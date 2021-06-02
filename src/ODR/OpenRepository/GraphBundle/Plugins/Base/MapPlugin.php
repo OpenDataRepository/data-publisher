@@ -7,15 +7,14 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Generates a google map from one or more datarecords that have datafields with decimal degree
- * GPS coordinates in them.
+ * Contacts a 3rd-party mapping service (currently OpenStreetMap) to generate points on a map from
+ * one or more datarecords that have datafields with decimal degree GPS coordinates in them.
  *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -60,13 +59,13 @@ class MapPlugin implements DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // This render plugin isn't allowed to work when in edit mode
         if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
@@ -81,7 +80,7 @@ class MapPlugin implements DatatypePluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -92,46 +91,36 @@ class MapPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {
             // ----------------------------------------
-            // Grab various properties from the render plugin array
-            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
-            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
-            $render_plugin_options = $render_plugin_instance['renderPluginOptions'];
-
-            // Remap render plugin by name => value
-            $options = array();
-            foreach($render_plugin_options as $option) {
-                if ( $option['active'] == 1 )
-                    $key = strtolower( str_replace(' ', '_', $option['optionName']) );
-                    $options[$key] = $option['optionValue'];
-            }
+            // Extract various properties from the render plugin array
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
 
 
             // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
-            foreach ($render_plugin_map as $rpm) {
-                // Get the entities connected by the render_plugin_map entity??
-                $rpf = $rpm['renderPluginFields'];
-                $df_id = $rpm['dataField']['id'];
+            foreach ($fields as $rpf_name => $rpf_df) {
+                // Need to find the real datafield entry in the primary datatype array
+                $rpf_df_id = $rpf_df['id'];
 
                 $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
-                    $df = $datatype['dataFields'][$df_id];
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
+                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                 //
                 $df_typeclass = lcfirst($df['dataFieldMeta']['fieldType']['typeClass']);
 
                 // Grab the fieldname specified in the plugin's config file to use as an array key
-                $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
-                $datafield_mapping[$key] = array('id' => $df_id, 'typeclass' => $df_typeclass);
+                $key = strtolower( str_replace(' ', '_', $rpf_name) );
+                $datafield_mapping[$key] = array('id' => $rpf_df_id, 'typeclass' => $df_typeclass);
             }
 
 
@@ -210,30 +199,5 @@ class MapPlugin implements DatatypePluginInterface
             // Just rethrow the exception
             throw $e;
         }
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

@@ -404,6 +404,7 @@
         for(var x in tools) {
             var obj = tools[x];
             obj.addClass('faded');
+            obj.find('i').removeClass('ODRActiveIcon');
             obj.unbind('click').click(function () {
                 sidebarDefaultClick();
             });
@@ -450,6 +451,8 @@
                 //  to the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
                 tools.add_te.removeClass('faded');
+                tools.add_te.find('i').addClass('ODRActiveIcon');
+
                 tools.add_te.unbind('click').click(function () {
                     var theme_id = props.theme_id;
                     // console.log('adding theme_element to theme ' + theme_id);
@@ -480,13 +483,14 @@
                 // ----------------------------------------
                 // Can always change visibility of a ThemeElement
                 tools.pub_stat.removeClass('faded');
+
                 if (theme_element_is_visible) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Group Box is Visible');
                     tools.pub_stat.attr('title', 'This Group Box and its contents will be displayed in the layout if the user is allowed to view it.');
                 }
                 else {
-                    tools.pub_stat.find('i').removeClass('ODRActiveIcon');
+                    // tools.pub_stat.find('i').removeClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Group Box is Not Visible');
                     tools.pub_stat.attr('title', 'This Group Box and its contents will never be displayed.');
                 }
@@ -504,13 +508,14 @@
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
                     tools.del_dt.attr('title', 'Click to delete this group box.');
+
                     tools.del_dt.unbind('click').click(function () {
                         deleteThemeElement(theme_element_id);
                     });
                 }
                 else {
                     tools.del_dt.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
-                    tools.del_dt.unbind('click');
+                    // tools.del_dt.unbind('click');
                 }
                 break;
 
@@ -535,7 +540,7 @@
                     tools.pub_stat.attr('title', 'This field will be displayed in the layout if the user is allowed to view it.');
                 }
                 else {
-                    tools.pub_stat.find('i').removeClass('ODRActiveIcon');
+                    // tools.pub_stat.find('i').removeClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Field is Not Visible');
                     tools.pub_stat.attr('title', 'This field will never be displayed.');
                 }
@@ -554,8 +559,17 @@
         }
     }
 
+    /**
+     * Displays a popup notification to the user when they try to click a disabled action for a
+     * datafield/datatype on the page...such as attempting to add a child datatype while a datafield
+     * is selected, or attempting to delete a datafield that's marked as unique.
+     */
     function sidebarDefaultClick() {
-        $.jGrowl('You must first select an element from the page to modify its settings.');
+        // console.log('default click');
+        if ( $(".ODRFieldSelected").length > 0 )
+            $.jGrowl('Unable to perform this action on this element.');
+        else
+            $.jGrowl('You must first select an element from the page to modify its settings.');
     }
 
     /**
@@ -718,7 +732,6 @@
 
             // Determine if this Datatype has a parent, and locate its id if possible
             var parent_datatype_id = '';
-
             var parents = $(datatype).parents('.ODRDataType');
             if ( $(parents).length > 0 ) {
                 var id_data = $(parents).first().attr('id').split(/_/);
@@ -728,7 +741,6 @@
             // Also need the theme_element id when this is a child/linked datatype, since there could
             //  be multiple instances of this datatype on the page
             var theme_element_id = '';
-
             var theme_element = $(datatype).parents('.ODRThemeElement');
             if ( $(theme_element).length > 0 ) {
                 var id_data = $(theme_element).first().attr('id').split(/_/);

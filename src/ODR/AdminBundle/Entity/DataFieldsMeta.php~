@@ -168,11 +168,6 @@ class DataFieldsMeta
     private $fieldType;
 
     /**
-     * @var \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    private $renderPlugin;
-
-    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -843,29 +838,6 @@ class DataFieldsMeta
     public function getFieldType()
     {
         return $this->fieldType;
-    }
-
-    /**
-     * Set renderPlugin
-     *
-     * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
-     * @return DataFieldsMeta
-     */
-    public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
-    {
-        $this->renderPlugin = $renderPlugin;
-
-        return $this;
-    }
-
-    /**
-     * Get renderPlugin
-     *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    public function getRenderPlugin()
-    {
-        return $this->renderPlugin;
     }
 
     /**

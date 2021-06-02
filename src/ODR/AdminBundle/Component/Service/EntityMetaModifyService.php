@@ -41,6 +41,7 @@ use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
+use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
@@ -262,7 +263,6 @@ class EntityMetaModifyService
         $existing_values = array(
             // These entities can be set here since they're never null
             'fieldType' => $old_meta_entry->getFieldType()->getId(),
-            'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
 
             'fieldName' => $old_meta_entry->getFieldName(),
             'description' => $old_meta_entry->getDescription(),
@@ -321,8 +321,6 @@ class EntityMetaModifyService
         // Set any new properties
         if ( isset($properties['fieldType']) )
             $new_datafield_meta->setFieldType( $this->em->getRepository('ODRAdminBundle:FieldType')->find( $properties['fieldType'] ) );
-        if ( isset($properties['renderPlugin']) )
-            $new_datafield_meta->setRenderPlugin( $this->em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
         if ( isset($properties['fieldName']) )
             $new_datafield_meta->setFieldName( $properties['fieldName'] );
@@ -608,9 +606,6 @@ class EntityMetaModifyService
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            // This entity can be set here since it's never null
-            'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
-
             'searchSlug' => $old_meta_entry->getSearchSlug(),
             'shortName' => $old_meta_entry->getShortName(),
             'longName' => $old_meta_entry->getLongName(),
@@ -684,8 +679,6 @@ class EntityMetaModifyService
 
 
         // Set any new properties
-        if ( isset($properties['renderPlugin']) )
-            $new_datatype_meta->setRenderPlugin( $this->em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
         // isset() will return false when ('externalIdField' => null), so need to use
         //  array_key_exists() instead
@@ -1486,22 +1479,22 @@ class EntityMetaModifyService
 
 
     /**
-     * Copies the contents of the given RenderPluginOptions entity into a new RenderPluginOptions
+     * Copies the contents of the given RenderPluginOptionsMap entity into a new RenderPluginOptionsMap
      * entity if something was changed.  TODO - this returns a boolean unlike other stuff...refactor?
      *
      * @param ODRUser $user
-     * @param RenderPluginOptions $render_plugin_option
+     * @param RenderPluginOptionsMap $render_plugin_options_map
      * @param array $properties
      * @param bool $delay_flush
      *
      * @return bool
      */
-    public function updateRenderPluginOption($user, $render_plugin_option, $properties, $delay_flush = false)
+    public function updateRenderPluginOptionsMap($user, $render_plugin_options_map, $properties, $delay_flush = false)
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            'optionValue' => $render_plugin_option->getOptionValue(),
+            'value' => $render_plugin_options_map->getValue(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1514,36 +1507,36 @@ class EntityMetaModifyService
 
         // Determine whether to create a new meta entry or modify the previous one
         $remove_old_entry = false;
-        $new_rpo = null;
-        if ( self::createNewMetaEntry($user, $render_plugin_option) ) {
-            // Clone the old RenderPluginOptions entry
+        $new_rpom = null;
+        if ( self::createNewMetaEntry($user, $render_plugin_options_map) ) {
+            // Clone the old RenderPluginOptionsMap entry
             $remove_old_entry = true;
 
-            $new_rpo = clone $render_plugin_option;
+            $new_rpom = clone $render_plugin_options_map;
 
             // These properties aren't automatically updated when persisting the cloned entity...
-            $new_rpo->setCreated(new \DateTime());
-            $new_rpo->setUpdated(new \DateTime());
-            $new_rpo->setCreatedBy($user);
-            $new_rpo->setUpdatedBy($user);
+            $new_rpom->setCreated(new \DateTime());
+            $new_rpom->setUpdated(new \DateTime());
+            $new_rpom->setCreatedBy($user);
+            $new_rpom->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
-            $new_rpo = $render_plugin_option;
+            $new_rpom = $render_plugin_options_map;
         }
 
 
         // Set any new properties
-        if (isset($properties['optionValue']))
-            $new_rpo->setOptionValue( $properties['optionValue'] );
+        if (isset($properties['value']))
+            $new_rpom->setValue( $properties['value'] );
 
-        $new_rpo->setUpdatedBy($user);
-        $this->em->persist($new_rpo);
+        $new_rpom->setUpdatedBy($user);
+        $this->em->persist($new_rpom);
 
 
         // Delete the old entry if needed
         if ($remove_old_entry)
-            $this->em->remove($render_plugin_option);
+            $this->em->remove($render_plugin_options_map);
 
         // Save the new meta entry
         if ( !$delay_flush )
@@ -1551,7 +1544,7 @@ class EntityMetaModifyService
 
 
         // Return the new entry
-//        return $new_rpo;
+//        return $new_rpom;
         return true;
     }
 

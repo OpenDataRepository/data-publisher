@@ -12,8 +12,28 @@ parameters:
     locale: en
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
 
-    site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]     # no protocol, no trailing forward slash  e.g.  '//odr.io'
+    # This is used to generate redirects and file download links in the site
+    # NOTE - no protocol, and no trailing forward slash  e.g. '//odr.io/
+    site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]
+
+    # ODR stores file directory paths in the database as "uploads/files/File_<id>.<ext>"
+    # This parameter needs to point to the parent directory of that path
     odr_web_directory: "%kernel.root_dir%/../web"
+
+    # This needs to point to the directory that stores ODR's events, so the PluginsController can
+    #  verify that plugins are using valid events
+    odr_events_directory: "%kernel.root_dir%/../src/ODR/AdminBundle/Component/Event"
+
+    # This needs to point to the base directory for the render plugin php implementation files, so
+    #  the PluginsController can determine which plugins are available on the server
+    odr_plugin_basedir: "%kernel.root_dir%/../src/ODR/OpenRepository/GraphBundle/Plugins"
+
+    # This needs to point to the same directory as "odr_plugin_basedir", but uses backslashes so the
+    #  render plugin config files can point to the correct php classes
+    # NOTE - This should NOT have a trailing backslash or be quoted
+    odr_plugin_base_classpath: ODR\OpenRepository\GraphBundle\Plugins
+
+    # TODO
     uploaded_files_path: '/tmp/odr_uploaded_files'
 
     memcached.servers:

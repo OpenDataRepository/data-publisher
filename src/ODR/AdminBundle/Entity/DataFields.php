@@ -102,6 +102,11 @@ class DataFields
     private $imageSizes;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginInstances;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $masterDataField;
@@ -110,11 +115,6 @@ class DataFields
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    private $renderPlugin;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -139,6 +139,7 @@ class DataFields
         $this->dataFieldMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groupDatafieldPermissions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->imageSizes = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginInstances = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -573,6 +574,42 @@ class DataFields
     }
 
     /**
+     * Add renderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
+     *
+     * @return DataFields
+     */
+    public function addRenderPluginInstance(\ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance)
+    {
+        $this->renderPluginInstances[] = $renderPluginInstance;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginInstance(\ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance)
+    {
+        return $this->renderPluginInstances->removeElement($renderPluginInstance);
+    }
+
+    /**
+     * Get renderPluginInstances.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginInstances()
+    {
+        return $this->renderPluginInstances;
+    }
+
+    /**
      * Set masterDataField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $masterDataField
@@ -617,19 +654,6 @@ class DataFields
     public function getDataType()
     {
         return $this->dataType;
-    }
-
-    /**
-     * Set renderPlugin
-     * @internal Requred by Doctrine, but should not be used...this value should be saved in the associated datafieldMeta entry.
-     *
-     * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
-     * @return DataFields
-     */
-    public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
-    {
-        $this->renderPlugin = $renderPlugin;
-        return $this;
     }
 
     /**
@@ -930,15 +954,5 @@ class DataFields
     public function getFieldType()
     {
         return $this->getDataFieldMeta()->getFieldType();
-    }
-
-    /**
-     * Get renderPlugin
-     *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    public function getRenderPlugin()
-    {
-        return $this->getDataFieldMeta()->getRenderPlugin();
     }
 }

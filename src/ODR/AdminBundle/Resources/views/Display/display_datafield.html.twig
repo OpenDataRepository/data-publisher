@@ -4,8 +4,6 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% set render_plugin = datafield_meta.renderPlugin %}
-
 {% set datarecordfield = '' %}
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
@@ -57,17 +55,28 @@
 
     <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
+    {# Determine whether a render plugin needs to be run #}
+    {% set render_plugin_instance = null %}
     {% set can_execute_plugin = false %}
+
     {% if bypass_render_plugin is defined and bypass_render_plugin %}
         {# Don't want to ever execute the plugin in this case #}
-    {% elseif render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
-        {# TODO - add a can_execute_plugin() filter for datafield plugins? #}
-        {% set can_execute_plugin = true %}
-    {%  endif %}
+    {% else %}
+        {% for rpi_num,rpi in datafield.renderPluginInstances %}
+            {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+                {# datafields don't need to check whether they can execute their render plugins at the moment #}
+{#                {% set can_execute_plugin = rpi|can_execute_plugin(datatype, rendering_options) %}#}
+
+                {# Only want to save the render_plugin_instance if it's render-able #}
+                {% set render_plugin_instance = rpi %}
+                {% set can_execute_plugin = true %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
 
     {% if can_execute_plugin %}
         {# TODO - ...require the render plugin to also handle the <form> element? #}
-        {{ datafield|datafield_plugin(datarecord, datafield_meta.renderPlugin)|raw }}
+        {{ datafield|datafield_plugin(datarecord, render_plugin_instance)|raw }}
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>

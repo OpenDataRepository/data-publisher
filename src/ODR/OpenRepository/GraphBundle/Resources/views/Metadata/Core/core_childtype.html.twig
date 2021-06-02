@@ -4,15 +4,6 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {# Don't execute a render plugin here, it'll cause infinite recursion #}
-{#
-{% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
-
-{% set can_execute_plugin = false %}
-{% if render_plugin.active and render_plugin.pluginClassName != "odr_plugins.base.default" %}
-    {% set can_execute_plugin = render_plugin|can_execute_plugin(datatype, rendering_options) %}
-{% endif %}
-#}
 
 {% if is_top_level %}
     {# Easiest way to ensure this only gets included once is to only have the top-level datatype do it... #}
@@ -46,41 +37,26 @@
         } %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-
             {# Don't execute a render plugin here, it'll cause infinite recursion #}
-{#
-            {% set content = '' %}
-            {% if can_execute_plugin and (render_plugin.overrideChild or render_plugin.overrideFields) %}
-                {% set content = [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
-                {% if content|length > 0 %}
-                    <!-- html for {{ render_plugin.pluginName }} -->
-                    {{ content|raw }}
-                {% endif %}
-            {% endif %}
-#}
-{#            {% if can_execute_plugin and render_plugin.overrideFields and content|length > 0 %}#}
-                {# If using render plugin and it overrides datafield display, do nothing here #}
-{#            {% else %}#}
-                {% include 'ODROpenRepositoryGraphBundle:Metadata:Core/core_fieldarea.html.twig' with {
-                    'datatype_array': datatype_array,
-                    'datarecord': datarecord,
-                    'theme_array': theme_array,
+            {% include 'ODROpenRepositoryGraphBundle:Metadata:Core/core_fieldarea.html.twig' with {
+                'datatype_array': datatype_array,
+                'datarecord': datarecord,
+                'theme_array': theme_array,
 
-                    'parent_datarecord': parent_datarecord,
-                    'target_datatype_id': target_datatype_id,
-                    'target_datarecord_id': datarecord.id,
-                    'target_theme_id': target_theme_id,
+                'parent_datarecord': parent_datarecord,
+                'target_datatype_id': target_datatype_id,
+                'target_datarecord_id': datarecord.id,
+                'target_theme_id': target_theme_id,
 
-                    'datatype_permissions': datatype_permissions,
-                    'datafield_permissions': datafield_permissions,
+                'datatype_permissions': datatype_permissions,
+                'datafield_permissions': datafield_permissions,
 
-                    'is_top_level': is_top_level,
-                    'is_link': is_link,
-                    'display_type': display_type,
+                'is_top_level': is_top_level,
+                'is_link': is_link,
+                'display_type': display_type,
 
-                    'token_list': token_list,
-                } %}
-{#            {% endif %}#}
+                'token_list': token_list,
+            } %}
 
         </div><!-- End of #FieldArea_{{ datarecord.id }} -->
     {% endfor %}

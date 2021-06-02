@@ -15,7 +15,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\AHED;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -43,13 +42,13 @@ class SitePlugin implements DatatypePluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // This render plugin doesn't actually do anything when rendering
         return false;
@@ -61,7 +60,7 @@ class SitePlugin implements DatatypePluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -72,34 +71,9 @@ class SitePlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
         // This render plugin does not override any part of the rendering, and therefore this function will never be called.
         return '';
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

@@ -136,11 +136,6 @@ class DataTypeMeta
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
-    
-    /**
-     * @var \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    private $renderPlugin;
 
 
     /**
@@ -663,28 +658,5 @@ class DataTypeMeta
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-
-    /**
-     * Set renderPlugin
-     *
-     * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
-     * @return DataTypeMeta
-     */
-    public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
-    {
-        $this->renderPlugin = $renderPlugin;
-
-        return $this;
-    }
-
-    /**
-     * Get renderPlugin
-     *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin 
-     */
-    public function getRenderPlugin()
-    {
-        return $this->renderPlugin;
     }
 }

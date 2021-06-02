@@ -1,9 +1,4 @@
 services:
-    odr_plugins.base.default:
-        class: '%odr_plugin_base_classpath%\Base\DefaultPlugin'
-        arguments:
-            $templating: '@templating'
-
     # Datatype plugins
     odr_plugins.base.references:
         class: '%odr_plugin_base_classpath%\Base\ReferencesPlugin'
