@@ -17,15 +17,6 @@
         <h1 style="display: inline;">
             <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
         </h1>
-    {% if can_change_public_status %}
-        <span>
-            <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
-                <option value="-1">Make all Datarecords non-public</option>
-                <option value="0" selected>Don't change public status</option>
-                <option value="1">Make all Datarecords public</option>
-            </select>
-        </span>
-    {% endif %}
     </div>
 
     <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">

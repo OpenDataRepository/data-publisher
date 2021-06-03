@@ -3225,11 +3225,11 @@ form .row {
     padding-right: 5px;
 }
 
-#ODRFileDownloadForm ul {
+#ODRFileDownloadForm ul, #ODRMassDownloadForm ul {
     list-style: none;
     padding-left: 6px;
 }
-#ODRFileDownloadForm ul ul {
+#ODRFileDownloadForm ul ul, #ODRMassDownloadForm ul ul {
     padding-left: 26px;
 }
 
@@ -3488,25 +3488,25 @@ form .row {
 @media screen and (min-width:1280px) {
 }
 
-#ODRFileDownloadFormWrapper {
+#ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
     display: none;
     text-align: left;
     font-size: 0.8em;
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
-#ODRFileDownloadForm_loading {
+#ODRFileDownloadForm_loading, #ODRMassDownloadForm_loading {
     padding: 100px 10px 100px 10px;
     color: #3b8bba;
 }
-#ODRFileDownloadForm_submit {
+#ODRFileDownloadForm_submit, #ODRMassDownloadForm_submit {
     margin: 10px 10px 10px 10px;
 }
-#ODRFileDownloadForm_progress {
+#ODRFileDownloadForm_progress, #ODRMassDownloadForm_progress {
     font-size: 20px;
     padding: 100px 10px 100px 10px;
 }
-#ODRFileDownloadFormWrapper li {
+#ODRFileDownloadFormWrapper li, #ODRMassDownloadFormWrapper li {
     white-space: nowrap;
     list-style-type: none;
 }

@@ -1,0 +1,46 @@
+{% spaceless %}
+
+{% if entity_names['datafields']|length == 0 %}
+<div class="ODRMarkdownContent">
+    <p>This database has no file datafields, so nothing can be downloaded.</p>
+</div>
+{% else %}
+
+    {% for dt_id, dt in dt_array %}
+        {# due to the stacked array, child datatypes have additional info that is useless here #}
+        {% if dt['is_link'] is defined %}
+            {% set dt = dt['datatype'][dt_id] %}
+        {% endif %}
+    <ul>
+        <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datatypes'][dt_id] }}
+
+        {% if dt['dataFields'] is defined and dt['dataFields']|length > 0 %}
+            <ul>
+            {% for df_id, dr_list in dt['dataFields'] %}
+                <li><span class="ODRTristateCheckbox binary" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id] }}
+                    <input type="hidden" value="{{ df_id }}" name="datafields[]" disabled />
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <ul>
+                <li>
+                    <span>The "{{ entity_names['datatypes'][dt_id] }}" database has no file datafields.</span>
+                </li>
+            </ul>
+        {% endif %}
+
+        {% if dt['descendants'] is defined and dt['descendants']|length > 0 %}
+            {% include 'ODRAdminBundle:Default:mass_download_dialog_form_data.html.twig' with {
+                'dt_array': dt['descendants'],
+                'entity_names': entity_names,
+            } %}
+        {% endif %}
+
+        </li>
+    </ul>
+    {% endfor %}
+
+{% endif %}
+
+{% endspaceless %}

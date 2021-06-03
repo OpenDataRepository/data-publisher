@@ -112,6 +112,14 @@
                 </label>
             </li>
         {% endif %}
+
+        {% if is_datatype_admin %}
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRMassDownload" class="pure-button">
+                    Download Files
+                </label>
+            </li>
+        {% endif %}
         </ul>
 {#
     {% if display_export_options is defined and display_export_options == true and intent == 'searching' and has_datarecords %}
@@ -162,6 +170,13 @@
         $("#ODRTracking").unbind('click').click(function() {
             var url = '{{ path('odr_track_search_result_changes', { 'search_key': search_key }) }}';
             UpdateURL(url);
+        });
+{% endif %}
+
+{% if is_datatype_admin %}
+        $("#ODRMassDownload").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
+            openMassDownloadDialog("{{ search_key }}");
         });
 {% endif %}
 

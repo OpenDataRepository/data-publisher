@@ -1,0 +1,31 @@
+{% spaceless %}
+
+<input type="hidden" name="search_key" value="{{ search_key }}" />
+
+<div class="pure-u-1 ODRContentWrapper">
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
+            <div class="ODRMarkdownContent">
+                <p>
+                    This dialog allows you to select file datafields belonging to the current database.
+                </p>
+                <p>
+                    After selecting at least one datafield and clicking the "Download Files" button,
+                    a zip archive will be created containing all files that have been uploaded to
+                    those datafields.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
+            {% include 'ODRAdminBundle:Default:mass_download_dialog_form_data.html.twig' with {
+                'entity_names': entity_names,
+                'dt_array': dt_array
+            } %}
+        </div>
+    </div>
+</div>
+
+{% endspaceless %}
