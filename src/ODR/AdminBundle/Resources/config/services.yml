@@ -41,6 +41,16 @@ services:
     odr.markdown.parser:
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
+    # Defines an event subscriber to disseminate events to relevant render plugins
+    odr.event_subscriber:
+        class: ODR\AdminBundle\Component\Event\ODREventSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
 
     # Services for improved data retrieval model
     odr.cache_service:
@@ -87,7 +97,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $database_info_service: "@odr.database_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
             $theme_info_service: "@odr.theme_info_service"
             $uuid_service: "@odr.uuid_service"
@@ -112,7 +122,8 @@ services:
             $cache_service: "@odr.cache_service"
             $search_cache_service: "@odr.search_cache_service"
             $clone_theme_service: "@odr.clone_theme_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $database_info_service: "@odr.database_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
             $lock_service: "@odr.lock_service"
             $permissions_service: "@odr.permissions_management_service"
@@ -134,9 +145,8 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $search_api_service: "@odr.search_api_service"
-            $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
 
     odr.datatype_create_service:
@@ -154,6 +164,7 @@ services:
         class: ODR\AdminBundle\Component\Service\DatafieldInfoService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
             $logger: "@logger"
 
     odr.datarecord_info_service:
@@ -173,14 +184,13 @@ services:
             $cache_service: "@odr.cache_service"
             $logger: "@logger"
 
-    odr.datatype_info_service:
-        class: ODR\AdminBundle\Component\Service\DatatypeInfoService
+    odr.database_info_service:
+        class: ODR\AdminBundle\Component\Service\DatabaseInfoService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
-            $search_cache_service: "@odr.search_cache_service"
             $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
@@ -189,7 +199,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $session: "@session"
             $logger: "@logger"
 
@@ -207,9 +217,9 @@ services:
         arguments:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $cache_service: "@odr.cache_service"
+            $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
-            $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
             $router: "@router"
@@ -237,9 +247,10 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $permissions_management_service: "@odr.permissions_management_service"
             $search_cache_service: "@odr.search_cache_service"
@@ -252,10 +263,10 @@ services:
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
+            $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
             $clone_theme_service: "@odr.clone_theme_service"
@@ -269,8 +280,8 @@ services:
         class: ODR\AdminBundle\Component\Service\DatarecordExportService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
-            $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $templating: "@templating"
             $logger: "@logger"
@@ -279,7 +290,7 @@ services:
         class: ODR\AdminBundle\Component\Service\DatatypeExportService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $database_info_service: "@odr.database_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
             $templating: "@templating"

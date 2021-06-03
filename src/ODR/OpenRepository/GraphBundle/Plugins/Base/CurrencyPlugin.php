@@ -14,7 +14,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -44,26 +43,20 @@ class CurrencyPlugin implements DatafieldPluginInterface
      *
      * @param array $datafield
      * @param array $datarecord
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin, $themeType = 'master')
+    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master')
     {
 
         try {
             // ----------------------------------------
-            // Grab various properties from the render plugin array
-            $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
-
-            // Remap render plugin by name => value
-            $options = array();
-            foreach($render_plugin_options as $option) {
-                if ( $option['active'] == 1 )
-                    $options[ $option['optionName'] ] = $option['optionValue'];
-            }
+            // Extract various properties from the render plugin array
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
 
 
             // ----------------------------------------
@@ -87,7 +80,8 @@ class CurrencyPlugin implements DatafieldPluginInterface
                 $value = trim( $entity[0]['value'] );
             }
             else {
-                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                // No datarecordfield entry for this datarecord/datafield pair...because of the
+                //  allowed fieldtypes, the plugin can just use the empty string in this case
                 $value = '';
             }
 
@@ -124,30 +118,5 @@ class CurrencyPlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
-    }
-
-
-    /**
-     * Called when a user removes a specific instance of this render plugin
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onRemoval($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
-    }
-
-
-    /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
-     *
-     * @param RenderPluginInstance $render_plugin_instance
-     */
-    public function onSettingsChange($render_plugin_instance)
-    {
-        // This plugin doesn't need to do anything here
-        return;
     }
 }

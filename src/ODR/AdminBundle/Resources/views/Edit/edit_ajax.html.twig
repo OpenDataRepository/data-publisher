@@ -1371,6 +1371,8 @@ function SaveRecordData(form_id, interval) {
     var input_div = $(form_id).find('div.ODRFieldWrapper');
     var input_id = $(input_div).find('input').attr('id');
 
+    // ReloadEditDatafield(datarecord_id, datafield_id); return;
+
     $.ajax({
         type: 'POST',
         url: url,

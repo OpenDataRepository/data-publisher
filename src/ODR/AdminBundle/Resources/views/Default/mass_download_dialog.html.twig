@@ -1,0 +1,260 @@
+{% spaceless %}
+
+<!-- Mass Download Dialog -->
+<script>
+    var mass_download_body =
+        '<div id="ODRMassDownloadFormWrapper" class="ODRHidden"> ' +
+            '<form id="ODRMassDownloadForm" method="POST"></form> ' +
+        '</div> ' +
+        '<div id="ODRFileDownloadForm_progress" class="ODRHidden"> ' +
+            '<div>Creating archive:</div> ' +
+            '<div> ' +
+                '<span id="ODRFileDownloadForm_current"></span> / ' +
+                '<span id="ODRFileDownloadForm_total"></span> files added. ' +
+            '</div> ' +
+        '</div>';
+
+    /**
+     * Opens an ODR modal to allow users to pick a file/image field, of which all files will be added
+     * to a zip archive for download.
+     *
+     * @param {string} search_key
+     */
+    function openMassDownloadDialog(search_key) {
+        // open dialog
+        modal_options = {
+            title: "Select datafields to download:",
+            loading: true,
+            body: mass_download_body,
+            buttons: [
+                {
+                    id: 'ODRMassDownloadFormSubmit',
+                    text: 'Download Files',
+                    // secondary: true,
+                    disabled: true,
+                    title: 'You must select one or more datafields before this button becomes active.',
+                    click: function() {
+                        // Create/send a POST request of file ids
+                        submitMassDownloadForm( "#ODRMassDownloadForm" );
+                    }
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadMassDownloadData(search_key);
+    }
+
+
+    /**
+     * Requests the tree structure of all file/image fields in the current datatype and its
+     * descendants.
+     *
+     * @param {string} search_key
+     */
+    function loadMassDownloadData(search_key) {
+        var url = '{{ path('odr_get_search_results_file_list', {'search_key': ''}) }}';
+        url += search_key;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $("#ODRMassDownloadForm").html( data.d );
+                initMassDownloadDialogForm();
+                // remove loading
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRMassDownloadFormWrapper").show();
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+
+                    // Setup submit handler
+                    $('#ODRMassDownloadFormSubmit').unbind('click').click(function() {
+                        var $el = $(this).parent().parent();
+                        // Create/send a POST request of file ids
+                        submitMassDownloadForm( $el.attr('id') );
+                    });
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    /**
+     * Attaches click handlers to the tristate checkboxes.
+     */
+    function initMassDownloadDialogForm() {
+        $(".ODRTristateCheckbox").each(function() {
+            if ( $(this).hasClass('binary') ) {
+                // Ignore the checkboxes for selecting datafields
+                return;
+            }
+            else {
+                // Delete checkboxes that have no datafields listed below them
+                if ( $(this).parent().find('.ODRTristateCheckbox.binary').length == 0 ) {
+                    $(this).remove();
+                }
+            }
+        });
+
+        $(".ODRTristateCheckbox").unbind('click').click(function() {
+            var icon_div = $(this).children('.fa').first();
+
+            if ( $(this).hasClass('binary') ) {
+                // This is a file/image-level checkbox
+                if ( $(icon_div).hasClass('fa-check') ) {
+                    // File/image currently selected, mark as unselected
+                    $(icon_div).removeClass('fa-check');
+                }
+                else {
+                    // File/image currently unselected, mark as selected
+                    $(icon_div).addClass('fa-check');
+                }
+            }
+            else {
+                // This is a datafield/datarecord/datatype-level checkbox
+                if ( $(icon_div).hasClass('fa-check') ) {
+                    if ( $(icon_div).hasClass('partial') ) {
+                        // Currently has some descendants selected...select all descendants
+                        $(this).parent().find('.ODRTristateCheckbox .fa').addClass('fa-check').removeClass('partial');
+                    }
+                    else {
+                        // Currently has all descendants selected...deselect all descendants
+                        $(this).parent().find('.ODRTristateCheckbox .fa').removeClass('fa-check partial');
+                    }
+                }
+                else {
+                    // Currently has no descendants selected...Select all descendants
+                    $(this).parent().find('.ODRTristateCheckbox .fa').addClass('fa-check').removeClass('partial');
+                }
+            }
+
+            // Update classes for parent elements
+            applyToParents( $(this) );
+
+            // If no files/images selected for download, disable the submit button
+            if ( $("#ODRMassDownloadForm").find('.fa.fa-check').length > 0 )
+                $("#ODRMassDownloadFormSubmit").removeAttr('disabled');
+            else
+                $("#ODRMassDownloadFormSubmit").attr('disabled', 'disabled');
+        });
+    }
+
+
+    /**
+     * Updates the state of the tri-state checkboxes going up the tree.
+     *
+     * @param {HTMLElement} source_element
+     */
+    function applyToParents(source_element) {
+        var parent_list_element = $(source_element).parent().parent().parent().not('form');
+        if (parent_list_element.length == 0)
+            return;
+
+        var parent_checkbox_element = $(parent_list_element).children('.ODRTristateCheckbox').first();
+
+        var selected_count = $(parent_list_element).children('ul').find('.fa-check').length;
+        var total_count = $(parent_list_element).children('ul').find('.fa').length;
+
+        if (selected_count == 0) {
+            // No children selected, so this one should be unselected too
+            $(parent_checkbox_element).children('i').removeClass('fa-check partial');
+        }
+        else if (selected_count == total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_element).children('i').addClass('fa-check').removeClass('partial');
+        }
+        else {
+            // Some children selected, so this one should be partially selected
+            $(parent_checkbox_element).children('i').addClass('fa-check partial');
+        }
+
+        applyToParents(parent_checkbox_element);
+    }
+
+
+    /**
+     * Submits which datafields the user wants to download files/images from to the server.
+     *
+     * @param {string} form_id
+     */
+    function submitMassDownloadForm(form_id) {
+        var file_count = 0;
+        $("#ODRMassDownloadForm").find('.binary').each(function() {
+            if ( $(this).children('.fa').first().hasClass('fa-check') ) {
+                $(this).parent().find('input').prop('disabled', false);
+            }
+        });
+
+        var url = '{{ path('odr_start_search_results_archive_download') }}';
+        var file_list = $("#ODRMassDownloadForm").serialize();
+
+        $("#ODRMassDownloadFormSubmit").attr('disabled', 'disabled');
+
+        // Init display of progress
+        $('#ODRFileDownloadForm_current').html("0");
+        // $('#ODRFileDownloadForm_total').html(file_count);    // don't know how many files, yet
+
+        // Hide before ajax stuff
+        $('#ODRMassDownloadFormWrapper').hide();
+        $("#ODRMassDownloadForm").html("");
+        $('#ODRFileDownloadForm_progress').show();
+        // Resize ODRFileDownloadModal to take up full height
+        resetRemodalInnerHeight();
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: 'json',
+            data: file_list,
+            success: function(data, textStatus, jqXHR) {
+                var archive_filename = data.d.archive_filename;
+                var archive_size = data.d.archive_size;
+
+                // Couldn't do this earlier...
+                $('#ODRFileDownloadForm_total').html(archive_size);
+
+                createZipArchiveProgressCheck(archive_filename, archive_size, form_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Handle errors
+                closeODRRemodal();
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+{% endspaceless %}

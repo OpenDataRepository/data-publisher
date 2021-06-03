@@ -110,7 +110,7 @@
                         <p></p>
                         <a class="ODRWizardLink">
                             <span class="wizardStatusText ODRSyncWithTemplate" rel="dt_{{ datatype.id }}">
-                                Click to synchronize this dataset with its master template.
+                                Click to synchronize this dataset with its master template "{{ datatype.masterDataType.shortName }}".
                             </span>
                         </a>
                         {% endif %}
@@ -119,7 +119,7 @@
                         <p></p>
                         <a class="ODRWizardLink">
                             <span class="wizardStatusText ODRSyncWithTemplate" rel="mdt_{{ datatype.metadata_datatype.id }}">
-                                Click to synchronize this dataset's metadata entry with its master template.
+                                Click to synchronize this dataset's metadata entry with its master template "{{ datatype.masterDataType.shortName }}".
                             </span>
                         </a>
                         {% endif %}

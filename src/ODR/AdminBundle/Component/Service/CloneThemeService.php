@@ -762,7 +762,7 @@ class CloneThemeService
             array_push($theme_element_ids, $te->getId());
         }
         $this->logger->debug('----------------------------------------');
-        $this->logger->debug('CloneThemeService: -- Need to copy theme elements from: ' .$source_theme->getId(). ' ['.join(',', $theme_element_ids). ']'  );;
+        $this->logger->debug('CloneThemeService: -- Need to copy theme elements from: ' .$source_theme->getId(). ' ['.join(',', $theme_element_ids). ']'  );
         $this->logger->debug('----------------------------------------');
         foreach ($theme_elements as $source_te) {
 //            $this->logger->debug('----------------------------------------');
@@ -890,9 +890,7 @@ class CloneThemeService
             // There's no ThemeDatatype entry to clone (theoretically only when creating a link to
             //  some remote datatype), so just create a new ThemeDatatype entry
             $new_theme_datatype = new ThemeDataType();
-
             $new_theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
-            $new_theme_datatype->setHidden(0);    // Default to "not-hidden"
 
             $logger_msg = 'created new';
         }

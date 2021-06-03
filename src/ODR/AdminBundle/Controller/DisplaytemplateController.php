@@ -29,7 +29,6 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -49,9 +48,9 @@ use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneTemplateService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatafieldInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -400,8 +399,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -521,7 +520,7 @@ class DisplaytemplateController extends ODRCustomController
                     }
 
                     // Then delete the cached version of the affected datatype
-                    $dti_service->updateDatatypeCacheEntry($ancestor_datatype, $user);
+                    $dbi_service->updateDatatypeCacheEntry($ancestor_datatype, $user);
 
                     // The 'is_link' or 'multiple_allowed' properties are also stored in the
                     //  cached theme entries, so they need to get rebuilt as well
@@ -576,8 +575,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -645,11 +644,9 @@ class DisplaytemplateController extends ODRCustomController
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
             $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
-            /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
 
             // Create the datafield...works the same whether it's for a local or a linked datatype
-            $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin, true);    // Don't flush immediately...
+            $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, true);    // Don't flush immediately...
 
             // Don't need to worry about datafield permissions here, those are taken care of inside createDatafield()
 
@@ -725,7 +722,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Update the cached version of the datatype and its master theme
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
 
             if ( $add_to_linked_datatype ) {
@@ -790,10 +787,10 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $dfi_service */
             $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -855,7 +852,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Not allowed to clone a derived field');
 
             // Several other conditions can prevent copying of a datafield too
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
             $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $old_datafield->getId());
             if ( !$datafield_properties['can_copy'] )
                 throw new ODRBadRequestException('Unable to clone this field');
@@ -918,8 +915,6 @@ class DisplaytemplateController extends ODRCustomController
             $theme_element->addThemeDataField($new_tdf);
             self::persistObject($em, $new_tdf, $user, true);    // Don't flush immediately...
 
-
-            // TODO - can't copy fields with render plugins?  why was that again?
             if ($add_to_linked_datatype) {
                 // When copying to a linked datatype...at this point there's a ThemeDatafield entry
                 //  in the local datatype's copy of the linked datatype's theme.  The new datafield
@@ -972,7 +967,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Updated the cached version of the datatype and the master theme
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
 
             if ( $add_to_linked_datatype ) {
@@ -1069,8 +1064,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1257,7 +1252,7 @@ class DisplaytemplateController extends ODRCustomController
             }
 
             // Update the cached version of this datatype
-            $dti_service->updateDatatypeCacheEntry($parent_datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($parent_datatype, $user);
             // Do the same for the cached version of this theme
             $theme_service->updateThemeCacheEntry($theme, $user);
 
@@ -1477,7 +1472,7 @@ class DisplaytemplateController extends ODRCustomController
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = '';
+        $return['d'] = array();
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1486,10 +1481,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $dfi_service */
             $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1744,8 +1739,6 @@ class DisplaytemplateController extends ODRCustomController
                     // Convert the submitted Form entity into an array of relevant properties
                     // This should only have properties listed in the UpdateDataTypeForm
                     $properties = array(
-//                        'renderPlugin' => $datatype->getRenderPlugin()->getId(),    // Not allowed to change this value through this controller action
-
                         'externalIdField' => null,
                         'nameField' => null,
                         'sortField' => null,
@@ -1776,7 +1769,7 @@ class DisplaytemplateController extends ODRCustomController
 
                     // ----------------------------------------
                     // Update cached version of datatype
-                    $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                    $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
                     // Usually don't need to update cached versions of datarecords, themes, or
                     //  search results as a result of changes to the DatatypeMeta entry...
@@ -1801,21 +1794,19 @@ class DisplaytemplateController extends ODRCustomController
                         // ...changing this field also require updating several more cache entries
                         //  and any pre-rendered graphs, in addition to rebuilding the cached
                         //  datarecord entries
-                        $dti_service->resetDatatypeSortOrder($datatype->getId());
+                        $dbi_service->resetDatatypeSortOrder($datatype->getId());
                     }
 
 
                     // ----------------------------------------
                     // This controller action may have changed whether datafields can be deleted or
                     //  not (changes to other properties may also be possible)
-                    $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());    // do want links here
+                    $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());    // do want links here
                     $datarecord_array = array();
                     $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
                     $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array));
-                    $return['d'] = array(
-                        'datafield_properties' => $datafield_properties
-                    );
+                    $return['d']['datafield_properties'] = $datafield_properties;
 
                     // Any change to the search slug needs to be reflected in the URL, otherwise
                     //  any subsequent attempt to search or view dashboard will immediately throw errors
@@ -1976,7 +1967,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Return the slideout html
                 $templating = $this->get('templating');
-                $return['d'] = $templating->render(
+                $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
                     array(
                         'show_name' => $show_name,
@@ -2075,10 +2066,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $dfi_service */
             $dfi_service = $this->container->get('odr.datafield_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -2131,6 +2122,8 @@ class DisplaytemplateController extends ODRCustomController
 
             // Need to immediately force a reload of the right design slideout if certain fieldtypes change
             $force_slideout_reload = false;
+            // May also need to force a reload of the datafield itself
+            $reload_datafield = false;
             // Only allowed to begin migrating data under specific situations
             $migrate_data = false;
             // Migration to an image field requires a check for image size entities
@@ -2139,7 +2132,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Don't really need this when validating a form, but do need it for rendering one
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
             $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
 
             // TODO - how to handle render plugins demanding that datafields must_be_unique, must_not_allow_multiple_uploads, and must_prevent_user_edits?
@@ -2357,6 +2350,10 @@ class DisplaytemplateController extends ODRCustomController
 
                     // If the fieldtype changed, then ensure several of the properties are cleared
                     if ( $old_fieldtype_id !== $new_fieldtype_id ) {
+                        // While not technically needed 100% of the time, it's easier if the datafield
+                        //  always gets reloaded when the fieldtype gets changed
+                        $reload_datafield = true;
+
                         // Reset a datafield's markdown text if it's not longer a markdown field
                         if ($new_fieldtype_typeclass !== 'Markdown')
                             $submitted_data->setMarkdownText('');
@@ -2421,7 +2418,8 @@ class DisplaytemplateController extends ODRCustomController
                     if ( $has_tag_hierarchy )
                         $submitted_data->setTagsAllowMultipleLevels(true);
 
-                    // If the unique status of the datafield got changed at all, force a slideout reload so the fieldtype will have the correct state
+                    // If the unique status of the datafield got changed at all, force a slideout
+                    //  reload so the fieldtype will have the correct state
                     if ( $datafield->getIsUnique() !== $submitted_data->getIsUnique() )
                         $force_slideout_reload = true;
 
@@ -2430,15 +2428,19 @@ class DisplaytemplateController extends ODRCustomController
                     // If the radio options or tags are now supposed to be sorted by name, ensure
                     //  that happens
                     $sort_radio_options = false;
-                    if ( $datafield->getRadioOptionNameSort() == false && $submitted_data->getRadioOptionNameSort() == true )
+                    if ( $datafield->getRadioOptionNameSort() == false && $submitted_data->getRadioOptionNameSort() == true ) {
                         $sort_radio_options = true;
+
+                        // Also need to reload the datafield so the options show up in the correct
+                        // order on the page
+                        $reload_datafield = true;
+                    }
 
 
                     // ----------------------------------------
                     // Save all changes made via the submitted form
                     $properties = array(
                         'fieldType' => $submitted_data->getFieldType()->getId(),
-//                        'renderPlugin' => $datafield->getRenderPlugin()->getId(),    // Not allowed to change this value through this controller action
 
                         'fieldName' => $submitted_data->getFieldName(),
                         'description' => $submitted_data->getDescription(),
@@ -2490,10 +2492,10 @@ class DisplaytemplateController extends ODRCustomController
 
                     // ----------------------------------------
                     // Mark the datatype as updated
-                    $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                    $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
                     // TODO - when/if sort fields can change their fieldtype, this will be needed
-//                    $dti_service->resetDatatypeSortOrder($datatype->getId());
+//                    $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
                     // Don't need to update cached datarecords or themes
 
@@ -2505,7 +2507,7 @@ class DisplaytemplateController extends ODRCustomController
                     // Don't think that any modifications here can change the result of the
                     //  getDatafieldProperties() call, but the computation is cheap and the array
                     //  entry needs to get recached anyways
-                    $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
+                    $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
                     // Don't need to filter here
                     $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array, $datafield->getId()));
                     $return['d']['datafield_properties'] = $datafield_properties;
@@ -2540,10 +2542,13 @@ class DisplaytemplateController extends ODRCustomController
                 $prevent_fieldtype_change = $ret['prevent_change'];
                 $prevent_fieldtype_change_message = $ret['prevent_change_message'];
 
-                // The return may already have some datafield properties in it, don't want to
+                // The return array may already have some datafield properties in it, don't want to
                 //  completely overwrite...
                 $return['d']['force_slideout_reload'] = $force_slideout_reload;
+                $return['d']['reload_datafield'] = $reload_datafield;
 
+
+                // ----------------------------------------
                 // Render the html for the form
                 $templating = $this->get('templating');
                 $return['d']['html'] = $templating->render(
@@ -2611,7 +2616,8 @@ class DisplaytemplateController extends ODRCustomController
         $results = $query->getResult();
 
         if ( count($results) > 0 ) {
-            // Need to determine the top-level datatype this datafield belongs to, so other background processes won't attempt to render any part of it and disrupt the migration
+            // Need to determine the top-level datatype this datafield belongs to, so other
+            //  background processes won't attempt to render any part of it and disrupt the migration
             $top_level_datatype_id = $datatype->getGrandparent()->getId();
 
 
@@ -3042,8 +3048,8 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -3085,7 +3091,7 @@ if ($debug)
             }
 
             // Updated cached version of datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached datarecords or themes
 
@@ -3125,8 +3131,8 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -3173,7 +3179,7 @@ if ($debug)
             }
 
             // Update cached version of datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached datarecords or themes
 
@@ -3536,8 +3542,8 @@ if ($debug)
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -3558,7 +3564,7 @@ if ($debug)
             // --------------------
 
             // Ensure that the searchable/public_status values have the correct number of datafields
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
             // Generate a csrf token
@@ -3634,8 +3640,8 @@ if ($debug)
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -3660,7 +3666,7 @@ if ($debug)
 
             // ----------------------------------------
             // Ensure that all datafields of this datatype are in the post
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
             // Ensure that the provided datafields match the datatype
@@ -3754,7 +3760,7 @@ if ($debug)
             $em->flush();
 
             // Mark the datatype as updated
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
 
             // ----------------------------------------

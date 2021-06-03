@@ -18,7 +18,8 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use FOS\UserBundle\Doctrine\UserManager;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -31,7 +32,12 @@ class SearchKeyService
 {
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -57,18 +63,21 @@ class SearchKeyService
     /**
      * SearchKeyService constructor.
      *
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatabaseInfoService $database_info_service
+     * @param DataTreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param UserManager $user_manager
      * @param Logger $logger
      */
     public function __construct(
-        DatatypeInfoService $datatype_info_service,
+        DatabaseInfoService $database_info_service,
+        DataTreeInfoService $datatree_info_service,
         SearchService $search_service,
         UserManager $user_manager,
         Logger $logger
     ) {
-        $this->dti_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->user_manager = $user_manager;
 
@@ -415,7 +424,7 @@ class SearchKeyService
 
 
         $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
-        $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype_id, true);
+        $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
 
         $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id);
 
@@ -883,7 +892,7 @@ class SearchKeyService
                         }
                         else {
                             $selections[$item] = 1;
-                        };
+                        }
                     }
 
                     // Whether to combine the selected options/tags by AND or OR...unselected
@@ -1096,11 +1105,11 @@ class SearchKeyService
             throw new ODRBadRequestException('Invalid search key: "template_uuid" is in wrong format', $exception_code);
 
         $template_uuid = $search_params['template_uuid'];
-        $dt = $this->dti_service->getDatatypeFromUniqueId($template_uuid);
+        $dt = $this->dbi_service->getDatatypeFromUniqueId($template_uuid);
         $dt_id = $dt->getId();
 
         $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
-        $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype_id, true);
+        $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype_id, true);
 
         // The template search key isn't supposed to know about any datatypes derived from said
         //  template, so this is an acceptable use of this function
@@ -1604,7 +1613,7 @@ class SearchKeyService
 
         // ----------------------------------------
         // Use the datatype id to load the cached datatype array...
-        $dt_array = $this->dti_service->getDatatypeArray($dt_id);    // may need linked data
+        $dt_array = $this->dbi_service->getDatatypeArray($dt_id);    // may need linked data
         // ...and then extract the relevant datatype/datafield data from it
         $dt_lookup = array();
         $df_lookup = array();

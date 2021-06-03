@@ -32,8 +32,8 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -807,8 +807,8 @@ class DefaultController extends Controller
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
@@ -881,7 +881,7 @@ class DefaultController extends Controller
 
             // Filter out all datafields from the datarecord arrays that the user isn't allowed to see
             // Need to have the actual cached datatype array, otherwise it won't work properly
-            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);
             $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
 
@@ -993,8 +993,8 @@ class DefaultController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1031,7 +1031,7 @@ class DefaultController extends Controller
             else {
                 // Datafield is in advanced search, so it has an HTML element on the sidebar
                 // Need the datafield's array entry in order to re-render it
-                $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 $templating = $this->get('templating');

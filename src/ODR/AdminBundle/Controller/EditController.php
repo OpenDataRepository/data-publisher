@@ -35,7 +35,6 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -44,6 +43,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
@@ -57,8 +57,9 @@ use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
@@ -98,15 +99,17 @@ class EditController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        // NOTE - this seems to only be used for directly creating a new metadata record
+        // NOTE - this seems to only be used for directly creating a new "test record" from the template list
 
         try {
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
@@ -159,11 +162,28 @@ class EditController extends ODRCustomController
             }
 
             // Create a new top-level datarecord
-            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype);
+
+            // This is wrapped in a try/catch block because any uncaught exceptions will abort
+            //  creation of the new datarecord...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordCreatedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
 
             // Datarecord is ready, remove provisioned flag
             $datarecord->setProvisioned(false);
-
             $em->persist($datarecord);
             $em->flush();
 
@@ -175,7 +195,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            $dbi_service->resetDatatypeSortOrder($datatype->getId());
             // Delete all search results that can change
             $search_cache_service->onDatarecordCreate($datatype);
 
@@ -216,10 +236,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
@@ -264,18 +286,39 @@ class EditController extends ODRCustomController
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create a new datarecord...
-            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush until parent/grandparent is set
 
             // Set parent/grandparent properties so this becomes a child datarecord
             $datarecord->setGrandparent($grandparent_datarecord);
             $datarecord->setParent($parent_datarecord);
-
-            // Datarecord is ready, remove provisioned flag
-            $datarecord->setProvisioned(false);
-
             $em->persist($datarecord);
             $em->flush();
 
+            // This is wrapped in a try/catch block because any uncaught exceptions will abort
+            //  creation of the new datarecord...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordCreatedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
+
+            // Datarecord is ready, remove provisioned flag
+            $datarecord->setProvisioned(false);
+            $em->persist($datarecord);
+            $em->flush();
+
+
+            // ----------------------------------------
             // Get edit_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'new_datarecord_id' => $datarecord->getId(),
@@ -287,7 +330,7 @@ class EditController extends ODRCustomController
             $search_cache_service->onDatarecordCreate($datatype);
 
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dti_service->resetDatatypeSortOrder($datatype->getId());
+            $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
             // Refresh the cache entries for the new datarecord's parent
             $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
@@ -689,44 +732,6 @@ class EditController extends ODRCustomController
             $search_cache_service->onDatafieldModify($datafield);
 
 
-            // -----------------------------------
-            // Need to locate and load any render plugins affecting this datafield to determine
-            //  whether one of them is a graph-type plugin...
-            $query = $em->createQuery(
-               'SELECT rp.pluginClassName
-                FROM ODRAdminBundle:RenderPluginMap rpm
-                JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpi.renderPlugin = rp
-                WHERE rpm.dataField = :datafield_id
-                AND rpm.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rp.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafield_id' => $datafield->getId(),
-//                    'plugin_type' => RenderPlugin::DATATYPE_PLUGIN    // TODO - should this be required?
-                )
-            );
-            $results = $query->getArrayResult();
-
-            // Currently, there's going to be at most 2 results in here...one of them being a
-            //  datatype render plugin that uses this datafield, the other being a datafield render
-            //  plugin
-            foreach ($results as $result) {
-                $plugin_classname = $result['pluginClassName'];
-                $plugin = $plugin = $this->get($plugin_classname);
-
-                // If the datafield is being used by a graph-type plugin...
-                if ( $plugin instanceof GraphPluginInterface ) {
-                    // ...then that graph plugin needs to be notified that a file got deleted, so it
-                    //  can delete any cached entries/files it has created based off this file
-
-                    /** @var GraphPluginInterface $plugin */
-                    $plugin->onFileChange($datafield, $file_id);
-
-                    // TODO - refactor to use the dispatched event instead?
-                }
-            }
-
-
             // ----------------------------------------
             // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
             //  event subscribers will prevent file encryption otherwise...
@@ -735,11 +740,15 @@ class EditController extends ODRCustomController
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new FileDeletedEvent($datafield, $datarecord, $user);
+                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
                 $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // TODO - do something here?
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
             }
 
 
@@ -1835,10 +1844,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -2046,7 +2055,7 @@ class EditController extends ODRCustomController
 
                         // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
                         if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $dti_service->resetDatatypeSortOrder($datatype->getId());
+                            $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
                         // Delete any cached search results involving this datafield
                         $search_cache_service->onDatafieldModify($datafield);
@@ -2417,8 +2426,8 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRTabHelperService $odr_tab_service */

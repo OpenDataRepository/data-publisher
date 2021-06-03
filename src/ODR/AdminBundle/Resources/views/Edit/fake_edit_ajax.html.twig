@@ -132,6 +132,7 @@ function SaveAsNew() {
     form_data.datarecord_id = '{{ initial_datarecord_id }}';
     form_data.datafields = {};
     form_data.tokens = {};
+    form_data.special_tokens = {};
 
     // For each datafield on the page...
     $(".ODRDataField").each(function(index, df) {
@@ -226,9 +227,17 @@ function SaveAsNew() {
             }
         });
     });
-    // console.log(form_data);
+
+    // For each special datafield on the page...
+    $(".ODRFakeEdit_autogenerate").each(function(index, df) {
+        var df_id = $(df).attr('rel');
+        var token = $(df).val();
+
+        form_data.special_tokens[df_id] = token;
+    });
 
     // Now that the form data has been built...
+    // console.log(form_data);    return;
     var url  = '{{ path('odr_save_fake_record') }}';
     $.ajax({
         cache: false,

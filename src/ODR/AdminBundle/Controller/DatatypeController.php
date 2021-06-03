@@ -22,8 +22,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -35,9 +36,9 @@ use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -46,6 +47,7 @@ use ODR\AdminBundle\Component\Utility\UserUtility;
 use FOS\UserBundle\Doctrine\UserManager;
 // Symfony
 use Doctrine\ORM\EntityManager;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -63,7 +65,9 @@ class DatatypeController extends ODRCustomController
      *
      * Also updates metadata for all datatypes in the template set.
      *
+     * @param int $datatype_id
      * @param Request $request
+     *
      * @return Response
      */
     public function update_propertiesAction($datatype_id, Request $request)
@@ -268,7 +272,25 @@ class DatatypeController extends ODRCustomController
 
                 if ( count($results) == 0 ) {
                     // A metadata datarecord doesn't exist...create one
-                    $datarecord = $ec_service->createDatarecord($user, $properties_datatype, true);    // don't flush immediately...
+                    $datarecord = $ec_service->createDatarecord($user, $properties_datatype);
+
+                    // This is wrapped in a try/catch block because any uncaught exceptions will abort
+                    //  creation of the new metadata datarecord...
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatarecordCreatedEvent($datarecord, $user);
+                        $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
+                    }
 
                     // Don't need to do anything else to the metadata datarecord, immediately
                     //  remove provisioned flag
@@ -455,8 +477,8 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -614,7 +636,7 @@ class DatatypeController extends ODRCustomController
      * Recalculates the dashboard blurb for a specified datatype.  Caching barely speeds this up.
      *
      * @param EntityManager $em
-     * @param array $datatype_ids
+     * @param array $graph_datatypes
      * @param array $datatype_permissions
      *
      * @return string
@@ -759,8 +781,10 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -840,7 +864,7 @@ class DatatypeController extends ODRCustomController
             // ----------------------------------------
             // Determine how many datarecords the user has the ability to view for each datatype
             $datatype_ids = array_keys($datatypes);
-            $metadata = $dti_service->getDatarecordCounts($datatype_ids, $datatype_permissions);
+            $metadata = $dbi_service->getDatarecordCounts($datatype_ids, $datatype_permissions);
             $datatypes = self::getCorrectedNames($em, $metadata_datatype_ids, $datatypes);
 
             // Get corrected names
@@ -961,8 +985,8 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1049,8 +1073,8 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1153,14 +1177,13 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
 
 
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
             if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
 
@@ -1464,10 +1487,6 @@ class DatatypeController extends ODRCustomController
                     $submitted_data->setDataType($datatype);
                     $submitted_data->setLongName($short_name);
 
-                    /** @var RenderPlugin $default_render_plugin */
-                    $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
-                    $submitted_data->setRenderPlugin($default_render_plugin);
-
                     if ($submitted_data->getDescription() == null)
                         $submitted_data->setDescription('');
 
@@ -1755,8 +1774,8 @@ class DatatypeController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
 
@@ -1823,7 +1842,7 @@ class DatatypeController extends ODRCustomController
             $em->flush();
 
             // Mark the datatype that just got a metadata datatype as updated
-            $dti_service->updateDatatypeCacheEntry($datatype, $admin);
+            $dbi_service->updateDatatypeCacheEntry($datatype, $admin);
 
             // Delete the cached version of the datatree array and the list of top-level datatypes
             $cache_service->delete('cached_datatree_array');
@@ -1864,8 +1883,8 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var CsrfTokenManager $token_generator */
             $token_generator = $this->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */

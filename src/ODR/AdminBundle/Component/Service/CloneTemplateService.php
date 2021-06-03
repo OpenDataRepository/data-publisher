@@ -18,10 +18,9 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
+use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -30,6 +29,7 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Other
@@ -66,7 +66,12 @@ class CloneTemplateService
     private $ct_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -160,42 +165,45 @@ class CloneTemplateService
      * CloneTemplateService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param EntityMetaModifyService $entity_meta_modify_service
      * @param CacheService $cache_service
-     * @param SearchCacheService $search_cache_service
      * @param CloneThemeService $clone_theme_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatabaseInfoService $database_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param EntityCreationService $entity_creation_service
+     * @param EntityMetaModifyService $entity_meta_modify_service
      * @param LockService $lock_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
+     * @param SearchCacheService $search_cache_service
      * @param UUIDService $uuid_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        EntityMetaModifyService $entity_meta_modify_service,
         CacheService $cache_service,
-        SearchCacheService $search_cache_service,
         CloneThemeService $clone_theme_service,
-        DatatypeInfoService $datatype_info_service,
+        DatabaseInfoService $database_info_service,
+        DatatreeInfoService $datatree_info_service,
         EntityCreationService $entity_creation_service,
+        EntityMetaModifyService $entity_meta_modify_service,
         LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
+        SearchCacheService $search_cache_service,
         UUIDService $uuid_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->emm_service = $entity_meta_modify_service;
         $this->cache_service = $cache_service;
-        $this->search_cache_service = $search_cache_service;
         $this->ct_service = $clone_theme_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->ec_service = $entity_creation_service;
+        $this->emm_service = $entity_meta_modify_service;
         $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->ti_service = $theme_info_service;
+        $this->search_cache_service = $search_cache_service;
         $this->uuid_service = $uuid_service;
         $this->logger = $logger;
 
@@ -316,8 +324,9 @@ class CloneTemplateService
         // ----------------------------------------
         // Load, stack, and clean the cached_datatype array for the master template
         $master_datatype = $datatype->getMasterDataType();
-        $template_datatype = $this->dti_service->getDatatypeArray($datatype->getMasterDataType()->getId());
-        $template_datatype[ $master_datatype->getId() ] = $this->dti_service->stackDatatypeArray($template_datatype, $master_datatype->getId());
+
+        $template_datatype = $this->dbi_service->getDatatypeArray($master_datatype->getId());
+        $template_datatype[ $master_datatype->getId() ] = $this->dbi_service->stackDatatypeArray($template_datatype, $master_datatype->getId());
 
         // TODO - stackDatatypeArray() apparently leaves the child/linked datatypes lying around in the stacked array?
         foreach ($template_datatype as $dt_id => $dt) {
@@ -329,8 +338,8 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Load, stack, and clean the cached_datatype array for the derived datatype
-        $derived_datatype = $this->dti_service->getDatatypeArray($datatype->getId());
-        $derived_datatype[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($derived_datatype, $datatype->getId());
+        $derived_datatype = $this->dbi_service->getDatatypeArray($datatype->getId());
+        $derived_datatype[ $datatype->getId() ] = $this->dbi_service->stackDatatypeArray($derived_datatype, $datatype->getId());
 
         // TODO - stackDatatypeArray() apparently leaves the child/linked datatypes lying around in the stacked array?
         foreach ($derived_datatype as $dt_id => $dt) {
@@ -395,7 +404,6 @@ class CloneTemplateService
 //            'backgroundImageField' => 1,
 //            'metadataNameField' => 1,
 //            'metadataDescField' => 1,
-//            'renderPlugin' => 1,
         );
 
         // NOTE - derived datatypes don't really have much of a reason to change external_id/name/sort
@@ -936,14 +944,7 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Need to get a list of all top-level datatypes associated with the master template
-        // TODO - this looks weird...
-        $template_grandparents = $this->cache_service->get('associated_datatypes_for_'.$master_datatype->getId());
-        if ($template_grandparents == false) {
-            $template_grandparents = $this->dti_service->getAssociatedDatatypes( array($master_datatype->getId()) );
-
-            // Save the list of associated datatypes back into the cache
-            $this->cache_service->set('associated_datatypes_for_'.$master_datatype->getId(), $template_grandparents);
-        }
+        $template_grandparents = $this->dti_service->getAssociatedDatatypes($master_datatype->getId());
 
         // Convert the arrays of datatype/datafield/radio option ids into a format for querying
         $query_datatypes = array_keys($this->template_datatypes);
@@ -966,14 +967,16 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Also need to get a list of all top-level datatypes associated with the derived datatype
-        // TODO - this looks weird...
-        $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
-        if ($derived_grandparents == false) {
-            $derived_grandparents = $this->dti_service->getAssociatedDatatypes( array($datatype->getId()) );
+        $derived_grandparents = $this->dti_service->getAssociatedDatatypes($datatype->getId());
 
-            // Save the list of associated datatypes back into the cache
-            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $derived_grandparents);
-        }
+//        // TODO - this looks weird...
+//        $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
+//        if ($derived_grandparents == false) {
+//            $derived_grandparents = $this->dbi_service->getAssociatedDatatypes( array($datatype->getId()) );
+//
+//            // Save the list of associated datatypes back into the cache
+//            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $derived_grandparents);
+//        }
 
 
         // Convert the arrays of datatype/datafield/radio option ids into a format for querying
@@ -1603,8 +1606,8 @@ class CloneTemplateService
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> created ImageSize entries for new datafield "'.$new_df->getFieldName().'" (dt '.$derived_datatype->getId().')' );
                     }
 
-                    // Copy the render plugin for the newly created datafield, if it exists
-                    self::cloneRenderPluginSettings($indent_text, $user, $master_df->getRenderPlugin(), null, $new_df);
+                    // Clone all render plugins for the newly created datafield
+                    self::cloneRenderPlugins($indent_text, $user, null, $new_df);
                 }
 
                 $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();
@@ -2076,10 +2079,10 @@ class CloneTemplateService
 
                 if ( $datatype_was_created ) {
                     // If a datatype was created earlier, then it needs to also check for render
-                    //  plugin and the external_id/name/sort/etc fields...this couldn't be done
-                    //  before because the datafields didn't exist until after self::syncDatatype()
-                    //  was called
-                    self::cloneRenderPluginSettings($indent_text, $user, $master_datatype->getRenderPlugin(), $derived_child_datatype, null);
+                    //  plugin and the external_id/name/sort/etc fields...this can't be done earlier
+                    //  because the datafields don't exist until after self::syncDatatype() gets
+                    //  called
+                    self::cloneRenderPlugins($indent_text, $user, $derived_child_datatype, null);
 
                     // Need to set external_id/name/sort/etc fields for the new datatype...
                     $child_properties = array();
@@ -2124,77 +2127,102 @@ class CloneTemplateService
      *
      * @param string $indent_text
      * @param ODRUser $user
-     * @param RenderPlugin|null $parent_render_plugin
-     * @param DataType|null $datatype
-     * @param DataFields|null $datafield
+     * @param DataType|null $derived_datatype
+     * @param DataFields|null $derived_datafield
      */
-    private function cloneRenderPluginSettings($indent_text, $user, $parent_render_plugin, $datatype = null, $datafield = null)
+    private function cloneRenderPlugins($indent_text, $user, $derived_datatype, $derived_datafield)
     {
-        // Don't need to clone anything if using the default render plugin
-        if ( is_null($parent_render_plugin) || $parent_render_plugin->getPluginClassName() == 'odr_plugins.base.default')
-            return;
+        // Need to have either a datatype or a datafield...
+        if ( is_null($derived_datatype) && is_null($derived_datafield) )
+            throw new ODRException('CloneTemplateService::cloneRenderPlugins() needs either a null datatype or a null datafield, but was called with both being null');
+        if ( !is_null($derived_datatype) && !is_null($derived_datafield) )
+            throw new ODRException('CloneTemplateService::cloneRenderPlugins() needs either a null datatype or a null datafield, but was called with both being non-null');
 
-        $repo_rpi = $this->em->getRepository('ODRAdminBundle:RenderPluginInstance');
-        $parent_rpi = null;
 
-        if ( !is_null($datatype) ) {
-            $master_datatype = $datatype->getMasterDataType();
+        if ( !is_null($derived_datatype) ) {
+            $master_datatype = $derived_datatype->getMasterDataType();
 
-            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> attempting to clone settings for render plugin '.$parent_render_plugin->getId().' "'.$parent_render_plugin->getPluginName().'" in use by master datatype '.$master_datatype->getId());
-            $parent_rpi = $repo_rpi->findOneBy( array('dataType' => $master_datatype->getId(), 'renderPlugin' => $parent_render_plugin->getId()) );
+            // If the master datatype has a render plugin...
+            foreach ($master_datatype->getRenderPluginInstances() as $master_rpi) {
+                /** @var RenderPluginInstance $master_rpi */
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datatype '.$master_datatype->getId());
 
-            // Since self::createChildDatatype() or self::createLinkedDatatype() don't clone their
-            //  parents, the derived datatype needs to set the render plugin its template has defined
-            $properties['renderPlugin'] = $parent_render_plugin->getId();
-            $this->emm_service->updateDatatypeMeta($user, $datatype, $properties, true);
+                // Clone the renderPluginInstance
+                $new_rpi = clone $master_rpi;
+                $new_rpi->setDataType($derived_datatype);
+                $new_rpi->setDataField(null);
+
+                self::persistObject($new_rpi, $user, true);    // don't flush immediately...
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$master_rpi->getId());
+
+                // Clone the renderPluginFields and renderPluginOptions mappings
+                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, $derived_datatype, null);
+            }
         }
         else {
-            $master_datafield = $datafield->getMasterDataField();
+            $master_datafield = $derived_datafield->getMasterDataField();
 
-            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> attempting to clone settings for render plugin '.$parent_render_plugin->getId().' "'.$parent_render_plugin->getPluginName().'" in use by master datafield '.$master_datafield->getId());
-            $parent_rpi = $repo_rpi->findOneBy( array('dataField' => $master_datafield->getId(), 'renderPlugin' => $parent_render_plugin->getId()) );
+            // If the master datafield has a render plugin...
+            foreach ($master_datafield->getRenderPluginInstances() as $master_rpi) {
+                /** @var RenderPluginInstance $master_rpi */
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datafield '.$master_datafield->getId());
 
-            // The datafield was cloned, so don't need to set render plugin here
+                // Clone the renderPluginInstance
+                $new_rpi = clone $master_rpi;
+                $new_rpi->setDataType(null);
+                $new_rpi->setDataField($derived_datafield);
+
+                self::persistObject($new_rpi, $user, true);    // don't flush immediately...
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$master_rpi->getId());
+
+                // Clone the renderPluginFields and renderPluginOptions mappings
+                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, null, $derived_datafield);
+            }
         }
-        /** @var RenderPluginInstance $parent_rpi */
+    }
 
-        if ( !is_null($parent_rpi) ) {
-            // If the parent datatype/datafield is using a render plugin, then clone that instance
-            $new_rpi = clone $parent_rpi;
-            $new_rpi->setDataType($datatype);
-            $new_rpi->setDataField($datafield);
 
-            self::persistObject($new_rpi, $user, true);
-            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$parent_rpi->getId());
+    /**
+     * Clones the renderPluginOptionsMap and renderPlugin(Field)Map entries from the given master
+     * renderPluginInstance into the given derived renderPluginInstance.
+     *
+     * @param string $indent_text
+     * @param ODRUser $user
+     * @param RenderPluginInstance $master_rpi
+     * @param RenderPluginInstance $derived_rpi
+     * @param DataType|null $derived_datatype
+     * @param DataFields|null $derived_datafield
+     */
+    private function cloneRenderPluginSettings($indent_text, $user, $master_rpi, $derived_rpi, $derived_datatype, $derived_datafield)
+    {
+        // Clone each option mapping defined for this renderPluginInstance
+        /** @var RenderPluginOptionsMap[] $parent_rpom_array */
+        $parent_rpom_array = $master_rpi->getRenderPluginOptionsMap();
+        foreach ($parent_rpom_array as $parent_rpom) {
+            $new_rpom = clone $parent_rpom;
+            $new_rpom->setRenderPluginInstance($derived_rpi);
+            self::persistObject($new_rpom, $user, true);    // don't flush immediately...
 
-            // Clone each option for this instance of the render plugin
-            /** @var RenderPluginOptions[] $parent_rpo_array */
-            $parent_rpo_array = $parent_rpi->getRenderPluginOptions();
-            foreach ($parent_rpo_array as $parent_rpo) {
-                $new_rpo = clone $parent_rpo;
-                $new_rpo->setRenderPluginInstance($new_rpi);
-                self::persistObject($new_rpo, $user, true);    // These don't need to be flushed/refreshed immediately...
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_option_map '.$parent_rpom->getId().' "'.$parent_rpom->getRenderPluginOptionsDef()->getDisplayName().'" => "'.$parent_rpom->getValue().'"');
+        }
 
-                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_option '.$parent_rpo->getId().' "'.$parent_rpo->getOptionName().'" => "'.$parent_rpo->getOptionValue().'"');
-            }
+        // Clone each field mapping defined for this renderPluginInstance
+        /** @var RenderPluginMap[] $parent_rpfm_array */
+        $parent_rpfm_array = $master_rpi->getRenderPluginMap();
+        foreach ($parent_rpfm_array as $parent_rpfm) {
+            $new_rpfm = clone $parent_rpfm;
+            $new_rpfm->setRenderPluginInstance($derived_rpi);
 
-            // Clone each datafield that's being used by this instance of the render plugin
-            /** @var RenderPluginMap[] $parent_rpm_array */
-            $parent_rpm_array = $parent_rpi->getRenderPluginMap();
-            foreach ($parent_rpm_array as $parent_rpm) {
-                $new_rpm = clone $parent_rpm;
-                $new_rpm->setRenderPluginInstance($new_rpi);
+            if ( !is_null($derived_datatype) )
+                $new_rpfm->setDataType($derived_datatype);       // TODO - if null, then a datafield plugin...but why does it work like that in the first place again?
 
-                if ( !is_null($datatype) )
-                    $new_rpm->setDataType($datatype);       // TODO - if null, then a datafield plugin...but why does it work like that in the first place again?
-                // Find the analogous datafield in the new (cloned) datatype
-                /** @var DataFields $matching_df */
-                $matching_df = $this->created_datafields[ $parent_rpm->getDataField()->getId() ];
-                $new_rpm->setDataField($matching_df);
+            // Find the analogous datafield in the derived datatype
+            /** @var DataFields $matching_df */
+            $matching_df = $this->created_datafields[ $parent_rpfm->getDataField()->getId() ];
+            $new_rpfm->setDataField($matching_df);
 
-                self::persistObject($new_rpm, $user, true);    // These don't need to be flushed/refreshed immediately...
-                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpm->getId().' for render_plugin_field "'.$parent_rpm->getRenderPluginFields()->getFieldName().'"');
-            }
+            self::persistObject($new_rpfm, $user, true);    // These don't need to be flushed/refreshed immediately...
+            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'"');
         }
     }
 
@@ -2279,7 +2307,7 @@ class CloneTemplateService
             $properties['sortField'] = null;
 
             // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-            $this->dti_service->resetDatatypeSortOrder($derived_dt->getId());
+            $this->dbi_service->resetDatatypeSortOrder($derived_dt->getId());
         }
         else
             unset( $properties['sortField'] );

@@ -122,6 +122,48 @@ class DatatreeInfoService
 
 
     /**
+     * Returns an array of top-level datatype ids.
+     *
+     * @return int[]
+     */
+    public function getTopLevelDatatypes()
+    {
+        // ----------------------------------------
+        // If list of top level datatypes exists in cache, return that
+        $top_level_datatypes = $this->cache_service->get('top_level_datatypes');
+        if ( $top_level_datatypes !== false && count($top_level_datatypes) > 0 )
+            return $top_level_datatypes;
+
+
+        // ----------------------------------------
+        // Otherwise, rebuild the list of top-level datatypes
+        // TODO - enforce dt.is_master_type = 0  here?
+        // TODO - cut out metadata datatypes from this?
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS datatype_id
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
+            WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
+            AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
+        $results = $query->getArrayResult();
+
+        // AND dt.metadataFor IS NULL
+        $top_level_datatypes = array();
+        foreach ($results as $result)
+            $top_level_datatypes[] = $result['datatype_id'];
+
+
+        // ----------------------------------------
+        // Store the list in the cache and return
+        $this->cache_service->set('top_level_datatypes', $top_level_datatypes);
+        return $top_level_datatypes;
+    }
+
+    // TODO - create something to return top-level templates?
+
+
+    /**
      * Given the id of a top-level datatype, returns the ids of all other top-level datatypes that
      * need to have their cache entries loaded so that the original top-level datatype can get
      * rendered.
@@ -132,7 +174,6 @@ class DatatreeInfoService
      */
     public function getAssociatedDatatypes($top_level_datatype_id)
     {
-
         // Need to locate all linked datatypes for the provided datatype
         $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$top_level_datatype_id);
         if ($associated_datatypes == false) {

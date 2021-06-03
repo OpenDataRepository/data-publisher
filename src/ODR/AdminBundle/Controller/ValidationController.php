@@ -30,7 +30,6 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -43,7 +42,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -383,7 +382,6 @@ class ValidationController extends ODRCustomController
 
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 //            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -393,8 +391,6 @@ class ValidationController extends ODRCustomController
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            /** @var RenderPlugin $default_render_plugin */
-            $default_render_plugin = $repo_render_plugin->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
             /** @var FieldType $default_fieldtype */
             $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
 
@@ -439,7 +435,6 @@ class ValidationController extends ODRCustomController
                     $dfm = new DataFieldsMeta();
                     $dfm->setDataField($df);
                     $dfm->setFieldType($default_fieldtype);
-                    $dfm->setRenderPlugin($default_render_plugin);
 
                     $dfm->setMasterRevision(0);
                     $dfm->setTrackingMasterRevision(0);
@@ -568,7 +563,6 @@ class ValidationController extends ODRCustomController
 
                     $dtm = new DataTypeMeta();
                     $dtm->setDataType($dt);
-                    $dtm->setRenderPlugin($default_render_plugin);
 
                     $dtm->setSearchSlug($dt->getUniqueId());
                     $dtm->setShortName("New Datatype");
@@ -1241,6 +1235,7 @@ class ValidationController extends ODRCustomController
                         $dt_cache[$descendant_id] = $repo_datatype->find($descendant_id);
                 }
             }
+            /** @var DataType[] $dt_cache */
 
             $new_dts = array();
             foreach ($extra_ancestors as $ancestor_id => $tmp) {
@@ -1661,8 +1656,8 @@ class ValidationController extends ODRCustomController
             'DataRecord',
             'Group',
             'GroupDatatypePermissions',
-            'RenderPluginInstance',
-            'RenderPluginMap',
+//            'RenderPluginInstance',
+//            'RenderPluginMap',
         );
         print "The process of deleting datatypes currently ignores these entities...\n";
         foreach ($datatype_entities as $key => $classname) {
@@ -1780,6 +1775,7 @@ class ValidationController extends ODRCustomController
      * Finds and reports datatypes that don't have a master theme...most likely going to be caused
      * by a critical error during their creation...
      *
+     * @param int $check_top_level
      * @param Request $request
      *
      * @return Response
@@ -2519,8 +2515,8 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $site_baseurl = $this->getParameter('site_baseurl');
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -2543,8 +2539,8 @@ class ValidationController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Load the array version of both datatypes
-            $left = $dti_service->getDatatypeArray($left_datatype->getId());
-            $right = $dti_service->getDatatypeArray($right_datatype->getId());
+            $left = $dbi_service->getDatatypeArray($left_datatype->getId());
+            $right = $dbi_service->getDatatypeArray($right_datatype->getId());
 
             // Get rid of the masterDataType and masterDataField entries since they cause mis-alignments
             self::inflateTemplateInfo($left);
@@ -2598,7 +2594,7 @@ class ValidationController extends ODRCustomController
     /**
      * Adds entries to masterDataType and masterDataField properties so they line up better
      *
-     * @param array &$array @see DatatypeInfoService::buildDatatypeData()
+     * @param array &$array @see DatabaseInfoService::buildDatatypeData()
      */
     private function inflateTemplateInfo(&$array)
     {

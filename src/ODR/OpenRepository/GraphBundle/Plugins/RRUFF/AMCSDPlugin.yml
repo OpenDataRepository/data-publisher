@@ -2,14 +2,19 @@ odr_plugins.rruff.amcsd:
     name: AMCSD Plugin
     category: RRUFF
     datatype: true
-    version: 1.0.0
+    render: true
+    version: 1.1.0
     override_fields: true
     override_child: false
     description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
+    registered_events:
+        DatarecordCreatedEvent: onDatarecordCreate
+        FileDeletedEvent: onFileDeleted
+        FilePreEncryptEvent: onFilePreEncrypt
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
-    # AMCSDPlugin.php, AMCSDFileEventSubscriber.php, and twig files for this plugin use them to match renderplugin fields to actual datafields
+    # AMCSDPlugin.php and twig files for this plugin use them to match renderplugin fields to actual datafields
     # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
     #####################
 

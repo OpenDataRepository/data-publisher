@@ -13,20 +13,23 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
-// Interfaces
-use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
-// ODR
-use ODR\AdminBundle\Component\Service\CryptoService;
+// Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
+// Events
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
+use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
+// Services
+use ODR\AdminBundle\Component\Service\CryptoService;
+// ODR
+use ODR\AdminBundle\Entity\RenderPluginMap;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
 
 
-class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
+class GraphPlugin implements DatatypePluginInterface
 {
 
     /**
@@ -50,7 +53,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
-     * @param $odr_web_directory
+     * @param string $odr_web_directory
      */
     public function __construct(EngineInterface $templating, CryptoService $crypto_service, $odr_web_directory)
     {
@@ -63,13 +66,13 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
     /**
      * Returns whether the plugin can be executed in the current context.
      *
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin, $datatype, $rendering_options)
+    public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // This render plugin isn't allowed to work when in edit mode
         if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
@@ -84,7 +87,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
      *
      * @param array $datarecords
      * @param array $datatype
-     * @param array $render_plugin
+     * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
@@ -95,49 +98,30 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
 
         try {
             // ----------------------------------------
-            // Grab various properties from the render plugin array
-            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
-            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
-            $render_plugin_options = $render_plugin_instance['renderPluginOptions'];
-
-            // Remap render plugin by name => value
-            $max_option_date = 0;
-            $options = array();
-            foreach ($render_plugin_options as $option) {
-                if ( $option['active'] == 1 ) {
-                    $option_date = new \DateTime($option['updated']->date);
-                    $us = $option_date->format('u');
-                    $epoch = strtotime($option['updated']->date) * 1000000;
-                    $epoch = $epoch + $us;
-                    if ($epoch > $max_option_date)
-                        $max_option_date = $epoch;
-
-                    $options[$option['optionName']] = $option['optionValue'];
-                }
-            }
+            // Extract various properties from the render plugin array
+            $fields = $render_plugin_instance['renderPluginMap'];
+            $options = $render_plugin_instance['renderPluginOptionsMap'];
 
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
-            foreach ($render_plugin_map as $rpm) {
-                // Get the entities connected by the render_plugin_map entity??
-                $rpf = $rpm['renderPluginFields'];
-                $df_id = $rpm['dataField']['id'];
+            foreach ($fields as $rpf_name => $rpf_df) {
+                // Need to find the real datafield entry in the primary datatype array
+                $rpf_df_id = $rpf_df['id'];
 
                 $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
-                    $df = $datatype['dataFields'][$df_id];
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
+                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                 // Grab the field name specified in the plugin's config file to use as an array key
-                $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
-
+                $key = strtolower( str_replace(' ', '_', $rpf_name) );
                 $datafield_mapping[$key] = array('datafield' => $df);
             }
 
@@ -156,7 +140,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                 $legend_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
 
                 $entity = array();
-                if(isset($dr['dataRecordFields'][$legend_datafield_id])) {
+                if ( isset($dr['dataRecordFields'][$legend_datafield_id]) ) {
 
                     $drf = $dr['dataRecordFields'][$legend_datafield_id];
                     switch ($legend_datafield_typeclass) {
@@ -187,7 +171,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                             break;
 
                         default:
-                            throw new \Exception('Invalid Fieldtype for legend_field');
+                            throw new \Exception('Invalid Fieldtype for pivot_field');
                             break;
                     }
 
@@ -251,10 +235,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
 
 
                         // This filename must remain predictable
-                        // TODO - Long term the UUID should be saved to database
-                        // whenever a new chart is created.  This UUID should be unique
-                        // to each file version to prevent scraping of data.
-                        $filename = 'Chart__' . $file['id'] . '_' . $max_option_date . '.svg';
+                        $filename = 'Chart__' . $file['id'] . '__' . $graph_datafield_id . '.svg';
                         $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/'.$datatype_folder.$filename;
                     }
                 }
@@ -278,7 +259,9 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
             // Generate the rollup chart ID for the page chart object
             $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
             $odr_chart_id = str_replace("-","_", $odr_chart_id);
-            $filename = 'Chart__' . $file_id_list. '_' . $max_option_date . '.svg';
+
+            $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
+            $filename = 'Chart__' . $file_id_list. '__' . $graph_datafield_id . '.svg';
 
             // Add a rollup chart
             $odr_chart_ids['rollup'] = $odr_chart_id;
@@ -306,7 +289,6 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                 'display_graph' => $display_graph,
 
                 // Options for graph display
-                'render_plugin' => $render_plugin,
                 'plugin_options' => $options,
 
                 // All of these are indexed by datarecord id
@@ -333,7 +315,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                         $graph_filename = $odr_chart_output_files[$rendering_options['datarecord_id']];
                     }
                     else {
-                        throw new \Exception('Target data record id not set.');
+                        throw new \Exception('Target datarecord id not set.');
                     }
                 }
 
@@ -345,7 +327,6 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                 }
                 else {
                     // In this case, we should be building a single graph (either rollup or individual datarecord)
-
                     $files_to_delete = array();
                     if ( isset($options['use_rollup']) && $options['use_rollup'] == "yes" ) {
                         // For each of the files that will be used in the graph...
@@ -402,7 +383,8 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                         $page_data['odr_chart_file_ids'] = array($file['id']);
                         $page_data['odr_chart_files'] = array($dr_id => $file);
 
-                        $filename = 'Chart__'.$file['id'].'_'.$max_option_date.'.svg';
+                        $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
+                        $filename = 'Chart__'.$file['id'].'__'.$graph_datafield_id.'.svg';
                     }
 
                     // Pre-rendered graph file does not exist...need to create it
@@ -608,45 +590,54 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
 
 
     /**
-     * Called when a user removes a specific instance of this render plugin
+     * Called when a user changes RenderPluginOptions or RenderPluginMaps entries for this plugin.
      *
-     * @param RenderPluginInstance $render_plugin_instance
+     * @param PluginOptionsChangedEvent $event
      */
-    public function onRemoval($render_plugin_instance)
+    public function onPluginOptionsChanged(PluginOptionsChangedEvent $event)
     {
-        // This plugin doesn't need to do anything here
-        // TODO - make this plugin delete cached graphs on removal?
-        return;
+        // NOTE - $event->getRenderPluginInstance()->getDataField() returns null, because this is a
+        //  datatype plugin...have to use a roundabout method to get the correct datafield
+        $plugin_df = null;
+        foreach ($event->getRenderPluginInstance()->getRenderPluginMap() as $rpm) {
+            /** @var RenderPluginMap $rpm */
+            if ($rpm->getRenderPluginFields()->getFieldName() === "Graph File")
+                $plugin_df = $rpm->getDataField();
+        }
+
+        self::deleteCachedGraphs(0, $plugin_df);
     }
 
 
     /**
-     * Called when a user changes a mapped field or an option for this render plugin
-     * TODO - pass in which field mappings and/or plugin options got changed?
+     * Handles when a file is deleted from a datafield that's using this plugin.
      *
-     * @param RenderPluginInstance $render_plugin_instance
+     * @param FileDeletedEvent $event
      */
-    public function onSettingsChange($render_plugin_instance)
+    public function onFileDelete(FileDeletedEvent $event)
     {
-        // This plugin doesn't need to do anything here
-        // TODO - make this plugin delete cached graphs on settings change?  right now, changing an option ends up changing the filename for the cached graph...
-        return;
+        self::deleteCachedGraphs($event->getFileId(), $event->getDatafield());
     }
 
 
     /**
-     * Called when a file used by this render plugin is replaced or deleted.
+     * Locates and deletes cached graph images referencing this file
      *
-     * This might change in the future, but at the moment...the only relevant render plugin uses
-     * the file id as part of the cache entry filename.
-     *
-     * @param DataFields $datafield
      * @param int $file_id
+     * @param DataFields $datafield
      */
-    public function onFileChange($datafield, $file_id)
+    private function deleteCachedGraphs($file_id, $datafield)
     {
-        // Filenames of cached graphs have the ids of all the files that were read to create them
-        $filename_fragment = '_'.$file_id.'_';
+        // Need to try to locate the filenames on the server
+        $filename_fragment = '';
+        if ($file_id !== 0) {
+            // If a file_id was passed in, then attempt to find graphs that use just that file
+            $filename_fragment = '_'.$file_id.'_';
+        }
+        else {
+            // If a file_id wasn't passed in, then attempt to find all graphs for the given datafield
+            $filename_fragment = '__'.$datafield->getId().'.svg';
+        }
 
         // Graphs are organized into subdirectories by datatype id
         $datatype_id = $datafield->getDataType()->getId();

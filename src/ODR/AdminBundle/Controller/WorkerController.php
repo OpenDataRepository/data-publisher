@@ -983,7 +983,7 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
-            $redis = $this->container->get('snc_redis.default');;
+            $redis = $this->container->get('snc_redis.default');
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');

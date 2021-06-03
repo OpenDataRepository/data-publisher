@@ -32,7 +32,8 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
@@ -60,8 +61,10 @@ class RemoteController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -110,7 +113,7 @@ class RemoteController extends Controller
             }
 
             // Also need the counts of the public datarecords
-            $metadata = $dti_service->getDatarecordCounts($top_level_datatypes, $datatype_permissions);
+            $metadata = $dbi_service->getDatarecordCounts($top_level_datatypes, $datatype_permissions);
 
 
             // ----------------------------------------
@@ -166,8 +169,8 @@ class RemoteController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
 //            $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchService $search_service */
@@ -227,7 +230,7 @@ class RemoteController extends Controller
             }
 
             // The list above only has datafield ids and typeclasses...need name/description info too
-            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);    // don't want links
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // don't want links
 
 
             // ----------------------------------------
@@ -293,8 +296,9 @@ class RemoteController extends Controller
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -313,14 +317,14 @@ class RemoteController extends Controller
 
 
             // --------------------
-            /** @var ODRUser $user */
+//            /** @var ODRUser $user */
 //            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             // Don't actually care about the user here, only displaying public datatypes/datafields
             // --------------------
 
 
             // Need the datafield info
-            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);    // don't want links
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // don't want links
 
             // Verify that the provided datafields are searchable and public
             $datafields = array();
@@ -389,6 +393,8 @@ class RemoteController extends Controller
      *
      * @param bool $minified
      * @param Request $request
+     *
+     * @return Response
      */
     public function downloadAction($minified, Request $request)
     {

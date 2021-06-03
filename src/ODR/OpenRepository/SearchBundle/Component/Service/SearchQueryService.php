@@ -41,7 +41,7 @@ class SearchQueryService
     /**
      * SearchQueryService constructor.
      *
-     * @param EntityManager $entityManager
+     * @param EntityManager $entity_manager
      * @param Logger $logger
      */
     public function __construct(

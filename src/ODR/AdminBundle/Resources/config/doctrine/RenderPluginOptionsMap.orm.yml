@@ -1,0 +1,78 @@
+ODR\AdminBundle\Entity\RenderPluginOptionsMap:
+    type: entity
+    table: odr_render_plugin_options_map
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        value:
+            type: text
+            fixed: false
+            nullable: true
+            column: value
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        renderPluginInstance:
+            targetEntity: RenderPluginInstance
+            cascade: { }
+            mappedBy: null
+            inversedBy: renderPluginOptionsMap
+            joinColumns:
+                render_plugin_instance_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        renderPluginOptionsDef:
+            targetEntity: RenderPluginOptionsDef    # TODO - change to RenderPluginOptions
+            cascade: {  }
+            mappedBy: null
+            inversedBy: renderPluginOptionsMap
+            joinColumns:
+                render_plugin_options_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

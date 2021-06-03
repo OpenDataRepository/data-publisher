@@ -60,11 +60,6 @@
 
                     // Resize ODRFileDownloadModal to take up full height
                     resetRemodalInnerHeight();
-
-                    // Setup submit handler
-                    $('#ODRRenderPluginFormSubmit').unbind('click').click(function() {
-                        submitRenderPluginForm();
-                    });
                 });
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -102,7 +97,6 @@
             data: data,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                // Ensure that render plugin info doesn't get screwed up if user modifies some other datafield or datatype property after setting render plugin
                 var datafield_id = data.d.datafield_id;
                 var datatype_id = data.d.datatype_id;
 
@@ -120,14 +114,8 @@
                         ReloadChild(datatype_id);
                     }
                     else {
-                        // Don't technically need to reload the page...but ensure the datatype
-                        //  properties are kept up to date
-                        datatype_properties[datatype_id].render_plugin_id = data.d.render_plugin_id;
-                        datatype_properties[datatype_id].render_plugin_name = data.d.render_plugin_name;
-                        datatype_properties[datatype_id].render_plugin_classname = data.d.render_plugin_classname;
-                        // console.log('datatype ' + datatype_id, datatype_properties[datatype_id]);
-
-                        // Do the same thing for the datafield properties
+                        // Don't want to reload the page...but need to ensure the javascript array
+                        //  of datafield properties is kept up to date
                         var tmp = data.d.datafield_properties;
                         tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
                         $.each(tmp, function(df_id, df_props) {
@@ -135,11 +123,14 @@
                         });
                         // console.log('datafield properties', datafield_properties);
 
+                        // The javascript array of datatype properties won't have changed, but the
+                        //  left panel should get reset just in case
                         RenderToolSet(datatype_id, 'datatype');
                     }
                 }
 
                 closeODRRemodal();
+                notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

@@ -29,8 +29,9 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
@@ -250,8 +251,10 @@ class CSVExportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchRedirectService $search_redirect_service */
@@ -357,7 +360,7 @@ class CSVExportController extends ODRCustomController
             $datatree_array = $dti_service->getDatatreeArray();
             $valid_csv_export_datatypes = self::getValidCSVExportDatatypes($datatree_array, $datatype->getId());
 
-            $dt_array = $dti_service->getDatatypeArray($datatype->getId(), true);    // may need linked datatypes
+            $dt_array = $dbi_service->getDatatypeArray($datatype->getId(), true);    // may need linked datatypes
             $df_mapping = array();
 
             foreach ($datafields as $num => $df_id) {
@@ -506,7 +509,7 @@ class CSVExportController extends ODRCustomController
      * Required because CSV format can't really describe multiple child/linked records in a single
      * sheet in a single file.
      *
-     * @param array $datatree_array @see DatatypeInfoService::getDatatreeArray()
+     * @param array $datatree_array @see DatatreeInfoService::getDatatreeArray()
      * @param int $top_level_datatype_id
      *
      * @return array
@@ -632,8 +635,9 @@ class CSVExportController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var TagHelperService $th_service */
@@ -664,7 +668,7 @@ class CSVExportController extends ODRCustomController
 
             // ----------------------------------
             // Gather basic info about all datafields prior to actually loading data
-            $dt_array = $dti_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
             $flipped_datafields = array_flip($datafields);
             $df_mapping = array();
 
@@ -954,7 +958,7 @@ class CSVExportController extends ODRCustomController
      *
      * @param array $datarecord_data
      * @param array $dr_array @see DatarecordInfoService::getDatarecordArray()
-     * @param array $dt_array @see DatatypeInfoService::getDatatypeArray()
+     * @param array $dt_array @see DatabaseInfoService::getDatatypeArray()
      * @param array $tag_hierarchy @see TagHelperService::getTagHierarchy()
      * @param array $df_list An array of the ids of all tag datafields being exported
      * @param string $tag_hierarchy_delimiter

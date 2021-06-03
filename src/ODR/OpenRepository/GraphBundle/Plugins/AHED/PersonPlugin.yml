@@ -2,10 +2,12 @@ odr_plugins.ahed.person:
     name: Person Plugin
     category: AHED
     datatype: true
-    version: 1.0.1
+    render: false
+    version: 1.1.0
     override_fields: false
     override_child: false
     description: The Person plugin provides the basic framework for storing metadata about a person.
+    registered_events:
     required_fields:
         first_name:
             name: First Name

@@ -17,11 +17,8 @@ namespace ODR\AdminBundle\Controller;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -33,15 +30,14 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
-use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -767,8 +763,10 @@ class LinkController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -949,7 +947,7 @@ class LinkController extends ODRCustomController
 
                 // ----------------------------------------
                 // Mark the ancestor datatype as has having been updated
-                $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
+                $dbi_service->updateDatatypeCacheEntry($local_datatype, $user);
                 // Mark the ancestor datatype's theme as having been updated
                 $theme_service->updateThemeCacheEntry($theme, $user);
                 // Also delete the list of top-level themes, just incase...
@@ -1004,7 +1002,7 @@ class LinkController extends ODRCustomController
 
                 // ----------------------------------------
                 // Mark the ancestor datatype has having been updated
-                $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
+                $dbi_service->updateDatatypeCacheEntry($local_datatype, $user);
                 // Mark the the ancestor datatype's master theme as updated
                 $theme_service->updateThemeCacheEntry($theme, $user);
                 // Also delete the list of top-level themes, just incase...
@@ -1017,7 +1015,7 @@ class LinkController extends ODRCustomController
 
             // Regardless of whether something got linked or unlinked, the cache entry
             //  'associated_datatypes_for_<dt_id>' only relies on the local datatype...
-            $dti_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
+            $dbi_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
             // ...and the cache entry 'cached_search_dt_<dt_id>_linked_dr_parents' only depends
             //  on the remote datatype
             $search_cache_service->onLinkStatusChange($remote_datatype);

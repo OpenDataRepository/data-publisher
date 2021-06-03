@@ -50,9 +50,9 @@ class TagHelperService
     /**
      * TagHelperService constructor.
      *
-     * @param EntityManager $em
+     * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param CsrfTokenManager $csrfTokenManager
+     * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
     public function __construct(
@@ -225,7 +225,7 @@ class TagHelperService
 
 
     /**
-     * Stacks tags in a manner similar to DatatypeInfoService::stackDatatypeArray() or
+     * Stacks tags in a manner similar to DatabaseInfoService::stackDatatypeArray() or
      * DatarecordInfoService::stackDatarecordArray().
      *
      * @param array $tag_list An array tag data from the database, organized by tag_id
@@ -397,7 +397,7 @@ class TagHelperService
      * Generates a CSRF token for every datafield/tag pair in the provided arrays.  Use ONLY on the
      * design pages, DatarecordInfoService::generateCSRFTokens() should be used for the edit pages.
      *
-     * @param array $datatype_array    @see DatatypeInfoService::buildDatatypeData()
+     * @param array $datatype_array    @see DatabaseInfoService::buildDatatypeData()
      *
      * @return array
      */

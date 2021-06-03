@@ -25,7 +25,6 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 // Other
 use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Model\UserManagerInterface;
 use Symfony\Bridge\Monolog\Logger;
 
 
@@ -43,7 +42,7 @@ class PermissionsManagementService
     private $cache_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -51,11 +50,6 @@ class PermissionsManagementService
      * @var SearchAPIService
      */
     private $search_api_service;
-
-    /**
-     * @var UserManagerInterface
-     */
-    private $user_manager;
 
     /**
      * @var Logger
@@ -68,24 +62,21 @@ class PermissionsManagementService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param SearchAPIService $search_api_service
-     * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         SearchAPIService $search_api_service,
-        UserManagerInterface $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->search_api_service = $search_api_service;
-        $this->user_manager = $user_manager;
         $this->logger = $logger;
     }
 
@@ -1036,7 +1027,7 @@ class PermissionsManagementService
      * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig
      * doesn't end up rendering anything they're not supposed to see.
      *
-     * @param array &$datatype_array    @see DatatypeInfoService::getDatatypeArray()
+     * @param array &$datatype_array    @see DatabaseInfoService::getDatatypeArray()
      * @param array &$datarecord_array  @see DatarecordInfoService::getDatarecordArray()
      * @param array $permissions_array  @see self::getUserPermissionsArray()
      */

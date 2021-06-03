@@ -2,10 +2,12 @@ odr_plugins.chemin.cheminee1:
     name: Chemin EE1 Plugin
     category: Chemin
     datatype: true
-    version: 1.0.1
+    render: true
+    version: 1.1.0
     override_fields: false
     override_child: true
     description: Plugin to display Chemin EE1 Data
+    registered_events:
     required_fields:
         ee1_csv_file:
             name: EE1 Processed CSV

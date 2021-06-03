@@ -36,8 +36,9 @@
             'intent': intent,
         } %}
 
-        {# TODO - figure out some way to allow downloading all files/images from search results without the server being murdered in the process? #}
-        {#{% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}#}
+        <div id="mass_download_dialog_wrapper">
+            {% include 'ODRAdminBundle:Default:mass_download_dialog.html.twig' %}
+        </div>
 
     {% else %}
         <div class="ODRShortResults_empty">

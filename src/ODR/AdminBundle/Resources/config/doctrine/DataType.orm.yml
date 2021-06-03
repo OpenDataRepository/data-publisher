@@ -153,6 +153,13 @@ ODR\AdminBundle\Entity\DataType:
             inversedBy: null
             orphanRemoval: false
 
+        renderPluginInstances:
+            targetEntity: RenderPluginInstance
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            orphanRemoval: false
+
     oneToOne:
         metadata_datatype:
             targetEntity: DataType
@@ -183,18 +190,6 @@ ODR\AdminBundle\Entity\DataType:
                 master_datatype_id:
                     referencedColumnName: id
 
-        # This property is required by docrine, but isn't used...
-        # The "renderPlugin" relationship in DataTypeMeta is used instead
-        renderPlugin:
-            targetEntity: RenderPlugin
-            cascade: {  }
-            inversedBy: dataType
-            joinColumns:
-                render_plugin_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            fetch: EXTRA_LAZY
-
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -205,7 +200,6 @@ ODR\AdminBundle\Entity\DataType:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -216,7 +210,6 @@ ODR\AdminBundle\Entity\DataType:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

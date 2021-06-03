@@ -30,9 +30,9 @@ class DatatypeExportService
     private $em;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
      */
-    private $dti_service;
+    private $dbi_service;
 
     /**
      * @var PermissionsManagementService
@@ -59,22 +59,22 @@ class DatatypeExportService
      * DatatypeExportService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatypeInfoService $dti_service
-     * @param PermissionsManagementService $pm_service
-     * @param ThemeInfoService $theme_service
+     * @param DatabaseInfoService $database_info_service
+     * @param PermissionsManagementService $permissions_service
+     * @param ThemeInfoService $theme_info_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatypeInfoService $datatype_info_service,
+        DatabaseInfoService $database_info_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dti_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
         $this->pm_service = $permissions_service;
         $this->theme_service = $theme_info_service;
         $this->templating = $templating;
@@ -110,14 +110,14 @@ class DatatypeExportService
         $include_links = true;
 
         $datarecord_array = array();
-        $datatype_array = $this->dti_service->getDatatypeArray($datatype->getId(), $include_links);
+        $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getId(), $include_links);
         $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_datatype_array[ $datatype->getId() ] = $this->dbi_service->stackDatatypeArray($datatype_array, $datatype->getId());
         $stacked_theme_array[ $master_theme->getId() ] = $this->theme_service->stackThemeArray($theme_array, $master_theme->getId());
 
 

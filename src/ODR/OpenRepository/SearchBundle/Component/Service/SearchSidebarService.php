@@ -17,7 +17,8 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 // Services
 use FOS\UserBundle\Doctrine\UserManager;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -33,7 +34,12 @@ class SearchSidebarService
     private $em;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -57,20 +63,23 @@ class SearchSidebarService
      * SearchSidebarService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatabaseInfoService $database_info_service
+     * @param DataTreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param UserManager $user_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatypeInfoService $datatype_info_service,
+        DatabaseInfoService $database_info_service,
+        DataTreeInfoService $datatree_info_service,
         PermissionsManagementService $permissions_service,
         UserManager $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dti_service = $datatype_info_service;
+        $this->dbi_service = $database_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->pm_service = $permissions_service;
         $this->user_manager = $user_manager;
 
@@ -88,7 +97,7 @@ class SearchSidebarService
      */
     public function getSidebarDatatypeArray($user, $target_datatype_id) {
         // Need to load the cached version of this datatype, along with any linked datatypes it has
-        $datatype_array = $this->dti_service->getDatatypeArray($target_datatype_id, true);
+        $datatype_array = $this->dbi_service->getDatatypeArray($target_datatype_id, true);
 
         // ...then filter the array to just what the user can see
         $datarecord_array = array();

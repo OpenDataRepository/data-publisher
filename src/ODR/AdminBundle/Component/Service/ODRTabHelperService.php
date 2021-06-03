@@ -302,7 +302,7 @@ class ODRTabHelperService
      *
      * @throws ODRException
      *
-     * @return true if updated, false otherwise
+     * @return bool true if updated, false otherwise
      */
     public function setSortCriteria($odr_tab_id, $datafield_id, $sort_direction)
     {
@@ -335,7 +335,7 @@ class ODRTabHelperService
      *
      * @throws ODRException
      *
-     * @return true if different, false otherwise
+     * @return bool true if different, false otherwise
      */
     public function hasSortCriteriaChanged($odr_tab_id, $datafield_id, $sort_direction)
     {

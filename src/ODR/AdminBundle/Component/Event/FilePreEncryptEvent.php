@@ -45,12 +45,13 @@
 namespace ODR\AdminBundle\Component\Event;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\File;
 // Symfony
 use Symfony\Component\EventDispatcher\Event;
 
 
-class FilePreEncryptEvent extends Event
+class FilePreEncryptEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_pre_encrypt_event';
@@ -61,6 +62,12 @@ class FilePreEncryptEvent extends Event
     private $file;
 
     /**
+     * @var DataFields
+     */
+    private $datafield;
+
+
+    /**
      * FilePreEncryptEvent constructor.
      * TODO - modify the Event to have a "messages" array so the user can be notified of problems?
      * TODO     - ...problem with this approach being that API/CSVImport/Edit have no framework for notifying the user of problems
@@ -69,11 +76,16 @@ class FilePreEncryptEvent extends Event
      * TODO - Or, modify to treat all file encryptions as a TrackedJob so they could be tied to a TrackedError somehow?
      *
      * @param File $file
+     * @param DataFields $datafield
      */
-    public function __construct(File $file)
-    {
+    public function __construct(
+        File $file,
+        DataFields $datafield
+    ) {
         $this->file = $file;
+        $this->datafield = $datafield;
     }
+
 
     /**
      * Returns the file that has been uploaded, BUT NOT ENCRYPTED YET.
@@ -88,5 +100,38 @@ class FilePreEncryptEvent extends Event
     public function getFile()
     {
         return $this->file;
+    }
+
+
+    /**
+     * Returns which datafield the file has been uploaded into.
+     *
+     * @return DataFields
+     */
+    public function getDatafield()
+    {
+        return $this->datafield;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getEventName()
+    {
+        return self::NAME;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorInfo()
+    {
+        return array(
+            self::NAME,
+            'file '.$this->file->getId(),
+            'df '.$this->datafield->getId(),
+        );
     }
 }

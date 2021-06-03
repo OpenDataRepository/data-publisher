@@ -39,9 +39,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -97,8 +97,8 @@ class ODRCustomController extends Controller
 
         /** @var CloneThemeService $clone_theme_service */
         $clone_theme_service = $this->container->get('odr.clone_theme_service');
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var DatabaseInfoService $dbi_service */
+        $dbi_service = $this->container->get('odr.database_info_service');
         /** @var DatarecordInfoService $dri_service */
         $dri_service = $this->container->get('odr.datarecord_info_service');
         /** @var PermissionsManagementService $pm_service */
@@ -276,8 +276,8 @@ class ODRCustomController extends Controller
         // All theme types other than table
         if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
-            /** @var DatatreeInfoService $dtr_service */
-            $dtr_service = $this->container->get('odr.datatree_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var SearchService $search_service */
             $search_service = $this->container->get('odr.search_service');
 
@@ -305,7 +305,7 @@ class ODRCustomController extends Controller
             // So, for each datarecord on this page of the search results...
             foreach ($datarecord_list as $num => $dr_id) {
                 // ...load the list of any datarecords it links to (this always includes $dr_id)...
-                $associated_dr_ids = $dtr_service->getAssociatedDatarecords($dr_id);
+                $associated_dr_ids = $dti_service->getAssociatedDatarecords($dr_id);
 
                 foreach ($associated_dr_ids as $num => $a_dr_id) {
                     // If this record is going to be displayed, and it hasn't already been loaded...
@@ -320,12 +320,12 @@ class ODRCustomController extends Controller
             }
 
             // Filter everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), true);
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getId(), true);
             $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
 
             // Stack what remains of the datatype and datarecord arrays
             $stacked_datatype_array[ $datatype->getId() ] =
-                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+                $dbi_service->stackDatatypeArray($datatype_array, $datatype->getId());
 
             $datarecord_array = array();
             foreach ($related_datarecord_array as $dr_id => $dr) {
@@ -502,10 +502,8 @@ class ODRCustomController extends Controller
                             // ...and the theme_element contains a child/linked datatype...
                             $tdt = $te['themeDataType'][0];
 
-                            // ...then this datatype is rendered only if the child/linked datatype
-                            //  is not hidden
-                            if ( $tdt['hidden'] === 0 )
-                                self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
+                            // ...then check whether the child/linked datatype should be rendered
+                            self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
                         }
                     }
                 }
@@ -515,9 +513,9 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Since calling mkdir() when a directory already exists apparently causes a warning, and because the
-     * dterranova Crypto bundle doesn't automatically handle it...this function deletes the specified directory
-     * and all its contents off the server
+     * Since calling mkdir() when a directory already exists apparently causes a warning, and because
+     * the dterranova Crypto bundle doesn't automatically handle it...this function deletes the
+     * specified directory and all its contents off the server.
      *
      * @param string $basedir
      */
@@ -1020,11 +1018,15 @@ class ODRCustomController extends Controller
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new FilePreEncryptEvent($my_obj);
+                $event = new FilePreEncryptEvent($my_obj, $my_obj->getDataField());
                 $dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // TODO - do something here?
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event...having file encryption interrupted is not
+                //  acceptable though, so any errors need to disappear
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // NOTE - the event is dispatched prior to the file encryption so that file encryption

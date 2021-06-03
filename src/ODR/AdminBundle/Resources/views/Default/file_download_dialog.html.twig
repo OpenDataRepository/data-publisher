@@ -242,6 +242,7 @@
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Handle errors
+                closeODRRemodal();
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

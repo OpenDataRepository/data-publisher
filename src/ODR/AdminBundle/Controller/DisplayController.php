@@ -7,9 +7,8 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The display controller displays actual record results to the
- * user, executing render plugins as necessary to change how the
- * data looks.  It also handles file and image downloads because
+ * The display controller renders and displays datarecords for the user, executing render plugins
+ * as necessary to change how the data looks.  It also handles file and image downloads because
  * of security concerns and routing constraints within Symfony.
  *
  */
@@ -19,7 +18,9 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Theme;
@@ -33,8 +34,9 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -958,7 +960,8 @@ class DisplayController extends ODRCustomController
 
 
     /**
-     * Creates and renders an HTML list of all files/images that the user is allowed to see in the given datarecord
+     * Creates and renders an HTML list of all files/images that the user is allowed to see in the
+     * given datarecord.
      *
      * @param integer $grandparent_datarecord_id
      * @param boolean $group_by_datafield
@@ -966,7 +969,7 @@ class DisplayController extends ODRCustomController
      *
      * @return Response
      */
-    function listallfilesAction($grandparent_datarecord_id, $group_by_datafield, Request $request)
+    public function listallfilesAction($grandparent_datarecord_id, $group_by_datafield, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -979,8 +982,8 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1017,7 +1020,7 @@ class DisplayController extends ODRCustomController
             // Get all Datarecords and Datatypes that are associated with the datarecord...need to
             //  render an abbreviated view in order to select files
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -1287,9 +1290,10 @@ class DisplayController extends ODRCustomController
     }
 
 
+
     /**
-     * Assuming the user has the correct permissions, adds each file from this datarecord/datafield pair into a zip
-     * archive and returns that zip archive for download.
+     * Assuming the user has the correct permissions, adds each file from this datarecord/datafield
+     * pair into a zip archive and returns that zip archive for download.
      *
      * @param int $grandparent_datarecord_id
      * @param Request $request
@@ -1326,8 +1330,8 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1356,7 +1360,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Easier/faster to just load the entire datarecord/datatype arrays...
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
+            $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
 
             // ...so the permissions service can prevent the user from downloading files/images they're not allowed to see
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -1425,7 +1429,7 @@ exit();
             if ( count($file_list) == 0 && count($image_list) == 0 ) {
                 // TODO - what to return?
                 $exact = true;
-                throw new ODRNotFoundException('No files are available to download', $exact);
+                throw new ODRNotFoundException('No files are available for downloading', $exact);
             }
             else {
                 // Generate the url for cURL to use
@@ -1495,6 +1499,361 @@ exit();
         // If error encountered, do a json return
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Creates and renders an HTML list of all file datafields belonging to the datatype being
+     * searched on.
+     *
+     * @param string $search_key
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function listsearchresultfilesAction($search_key, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            // Need to locate the datatype from the search key
+            $search_key_service->validateSearchKey($search_key);
+            $search_params = $search_key_service->decodeSearchKey($search_key);
+
+            // Since the search key is valid, it will always have a datatype id in there
+            $search_params_dt_id = $search_params['dt_id'];
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($search_params_dt_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Only allow on top-level datatypes
+            if ($datatype->getId() !== $datatype->getGrandparent()->getId())
+                throw new ODRBadRequestException('This action only works on top-level datatypes');
+
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+            // TODO - loosen the restriction a bit?
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
+            // Going to use the cached datatype array for this
+            $dt_array = $dbi_service->getDatatypeArray($datatype->getId());
+
+            // Filter down to what the user is allowed to see first
+            $dr_array = array();
+            $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+
+
+            // Need the names of all the datatypes and file datafields
+            $entity_names = array(
+                'datatypes' => array(),
+                'datafields' => array(),
+            );
+            foreach ($dt_array as $dt_id => $dt) {
+                $entity_names['datatypes'][$dt_id] = $dt['dataTypeMeta']['shortName'];
+
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                    if ($typeclass !== 'File') {
+                        // Not a file datafield, delete it out of the array
+                        unset( $dt_array[$dt_id]['dataFields'][$df_id] );
+                    }
+                    else {
+                        // Is a file datafield, store the name
+                        $entity_names['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+                    }
+                }
+            }
+
+            // Stack the datatype array so recursion is easier
+            $dt_array = $dbi_service->stackDatatypeArray($dt_array, $search_params_dt_id);
+            // Wrap it with the datatype id for the same reason
+            $dt_array = array($search_params_dt_id => $dt_array);
+
+
+            // ----------------------------------------
+            // Render the dialog
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:mass_download_dialog_form.html.twig',
+                array(
+                    'entity_names' => $entity_names,
+
+                    'dt_array' => $dt_array,
+                    'search_key' => $search_key,
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xa71012ea;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        // If error encountered, do a json return
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Assuming the user has the correct permissions, adds each file uploaded to the specified
+     * datafields into a zip archive, and returns that zip archive for download.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function startsearchresultfilesdownloadAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
+
+            // Require both of these...
+            if ( !isset($post['search_key']) || !isset($post['datafields']) )
+                throw new ODRBadRequestException();
+
+            $search_key = $post['search_key'];
+            $datafields = $post['datafields'];
+            if ( empty($datafields) )
+                throw new ODRBadRequestException();
+
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            // Need to ensure the datatype from the search key matches the given datafield
+            $search_key_service->validateSearchKey($search_key);
+            $search_params = $search_key_service->decodeSearchKey($search_key);
+
+            // Since the search key is valid, it will always have a datatype id in there
+            $search_params_dt_id = intval($search_params['dt_id']);
+            /** @var DataType $grandparent_datatype */
+            $grandparent_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($search_params_dt_id);
+            if ($grandparent_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Need to verify that each datafield provided is related to the grandparent datatype,
+            //  and that they're all file fields
+            $associated_datatypes = $dti_service->getAssociatedDatatypes($search_params_dt_id);
+            // Flip because isset() is faster than in_array()
+            $associated_datatypes = array_flip($associated_datatypes);
+
+            $hydrated_datafields = array();
+            foreach ($datafields as $num => $df_id) {
+                /** @var DataFields $df */
+                $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                if ($df == null)
+                    throw new ODRNotFoundException('Invalid datafield');
+
+                if ( !isset($associated_datatypes[$df->getDataType()->getGrandparent()->getId()]) )
+                    throw new ODRBadRequestException('Invalid search key');
+                if ($df->getFieldType()->getTypeClass() !== 'File')
+                    throw new ODRBadRequestException('Invalid datafield');
+
+                $hydrated_datafields[$df_id] = $df;
+            }
+            /** @var DataFields[] $hydrated_datafields */
+
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+            // TODO - loosen the restriction a bit?
+            if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
+                throw new ODRForbiddenException();
+
+            // The search results are already filtered to just the datarecords the user can view
+
+            // Need to "manually" filter out non-public files though, depending on whether the user
+            //  can view non-public datarecords or not
+            $can_view_nonpublic_datarecords = array();
+            foreach ($hydrated_datafields as $df_id => $df) {
+                // Need to check whether the user can view each of the datafields, though
+                if ( !$pm_service->canViewDatafield($user, $df) )
+                    throw new ODRForbiddenException();
+
+                // The filtering of non-public files has to be done on a per-datatype basis, but
+                //  it's easier to use on a per-datafield basis
+                if ( !isset($can_view_nonpublic_datarecords[$df_id]) ) {
+                    $can_view_nonpublic_datarecords[$df_id] = $pm_service->canViewNonPublicDatarecords($user, $df->getDataType());
+                }
+            }
+            // ----------------------------------------
+
+
+            // Going to need the list of all datarecords that matched the search
+            $search_result = $search_api_service->performSearch($grandparent_datatype, $search_key, $user_permissions);
+            $dr_list = $search_result['complete_datarecord_list'];
+
+            // Using the cached datatype array is untenable for this...query the database directly
+            $query = $em->createQuery(
+               'SELECT partial drf.{id},
+                    partial f.{id, ext, original_checksum},
+                    partial fm.{id, originalFileName, publicDate},
+                    partial df.{id}
+                FROM ODRAdminBundle:DataRecordFields drf
+                JOIN drf.file AS f
+                JOIN f.fileMeta AS fm
+                JOIN f.dataField AS df
+                WHERE drf.dataRecord IN (:datarecords) AND drf.dataField IN (:datafields)
+                AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafields' => $datafields,
+                    'datarecords' => $dr_list,
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // Organize files by checksum
+            $file_list = array();
+            foreach ($results as $drf) {
+                foreach ($drf['file'] as $file_num => $file) {
+                    // Need to filter out non-public files if the user can't view them
+                    $is_public = true;
+                    if ( $file['fileMeta'][0]['publicDate']->format('Y-m-d') == '2200-01-01' )
+                        $is_public = false;
+
+                    // Determine whether the user can view non-public records for this datatype
+                    $df_id = $file['dataField']['id'];
+                    $can_view_datarecord = $can_view_nonpublic_datarecords[$df_id];
+
+                    // If the user can't view non-public records and the file is not public, then
+                    //  don't store it in the array
+                    if (!$can_view_datarecord && !$is_public)
+                        continue;
+
+                    // Otherwise, preserve the file so it will be added to the zip archive
+                    $checksum = $file['original_checksum'];
+                    $file_list[$checksum] = $file;
+                    $file_list[$checksum]['fileMeta'] = $file['fileMeta'][0];
+                }
+            }
+
+            // ----------------------------------------
+            // If any files/images remain...
+            $image_list = array();
+            if ( empty($file_list) && empty($image_list) ) {
+                // TODO - what to return?
+                $exact = true;
+                throw new ODRNotFoundException('No files are available for downloading', $exact);
+            }
+            else {
+                // Generate the url for cURL to use
+                $pheanstalk = $this->get('pheanstalk');
+                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+                $api_key = $this->container->getParameter('beanstalk_api_key');
+
+
+                // Create a filename for the zip archive
+                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+
+                $archive_filename = $random_id.'.zip';
+                $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
+
+                $archive_size = count($file_list) + count($image_list);
+
+                foreach ($file_list as $f_checksum => $file) {
+                    // Determine the decrypted filename
+                    $desired_filename = $file['fileMeta']['originalFileName'];
+
+                    $target_filename = '';
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
+                        // non-public files need to be decrypted to something difficult to guess
+                        $target_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
+                        $target_filename .= '.'.$file['ext'];
+                    }
+                    else {
+                        // public files need to be decrypted to this format
+                        $target_filename = 'File_'.$file['id'].'.'.$file['ext'];
+                    }
+
+                    // Schedule a beanstalk job to start decrypting the file
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "object_type" => 'File',
+                            "object_id" => $file['id'],
+                            "target_filename" => $target_filename,
+                            "crypto_type" => 'decrypt',
+
+                            "archive_filepath" => $archive_filepath,
+                            "desired_filename" => $desired_filename,
+
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 0;
+                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                }
+            }
+
+            $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
+        }
+        catch (\Exception $e) {
+            $source = 0x23ed5770;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 

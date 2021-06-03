@@ -48,6 +48,11 @@ class EntityDeletionService
     private $cache_service;
 
     /**
+     * @var DatabaseInfoService
+     */
+    private $dbi_service;
+
+    /**
      * @var DatafieldInfoService
      */
     private $dfi_service;
@@ -58,7 +63,7 @@ class EntityDeletionService
     private $dri_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -103,9 +108,10 @@ class EntityDeletionService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
      * @param SearchCacheService $search_cache_service
@@ -117,9 +123,10 @@ class EntityDeletionService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
         SearchCacheService $search_cache_service,
@@ -130,9 +137,10 @@ class EntityDeletionService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dbi_service = $database_info_service;
         $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
         $this->search_cache_service = $search_cache_service;
@@ -168,7 +176,7 @@ class EntityDeletionService
 
 
             // Check that the datafield isn't being used for something else before deleting it
-            $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
+            $datatype_array = $this->dbi_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't want links
             $props = $this->dfi_service->canDeleteDatafield($datatype_array, $datatype->getId(), $datafield->getId());
             if ( !$props['can_delete'] )
                 throw new ODRBadRequestException( $props['delete_message'] );
@@ -321,7 +329,7 @@ class EntityDeletionService
             )->setParameters(
                 array(
                     'datafield_id' => $datafield->getId(),
-                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it'll be taken care of next
+                    'datatype_id' => $datatype->getId()    // don't want the datatype of the datafield that's getting deleted...it'll be taken care of next
                 )
             );
             $results = $query->getResult();
@@ -330,7 +338,7 @@ class EntityDeletionService
                 /** @var DataType $dt */
                 $dt = $result;
 
-                $props['sortField'] = null;
+                $props = array('sortField' => null);
                 $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
 
                 // Shouldn't need to clear cache entries as a result of this...
@@ -372,7 +380,7 @@ class EntityDeletionService
 
                 // TODO - shouldn't this technically be in SortService?
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $this->dti_service->resetDatatypeSortOrder($datatype->getId());
+                $this->dbi_service->resetDatatypeSortOrder($datatype->getId());
             }
 
             // Save any required changes
@@ -449,7 +457,7 @@ class EntityDeletionService
             $this->cache_service->delete('default_radio_options');
 
             // Mark this datatype as updated
-            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);
+            $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Rebuild all cached theme entries the datafield belonged to
             foreach ($all_datafield_themes as $t)
@@ -711,7 +719,7 @@ class EntityDeletionService
 
             // Even though it's getting deleted, mark this datatype as updated so its parents get
             //  updated as well
-            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
+            $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
 
 
             // ----------------------------------------
@@ -743,6 +751,20 @@ class EntityDeletionService
             $datatypes_to_delete = array_values($datatypes_to_delete);
 
             //print '<pre>'.print_r($datatypes_to_delete, true).'</pre>'; exit();
+
+            // Need to also find which datafields are affected by this
+            $query = $this->em->createQuery(
+               'SELECT df.id AS df_id
+                FROM ODRAdminBundle:DataFields AS df
+                WHERE df.dataType IN (:datatype_ids)
+                AND df.deletedAt IS NULL'
+            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
+            $results = $query->getArrayResult();
+
+            $datafields_to_delete = array();
+            foreach ($results as $result)
+                $datafields_to_delete[] = $result['df_id'];
+
 
             // Determine all Groups and all Users affected by this
             $query = $this->em->createQuery(
@@ -1040,6 +1062,28 @@ class EntityDeletionService
                 AND ug.deletedAt IS NULL';
             $parameters = array(1 => $groups_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            // Delete all RenderPluginInstance entries
+            $query_str =
+               'UPDATE odr_render_plugin_instance AS rpi
+                SET rpi.deletedAt = NOW()
+                WHERE rpi.data_type_id IN (?) OR rpi.data_field_id IN (?)
+                AND rpi.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // Delete all RenderPluginMap entries
+            $query_str =
+               'UPDATE odr_render_plugin_map AS rpm
+                SET rpm.deletedAt = NOW()
+                WHERE rpm.data_type_id IN (?) OR rpm.data_field_id IN (?)
+                AND rpm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 

@@ -43,9 +43,9 @@ class ODRRenderService
     private $em;
 
     /**
-     * @var CacheService
+     * @var DatabaseInfoService
      */
-    private $cache_service;
+    private $dbi_service;
 
     /**
      * @var DatafieldInfoService
@@ -58,7 +58,7 @@ class ODRRenderService
     private $dri_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeInfoService
      */
     private $dti_service;
 
@@ -107,10 +107,10 @@ class ODRRenderService
      * ODRRenderService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param CacheService $cache_service
+     * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
-     * @param DatatypeInfoService $datatype_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
      * @param CloneThemeService $clone_theme_service
@@ -122,10 +122,10 @@ class ODRRenderService
      */
     public function __construct(
         EntityManager $entity_manager,
-        CacheService $cache_service,
+        DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
         DatarecordInfoService $datarecord_info_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeInfoService $datatree_info_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         CloneThemeService $clone_theme_service,
@@ -136,10 +136,10 @@ class ODRRenderService
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
+        $this->dbi_service = $database_info_service;
         $this->dfi_service = $datafield_info_service;
         $this->dri_service = $datarecord_info_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->pm_service = $permissions_service;
         $this->theme_service = $theme_info_service;
         $this->clone_theme_service = $clone_theme_service;
@@ -566,7 +566,7 @@ class ODRRenderService
         // All templates need the datatype and theme arrays...
         $initial_datatype_id = $datatype->getId();
         $initial_theme_id = $theme->getId();
-        $datatype_array = $this->dti_service->getDatatypeArray($initial_datatype_id, $include_links);
+        $datatype_array = $this->dbi_service->getDatatypeArray($initial_datatype_id, $include_links);
         $theme_array = $this->theme_service->getThemeArray($initial_theme_id);
 
         // ...only get the datarecord arrays if a datarecord was specified
@@ -625,7 +625,7 @@ class ODRRenderService
         // ----------------------------------------
         // "Inflate" the currently flattened arrays to make twig's life easier...
         $stacked_datatype_array[ $initial_datatype_id ] =
-            $this->dti_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
+            $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
         $stacked_theme_array[ $initial_theme_id ] =
             $this->theme_service->stackThemeArray($theme_array, $initial_theme_id);
 
@@ -885,7 +885,7 @@ class ODRRenderService
         $child_dt_id = $child_datatype->getId();
 
         // Load cached arrays of all the top-level entities
-        $datatype_array = $this->dti_service->getDatatypeArray($top_level_datatype->getId());    // do want links
+        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype->getId());    // do want links
         $datarecord_array = $this->dri_service->getDatarecordArray($top_level_datarecord->getId());    // do want links
         $theme_array = $this->theme_service->getThemeArray($top_level_theme->getId());
 
@@ -927,7 +927,7 @@ class ODRRenderService
         // ----------------------------------------
         // "Inflate" the currently flattened arrays to make twig's life easier...
         $stacked_datatype_array[ $child_datatype->getId() ] =
-            $this->dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
+            $this->dbi_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
         $stacked_datarecord_array[ $parent_datarecord->getId() ] =
             $this->dri_service->stackDatarecordArray($datarecord_array, $parent_datarecord->getId());
         $stacked_theme_array[ $child_theme->getId() ] =
@@ -1068,7 +1068,7 @@ class ODRRenderService
         $parent_theme = $initial_theme->getParentTheme();
         $top_level_datatype = $parent_theme->getDataType();
 
-        $datatype_array = $this->dti_service->getDatatypeArray($top_level_datatype->getId(), $include_links);
+        $datatype_array = $this->dbi_service->getDatatypeArray($top_level_datatype->getId(), $include_links);
         $theme_array = $this->theme_service->getThemeArray($parent_theme->getId());
 
         // ...only get the datarecord arrays if a datarecord was specified
@@ -1108,7 +1108,7 @@ class ODRRenderService
         // ----------------------------------------
         // "Inflate" the currently flattened arrays to make twig's life easier...
         $stacked_datatype_array[ $initial_datatype->getId() ] =
-            $this->dti_service->stackDatatypeArray($datatype_array, $initial_datatype->getId());
+            $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype->getId());
         $stacked_theme_array[ $initial_theme->getId() ] =
             $this->theme_service->stackThemeArray($theme_array, $initial_theme->getId());
 
@@ -1253,7 +1253,7 @@ class ODRRenderService
         $initial_datatype_id = $datafield->getDataType()->getId();
         $initial_theme_id = $theme_element->getTheme()->getId();
 
-        $datatype_array = $this->dti_service->getDatatypeArray($source_datatype->getId(), $include_links);
+        $datatype_array = $this->dbi_service->getDatatypeArray($source_datatype->getId(), $include_links);
         $master_theme = $this->theme_service->getDatatypeMasterTheme($source_datatype->getId());
         $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 

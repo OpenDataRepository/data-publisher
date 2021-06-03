@@ -143,6 +143,11 @@ class DataType
     private $groupDatatypePermissions;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginInstances;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $metadata_datatype;
@@ -166,11 +171,6 @@ class DataType
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $masterDataType;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    private $renderPlugin;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -203,6 +203,7 @@ class DataType
         $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groups = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groupDatatypePermissions = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginInstances = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -756,6 +757,42 @@ class DataType
     }
 
     /**
+     * Add renderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
+     *
+     * @return DataType
+     */
+    public function addRenderPluginInstance(\ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance)
+    {
+        $this->renderPluginInstances[] = $renderPluginInstance;
+
+        return $this;
+    }
+
+    /**
+     * Remove renderPluginInstance.
+     *
+     * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeRenderPluginInstance(\ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance)
+    {
+        return $this->renderPluginInstances->removeElement($renderPluginInstance);
+    }
+
+    /**
+     * Get renderPluginInstances.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRenderPluginInstances()
+    {
+        return $this->renderPluginInstances;
+    }
+
+    /**
      * Set metadata_datatype
      *
      * @param \ODR\AdminBundle\Entity\DataType $metadata_datatype
@@ -873,19 +910,6 @@ class DataType
     public function getMasterDataType()
     {
         return $this->masterDataType;
-    }
-
-    /**
-     * Set renderPlugin
-     * @internal Requred by Doctrine, but should not be used...this value should be saved in the associated datatypeMeta entry.
-     *
-     * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
-     * @return DataType
-     */
-    public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
-    {
-        $this->renderPlugin = $renderPlugin;
-        return $this;
     }
 
     /**
@@ -1135,16 +1159,6 @@ class DataType
     public function getBackgroundImageField()
     {
         return $this->getDataTypeMeta()->getBackgroundImageField();
-    }
-
-    /**
-     * Get renderPlugin
-     *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    public function getRenderPlugin()
-    {
-        return $this->getDataTypeMeta()->getRenderPlugin();
     }
 
     /**

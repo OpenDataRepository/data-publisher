@@ -16,7 +16,6 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -191,10 +190,6 @@ class DatatypeCreateService
                 $datatype_meta_data->setDataType($datatype);
                 $datatype_meta_data->setShortName('New Dataset');
                 $datatype_meta_data->setLongName('New Dataset');
-
-                /** @var RenderPlugin $default_render_plugin */
-                $default_render_plugin = $this->em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-                $datatype_meta_data->setRenderPlugin($default_render_plugin);
 
                 // Default search slug to Dataset ID
                 $datatype_meta_data->setSearchSlug($datatype->getUniqueId());

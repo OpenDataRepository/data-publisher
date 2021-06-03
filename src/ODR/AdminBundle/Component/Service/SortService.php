@@ -64,10 +64,10 @@ class SortService
     /**
      * SortService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param CacheService $cacheService
-     * @param EntityMetaModifyService $entityMetaModifyService
-     * @param SearchService $searchService
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param SearchService $search_service
      * @param Logger $logger
      */
     public function __construct(
@@ -90,7 +90,7 @@ class SortService
      * datarecords from the entire sorted list.
      *
      * @param array $datarecord_list
-     * @param null|string $subset_datarecords
+     * @param null|string $subset_str
      *
      * @return array
      */

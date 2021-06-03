@@ -18,9 +18,11 @@
         "template_field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 
-    {% if datafield_meta.renderPlugin.id != 1 %}
-        "render_plugin": {{ datafield_meta.renderPlugin.pluginName|json_encode|raw }},
-    {% endif %}
+    {% for rpi_num,rpi in datafield.renderPluginInstances %}
+        {% if rpi.renderPlugin.render == true %}
+        "render_plugin": {{ rpi.renderPlugin.pluginName|json_encode|raw }},
+        {% endif %}
+    {% endfor %}
 
     {% if datafield_meta.is_unique == 1 %}
         "is_unique": 1,

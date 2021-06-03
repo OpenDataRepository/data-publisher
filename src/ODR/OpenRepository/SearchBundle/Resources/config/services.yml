@@ -24,7 +24,8 @@ services:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $datatype_info_service: "@odr.datatype_info_service"
+            $database_info_service: "@odr.database_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
@@ -52,7 +53,8 @@ services:
     odr.search_key_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService
         arguments:
-            $datatype_info_service: "@odr.datatype_info_service"
+            $database_info_service: "@odr.database_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"
             $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
