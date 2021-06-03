@@ -48,7 +48,7 @@ class MigrationController extends ODRCustomController
      *
      * @return Response
      */
-    public function migrate_1_1_Action(Request $request)
+    public function migrate_1_0_Action(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -349,7 +349,7 @@ class MigrationController extends ODRCustomController
      *
      * @return Response
      */
-    public function migrate_1_2_Action(Request $request)
+    public function migrate_1_1_Action(Request $request)
     {
         $return = array();
         $return['r'] = 0;

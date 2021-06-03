@@ -1869,13 +1869,13 @@ odr_api_user_check:
 
 #-----------------------------------------
 # Migration Controller
+odr_migrate_1.0:
+    path:  /admin/migrate/1.0
+    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_0_ }
+
 odr_migrate_1.1:
     path:  /admin/migrate/1.1
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
-
-odr_migrate_1.2:
-    path:  /admin/migrate/1.2
-    defaults: { _controller: ODRAdminBundle:Migration:migrate_1_2_ }
 
 #-----------------------------------------
 
