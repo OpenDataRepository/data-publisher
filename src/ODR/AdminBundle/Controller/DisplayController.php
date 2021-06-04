@@ -1324,6 +1324,10 @@ class DisplayController extends ODRCustomController
             if ( isset($post['images']) )
                 $image_ids = $post['images'];
 
+            // Faster to use isset() than in_array()
+            $file_ids = array_flip($file_ids);
+            $image_ids = array_flip($image_ids);
+
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1367,24 +1371,53 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Intersect the array of desired file/image ids with the array of permitted files/ids to determine which files/images to add to the zip archive
+            // Intersect the array of desired file/image ids with the array of permitted files/ids
+            //  to determine which files/images to add to the zip archive
             $file_list = array();
-            $filename_list = array();
+            $file_count = array();
 
             $image_list = array();
-            $imagename_list = array();
+            $image_count = array();
             foreach ($datarecord_array as $dr_id => $dr) {
                 foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
                     if ( count($drf['file']) > 0 ) {
                         foreach ($drf['file'] as $f_num => $f) {
-                            if ( in_array($f['id'], $file_ids) ) {
-                                // Store by original checksum so multiples of the same file only get decrypted/stored once
-                                $original_checksum = $f['original_checksum'];
-                                $file_list[$original_checksum] = $f;
+                            $current_file_id = $f['id'];
+                            if ( isset($file_ids[$current_file_id]) ) {
+                                // Determine whether this file has already been scheduled for adding
+                                //  to the archive
+                                $desired_filename = $f['fileMeta']['originalFileName'];
+                                if ( !isset($file_list[$desired_filename]) ) {
+                                    // A file with this filename hasn't been seen before
+                                    $file_list[$desired_filename] = $f;
+                                    $file_count[$desired_filename] = 1;
+                                }
+                                else {
+                                    // A file with this filename has been seen before...
+                                    $previous_file_id = $file_list[$desired_filename]['id'];
+                                    if ($previous_file_id === $current_file_id) {
+                                        // ...it's the exact same file as before, do nothing
+                                    }
+                                    else {
+                                        // ...it's a different file with the same filename
+                                        // Need to modify the filename to so there's no collision
+                                        $duplicate_num = $file_count[$desired_filename];
 
-                                // Also store the file's name to detect different files with the same filename
-                                $filename = $f['fileMeta']['originalFileName'];
-                                $filename_list[$original_checksum] = $filename;
+                                        // Drop the extension from the previous filename...
+                                        $new_desired_filename = substr($desired_filename, 0, strrpos($desired_filename, "."));
+                                        // ...so a number can be appended immediately before the extension
+                                        $new_desired_filename .= '('.$duplicate_num.').'.$f['ext'];
+
+                                        // Store the modified filename
+                                        $file_list[$new_desired_filename] = $f;
+
+                                        // Increment this number incase there's another duplicate filename later on...
+                                        $file_count[$desired_filename]++;
+                                        // ...and also store the modified filename in case it collides with a later
+                                        //  file as well
+                                        $file_count[$new_desired_filename] = 1;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1393,36 +1426,6 @@ class DisplayController extends ODRCustomController
                 }
             }
 
-
-            // If needed, tweak the file list so different files that have the same filename on the server have different filenames in the zip archive
-            asort($filename_list);
-            $prev_filename = '';
-            $num = 2;
-            foreach($filename_list as $file_checksum => $filename) {
-                if ($filename == $prev_filename) {
-                    // This filename maches the previous one...insert a numerical string in this filename to differentiate between the two
-                    $file_ext = $file_list[$file_checksum]['ext'];
-                    $tmp_filename = substr($filename, 0, strlen($filename)-strlen($file_ext)-1);
-                    $tmp_filename .= ' ('.$num.').'.$file_ext;
-                    $num++;
-
-                    // Save the new filename back in the array
-                    $file_list[$file_checksum]['fileMeta']['originalFileName'] = $tmp_filename;
-                }
-                else {
-                    // This filename is different from the previous one, reset for next potential indentical filename
-                    $prev_filename = $filename;
-                    $num = 2;
-                }
-            }
-
-            // TODO - do the same for image names?
-            // TODO - only one file with a given name can be in an archive...duplicates are ignored...
-/*
-print '<pre>'.print_r($file_list, true).'</pre>';
-print '<pre>'.print_r($image_list, true).'</pre>';
-exit();
-*/
 
             // ----------------------------------------
             // If any files/images remain...
@@ -1448,10 +1451,8 @@ exit();
 
                 $archive_size = count($file_list) + count($image_list);
 
-                foreach ($file_list as $f_checksum => $file) {
-                    // Determine the decrypted filename
-                    $desired_filename = $file['fileMeta']['originalFileName'];
-
+                foreach ($file_list as $desired_filename => $file) {
+                    // Need to locate the decrypted version of the file
                     $target_filename = '';
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
                         // non-public files need to be decrypted to something difficult to guess
@@ -1736,7 +1737,7 @@ exit();
             // Using the cached datatype array is untenable for this...query the database directly
             $query = $em->createQuery(
                'SELECT partial drf.{id},
-                    partial f.{id, ext, original_checksum},
+                    partial f.{id, ext},
                     partial fm.{id, originalFileName, publicDate},
                     partial df.{id}
                 FROM ODRAdminBundle:DataRecordFields drf
@@ -1754,7 +1755,8 @@ exit();
             );
             $results = $query->getArrayResult();
 
-            // Organize files by checksum
+            // Organize files by their filename
+            $file_count = array();
             $file_list = array();
             foreach ($results as $drf) {
                 foreach ($drf['file'] as $file_num => $file) {
@@ -1772,10 +1774,38 @@ exit();
                     if (!$can_view_datarecord && !$is_public)
                         continue;
 
-                    // Otherwise, preserve the file so it will be added to the zip archive
-                    $checksum = $file['original_checksum'];
-                    $file_list[$checksum] = $file;
-                    $file_list[$checksum]['fileMeta'] = $file['fileMeta'][0];
+                    // Otherwise, check whether the file is already slated to be added to the zip
+                    //  archive...
+                    $desired_filename = $file['fileMeta'][0]['originalFileName'];
+                    if ( !isset($file_list[$desired_filename]) ) {
+                        // A file with this filename hasn't been seen before...store a slightly
+                        //  modified version of the array before moving on to the next file
+                        $file_list[$desired_filename] = $file;
+                        $file_list[$desired_filename]['fileMeta'] = $file['fileMeta'][0];
+
+                        // Note that this filename has been seen once already
+                        $file_count[$desired_filename] = 1;
+                    }
+                    else {
+                        // A file with this filename is already in the list to be sent to the archive
+                        // Need to modify the filename to so there's no collision
+                        $duplicate_num = $file_count[$desired_filename];
+
+                        // Drop the extension from the previous filename...
+                        $new_desired_filename = substr($desired_filename, 0, strrpos($desired_filename, "."));
+                        // ...so a number can be appended immediately before the extension
+                        $new_desired_filename .= '(' . $duplicate_num . ').' . $file['ext'];
+
+                        // Store the modified filename with a slightly modified version of its array
+                        $file_list[$new_desired_filename] = $file;
+                        $file_list[$new_desired_filename]['fileMeta'] = $file['fileMeta'][0];
+
+                        // Increment this number incase there's another duplicate filename later on...
+                        $file_count[$desired_filename]++;
+                        // ...and also store the modified filename in case it collides with a later
+                        //  file as well
+                        $file_count[$new_desired_filename] = 1;
+                    }
                 }
             }
 
@@ -1804,10 +1834,8 @@ exit();
 
                 $archive_size = count($file_list) + count($image_list);
 
-                foreach ($file_list as $f_checksum => $file) {
-                    // Determine the decrypted filename
-                    $desired_filename = $file['fileMeta']['originalFileName'];
-
+                foreach ($file_list as $desired_filename => $file) {
+                    // Need to locate the decrypted version of the file
                     $target_filename = '';
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
                         // non-public files need to be decrypted to something difficult to guess
@@ -1842,6 +1870,7 @@ exit();
                 }
             }
 
+            // TODO - is there some way to return that there are going to be duplicate filenames and/or duplicate files before the download starts?
             $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
         }
         catch (\Exception $e) {
