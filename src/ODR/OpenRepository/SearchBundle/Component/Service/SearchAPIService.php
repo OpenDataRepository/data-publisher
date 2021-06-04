@@ -951,6 +951,14 @@ class SearchAPIService
     public function performSearch($datatype, $search_key, $user_permissions, $sort_df_id = 0, $sort_ascending = true, $search_as_super_admin = false)
     {
         // ----------------------------------------
+        // This really shouldn't be null, but just in case...
+        if ( is_null($datatype) ) {
+            $search_params = $this->search_key_service->decodeSearchKey($search_key);
+            $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
+        }
+
+
+        // ----------------------------------------
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
@@ -1084,29 +1092,16 @@ class SearchAPIService
         // ----------------------------------------
         // In most cases, there will be a number of different datarecord lists by this point...
         if (!$return_all_results) {
-            // Perform the final merge, getting all facets down into a single list of matching datarecords
-            $final_dr_list = null;
-            foreach ($facet_dr_list as $facet => $dr_list) {
-                if (is_null($final_dr_list))
-                    $final_dr_list = $dr_list;
-                else
-                    $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
-            }
-
-            // Need to transfer the values from $facet_dr_list into $flattened_list...
-            if (!is_null($final_dr_list)) {
-                foreach ($final_dr_list as $dr_id => $num) {
-                    // ...but only if they're not excluded because of public status
-                    if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
-                        $flattened_list[$dr_id] = 1;
-                }
-            }
-            else if (count($criteria) === 0) {
-                // If a search was run without criteria, then everything that the user can see
-                //  matches the search
-                foreach ($flattened_list as $dr_id => $num) {
-                    if ($num >= -1)
-                        $flattened_list[$dr_id] = 1;
+            // ...therefore, need to transfer the matching datarecords from $facet_dr_list into
+            //  $flattened_list...
+            foreach ($facet_dr_list as $dt_id => $dr_list) {
+                if ( !empty($dr_list) ) {
+                    foreach ($dr_list as $dr_id => $num) {
+                        // ...but only if the datarecords weren't excluded because the user can't
+                        //  view them
+                        if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
+                            $flattened_list[$dr_id] = 1;
+                    }
                 }
             }
         }
@@ -1638,28 +1633,25 @@ class SearchAPIService
      * @param array $flattened_list
      * @param array $inflated_list
      */
-    private function mergeSearchArrays(&$flattened_list, &$inflated_list)
+    private function mergeSearchArrays(&$flattened_list, $inflated_list)
     {
         foreach ($inflated_list as $top_level_dt_id => $top_level_datarecords) {
             foreach ($top_level_datarecords as $dr_id => $child_dt_list) {
 
                 if ( $flattened_list[$dr_id] < 0 ) {
                     // Either the user can't see this top-level datarecord, or it didn't match the
-                    //  search query...doesn't matter whether it has children or not
-                    unset( $inflated_list[$top_level_dt_id][$dr_id] );
+                    //  search query...so there's no point checking any child datarecords
                 }
                 else if ( !is_array($child_dt_list) ) {
-                    // This top-level datarecord has no children...only save if it matched the
-                    //  search query
-                    if ( $flattened_list[$dr_id] !== 1 )
-                        unset( $inflated_list[$top_level_dt_id][$dr_id] );
+                    // Since there's no child datarecords, there's nothing to change whether this
+                    //  top-level datarecord matches the search or not
                 }
                 else {
-                    // This top-level datarecord could match the search, but whether it does or not
-                    //  depends on whether its children match...
+                    // This top-level datarecord has child datarecords...so whether it matches the
+                    //  search or not partially depends on whether its children match...
                     $votes = array();
                     foreach ($child_dt_list as $child_dt_id => $child_dr_list) {
-                        //
+                        // Determine whether this child datatype affects this datarecord's status
                         $vote = self::mergeSearchArrays_worker($flattened_list, $child_dr_list);
                         if ($vote === -1) {
                             // None of the child datarecords of this child datatype match...so by
@@ -1675,13 +1667,19 @@ class SearchAPIService
                         }
                     }
 
-                    // This datarecord wasn't excluded due to its children not matching...but in
-                    //  order to actually match the search, at least one of its children must have
-                    //  matched the search
-                    foreach ($votes as $child_dt_id => $vote) {
-                        if ($vote === 1) {
-                            $flattened_list[$dr_id] = 1;
-                            break;
+                    // At this point, the datarecord isn't excluded due to its child datarecords
+                    //  not matching the search
+                    if ( $flattened_list[$dr_id] === 0 ) {
+                        // ...however, this datarecord wasn't actually searched on, so whether it
+                        //  ends up matching the search depends on whether datarecords from the child
+                        //  datatypes matched the search
+                        foreach ($votes as $child_dt_id => $vote) {
+                            if ($vote === 1) {
+                                // At least one child datarecord from this child datatype matched
+                                //  the search, so this datarecord matches as well
+                                $flattened_list[$dr_id] = 1;
+                                break;
+                            }
                         }
                     }
                 }
@@ -1715,12 +1713,14 @@ class SearchAPIService
      *
      * @return int
      */
-    private function mergeSearchArrays_worker(&$flattened_list, &$dr_list)
+    private function mergeSearchArrays_worker(&$flattened_list, $dr_list)
     {
-        $include = false;
-        $exclude = false;
-        foreach ($dr_list as $dr_id => $child_dt_list) {
+        // Need to keep track of how many of these child datarecords matched the search
+        $matches_count = 0;
+        // Also need to keep track of how many child datarecords did not match the search
+        $not_matches_count = 0;
 
+        foreach ($dr_list as $dr_id => $child_dt_list) {
             if ( $flattened_list[$dr_id] === -2 ) {
                 // The user can't view this datarecord, so they also can't see any child datarecords
                 // Whether the child datarecords matched the search or not is irrelevant
@@ -1728,42 +1728,55 @@ class SearchAPIService
             else if ($flattened_list[$dr_id] === -1 ) {
                 // This datarecord didn't match the search, so there's no point to checking any
                 //  child datarecords
-                $exclude = true;
+                $not_matches_count++;
+            }
+            else if ( !is_array($child_dt_list) ) {
+                // This datarecord has no children...therefore nothing influences whether it matches
+                //  the search or not
+                if ( $flattened_list[$dr_id] === 1 )
+                    $matches_count++;
+                else if ( $flattened_list[$dr_id] === -1 )
+                    $not_matches_count++;
             }
             else {
-                //
-                if ( !is_array($child_dt_list) ) {
-                    // If has no children, then this datarecord is included if it matched the search
-                    if ( $flattened_list[$dr_id] === 1 )
-                        $include = true;
+                // This datarecord has child datarecords, which means they could affect whether
+                //  this datarecord ends up matching the search...
+                $votes = array();
+                foreach ($child_dt_list as $child_dt_id => $child_dr_list) {
+                    // Determine whether this child datatype affects this datarecord's status
+                    $vote = self::mergeSearchArrays_worker($flattened_list, $child_dr_list);
+                    if ($vote === -1) {
+                        // None of the child datarecords of this child datatype match...so by
+                        //  definition, this datarecord doesn't match either
+                        $flattened_list[$dr_id] = -1;
+                        $not_matches_count++;
+                        break;
+                    }
+                    else {
+                        // The child datarecords of this child datatype either match the search
+                        //  or they weren't searched on...so whether this datarecord ends up
+                        //  matching or not depends on other factors
+                        $votes[$child_dt_id] = $vote;
+                    }
+                }
+
+                // At this point, the datarecord isn't excluded due to its child datarecords
+                //  not matching the search...
+                if ( $flattened_list[$dr_id] === 1 ) {
+                    // ...so make a note of whether this datarecord actually matched the search, or
+                    //  whether it's just "along for the ride"
+                    $matches_count++;
                 }
                 else {
-                    $votes = array();
-                    foreach ($child_dt_list as $child_dt_id => $child_dr_list) {
-                        //
-                        $vote = self::mergeSearchArrays_worker($flattened_list, $child_dr_list);
-                        if ($vote === -1) {
-                            // None of the child datarecords of this child datatype match...so by
-                            //  definition, this datarecord doesn't match either
-                            $flattened_list[$dr_id] = -1;
-                            $exclude = true;
-                            break;
-                        }
-                        else {
-                            // At least one of the child datarecords of this child datatype have a
-                            //  value other than -1...so whether this datarecord ends up matching
-                            //  or not depends on other factors
-                            $votes[$child_dt_id] = $vote;
-                        }
-                    }
-
-                    // This datarecord wasn't excluded due to its children not matching...but in
-                    //  order to actually match the search, at least one of its children must have
-                    //  matched the search
+                    // ...however, this datarecord wasn't actually searched on, so whether it
+                    //  ends up matching the search depends on whether datarecords from the child
+                    //  datatypes matched the search
                     foreach ($votes as $child_dt_id => $vote) {
                         if ($vote === 1) {
+                            // At least one child datarecord from this child datatype matched
+                            //  the search, so this datarecord matches as well
                             $flattened_list[$dr_id] = 1;
-                            $include = true;
+                            $matches_count++;
                             break;
                         }
                     }
@@ -1771,19 +1784,22 @@ class SearchAPIService
             }
         }
 
-        if ($include) {
-            // At least one datarecord matches the search, so the parent datarecord could possibly
-            //  be considered to match the search as well
-            return 1;
-        }
-        else if ($exclude) {
-            // All the child datarecords of at least one child datatype didn't match the search
-            // Therefore, the parent datarecord should be excluded as well
+
+        // Need to "cast a vote" for whether the parent datarecord of these child datarecords ends
+        //  up matching the search...
+        if ( count($dr_list) === $not_matches_count ) {
+            // If all of the child datarecords of this child datatype didn't match, then the parent
+            //  datarecord should be excluded
             return -1;
         }
+        else if ( $matches_count > 0 ) {
+            // Otherwise, if at least one of the child datarecords of this child datatype matched
+            //  the search, then the parent datarecord probably should match the search
+            return 1;
+        }
         else {
-            // Otherwise, the results from this child datatype can't be used to change the match
-            //  status of the parent datarecord
+            // ...Otherwise, none of the child datarecords have any impact on whether the parent
+            //  datarecord should match the search or not
             return 0;
         }
     }
