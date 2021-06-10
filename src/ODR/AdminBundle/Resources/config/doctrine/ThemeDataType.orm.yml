@@ -19,6 +19,11 @@ ODR\AdminBundle\Entity\ThemeDataType:
             default: 0
             column: display_type
 
+        hidden:
+            type: integer
+            nullable: false
+            default: 0
+
         created:
             type: datetime
             gedmo:
