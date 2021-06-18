@@ -315,6 +315,23 @@ class TextResultsController extends ODRCustomController
             $datarecord_list = array_slice($viewable_datarecord_list, $start, $page_length);
 
 
+            // -----------------------------------
+            // Determine where on the page to scroll to if possible
+            $session = $this->get('session');
+            $scroll_target = '';
+            if ($session->has('scroll_target')) {
+                $scroll_target = $session->get('scroll_target');
+                if ($scroll_target !== '') {
+                    // Don't scroll to someplace on the page if the datarecord isn't displayed
+                    if ( !in_array($scroll_target, $datarecord_list) )
+                        $scroll_target = '';
+
+                    // Null out the scroll target in the session so it only works once
+                    $session->set('scroll_target', '');
+                }
+            }
+
+
             // ----------------------------------------
             // Get the rows that will fulfill the datatables request
             $data = array();
@@ -328,6 +345,7 @@ class TextResultsController extends ODRCustomController
                 'recordsFiltered' => $datarecord_count,
                 'data' => $data,
                 'editable_datarecord_list' => $editable_datarecord_list,
+                'scroll_target' => $scroll_target,
             );
             $return = $json;
         }

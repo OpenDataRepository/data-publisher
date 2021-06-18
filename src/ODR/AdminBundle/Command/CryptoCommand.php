@@ -109,7 +109,7 @@ class CryptoCommand extends ContainerAwareCommand
                     $parameters = array(
                         'object_type' => $data->object_type,
                         'object_id' => $data->object_id,
-                        'target_filename' => $data->target_filename,
+                        'local_filename' => $data->local_filename,
                         'crypto_type' => $data->crypto_type,
 
                         'archive_filepath' => $data->archive_filepath,

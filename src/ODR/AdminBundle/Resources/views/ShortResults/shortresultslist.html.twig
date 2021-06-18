@@ -56,6 +56,7 @@
 
         $(".MenuDesignArea").remove();
 
+        // TODO - this is never called with prevent_scroll == true
         var prevent_scroll = false;
         ShortResults_initPage(prevent_scroll);
 
@@ -117,16 +118,24 @@
             handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
         });
 
-        {% if scroll_target != '' %}
         if (!prevent_scroll) {
+            {% if scroll_target != '' %}
+            // Scroll to a specific record in the search results
             var target = '#ShortResults_' + {{ scroll_target }};
             if ( $(target) !== undefined && $(target).offset() !== undefined ) {
                 $('html, body').animate({
-                    scrollTop: $(target).offset().top
+                    scrollTop: $(target).offset().top-75
                 }, 500);
             }
+            else {
+                // The record isn't displayed on this page, so reset to the top
+                window.scrollTo(0, 0);
+            }
+            {% else %}
+            // Don't have a specific record to scroll to, so reset to the top of the page
+            window.scrollTo(0, 0);
+            {% endif %}
         }
-        {% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }

@@ -50,6 +50,7 @@ class ThemeDataType
     private $display_type;
 
     /**
+     * @deprecated
      * @var integer
      */
     private $hidden;
@@ -134,6 +135,7 @@ class ThemeDataType
     }
 
     /**
+     * @deprecated
      * Set hidden
      *
      * @param integer $hidden
@@ -148,6 +150,7 @@ class ThemeDataType
     }
 
     /**
+     * @deprecated
      * Get hidden
      *
      * @return integer

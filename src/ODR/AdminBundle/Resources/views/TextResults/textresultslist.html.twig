@@ -66,17 +66,23 @@
                 <div class="wrapper">
                     <div class="FLeft">
                         {information}
+                        {length}
                     </div>
                     <div class="FRight">
-                        {length}
+                        {pagination}
                     </div>
                     {processing}
                     {table}
-                    {information}
-                    {pagination}
+                    <div class="FLeft">
+                        {information}
+                        {length}
+                    </div>
+                    <div class="FRight">
+                        {pagination}
+                    </div>
                </div>
             #}
-            "dom": '<"FLeft"i><"FRight"l>rtip',
+            "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
 
             {# have  web/js/mylibs/jquery_datatables/datatables.input.js  handle pagination #}
             "pagingType": "input",
@@ -287,12 +293,33 @@
 
 
     // Enable users to download files straight from the table
-    $("#TextResults").on('draw.dt', function() {
+    $("#TextResults").on('draw.dt', function(e, settings) {
         // Attach required attributes to any <a> element in the table
         $(this).find('a').each(function() {
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');
         });
+
+        var scroll_target = settings.json.scroll_target;
+        if ( scroll_target != '' ) {
+            // Scroll to a specific record in the search results
+            var target = '.DataRecord_' + scroll_target;
+            if ( $(target) !== undefined && $(target).offset() !== undefined ) {
+                setTimeout(function() {
+                    $('html, body').animate({
+                        scrollTop: $(target).offset().top-75
+                    }, 500);
+                }, 250);    // Need a bit of a delay for datatables.js to finish its resizing
+            }
+            else {
+                // The record isn't displayed on this page, so reset to the top
+                window.scrollTo(0, 0);
+            }
+        }
+        else {
+            // Don't have a specific record to scroll to, so reset to the top of the page
+            window.scrollTo(0, 0);
+        }
     });
 </script>
 

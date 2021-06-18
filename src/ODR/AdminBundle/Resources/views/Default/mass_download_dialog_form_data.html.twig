@@ -2,7 +2,7 @@
 
 {% if entity_names['datafields']|length == 0 %}
 <div class="ODRMarkdownContent">
-    <p>This database has no file datafields, so nothing can be downloaded.</p>
+    <p>This database has no file or image datafields, so nothing can be downloaded.</p>
 </div>
 {% else %}
 
@@ -25,7 +25,7 @@
         {% else %}
             <ul>
                 <li>
-                    <span>The "{{ entity_names['datatypes'][dt_id] }}" database has no file datafields.</span>
+                    <span>The "{{ entity_names['datatypes'][dt_id] }}" database has no file or image datafields.</span>
                 </li>
             </ul>
         {% endif %}

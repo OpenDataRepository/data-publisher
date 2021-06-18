@@ -1845,20 +1845,25 @@ footer {
     border-top: 1px solid #ddd;
     border-bottom: 1px solid #ddd;
 }
-#TextResults_length {
-    padding-top: 4px;
-    padding-right: 8px;
+/*#TextResults_length {*/
+.dataTables_length {
+    padding-top: 10px;
+    padding-left: 10px;
+}
+.dataTables_length > label {
+    font-size: 100% !important;
 }
 #TextResults_filter {
-    padding-left: 8px;
-    padding-bottom: 8px;
+    padding-left: 10px;
+    padding-bottom: 10px;
 }
-#TextResults_info {
-    padding-top: 8px;
-    padding-left: 8px;
+/*#TextResults_info {*/
+.dataTables_info {
+    padding-top: 10px !important;
+    padding-left: 10px;
 }
 #TextResults_paginate {
-    padding-top: 8px;
+    padding-top: 6px;
     cursor: pointer;
 }
 #TextResults_paginate a:visited,

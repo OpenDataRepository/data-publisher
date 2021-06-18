@@ -18,7 +18,6 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
@@ -149,28 +148,6 @@ class ODRCustomController extends Controller
         // Determine whether the currently preferred theme needs to be synchronized with its source
         //  and the user notified of it
         $notify_of_sync = self::notifyOfThemeSync($theme, $user);
-
-
-        // -----------------------------------
-        // Determine where on the page to scroll to if possible
-        $scroll_target = '';
-        if ($session->has('scroll_target')) {
-            $scroll_target = $session->get('scroll_target');
-            if ($scroll_target !== '') {
-                // Don't scroll to someplace on the page if the datarecord doesn't match the datatype
-                /** @var DataRecord $datarecord */
-                $datarecord = $repo_datarecord->find($scroll_target);
-                if ( is_null($datarecord)
-                    || $datarecord->getDataType()->getId() != $datatype->getId()
-                    || !in_array($scroll_target, $datarecords)
-                ) {
-                    $scroll_target = '';
-                }
-
-                // Null out the scroll target
-                $session->set('scroll_target', '');
-            }
-        }
 
 
         // ----------------------------------------
@@ -336,6 +313,22 @@ class ODRCustomController extends Controller
 
 
             // -----------------------------------
+            // Determine where on the page to scroll to if possible
+            $scroll_target = '';
+            if ($session->has('scroll_target')) {
+                $scroll_target = $session->get('scroll_target');
+                if ($scroll_target !== '') {
+                    // Don't scroll to someplace on the page if the datarecord isn't displayed
+                    if ( !in_array($scroll_target, $datarecords) )
+                        $scroll_target = '';
+
+                    // Null out the scroll target in the session so it only works once
+                    $session->set('scroll_target', '');
+                }
+            }
+
+
+            // -----------------------------------
             // Build the html required for the pagination header
             $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list);
 
@@ -439,7 +432,7 @@ class ODRCustomController extends Controller
                     'num_columns' => $num_columns,
                     'odr_tab_id' => $odr_tab_id,
                     'page_length' => $page_length,
-                    'scroll_target' => $scroll_target,
+//                    'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
                     'theme_array' => $theme_array,
