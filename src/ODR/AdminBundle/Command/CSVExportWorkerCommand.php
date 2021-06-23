@@ -59,11 +59,10 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
                 $output->writeln($str);
+                $output->writeln($data->url);
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
-
-$output->writeln($data->url);
 
                 // TODO - determine filename
                 $random_key = $random_id.'_'.$data->datatype_id.'_'.$data->tracked_job_id;
@@ -73,7 +72,8 @@ $output->writeln($data->url);
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
                     'delimiter' => $data->delimiter,
-                    'line' => $data->line,
+                    'lines' => $data->lines,
+                    'datatype_id' => $data->datatype_id,
                     'datafields' => $data->datafields,
                     'random_key' => $random_key,
                     'api_key' => $data->api_key,
