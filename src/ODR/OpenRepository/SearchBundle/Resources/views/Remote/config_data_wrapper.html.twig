@@ -5,7 +5,9 @@
          <div class="ODRInnerBox pure-u-1">
              <div class="ODRFieldArea accordion-content">
                  <div class="ODRBodyContent">
-                     The final step in this process is apply the configuration to your site.
+                     The final step in this process is apply the configuration to your site.  Your
+                     site needs to have one HTML element for each datafield that you selected in the
+                     previous step, and a submit button to actually trigger the search.
                  </div>
              </div>
          </div>
@@ -13,16 +15,19 @@
     <div class="ODRThemeElement pure-u-1">
         <div class="ODRInnerBox pure-u-1">
             <div class="ODRRemoteSearch_pre pure-u-11-24">
-                This snippet of javascript needs to be placed after the relevant HTML elements.
+                This snippet of javascript maps the selected datafields to HTML elements on your site.
+                It needs to be placed after the relevant HTML elements in order to work properly.
                 <br>
                 <pre style="text-align: left;">{{ config|escape }}</pre>
             </div>
             <div class="ODRRemoteSearch_extra pure-u-1-2">
-                TODO
+                This other piece of javascript reads the values from the HTML elements listed in
+                the configuration snippet, and converts them into an ODR search key when the
+                configured "submit" button is clicked.
+                <br><br>
+                <a href="{{ path('odr_remote_search_download', {'minified': 1}) }}">Minified version</a>
                 <br>
-                <a href="{{ path('odr_remote_search_download', {'minified': 1}) }}">Minified</a>
-                <br>
-                <a href="{{ path('odr_remote_search_download', {'minified': 0}) }}">Unminified</a>
+                <a href="{{ path('odr_remote_search_download', {'minified': 0}) }}">Unminified version</a>
             </div>
         </div>
     </div>

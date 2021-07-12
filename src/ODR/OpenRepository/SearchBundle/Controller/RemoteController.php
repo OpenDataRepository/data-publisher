@@ -35,6 +35,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
@@ -175,6 +176,9 @@ class RemoteController extends Controller
 //            $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchService $search_service */
             $search_service = $this->container->get('odr.search_service');
+            /** @var ThemeInfoService $ti_service */
+            $ti_service = $this->container->get('odr.theme_info_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -200,37 +204,76 @@ class RemoteController extends Controller
 
 
             // ----------------------------------------
+            // Going to need name/description info for all the datafields to be displayed
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // should contain links
+
             // Need the list of public, searchable datafields
             $searchable_datafields = $search_service->getSearchableDatafields($datatype_id);
 
             // Filter it down to the ones that can be searched
+            $include_general_search = false;
             $permitted_datafields = array();
-            foreach ($searchable_datafields[$datatype_id]['datafields'] as $key => $df) {
-                if ( $key === 'non_public' || $df['searchable'] === DataFields::NOT_SEARCHED ) {
-                    // Not a valid datafield
-                }
-                else {
-                    $typeclass = $df['typeclass'];
-                    switch ($typeclass) {
-                        case 'ShortVarchar':
-                        case 'MediumVarchar':
-                        case 'LongVarchar':
-                        case 'LongText':
-                        case 'IntegerValue':
-                        case 'DecimalValue':
-                            $permitted_datafields[] = $key;
-                            break;
+            foreach ($searchable_datafields as $dt_id => $dt_data) {
+                if ( $dt_data['dt_public_date'] !== '2200-01-01' ) {
+                    // Datatype is public, look through its public datafields...
+                    foreach ($dt_data['datafields'] as $key => $df_data ) {
+                        // Ignore datafields that aren't public or can't be searched on
+                        if ( $key === 'non_public' || $df_data['searchable'] === DataFields::NOT_SEARCHED )
+                            continue;
 
-                        default:
-                            // TODO - allow other fieldtypse?  bool, date, radio, tag, etc
-                            // Not a valid datafield
-                            break;
+                        // Need the datafield's information from the cached datatype array...
+                        $df = $dt_array[$dt_id]['dataFields'][$key];
+                        $typeclass = $df_data['typeclass'];
+
+                        // Ignore datafields that aren't text/numbers, since other stuff is harder
+                        //  to deal with
+                        switch ($typeclass) {
+                            case 'Boolean':
+                            case 'File':
+                            case 'Image':
+                            case 'Radio':
+                            case 'DatetimeValue':
+                            case 'Tag':
+                                // Creating HTML elements for searching these fields is more
+                                //  complicated or requires additional info...don't "volunteer"
+                                //  these fields
+                            case 'Markdown':
+                                // Searching markdown fields is meaningless, skip ahead to the next
+                                //  field in this datatype
+                                continue 2;
+                        }
+
+                        // All datafields that make it to here are valid...they're public, searchable,
+                        //  and are text/number fields
+
+                        // If the field is suitable for advanced search...
+                        if ( $df_data['searchable'] === DataFields::ADVANCED_SEARCH
+                            || $df_data['searchable'] === DataFields::ADVANCED_SEARCH_ONLY
+                        ) {
+                            // ...then it should be displayed in the interface
+                            if ( !isset($permitted_datafields[$dt_id]) )
+                                $permitted_datafields[$dt_id] = array();
+                            $permitted_datafields[$dt_id][$key] = $df;
+                        }
+
+                        // If the field is suitable for general search...
+                        if ( $df_data['searchable'] === DataFields::GENERAL_SEARCH
+                            || $df_data['searchable'] === DataFields::ADVANCED_SEARCH
+                        ) {
+                            // ...then need an entry to enable general search
+                            $include_general_search = true;
+                        }
                     }
                 }
             }
 
-            // The list above only has datafield ids and typeclasses...need name/description info too
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // don't want links
+            // Also going to need the theme array
+            $master_theme = $ti_service->getDatatypeMasterTheme($datatype_id);
+            $theme_array = $ti_service->getThemeArray($master_theme->getId());
+
+            // Need to stack both arrays
+            $dt_array = array( $datatype_id => $dbi_service->stackDatatypeArray($dt_array, $datatype_id) );
+            $theme_array = array( $master_theme->getId() => $ti_service->stackThemeArray($theme_array, $master_theme->getId()) );
 
 
             // ----------------------------------------
@@ -238,11 +281,15 @@ class RemoteController extends Controller
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Remote:select.html.twig',
+                    'ODROpenRepositorySearchBundle:Remote:select_ajax.html.twig',
                     array(
                         'datatype_id' => $datatype_id,
-                        'dt_array' => $dt_array[$datatype_id],
-                        'permitted_datafields' => $permitted_datafields
+                        'datatype_array' => $dt_array,
+                        'theme_id' => $master_theme->getId(),
+                        'theme_array' => $theme_array,
+
+                        'include_general_search' => $include_general_search,
+                        'permitted_datafields' => $permitted_datafields,
                     )
                 )
             );
@@ -324,27 +371,44 @@ class RemoteController extends Controller
 
 
             // Need the datafield info
-            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // don't want links
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // should contain links
+            $datafields = array();
+
+            // If the "general search" checkbox was selected, create an entry for it in the final
+            //  array since it won't be in the cached datatype array
+            if ( isset($datafield_ids['gen']) )
+                $datafields['gen'] = 'general_search';
 
             // Verify that the provided datafields are searchable and public
-            $datafields = array();
-            foreach ($datafield_ids as $df_id => $num) {
-                if ( !isset($dt_array[$datatype_id]['dataFields'][$df_id]) )
-                    throw new ODRBadRequestException();
+            foreach ($dt_array as $dt_id => $dt) {
+                if ( isset($dt['dataFields']) ) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        // If the user selected this datafield...
+                        if ( isset($datafield_ids[$df_id]) ) {
+                            $dfm = $df['dataFieldMeta'];
 
-                $df = $dt_array[$datatype_id]['dataFields'][$df_id];
-                $dfm = $df['dataFieldMeta'];
+                            $is_searchable = false;
+                            if ( $dfm['searchable'] === DataFields::ADVANCED_SEARCH
+                                || $dfm['searchable'] === DataFields::ADVANCED_SEARCH_ONLY
+                            ) {
+                                $is_searchable = true;
+                            }
 
-                if ( $dfm['searchable'] === DataFields::NOT_SEARCHED || $dfm['publicDate'] === '2200-01-01 00:00:00' ) {
-                    // Silently ignore illegal datafields
-//                    throw new ODRBadRequestException();
-                    continue;
+                            $is_public = true;
+                            if ( $dfm['publicDate'] === '2200-01-01 00:00:00' )
+                                $is_public = false;
+
+                            // ...only save the field if it's both searchable and public
+                            if ( $is_searchable && $is_public )
+                                $datafields[$df_id] = strtolower(str_replace(' ', '_', $dfm['fieldName']));
+                        }
+                    }
                 }
-
-
-                // TODO - need to use something other than the field name...
-                $datafields[$df_id] = strtolower(str_replace(' ', '_', $dfm['fieldName']));
             }
+
+            // Verify that the submitted post didn't have any non-public or unsearchable fields in it
+            if ( count($datafields) !== count($datafield_ids) )
+                throw new ODRBadRequestException();
 
 
             // ----------------------------------------

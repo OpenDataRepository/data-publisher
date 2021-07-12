@@ -1,0 +1,74 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+<div class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox">
+
+        <div class="ODRTableOuterWrap"><div class="ODRTableWrap">
+        {% if permitted_datafields[target_datatype_id] is defined %}
+            <table id="ODRDatafieldList_{{ target_datatype_id }}" class="display dataTable ODRDatafieldList">
+                <thead><tr>
+                    <th></th>
+
+                    <th></th>
+                    <th>Datafield Name</th>
+                    <th>Datafield Description</th>
+                </tr></thead>
+                <tbody>
+                {% for df_id,df in permitted_datafields[target_datatype_id] %}
+                    {% set datafield_meta = df.dataFieldMeta %}
+                    <tr>
+                        <td>{{ df_id }}</td>
+                        <td>
+                            <input class="ODRRemoteSearch_select" rel="{{ df_id }}" type="checkbox">
+                        </td>
+
+                        <td>{{ datafield_meta.fieldName }}</td>
+                        <td>{{ datafield_meta.description }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="ODRDatafieldList">
+                None of the datafields in this database can be searched remotely.
+            </div>
+        {% endif %}
+        </div></div>
+
+    {% for theme_element in theme.themeElements %}
+
+        {% if theme_element.themeDataType is defined %}
+
+            {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+            {% for theme_datatype in theme_element.themeDataType %}
+                {% set child_datatype_id = theme_datatype.dataType.id %}
+                {% set child_theme_id = theme_datatype.childTheme.id %}
+
+                {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
+                    {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                    {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
+
+                    {% include 'ODROpenRepositorySearchBundle:Remote:select_childtype.html.twig' with {
+                        'datatype_array': child_datatype,
+                        'theme_array': child_theme,
+
+                        'target_datatype_id': child_datatype_id,
+                        'target_theme_id': child_theme_id,
+
+                        'permitted_datafields': permitted_datafields
+                    } %}
+                {% endif %}
+            {% endfor %}
+
+        {% endif %}
+
+    {% endfor %}
+
+    </div><!-- end of .ODRInnerBox -->
+</div><!-- end of .ODRThemeElement -->
+
+{% endspaceless %}
