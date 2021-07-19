@@ -52,11 +52,11 @@ class CheminReferencesPlugin implements DatatypePluginInterface
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // TODO - make changes so it can actually run in Edit mode?
-        // This render plugin isn't allowed to work when in edit mode
-        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
-            return false;
+        // This render plugin is only allowed to work in display mode
+        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'display' )
+            return true;
 
-        return true;
+        return false;
     }
 
 

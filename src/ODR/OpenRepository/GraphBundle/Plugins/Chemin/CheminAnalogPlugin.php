@@ -194,9 +194,8 @@ class CheminAnalogPlugin implements DatatypePluginInterface
 
 
             // ----------------------------------------
-            // Might need to prepend the AMC file problems themeElement to the output...
             if ( isset($rendering_options['context']) && $rendering_options['context'] === 'fake_edit' ) {
-                // When in edit mode, use the plugin's override
+                // When in fake_edit mode, use the plugin's override
                 return $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Chemin:CheminAnalog/cheminanalog_fakeedit_fieldarea.html.twig',
                     array(

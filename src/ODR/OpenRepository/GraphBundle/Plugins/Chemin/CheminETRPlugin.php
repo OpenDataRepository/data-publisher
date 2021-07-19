@@ -57,11 +57,11 @@ class CheminETRPlugin implements DatatypePluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // This render plugin isn't allowed to work when in edit mode
-        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
-            return false;
+        // This render plugin is only allowed to work in display mode
+        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'display' )
+            return true;
 
-        return true;
+        return false;
     }
 
 
