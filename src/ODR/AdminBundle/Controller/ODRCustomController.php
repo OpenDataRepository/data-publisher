@@ -736,6 +736,9 @@ class ODRCustomController extends Controller
      */
     protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
     {
+        // TODO - this way this is called technically allows one user to overwrite another job
+        // TODO - ...at least, if the job is stalled for some reason
+
         $tracked_job = null;
 
         // TODO - more flexible way of doing this?
@@ -1046,7 +1049,7 @@ class ODRCustomController extends Controller
                 array(
                     "object_type" => $typeclass,
                     "object_id" => $my_obj->getId(),
-                    "target_filename" => '',
+                    "local_filename" => '',
                     "crypto_type" => 'encrypt',
 
                     "archive_filepath" => '',

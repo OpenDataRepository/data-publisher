@@ -886,7 +886,7 @@ class EditController extends ODRCustomController
                         array(
                             "object_type" => 'File',
                             "object_id" => $file_id,
-                            "target_filename" => $target_filename,
+                            "local_filename" => $target_filename,
                             "crypto_type" => 'decrypt',
 
                             "archive_filepath" => '',
