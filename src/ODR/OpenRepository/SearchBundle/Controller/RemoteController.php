@@ -519,4 +519,77 @@ class RemoteController extends Controller
 //        $response->headers->set('Content-Type', 'text/javascript');
 //        return $response;
     }
+
+
+    /**
+     * Renders pages of examples about implementing/modifying the ODR Remote Search stuff.
+     *
+     * @param string $type
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function examplesAction($type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            $site_baseurl = $this->getParameter('site_baseurl');
+
+            // Just need to get twig to render an example
+            /** @var TwigEngine $templating */
+            $templating = $this->get('templating');
+
+            $template = null;
+            if ($type === 'basic1')
+                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_basic1.html.twig';
+            else if ($type === 'basic2')
+                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_basic2.html.twig';
+            else if ($type === 'basic3')
+                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_basic3.html.twig';
+            else if ($type === 'defaults')
+                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_adv_extra.html.twig';
+            else if ($type === 'alt')
+                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_adv_alt.html.twig';
+
+            $template_type = 'basic';
+            if ( strpos($type, 'adv') !== false )
+                $template_type = 'adv';
+
+            // Need to render the example separately...
+            $str = $templating->render(
+                $template,
+                array(
+                    'site_baseurl' => $site_baseurl,
+                )
+            );
+
+            // ...so it can get escaped properly
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODROpenRepositorySearchBundle:Remote:config_example_wrapper.html.twig',
+                    array(
+                        'site_baseurl' => $site_baseurl,
+                        'template_type' => $template_type,
+                        'str' => $str
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xee3fe022;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

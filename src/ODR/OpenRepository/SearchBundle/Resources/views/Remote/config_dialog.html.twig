@@ -34,8 +34,10 @@
 
     /**
      * Submits the user-selected datafields, and then displays the relevant javascript config.
+     *
+     * @param {string} [type]
      */
-    function loadODRRemoteSearchDialog() {
+    function loadODRRemoteSearchDialog(type) {
         // Get rid of any previous checkbox elements in the form
         $(".ODRRemoteSearch_form_element").remove();
 
@@ -49,7 +51,12 @@
             }
         });
 
-        var url  = '{{ path('odr_remote_search_config') }}';
+        var url = '{{ path('odr_remote_search_config') }}';
+
+        if (type != undefined) {
+            url = '{{ path('odr_remote_search_examples', {'type': ''}) }}';
+            url += type;
+        }
 
         $.ajax({
             cache: false,

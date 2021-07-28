@@ -5,9 +5,12 @@
          <div class="ODRInnerBox pure-u-1">
              <div class="ODRFieldArea accordion-content">
                  <div class="ODRBodyContent">
-                     The final step in this process is apply the configuration to your site.  Your
-                     site needs to have one HTML element for each datafield that you selected in the
-                     previous step, and a submit button to actually trigger the search.
+                     <div style="text-indent: 20px;">
+                         The final step in this process is apply the configuration to your site.  Your
+                         site needs to have one HTML element for each datafield that you selected in
+                         the previous step, and a button (or some other clickable element) to actually
+                         trigger the search.
+                     </div>
                  </div>
              </div>
          </div>
@@ -15,19 +18,28 @@
     <div class="ODRThemeElement pure-u-1">
         <div class="ODRInnerBox pure-u-1">
             <div class="ODRRemoteSearch_pre pure-u-11-24">
-                This snippet of javascript maps the selected datafields to HTML elements on your site.
-                It needs to be placed after the relevant HTML elements in order to work properly.
-                <br>
+                <div style="text-indent: 20px;">
+                    This snippet of javascript maps the selected datafields to HTML elements on your
+                    site. It needs to be placed after the relevant HTML elements in order to work properly.
+                </div>
                 <pre style="text-align: left;">{{ config|escape }}</pre>
             </div>
             <div class="ODRRemoteSearch_extra pure-u-1-2">
-                This other piece of javascript reads the values from the HTML elements listed in
-                the configuration snippet, and converts them into an ODR search key when the
-                configured "submit" button is clicked.
+                <div style="text-indent: 20px;">
+                    This other piece of javascript reads the values from the HTML elements listed in
+                    the configuration snippet, and converts them into an ODR search key when the
+                    configured "submit" button is clicked.
+                </div>
                 <br><br>
-                <a href="{{ path('odr_remote_search_download', {'minified': 1}) }}">Minified version</a>
+                <a href="{{ path('odr_remote_search_download', {'minified': 1}) }}">Minified version download</a>
                 <br>
-                <a href="{{ path('odr_remote_search_download', {'minified': 0}) }}">Unminified version</a>
+                <a href="{{ path('odr_remote_search_download', {'minified': 0}) }}">Unminified version download</a>
+                <br><br><br>
+                For a step-by-step example of how to add this to your site, click <a onclick="loadODRRemoteSearchDialog('basic1');">here.</a>
+                <br>
+                For a more advanced example of writing your own javascript to customize the search key, click <a onclick="loadODRRemoteSearchDialog('defaults');">here.</a>
+                <br>
+                For a similar advanced example, click <a onclick="loadODRRemoteSearchDialog('alt');">here.</a>
             </div>
         </div>
     </div>
