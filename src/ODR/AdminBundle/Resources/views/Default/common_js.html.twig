@@ -135,8 +135,19 @@
 
         // Extract unique id
         var current_url = window.location.href;
+        // If matches landing, remove to get root url (landing needs to be reserved term
+        if(
+            current_url.match(/\/landing$/)
+            || current_url.match(/\/landing#/)
+        ) {
+            current_url = current_url.replace('/landing','');
+        }
+
         var url_data = current_url.split('#');
         var url_bits = url_data[0].split('/');
+
+
+
 
         // Unique ID is the last bit
         var unique_id = url_bits[(url_bits.length - 1)];

@@ -16,6 +16,9 @@
 
 namespace ODR\OpenRepository\SearchBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
+use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\AdminBundle\Entity\DataRecord;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
@@ -50,6 +53,455 @@ use Symfony\Component\HttpFoundation\Cookie;
 
 class DefaultController extends Controller
 {
+
+    /**
+     * Renders the base page for searching purposes
+     *
+     * @param String $search_slug   Which datatype to load a search page for.
+     * @param String $search_string An optional string to immediately enter into the general search field and search with.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datasetlistAction(Request $request)
+    {
+        $html = 'Dataset List';
+
+        // $response = new Response($html);
+        // $response->headers->set('Content-Type', 'text/html');
+        // $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
+        // return $response;
+
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // --------------------
+            // Grab user privileges to determine what they can do
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            // --------------------
+
+
+            // Grab a list of top top-level datatypes
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+
+            // Grab each top-level datatype from the repository
+            $section = 'databases';
+            $is_master_type = ($section == "templates" || $section == "datatemplates") ? 1 : 0;
+
+            $query_sql =
+                'SELECT dt, dtm, md, mf, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.metadata_datatype AS md
+                LEFT JOIN dt.metadata_for AS mf
+                LEFT JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.updatedBy AS dt_ub
+                WHERE 
+                dt.id IN (:datatypes)
+                AND dt.is_master_type = (:is_master_type)
+                AND dt.deletedAt IS NULL 
+                AND dtm.deletedAt IS NULL
+                AND (
+                        dt.preload_status IS NULL 
+                        OR dt.preload_status LIKE \'issued\'
+                        OR dt.preload_status LIKE \'\'
+                    )
+                ';
+
+            if($section == 'databases')
+                $query_sql .= ' AND dt.unique_id = dt.template_group';
+
+            if ($section == "datatemplates")
+                $query_sql .= ' AND dt.metadata_datatype IS NULL';
+
+            $query = $em->createQuery($query_sql);
+            $query->setParameters(
+                array(
+                    'datatypes' => $top_level_datatypes,
+                    'is_master_type' => $is_master_type
+                )
+            );
+
+            $results = $query->getArrayResult();
+
+            // TODO This whole loop seems superfluous
+            $datatypes = array();
+            $metadata_datatype_ids = array();
+            foreach ($results as $result) {
+                $dt_id = $result['id'];
+
+                $dt = $result;
+                $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
+                $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
+                $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
+                if (isset($result['metadata_datatype']) && count($result['metadata_datatype']) > 0) {
+                    $dt['metadata_datatype'] = $result['metadata_datatype'];
+                    array_push($metadata_datatype_ids, $dt['metadata_datatype']['id']);
+                }
+                if (isset($result['metadata_for']) && count($result['metadata_for']) > 0) {
+                    $dt['metadata_for'] = $result['metadata_for'];
+                }
+
+                $datatypes[$dt_id] = $dt;
+            }
+
+
+            // ----------------------------------------
+            // Determine how many datarecords the user has the ability to view for each datatype
+            $datatype_ids = array_keys($datatypes);
+            $metadata = $dbi_service->getDatarecordCounts($datatype_ids, $datatype_permissions);
+            $datatypes = self::getCorrectedNames($em, $metadata_datatype_ids, $datatypes);
+
+            // Get corrected names
+
+
+            // Render and return the html for the datatype list
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Datatype:type_list.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'section' => $section,
+                        'datatypes' => $datatypes,
+                        'metadata' => $metadata,
+                    )
+                )
+            );
+
+            // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
+            $session = $request->getSession();
+            $session->set('scroll_target', '');
+        }
+        catch (\Exception $e) {
+            $source = 0x833ade83;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response($return['d']['html']);
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+    // TODO Turn this into a utility method
+    private function getCorrectedNames($em, $datatype_ids, $datatypes) {
+        // We need to get true database name for this datatype
+        $query_sql =
+            'SELECT
+                        dt, mf, dr, drm, drf, drf_df, drf_drm, e_lt, e_lvc, e_mvc, e_svc
+                        FROM ODRAdminBundle:DataType dt
+                        LEFT JOIN dt.metadata_for AS mf
+                        LEFT JOIN dt.dataRecords AS dr
+                        LEFT JOIN dr.dataRecordMeta AS drm
+                        LEFT JOIN dr.dataRecordFields AS drf
+                        LEFT JOIN drf.dataField AS drf_df
+                        LEFT JOIN drf_df.dataFieldMeta AS drf_drm
+                        LEFT JOIN drf.longText AS e_lt
+                        LEFT JOIN drf.longVarchar AS e_lvc
+                        LEFT JOIN drf.mediumVarchar AS e_mvc
+                        LEFT JOIN drf.shortVarchar AS e_svc
+                        
+                        WHERE 
+                        dt.id IN (:datatype_ids)
+                        AND dt.deletedAt IS NULL 
+                        AND drf_drm.internal_reference_name LIKE \'datatype_name\'
+                        ';
+
+
+        $query = $em->createQuery($query_sql);
+        $query->setParameters(
+            array(
+                'datatype_ids' => $datatype_ids
+            )
+        );
+
+        $datatype_results = $query->getArrayResult();
+
+        foreach ($datatype_results as $datatype_result) {
+            if (
+                isset($datatype_result['dataRecords'])
+                && isset($datatype_result['dataRecords'][0])
+                && isset($datatype_result['dataRecords'][0]['dataRecordFields'])
+                && isset($datatype_result['dataRecords'][0]['dataRecordFields'][0])
+            ) {
+                $field = $datatype_result['dataRecords'][0]['dataRecordFields'][0];
+                $datatype_id = $datatype_result['metadata_for']['id'];
+                if (count($field['longText']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['longText'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['longText'][0]['value'];
+                } else if (count($field['longVarchar']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['longVarchar'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['longVarchar'][0]['value'];
+                } else if (count($field['mediumVarchar']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['mediumVarchar'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['mediumVarchar'][0]['value'];
+                } else if (count($field['shortVarchar']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['shortVarchar'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['shortVarchar'][0]['value'];
+                }
+            }
+        }
+
+        return $datatypes;
+
+    }
+
+    /**
+     * @param $search_slug
+     * @param Request $request
+     * @return Response
+     * @throws ODRBadRequestException
+     * @throws ODRException
+     * @throws ODRForbiddenException
+     * @throws ODRNotFoundException
+     */
+    public function landingpageAction($search_slug, Request $request)
+    {
+        // $html = 'Landing Page';
+// //
+        // $response = new Response($html);
+        // $response->headers->set('Content-Type', 'text/html');
+        // $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
+        // return $response;
+
+        // Must have metadata to have a valid landing page
+        // Redirect to /{search_slug}#/search if not
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchSidebarService $ssb_service */
+            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            $cookies = $request->cookies;
+
+
+            // ------------------------------
+            // Grab user and their permissions if possible
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            // Store if logged in or not
+            $logged_in = true;
+            if ($admin_user == 'anon.')
+                $logged_in = false;
+
+
+            // ------------------------------
+
+
+            // Locate the datatype referenced by the search slug, if possible...
+            if ($search_slug == '') {
+                print "NOT FOUND";
+            }
+
+            /** @var DataType $target_datatype */
+            $target_datatype = null;
+
+            /** @var DataTypeMeta $meta_entry */
+            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+                array(
+                    'searchSlug' => $search_slug
+                )
+            );
+            if ( is_null($meta_entry) ) {
+                // Couldn't find a datatypeMeta entry with that search slug, so check whether the
+                //  search slug is actually a database uuid instead
+                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array(
+                        'unique_id' => $search_slug
+                    )
+                );
+
+                if ( is_null($target_datatype) ) {
+                    // $search_slug is neither a search slug nor a database uuid...give up
+                    throw new ODRNotFoundException('Datatype');
+                }
+                else {
+                    // Redirect so the page uses the search slug instead of the uuid
+                    return $this->redirectToRoute(
+                        'odr_search_landing',
+                        array(
+                            'search_slug' => $target_datatype->getSearchSlug()
+                        )
+                    );
+                }
+            }
+            else {
+                // Found a matching datatypeMeta entry
+                $target_datatype = $meta_entry->getDataType();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+            }
+
+            // If this is a metadata datatype...
+            if ( !is_null($target_datatype->getMetadataFor()) ) {
+                // ...only want to run searches on "real" datatypes
+                $target_datatype = $target_datatype->getMetadataFor();
+                if ( !is_null($target_datatype->getDeletedAt()) )
+                    throw new ODRNotFoundException('Datatype');
+
+                // ...pretty sure redirecting to the "real" datatype is undesirable here
+            }
+
+
+            // ----------------------------------------
+            // Check if user has permission to view datatype
+            $target_datatype_id = $target_datatype->getId();
+            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
+                if (!$logged_in) {
+                    // Can't just throw a 401 error here and have Symfony auto-redirect to login
+                    // So, in order to get the user to login and then return them back to this page...
+
+                    // ...need to clear existing session redirect paths
+                    /** @var TrackedPathService $tracked_path_service */
+                    $tracked_path_service = $this->container->get('odr.tracked_path_service');
+                    $tracked_path_service->clearTargetPaths();
+
+                    // ...then need to save the user's current URL into their session
+                    $url = $request->getRequestUri();
+                    $session = $request->getSession();
+                    $session->set('_security.main.target_path', $url);
+
+                    // ...then finally we can redirect to the login page
+                    return $this->redirectToRoute('fos_user_security_login');
+                }
+                else {
+                    throw new ODRForbiddenException();
+                }
+            }
+
+
+
+            // ----------------------------------------
+            $metadata_datatype = $target_datatype->getMetadataDatatype();
+            $metadata_datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $metadata_datatype->getId());
+
+            // Metadata Datasets should have one record.  Need to retrieve it.
+            // Find datarecord from dataset
+            /** @var DataRecord $data_record */
+            $metadata_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                array(
+                    'dataType' => $metadata_datatype->getId()
+                )
+            );
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $metadata_data_record_array = $dri_service->getDatarecordArray($metadata_data_record->getId(), true);
+
+
+            // Need to build everything used by the sidebar...
+            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
+            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
+            $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
+
+
+            // ----------------------------------------
+            // Grab a random background image if one exists and the user is allowed to see it
+            $background_image_id = null;
+
+            // ----------------------------------------
+            // Generate a random key to identify this tab
+            $odr_tab_id = $odr_tab_service->createTabId();
+
+            // TODO - modify search page to allow users to select from available themes
+            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+
+            // ----------------------------------------
+            // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+            /*
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $site_baseurl .= '/app_dev.php';
+            */
+
+            // var_dump($metadata_data_record_array);die();
+            // var_dump($metadata_datatype_array);die();
+
+            $html = $this->renderView(
+                'ODROpenRepositorySearchBundle:Default:landing.html.twig',
+                array(
+                    // required twig/javascript parameters
+                    'user' => $admin_user,
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'user_list' => $user_list,
+                    'logged_in' => $logged_in,
+                    'window_title' => $target_datatype->getShortName(),
+                    'intent' => 'searching',
+                    'sidebar_reload' => false,
+                    'search_slug' => $search_slug,
+                    'site_baseurl' => $site_baseurl,
+                    'search_string' => '',
+                    'odr_tab_id' => $odr_tab_id,
+
+                    // required for background image
+                    'background_image_id' => $background_image_id,
+
+                    // datatype/datafields to search
+                    'search_params' => array(),
+                    'target_datatype' => $target_datatype,
+                    'datatype_array' => $datatype_array,
+                    'datatype_relations' => $datatype_relations,
+
+                    'target_metadata_datatype' => $metadata_datatype,
+                    'metadata_datatype_array' => $metadata_datatype_array,
+                    'metadata_data_record' => $metadata_data_record,
+                    'metadata_data_record_array' => $metadata_data_record_array,
+
+                    // theme selection
+                    'available_themes' => $available_themes,
+                    'preferred_theme_id' => $preferred_theme_id,
+                )
+            );
+
+            // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
+            $session = $request->getSession();
+            $session->set('scroll_target', '');
+        }
+        catch (\Exception $e) {
+            $source = 0xd75fa46d;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response($html);
+        $response->headers->set('Content-Type', 'text/html');
+        $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
+        return $response;
+    }
 
     /**
      * Renders the base page for searching purposes
@@ -120,7 +572,6 @@ class DefaultController extends Controller
                     }
                 }
             }
-
 
             // ----------------------------------------
             // Now that a search slug is guaranteed to exist, locate the desired datatype
@@ -201,8 +652,6 @@ class DefaultController extends Controller
                 }
             }
 
-
-
             // ----------------------------------------
             // Need to build everything used by the sidebar...
             $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
@@ -265,6 +714,7 @@ class DefaultController extends Controller
             // TODO - modify search page to allow users to select from available themes
             $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+
 
 
             // ----------------------------------------

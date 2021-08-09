@@ -95,6 +95,22 @@ odr_reload_search_sidebar:
 # NOTE: odr.search_slug_blacklist parameter is defined in SearchBundle/Resources/config/services.yml
 
 # These routes MUST be the absolute last routes imported by ODR due to generic terms...they'll typically override any route imported later
+
+
+odr_search_dataset_list:
+    path:  /datasets
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:datasetlist }
+    requirements:
+        # search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+        # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+
+odr_search_landing:
+    path:  /{search_slug}/landing
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:landingpage }
+    requirements:
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{1,32}'
+        # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+
 odr_search_immediate:
     path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
@@ -108,3 +124,11 @@ odr_search:
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
         # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+
+#odr_search_dataset_list:
+#    path:  /
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Default:homepage }
+#    requirements:
+#        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+#        # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+#

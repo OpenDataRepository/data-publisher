@@ -1,0 +1,462 @@
+{% extends '::base.html.twig' %}
+
+
+{# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
+
+{% set site_baseurl = site_baseurl %}
+{% set logged_in = false %}
+{% set current_user = '' %}
+{% if user != 'anon.' %}
+    {% set logged_in = true %}
+    {% set current_user = user.getuserstring %}
+{% endif %}
+
+{% if logged_in == false %}
+    {% set header_middle_title = 'Search' %}
+    {% if search_slug == 'admin' %}
+        {% set header_middle_path = path('odr_admin_homepage') %}
+    {% else %}
+        {% set header_middle_path = path('odr_search', {'search_slug': search_slug} ) %}
+    {% endif %}
+
+    {% set header_right_title = 'Login' %}
+    {% set header_right_path = '' %}
+    {% set header_right_js = 'ODRLogin();' %}
+{% else %}
+    {% set header_middle_title = 'Search' %}
+    {% if search_slug == 'admin' %}
+        {% set header_middle_path = path('odr_admin_homepage') %}
+    {% else %}
+        {% set header_middle_path = path('odr_search', {'search_slug': search_slug} ) %}
+    {% endif %}
+
+    {% set header_right_title = 'Logout' %}
+    {% set header_right_path = path('odr_logout') %}
+    {% set header_right_js = '' %}
+{% endif %}
+
+{% block title %}{{ window_title }}{% endblock %}
+
+{% set use_navigation_block = false %}
+{% if user != 'anon.' %}
+    {% set use_navigation_block = true %}
+{% endif %}
+
+{% block navigation_top %}
+    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
+{% endblock %}
+
+{# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODRAdminBundle:Default:index.html.twig #}
+{% block body %}
+
+{# Identify the top-level metadata array record #}
+{% set metadata_datatype = metadata_datatype_array[target_metadata_datatype.id]  %}
+{% set title_field = '' %}
+{% set description_field = '' %}
+{% set keywords_field = '' %}
+{% set doi_field = '' %}
+{% set doi_status_field = '' %}
+{% for field_id, field in metadata_datatype['dataFields'] %}
+    {%  if field['templateFieldUuid'] == "f4f4022949d34f52f937e78bc6e0" %}
+        {% set title_field = field['id'] %}
+    {% endif %}
+    {%  if field['templateFieldUuid'] == "cad551223fa30c5a88bfb6c7b1f8" %}
+        {% set description_field = field['id'] %}
+    {% endif %}
+    {%  if field['templateFieldUuid'] == "3c19bcbeea60a660edceb5fcdc88" %}
+        {% set keywords_field = field['id'] %}
+    {% endif %}
+    {%  if field['templateFieldUuid'] == "b4eb5219bd23e061af7c441f74b2" %}
+        {% set doi_field = field['id'] %}
+    {% endif %}
+    {%  if field['templateFieldUuid'] == "53a0a5dad7f3152aee91e1d3543f" %}
+        {% set doi_status_field = field['id'] %}
+    {% endif %}
+{% endfor %}
+
+{% set authors_metadata_datatype = '' %}
+{% set funding_metadata_datatype = '' %}
+{% for metadata_datatype_id, metadata_datatype in metadata_datatype_array %}
+    {% if metadata_datatype['masterDataType']['unique_id'] == "b9181a96589d8b2ff693a39a2ea6" %}
+        {% set authors_metadata_datatype = metadata_datatype %}
+    {% endif %}
+    {% if metadata_datatype['unique_id'] == "75c5f0e5c2d0a447ec09f06b3ad8" %}
+        {% set funding_metadata_datatype = metadata_datatype %}
+    {% endif %}
+{% endfor %}
+
+    <style type="text/css">
+        .info_data_header {
+            font-size: 11px;
+            margin-bottom: 12px;
+            font-weight: bold;
+        }
+        .doi_prefix {
+            text-transform: uppercase;
+            background-color: #4F4F4F;
+            color: white;
+            font-family: sans-serif;
+            font-size: 10px;
+            padding: 3px 3px 3px 3px;
+            border-radius: 3px 0 0 3px;
+        }
+        .doi_value {
+            background-color: #3E7FCA;
+            color: white;
+            font-family: sans-serif;
+            font-size: 10px;
+            padding: 3px 3px 3px 3px;
+            border-radius: 0 3px 3px 0;
+        }
+    </style>
+<div class="ODRContentWrapper pure-u-1 pure-u-md-3-4 pure-u-lg-19-24 pure-u-xl-19-24">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div style="font-size: 18px; font-weight: normal; color: #3E7FCA; margin-left: 20px; margin-top: 8px;">
+                {{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][title_field]['longVarchar'][0]['value'] }}
+            </div>
+            <div style="font-size: 14px; font-weight: bold; margin-left: 20px; margin-right: 20px; padding-top:2px;">
+                {% for metadata_datatype_id, metadata_datatype in metadata_datatype_array %}
+                    {# Process Authors #}
+                    {% if metadata_datatype['masterDataType']['unique_id'] == "b9181a96589d8b2ff693a39a2ea6" %}
+                        {% set family_name = '' %}
+                        {% set given_name = '' %}
+                        {% set affiliation = '' %}
+                        {% set email = '' %}
+                        {% set orcid = '' %}
+                        {% set rorid = '' %}
+                        {% for field_id, field in metadata_datatype['dataFields'] %}
+                            {%  if field['templateFieldUuid'] == "f5f0beff15e52cbeb455444bfcc7" %}
+                                {# f5f0beff15e52cbeb455444bfcc7 family name #}
+                                {% set family_name = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "30c6c434f454bb3cff644cff6cca" %}
+                                {# 30c6c434f454bb3cff644cff6cca given name #}
+                                {% set given_name = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "20b6cff3d7cbb8733623f696ca55" %}
+                                {# 20b6cff3d7cbb8733623f696ca55 email #}
+                                {% set email = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "ad5bb78ead5a272cc9c3ab5db657" %}
+                                {# ad5bb78ead5a272cc9c3ab5db657 affiliation #}
+                                {% set affiliation = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "064147488449ce8757322761c8b8" %}
+                                {# 064147488449ce8757322761c8b8 orcid #}
+                                {% set orcid = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "a80151b4c8145ecb27b2545be88f" %}
+                                {# a80151b4c8145ecb27b2545be88f rorid #}
+                                {% set rorid = field['id'] %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for metadata_data_record_id, metadata_data_record in metadata_data_record_array %}
+                            {% if metadata_data_record['dataType']['id'] ==  authors_metadata_datatype.id %}
+                                {% if given_name != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][given_name]['longVarchar'][0]['value']|slice(0,1)|capitalize }}.
+                                {% endif %}
+                                {% if family_name != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][family_name]['shortVarchar'][0]['value'] }}
+                                {% endif %}
+                                {% if affiliation != '' %}
+                                    ({{ metadata_data_record['dataRecordFields'][affiliation]['longVarchar'][0]['value'] }})
+                                {% endif %}
+                                {#
+                                {% if email != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][email]['longVarchar'][0]['value'] }}
+                                {% endif %}
+                                {% if orcid != '' and 0 %}
+                                    {{ metadata_data_record['dataRecordFields'][orcid]['shortVarchar'][0]['value'] }}
+                                {% endif %}
+                                {% if rorid != '' and 0 %}
+                                    {{ metadata_data_record['dataRecordFields'][rorid]['shortVarchar'][0]['value'] }}
+                                {% endif %}
+                                #}
+                                {% if not loop.last %},{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                </div>
+            <div class="ODRBodyContent" style="width: 100%">
+                <p style="display: none; margin-left: 10px; margin-bottom: 0px; padding-bottom: 0px; font-weight: bold;">Description</p>
+                <pre style="font-family: sans-serif; font-weight: normal; background-color: white; margin-left: 10px; margin-top: 0px; width: 95%; white-space: pre-wrap; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; word-wrap: break-word;">{{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][description_field]['longText'][0]['value'] }}</pre>
+            </div>
+            <div class="ODRBodyContent">
+                <h3>Keywords</h3>
+                {{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][keywords_field]['longVarchar'][0]['value'] }}
+            </div>
+        </div>
+    </div>
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader">
+               Recommended Citation
+            </h3>
+            <div class="ODRBodyContent">
+                {% for metadata_datatype_id, metadata_datatype in metadata_datatype_array %}
+                    {# Process Authors #}
+                    {% if metadata_datatype['masterDataType']['unique_id'] == "b9181a96589d8b2ff693a39a2ea6" %}
+                        {% set family_name = '' %}
+                        {% set given_name = '' %}
+                        {% set affiliation = '' %}
+                        {% set email = '' %}
+                        {% set orcid = '' %}
+                        {% set rorid = '' %}
+                        {% for field_id, field in metadata_datatype['dataFields'] %}
+                            {%  if field['templateFieldUuid'] == "f5f0beff15e52cbeb455444bfcc7" %}
+                                {# f5f0beff15e52cbeb455444bfcc7 family name #}
+                                {% set family_name = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "30c6c434f454bb3cff644cff6cca" %}
+                                {# 30c6c434f454bb3cff644cff6cca given name #}
+                                {% set given_name = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "20b6cff3d7cbb8733623f696ca55" %}
+                                {# 20b6cff3d7cbb8733623f696ca55 email #}
+                                {% set email = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "ad5bb78ead5a272cc9c3ab5db657" %}
+                                {# ad5bb78ead5a272cc9c3ab5db657 affiliation #}
+                                {% set affiliation = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "064147488449ce8757322761c8b8" %}
+                                {# 064147488449ce8757322761c8b8 orcid #}
+                                {% set orcid = field['id'] %}
+                            {% endif %}
+                            {%  if field['templateFieldUuid'] == "a80151b4c8145ecb27b2545be88f" %}
+                                {# a80151b4c8145ecb27b2545be88f rorid #}
+                                {% set rorid = field['id'] %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for metadata_data_record_id, metadata_data_record in metadata_data_record_array %}
+                            {% if metadata_data_record['dataType']['id'] ==  authors_metadata_datatype.id %}
+                                {% if given_name != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][given_name]['longVarchar'][0]['value']|capitalize }}.
+                                {% endif %}
+                                {% if family_name != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][family_name]['shortVarchar'][0]['value']|capitalize }}
+                                {% endif %}
+                                {% if affiliation != '' %}
+                                    ({{ metadata_data_record['dataRecordFields'][affiliation]['longVarchar'][0]['value'] }})
+                                {% endif %}
+                                {#
+                                {% if email != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][email]['longVarchar'][0]['value'] }}
+                                {% endif %}
+                                {% if orcid != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][orcid]['shortVarchar'][0]['value'] }}
+                                {% endif %}
+                                {% if rorid != '' %}
+                                    {{ metadata_data_record['dataRecordFields'][rorid]['shortVarchar'][0]['value'] }}
+                                {% endif %}
+                                #}
+                                {% if not loop.last %},{% endif %}
+                                {% if loop.last %}.{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                "{{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][title_field]['longVarchar'][0]['value'] }}"
+                ; doi: https://doi.org/{{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][doi_field]['longVarchar'][0]['value'] }}
+            </div>
+        </div>
+    </div>
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader">
+                Search or Browse the Dataset
+            </h3>
+            <div class="ODRBodyContent">
+
+                <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
+                    <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
+                    <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}"/>
+
+                    <fieldset class="ODRSearchBoxWrapper">
+                        <div class="pure-u-1">
+                            <label for="textbox_general" class="pure-u-1 ODRPrimarySearchLabel">
+                                Search for:
+                                <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"
+                                   style="padding-left:5px;" title="Search Help"></i>
+                                <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList"
+                                   style="padding-left:5px;" title="Fields searched when using general search:"></i>
+                                {#
+                                {% if is_datatype_admin %}
+                                    <i class="fa fa-lg fa-edit Pointer ODREditSearchNotes"
+                                       style="padding-left:5px;" title="Edit the search page notes."></i>
+                                {% endif %}
+                                #}
+                            </label>
+                            <input id="textbox_general" class="pure-u-1" type="text" name="gen"
+                                   {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
+                                   {% if search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+                                    {#
+                                    {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %}
+                                    #}
+                            />
+                            <input type="hidden" id="search_type" value="basic" />
+                        </div>
+
+                        <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
+                            {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+                        </div>
+                        <div class="pure-u-1" id="ODRGeneralSearchList_div" class="ODRTableWrap" style="display:none;">
+                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield_list.html.twig' with {
+                                'target_datatype': target_datatype,
+                                'datatype_array': datatype_array,
+                                'datatype_relations': datatype_relations,
+                                'logged_in': logged_in,
+                            } %}
+                        </div>
+                    </fieldset>
+
+                    <fieldset id="search_top">
+                        <div class="pure-u-1">
+                            <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
+                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
+                        </div>
+                    </fieldset>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="ODRContentWrapper pure-u-1 pure-u-md-1-4 pure-u-lg-5-24 pure-u-xl-5-24">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRBodyContent">
+                <img src="/images/ODR_Logo_Final.png" alt="Open Data Repository Logo" style="width: 100%; margin-top: 10px;"/>
+            </div>
+        </div>
+    </div>
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRBodyContent">
+
+                {% if metadata_data_record_array[metadata_data_record.id]['dataRecordMeta']['publicDate']['date'] is defined %}
+                <div style="font-size: 12px;">
+                    <span class="info_data_header">Publication date</span><br />
+                    {{ metadata_data_record_array[metadata_data_record.id]['dataRecordMeta']['publicDate'].date|date("F j, Y") }}
+                </div>
+                {% endif %}
+                <div>
+                    <span class="info_data_header">DOI</span><br />
+                    <a href="https://doi.org/{{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][doi_field]['longVarchar'][0]['value'] }}"><span class="doi_prefix">doi</span><span class="doi_value">{{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][doi_field]['longVarchar'][0]['value'] }}</span></a>
+                </div>
+            </div>
+       </div>
+    </div>
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader">
+                Keywords
+            </h3>
+            <div class="ODRBodyContent">
+                {{  metadata_data_record_array[metadata_data_record.id]['dataRecordFields'][keywords_field]['longVarchar'][0]['value'] }}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    {#
+
+        <pre>
+        *Required fields*
+        * State*: The state determines whether a DOI is registered and findable. Once in Registered or Findable state, a DOI can’t be set back to Draft state. More …
+        * URL*: The location of the landing page with more information about the resource.
+        * Creators*: The main researchers or organizations involved in producing the resource, in priority order.
+        * Name Identifier: Uniquely identifies an individual or legal entity, according to various schemas, e.g. ORCID, ROR or ISNI. Use name identifier expressed as URL. The Given Name, Family Name and Name will automatically be filled out for ORCID and ROR identifiers.
+        * Given Name: The personal or first name of the creator.
+        * Family Name: The surname or last name of the creator.
+        * Name*
+        * Affiliation: Affiliation names and identifiers are provided by the Research Organization Registry (ROR).
+        * Titles*: One or more names or titles by which the resource is known.
+        * Publisher*: The name of the entity that holds, archives, publishes prints, distributes, releases, issues, or produces the resource.This property will be used to formulate the citation, so consider the prominence of the role.
+        * Publication Year*: The year when the resource was or will be made publicly available.
+        * Resource Type General*: The general type of the resource. If none of the provided values matches, use Other and specify the resource type in the field below.
+        *Recommended Properties*
+        * Subjects: Subject, keyword, classification code, or key phrase describing the resource.
+        * Contributors: The institution or person responsible for collecting, managing, distributing, or otherwise contributing to the development of the resource.
+        * Dates: Different dates relevant to the resource.
+        * Related Identifiers: Identifiers of related resources.
+        * Descriptions: Additional information about the resource that does not fit in any of the other categories.
+        * Geolocations: Spatial region or named place where the data was gathered or about which the resource is focused.
+        *Optional Properties*
+        * Language: The primary language of the resource.
+        * Alternate Identifiers: An identifier or identifiers other than the primary Identifier applied to the resource being registered.
+        * Rights: Rights information for the resource.
+        * Sizes: Size (e.g. bytes, pages, inches, etc.) or duration (extent), e.g. hours, minutes, days, etc., of the resource.
+        * Formats: Technical format of the resource.
+        * Version: The version number of the resource.
+        * Funding References: Information about financial support (funding) for the resource being registered
+        </pre>
+
+    #}
+
+    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
+    {{ js.write(logged_in) }}
+
+    <script>
+        $(function() {
+            // Prevent normal form behavior
+            $("#search_form").unbind('submit').submit(function (event) {
+                event.preventDefault();
+                doSearch();
+            });
+        })
+        function doReset() {
+            {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
+            window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
+        }
+
+        function doSearch() {
+            // Request search results
+            var url = '{{ path('odr_search_results') }}';
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                dataType: 'json',
+                data: $("#search_form").serialize(),
+                success: function (data, textStatus, jqXHR) {
+
+                    // Now that the search has been performed and cached, render the results
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
+                    url = url.substr(0, url.length - 2);
+                    url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
+
+                    // Save the search key so TODO
+                    $("#ODRSidebarSearchKey").val(data.d.search_key);
+
+                    // UpdateURL() will end up forcing a hashchange event one way or another
+                    window.location.href = "/app_dev.php/chemin#" + url;
+                    // UpdateURL(url);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // TODO - should everything get reset on an error?
+                    // doReset();
+                },
+                complete: function (jqXHR, textStatus) {
+
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        }
+    </script>
+
+{% endblock %}
