@@ -8,10 +8,6 @@
 </div>
 <div id="example_content">
     <div>
-        While odr_remote_search.js is provided for convenience, and uses pure javascript for
-        portability, there's technically nothing stopping you from writing your own implementation.
-    </div>
-    <div>
         In this example, we want to search for samples in the UA Mineral Museum by name...and for
         demonstration purposes, only display samples from the USA.
     </div>
@@ -20,7 +16,11 @@
 <script>
 // This example is using jQuery instead of pure javascript because it's shorter
 $(function() {
-    $("#uamm_search").unbind('click').click(function() {
+    $("#uamm_search").unbind('click').click(function(event) {
+        // Don't trigger default form events
+        event.preventDefault();
+        event.stopPropagation();
+
         // In this example, we want to search for samples in the UA Mineral Museum by name...
         //  ...and for demonstration purposes, only display samples from the USA.
         var mineral_name = $("#mineral_name").val();

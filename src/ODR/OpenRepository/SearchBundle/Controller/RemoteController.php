@@ -376,8 +376,12 @@ class RemoteController extends Controller
 
             // If the "general search" checkbox was selected, create an entry for it in the final
             //  array since it won't be in the cached datatype array
-            if ( isset($datafield_ids['gen']) )
-                $datafields['gen'] = 'general_search';
+            if ( isset($datafield_ids['gen']) ) {
+                $datafields['gen'] = array(
+                    'datafield_name' => 'Search everything',
+                    'element_name' => 'general_search',
+                );
+            }
 
             // Verify that the provided datafields are searchable and public
             foreach ($dt_array as $dt_id => $dt) {
@@ -399,8 +403,12 @@ class RemoteController extends Controller
                                 $is_public = false;
 
                             // ...only save the field if it's both searchable and public
-                            if ( $is_searchable && $is_public )
-                                $datafields[$df_id] = strtolower(str_replace(' ', '_', $dfm['fieldName']));
+                            if ( $is_searchable && $is_public ) {
+                                $datafields[$df_id] = array(
+                                    'datafield_name' => $dfm['fieldName'],
+                                    'element_name' => strtolower(str_replace(' ', '_', $dfm['fieldName'])),
+                                );
+                            }
                         }
                     }
                 }
@@ -416,8 +424,19 @@ class RemoteController extends Controller
             $templating = $this->get('templating');
 
             // Need to render this separately...
-            $str = $templating->render(
-                'ODROpenRepositorySearchBundle:Remote:config_data.html.twig',
+//            $short_config = $templating->render(
+//                'ODROpenRepositorySearchBundle:Remote:config_data.html.twig',
+//                array(
+//                    'protocol' => $protocol,
+//                    'baseurl' => $site_baseurl,
+//                    'datatype_id' => $datatype_id,
+//                    'search_slug' => $datatype->getSearchSlug(),
+//                    'datafields' => $datafields,
+//                )
+//            );
+
+            $long_config = $templating->render(
+                'ODROpenRepositorySearchBundle:Remote:odr_remote_search_inline.html.twig',
                 array(
                     'protocol' => $protocol,
                     'baseurl' => $site_baseurl,
@@ -432,7 +451,8 @@ class RemoteController extends Controller
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Remote:config_data_wrapper.html.twig',
                     array(
-                        'config' => $str
+//                        'short_config' => $short_config,
+                        'long_config' => $long_config,
                     )
                 )
             );

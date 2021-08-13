@@ -118,11 +118,13 @@ class SearchKeyService
 
         // Return an array instead of an object
         $array = json_decode($decoded, true);
-        ksort($array);
-        if (is_null($array))
+        if ( is_null($array) ) {
             throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
-        else
+        }
+        else {
+            ksort($array);
             return $array;
+        }
     }
 
 

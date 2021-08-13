@@ -1,12 +1,16 @@
 {% spaceless %}
 
+{% if template_type is not defined %}
+    {% set template_type = 'adv' %}
+{% endif %}
+
 <div class="ODRRemoteSearch_dialog ODRContentWrapper pure-u-1">
     <div class="ODRThemeElement pure-u-1">
         <div class="ODRInnerBox pure-u-1">
             <div class="ODRBodyContent">
                 The left side of this dialog displays some raw HTML/javascript...the right side renders that same HTML/javascript as a working example.  For brevity, CSS rules are not displayed.
                 <br><br>
-                To return to the configuration result screen, click <a onclick="loadODRRemoteSearchDialog();">here.</a>
+                To return to the example implementation, click <a onclick="loadODRRemoteSearchDialog();">here.</a>
             </div>
         </div>
     </div>
