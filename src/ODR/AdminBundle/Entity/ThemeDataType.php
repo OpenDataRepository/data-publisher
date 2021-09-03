@@ -50,6 +50,12 @@ class ThemeDataType
     private $display_type;
 
     /**
+     * @deprecated
+     * @var integer
+     */
+    private $hidden;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -126,6 +132,32 @@ class ThemeDataType
     public function getDisplayType()
     {
         return $this->display_type;
+    }
+
+    /**
+     * @deprecated
+     * Set hidden
+     *
+     * @param integer $hidden
+     *
+     * @return ThemeDataType
+     */
+    public function setHidden($hidden)
+    {
+        $this->hidden = $hidden;
+
+        return $this;
+    }
+
+    /**
+     * @deprecated
+     * Get hidden
+     *
+     * @return integer
+     */
+    public function getHidden()
+    {
+        return $this->hidden;
     }
 
     /**

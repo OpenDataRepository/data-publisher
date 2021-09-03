@@ -17,10 +17,19 @@
                         The second step in this process is to select which datafields you're interested in.
                         <br>
                         If no datafields are displayed, then the database is likely unsuitable for remote searching.
+
+                        {% if include_general_search %}
+                        <div id="general_checkbox_div" style="margin-top:5px;">
+                            <input id="general_checkbox" class="ODRRemoteSearch_select" rel="gen" type="checkbox" />
+                            <label for="general_checkbox" style="font-size:100%;">
+                                Search across all datafields in the database
+                            </label>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="ODRHidden">
                         <form id="ODRRemoteSearch_form">
-                            <input type="hidden" name="datatype_id" value="{{ datatype_id }}"/>
+                            <input type="hidden" name="datatype_id" value="{{ datatype_id }}" />
                         </form>
                     </div>
                     <button id="ODRRemoteSearch_config" class="pure-button pure-button-disabled">Show Config</button>
@@ -31,30 +40,17 @@
 </div>
 
 <div class="ODRContentWrapper pure-u-1">
-    <table id="ODRDatatypeList" class="display dataTable">
-        <thead><tr>
-            <th></th>
+    <div class="ODRFormWrap pure-u-1">
+        {% include 'ODROpenRepositorySearchBundle:Remote:select_childtype.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
 
-            <th></th>
-            <th>Datafield Name</th>
-            <th>Datafield Description</th>
-        </tr></thead>
-        <tbody>
-        {% for df_id in permitted_datafields %}
-            {% set df = dt_array['dataFields'][df_id] %}
-            {% set datafield_meta = df.dataFieldMeta %}
-            <tr>
-                <td>{{ df_id }}</td>
-                <td>
-                    <input class="ODRRemoteSearch_select" rel="{{ df_id }}" type="checkbox">
-                </td>
+            'target_datatype_id': datatype_id,
+            'target_theme_id': theme_id,
 
-                <td>{{ datafield_meta.fieldName }}</td>
-                <td>{{ datafield_meta.description }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            'permitted_datafields': permitted_datafields,
+        } %}
+    </div>
 </div>
 
 <div id="odrremotesearch_config_dialog_wrapper">
@@ -63,7 +59,8 @@
 
 <script>
     $(function() {
-        $("#ODRDatatypeList").dataTable({
+        // $("#ODRDatatypeList").dataTable({
+        $("table.ODRDatafieldList").dataTable({
             "columnDefs": [
                 {
                     "targets": [0],
@@ -90,7 +87,13 @@
                 "emptyTable": "No Datafields found"
             }
         });
-        $("#ODRDatatypeList").removeAttr('style');
+        $("table.ODRDatafieldList").removeAttr('style');
+
+        $(".ODRDataType").each(function(index, elem) {
+            if ( $(elem).find(".ODRDatafieldList").length == 0 ) {
+                $(elem).remove();
+            }
+        });
 
         $(".ODRRemoteSearch_select").unbind('change').change(function() {
             // Enable the button when at least one datafield is selected
@@ -126,18 +129,23 @@
         $('#ODRHelpButton')
             .attr('data-step', '1')
             .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        $('#ODRDatatypeList_filter')
+        $('.dataTables_filter').first()
             .attr('data-step', '2')
             .attr('data-intro', "As with the database table, the list of datafields can be filtered by typing into this field.");
-        $('#ODRDatatypeList').find('tr').first()
+        $('.ODRDatafieldList').first().find('tr').first()
             .attr('data-step', '3')
             .attr('data-intro', 'Additionally, the table can be sorted by clicking on the column headers, if necessary.');
-        $('#ODRDatatypeList').find('.ODRRemoteSearch_select').first()
+        $('.ODRDatafieldList').first().find('.ODRRemoteSearch_select').first()
             .attr('data-step', '4')
             .attr('data-intro', "To include a datafield of interest in the configuration, select the checkbox in that row.");
-        $('#ODRRemoteSearch_config')
+        {% if include_general_search %}
+        $('#general_checkbox_div')
             .attr('data-step', '5')
-            .attr('data-intro', 'After selecting at least one datafield, click this button to move on to the next stage of the process.');
+            .attr('data-intro', "To include the ability to search all datafields at the same time, select this checkbox.");
+        {% endif %}
+        $('#ODRRemoteSearch_config')
+            .attr('data-step', '6')
+            .attr('data-intro', 'After selecting the general search or at least one datafield, click this button to move on to the next stage of the process.');
     });
 </script>
 {% endspaceless %}

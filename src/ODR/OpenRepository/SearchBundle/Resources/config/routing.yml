@@ -21,6 +21,13 @@ odr_remote_search_download:
     requirements:
         minified: 0|1
 
+odr_remote_search_examples:
+    path: /remote_search/example/{type}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:examples }
+    requirements:
+        type: '|basic1|basic2|basic3|defaults|alt'
+
+
 # ----------------------------------------
 # Support for old routes and GET routes
 #

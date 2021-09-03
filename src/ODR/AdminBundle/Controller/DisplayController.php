@@ -472,7 +472,7 @@ class DisplayController extends ODRCustomController
                             array(
                                 "object_type" => 'File',
                                 "object_id" => $file_id,
-                                "target_filename" => $target_filename,
+                                "local_filename" => $target_filename,
                                 "crypto_type" => 'decrypt',
 
                                 "archive_filepath" => '',
@@ -528,7 +528,7 @@ class DisplayController extends ODRCustomController
                         array(
                             "object_type" => 'File',
                             "object_id" => $file_id,
-                            "target_filename" => $target_filename,
+                            "local_filename" => $target_filename,
                             "crypto_type" => 'decrypt',
 
                             "archive_filepath" => '',
@@ -1100,9 +1100,12 @@ class DisplayController extends ODRCustomController
 
             foreach ($dt['dataFields'] as $df_id => $df) {
                 $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                if ( $typename === 'File' /*|| $typename !== 'Image'*/ ) {
+                if ( $typename === 'File' || $typename === 'Image' ) {
                     // Probably going to display this datafield, save the name
-                    $entity_names['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+                    $entity_names['datafields'][$df_id] = array(
+                        'fieldName' => $df['dataFieldMeta']['fieldName'],
+                        'typeName' => $typename,
+                    );
                 }
                 else {
                     // Don't want this datafield in the array
@@ -1164,6 +1167,16 @@ class DisplayController extends ODRCustomController
                     // ...then store the file_id and the filename
                     $file_id = $file['id'];
                     $file_array['datafields'][$df_id][$file_id] = $file['fileMeta']['originalFileName'];
+                }
+            }
+            if ( !empty($drf['image']) ) {
+                $file_array['datafields'][$df_id] = array();
+                foreach ($drf['image'] as $num => $thumbnail_image) {
+                    // Don't want to store the thumbnail image
+                    $image = $thumbnail_image['parent'];
+                    // ...then store the image_id and the filename
+                    $image_id = $image['id'];
+                    $file_array['datafields'][$df_id][$image_id] = $image['imageMeta']['originalFileName'];
                 }
             }
         }
@@ -1247,19 +1260,29 @@ class DisplayController extends ODRCustomController
                 $dr = $datarecord_array[$dr_id];
 
                 // ...then ensure there's a datafield entry in this array...
-                if ( isset($dr['dataRecordFields'][$df_id]) && !empty($dr['dataRecordFields'][$df_id]['file']) ) {
-                    if (!isset($file_array['datafields'][$df_id]))
-                        $file_array['datafields'][$df_id] = array();
+                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                    $drf = $dr['dataRecordFields'][$df_id];
 
-                    // ...create an entry for this datarecord...
-                    if (!isset($file_array['datafields'][$df_id][$dr_id]))
-                        $file_array['datafields'][$df_id][$dr_id] = array();
+                    if ( !empty($drf['file']) || !empty($drf['image']) ) {
+                        if ( !isset($file_array['datafields'][$df_id]) )
+                            $file_array['datafields'][$df_id] = array();
 
-                    // ...and then create entries for all files that this datarecord has for this
-                    //  datafield
-                    foreach ($datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'] as $num => $file) {
-                        $file_id = $file['id'];
-                        $file_array['datafields'][$df_id][$dr_id][$file_id] = $file['fileMeta']['originalFileName'];
+                        // ...create an entry for this datarecord...
+                        if ( !isset($file_array['datafields'][$df_id][$dr_id]) )
+                            $file_array['datafields'][$df_id][$dr_id] = array();
+
+                        // ...and then create entries for all the files/images that have been
+                        //  uploaded to this datarecord
+                        foreach ($drf['file'] as $num => $file) {
+                            $file_id = $file['id'];
+                            $file_array['datafields'][$df_id][$dr_id][$file_id] = $file['fileMeta']['originalFileName'];
+                        }
+                        foreach ($drf['image'] as $num => $thumbnail_image) {
+                            // Don't want the thumbnail image
+                            $image = $thumbnail_image['parent'];
+                            $image_id = $image['id'];
+                            $file_array['datafields'][$df_id][$dr_id][$image_id] = $image['imageMeta']['originalFileName'];
+                        }
                     }
                 }
             }
@@ -1324,11 +1347,14 @@ class DisplayController extends ODRCustomController
             if ( isset($post['images']) )
                 $image_ids = $post['images'];
 
+            // Faster to use isset() than in_array()
+            $file_ids = array_flip($file_ids);
+            $image_ids = array_flip($image_ids);
+
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -1367,78 +1393,64 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Intersect the array of desired file/image ids with the array of permitted files/ids to determine which files/images to add to the zip archive
+            // Intersect the array of desired file/image ids with the array of permitted files/ids
+            //  to determine which files/images to add to the zip archive
             $file_list = array();
-            $filename_list = array();
-
             $image_list = array();
-            $imagename_list = array();
+
+            // Also need to ensure no duplicate filenames will be added to the archive
+            $filename_list = array();
+            $filename_count = array();
             foreach ($datarecord_array as $dr_id => $dr) {
                 foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
-                    if ( count($drf['file']) > 0 ) {
-                        foreach ($drf['file'] as $f_num => $f) {
-                            if ( in_array($f['id'], $file_ids) ) {
-                                // Store by original checksum so multiples of the same file only get decrypted/stored once
-                                $original_checksum = $f['original_checksum'];
-                                $file_list[$original_checksum] = $f;
+                    // If this datarecord has files...
+                    if ( !empty($drf['file']) ) {
+                        foreach ($drf['file'] as $file_num => $file) {
+                            // ...and the user wants to download this file...
+                            $current_file_id = $file['id'];
+                            if ( isset($file_ids[$current_file_id]) ) {
+                                // ...then determine whether a file/image with this filename has
+                                //  already been scheduled for adding to the archive
+                                $desired_filename = $file['fileMeta']['originalFileName'];
+                                $unconflicting_filename = self::getArchiveFilename($desired_filename, $file['ext'], $filename_list, $filename_count);
 
-                                // Also store the file's name to detect different files with the same filename
-                                $filename = $f['fileMeta']['originalFileName'];
-                                $filename_list[$original_checksum] = $filename;
+                                // Store the file under its unique filename
+                                $file_list[$unconflicting_filename] = $file;
                             }
                         }
                     }
 
-                    // TODO - also allow user to download images in a zip archive?
+                    // If this datarecord has images...
+                    if ( !empty($drf['image']) ) {
+                        foreach ($drf['image'] as $i_num => $thumbnail_image) {
+                            // Don't want the thumbnail image
+                            $image = $thumbnail_image['parent'];
+
+                            // ...and the user wants to download this image...
+                            $current_image_id = $image['id'];
+                            if ( isset($image_ids[$current_image_id]) ) {
+                                // ...then determine whether a file/image with this filename has
+                                //  already been scheduled for adding to the archive
+                                $desired_filename = $image['imageMeta']['originalFileName'];
+                                $unconflicting_filename = self::getArchiveFilename($desired_filename, $image['ext'], $filename_list, $filename_count);
+
+                                // Store the image under its unique filename
+                                $image_list[$unconflicting_filename] = $image;
+                            }
+                        }
+                    }
                 }
             }
 
-
-            // If needed, tweak the file list so different files that have the same filename on the server have different filenames in the zip archive
-            asort($filename_list);
-            $prev_filename = '';
-            $num = 2;
-            foreach($filename_list as $file_checksum => $filename) {
-                if ($filename == $prev_filename) {
-                    // This filename maches the previous one...insert a numerical string in this filename to differentiate between the two
-                    $file_ext = $file_list[$file_checksum]['ext'];
-                    $tmp_filename = substr($filename, 0, strlen($filename)-strlen($file_ext)-1);
-                    $tmp_filename .= ' ('.$num.').'.$file_ext;
-                    $num++;
-
-                    // Save the new filename back in the array
-                    $file_list[$file_checksum]['fileMeta']['originalFileName'] = $tmp_filename;
-                }
-                else {
-                    // This filename is different from the previous one, reset for next potential indentical filename
-                    $prev_filename = $filename;
-                    $num = 2;
-                }
-            }
-
-            // TODO - do the same for image names?
-            // TODO - only one file with a given name can be in an archive...duplicates are ignored...
-/*
-print '<pre>'.print_r($file_list, true).'</pre>';
-print '<pre>'.print_r($image_list, true).'</pre>';
-exit();
-*/
 
             // ----------------------------------------
             // If any files/images remain...
-            if ( count($file_list) == 0 && count($image_list) == 0 ) {
+            if ( empty($file_list) && empty($image_list) ) {
                 // TODO - what to return?
                 $exact = true;
                 throw new ODRNotFoundException('No files are available for downloading', $exact);
             }
             else {
-                // Generate the url for cURL to use
-                $pheanstalk = $this->get('pheanstalk');
-                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
-
-                $api_key = $this->container->getParameter('beanstalk_api_key');
-
-
                 // Create a filename for the zip archive
                 $tokenGenerator = $this->get('fos_user.util.token_generator');
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
@@ -1448,42 +1460,50 @@ exit();
 
                 $archive_size = count($file_list) + count($image_list);
 
-                foreach ($file_list as $f_checksum => $file) {
-                    // Determine the decrypted filename
-                    $desired_filename = $file['fileMeta']['originalFileName'];
-
-                    $target_filename = '';
+                $requests = array();
+                foreach ($file_list as $desired_filename => $file) {
+                    // Need to locate the decrypted version of the file
+                    $local_filename = '';
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
                         // non-public files need to be decrypted to something difficult to guess
-                        $target_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
-                        $target_filename .= '.'.$file['ext'];
+                        $local_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
+                        $local_filename .= '.'.$file['ext'];
                     }
                     else {
                         // public files need to be decrypted to this format
-                        $target_filename = 'File_'.$file['id'].'.'.$file['ext'];
+                        $local_filename = 'File_'.$file['id'].'.'.$file['ext'];
                     }
 
-                    // Schedule a beanstalk job to start decrypting the file
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "object_type" => 'File',
-                            "object_id" => $file['id'],
-                            "target_filename" => $target_filename,
-                            "crypto_type" => 'decrypt',
-
-                            "archive_filepath" => $archive_filepath,
-                            "desired_filename" => $desired_filename,
-
-                            "redis_prefix" => $redis_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
+                    $requests[] = array(
+                        'object_type' => 'File',
+                        'object_id' => $file['id'],
+                        'local_filename' => $local_filename,
+                        'desired_filename' => $desired_filename,
                     );
-
-                    $delay = 0;
-                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
                 }
+                foreach ($image_list as $desired_filename => $image) {
+                    // Need to locate the decrypted version of the image
+                    $local_filename = '';
+                    if ( $image['imageMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
+                        // non-public images need to be decrypted to something difficult to guess
+                        $local_filename = md5($image['original_checksum'].'_'.$image['id'].'_'.$user->getId());
+                        $local_filename .= '.'.$image['ext'];
+                    }
+                    else {
+                        // public images need to be decrypted to this format
+                        $local_filename = 'Image_'.$image['id'].'.'.$image['ext'];
+                    }
+
+                    $requests[] = array(
+                        'object_type' => 'Image',
+                        'object_id' => $image['id'],
+                        'local_filename' => $local_filename,
+                        'desired_filename' => $desired_filename,
+                    );
+                }
+
+                // Create the decryption requests for each of the files/images
+                self::createArchiveRequest($archive_filepath, $requests);
             }
 
             $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
@@ -1554,8 +1574,8 @@ exit();
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            // TODO - loosen the restriction a bit?
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // TODO - loosen restrictions even more?
+            if ( !$pm_service->canEditDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -1578,13 +1598,13 @@ exit();
 
                 foreach ($dt['dataFields'] as $df_id => $df) {
                     $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                    if ($typeclass !== 'File') {
-                        // Not a file datafield, delete it out of the array
-                        unset( $dt_array[$dt_id]['dataFields'][$df_id] );
+                    if ($typeclass === 'File' || $typeclass === 'Image') {
+                        // Is a file or image datafield, store the name
+                        $entity_names['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
                     }
                     else {
-                        // Is a file datafield, store the name
-                        $entity_names['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+                        // Not a file or image datafield, delete it out of the array
+                        unset( $dt_array[$dt_id]['dataFields'][$df_id] );
                     }
                 }
             }
@@ -1655,7 +1675,6 @@ exit();
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
@@ -1679,7 +1698,7 @@ exit();
                 throw new ODRNotFoundException('Datatype');
 
             // Need to verify that each datafield provided is related to the grandparent datatype,
-            //  and that they're all file fields
+            //  and that they're all file or image fields
             $associated_datatypes = $dti_service->getAssociatedDatatypes($search_params_dt_id);
             // Flip because isset() is faster than in_array()
             $associated_datatypes = array_flip($associated_datatypes);
@@ -1693,7 +1712,9 @@ exit();
 
                 if ( !isset($associated_datatypes[$df->getDataType()->getGrandparent()->getId()]) )
                     throw new ODRBadRequestException('Invalid search key');
-                if ($df->getFieldType()->getTypeClass() !== 'File')
+
+                $typeclass = $df->getFieldType()->getTypeClass();
+                if ( $typeclass !== 'File' && $typeclass !== 'Image' )
                     throw new ODRBadRequestException('Invalid datafield');
 
                 $hydrated_datafields[$df_id] = $df;
@@ -1706,8 +1727,8 @@ exit();
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            // TODO - loosen the restriction a bit?
-            if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
+            // TODO - loosen restrictions even more?
+            if ( !$pm_service->canEditDatatype($user, $grandparent_datatype) )
                 throw new ODRForbiddenException();
 
             // The search results are already filtered to just the datarecords the user can view
@@ -1728,6 +1749,10 @@ exit();
             }
             // ----------------------------------------
 
+            // Need to ensure that the filenames of all files/images to be added to the archive
+            //  are unique
+            $filename_list = array();
+            $filename_count = array();
 
             // Going to need the list of all datarecords that matched the search
             $search_result = $search_api_service->performSearch($grandparent_datatype, $search_key, $user_permissions);
@@ -1754,7 +1779,7 @@ exit();
             );
             $results = $query->getArrayResult();
 
-            // Organize files by checksum
+            // Organize files by their filename
             $file_list = array();
             foreach ($results as $drf) {
                 foreach ($drf['file'] as $file_num => $file) {
@@ -1772,29 +1797,81 @@ exit();
                     if (!$can_view_datarecord && !$is_public)
                         continue;
 
-                    // Otherwise, preserve the file so it will be added to the zip archive
-                    $checksum = $file['original_checksum'];
-                    $file_list[$checksum] = $file;
-                    $file_list[$checksum]['fileMeta'] = $file['fileMeta'][0];
+                    // Otherwise, check whether the file is already slated to be added to the zip
+                    //  archive...
+                    $file['fileMeta'] = $file['fileMeta'][0];
+                    $desired_filename = $file['fileMeta']['originalFileName'];
+                    $unconflicting_filename = self::getArchiveFilename($desired_filename, $file['ext'], $filename_list, $filename_count);
+
+                    // Store the file under its unique filename
+                    $file_list[$unconflicting_filename] = $file;
                 }
             }
 
+            // Need to do the same query, but for images this time
+            $query = $em->createQuery(
+               'SELECT partial drf.{id},
+                    partial i.{id},
+                    partial ip.{id, ext, original_checksum},
+                    partial ipm.{id, originalFileName, publicDate},
+                    partial df.{id}
+                FROM ODRAdminBundle:DataRecordFields drf
+                JOIN drf.image AS i
+                JOIN i.parent AS ip
+                JOIN ip.imageMeta AS ipm
+                JOIN ip.dataField AS df
+                WHERE drf.dataRecord IN (:datarecords) AND drf.dataField IN (:datafields)
+                AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND i.deletedAt IS NULL AND ip.deletedAt IS NULL AND ipm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafields' => $datafields,
+                    'datarecords' => $dr_list,
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // Organize images by their filename
+            $image_list = array();
+            foreach ($results as $drf) {
+                foreach ($drf['image'] as $image_num => $thumbnail_image) {
+                    // Want to store the original image in the archive
+                    $image = $thumbnail_image['parent'];
+
+                    // Need to filter out non-public images if the user can't view them
+                    $is_public = true;
+                    if ( $image['imageMeta'][0]['publicDate']->format('Y-m-d') == '2200-01-01' )
+                        $is_public = false;
+
+                    // Determine whether the user can view non-public records for this datatype
+                    $df_id = $image['dataField']['id'];
+                    $can_view_datarecord = $can_view_nonpublic_datarecords[$df_id];
+
+                    // If the user can't view non-public records and the image is not public, then
+                    //  don't store it in the array
+                    if (!$can_view_datarecord && !$is_public)
+                        continue;
+
+                    // Otherwise, check whether the file is already slated to be added to the zip
+                    //  archive...
+                    $image['imageMeta'] = $image['imageMeta'][0];
+                    $desired_filename = $image['imageMeta']['originalFileName'];
+                    $unconflicting_filename = self::getArchiveFilename($desired_filename, $image['ext'], $filename_list, $filename_count);
+
+                    // Store the file under its unique filename
+                    $image_list[$unconflicting_filename] = $image;
+                }
+            }
+
+
             // ----------------------------------------
             // If any files/images remain...
-            $image_list = array();
             if ( empty($file_list) && empty($image_list) ) {
                 // TODO - what to return?
                 $exact = true;
-                throw new ODRNotFoundException('No files are available for downloading', $exact);
+                throw new ODRNotFoundException('No files or images are available for downloading', $exact);
             }
             else {
-                // Generate the url for cURL to use
-                $pheanstalk = $this->get('pheanstalk');
-                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
-
-                $api_key = $this->container->getParameter('beanstalk_api_key');
-
-
                 // Create a filename for the zip archive
                 $tokenGenerator = $this->get('fos_user.util.token_generator');
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
@@ -1804,44 +1881,55 @@ exit();
 
                 $archive_size = count($file_list) + count($image_list);
 
-                foreach ($file_list as $f_checksum => $file) {
-                    // Determine the decrypted filename
-                    $desired_filename = $file['fileMeta']['originalFileName'];
-
-                    $target_filename = '';
+                $requests = array();
+                foreach ($file_list as $desired_filename => $file) {
+                    // Need to locate the decrypted version of the file
+                    $local_filename = '';
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
                         // non-public files need to be decrypted to something difficult to guess
-                        $target_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
-                        $target_filename .= '.'.$file['ext'];
+                        $local_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
+                        $local_filename .= '.'.$file['ext'];
                     }
                     else {
                         // public files need to be decrypted to this format
-                        $target_filename = 'File_'.$file['id'].'.'.$file['ext'];
+                        $local_filename = 'File_'.$file['id'].'.'.$file['ext'];
                     }
 
-                    // Schedule a beanstalk job to start decrypting the file
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "object_type" => 'File',
-                            "object_id" => $file['id'],
-                            "target_filename" => $target_filename,
-                            "crypto_type" => 'decrypt',
-
-                            "archive_filepath" => $archive_filepath,
-                            "desired_filename" => $desired_filename,
-
-                            "redis_prefix" => $redis_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
+                    $requests[] = array(
+                        'object_type' => 'File',
+                        'object_id' => $file['id'],
+                        'local_filename' => $local_filename,
+                        'desired_filename' => $desired_filename,
                     );
-
-                    $delay = 0;
-                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
                 }
+
+                // Do the same for the images
+                foreach ($image_list as $desired_filename => $image) {
+                    // Need to locate the decrypted version of the image
+                    $local_filename = '';
+                    if ( $image['imageMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
+                        // non-public images need to be decrypted to something difficult to guess
+                        $local_filename = md5($image['original_checksum'].'_'.$image['id'].'_'.$user->getId());
+                        $local_filename .= '.'.$image['ext'];
+                    }
+                    else {
+                        // public images need to be decrypted to this format
+                        $local_filename = 'Image_'.$image['id'].'.'.$image['ext'];
+                    }
+
+                    $requests[] = array(
+                        'object_type' => 'Image',
+                        'object_id' => $image['id'],
+                        'local_filename' => $local_filename,
+                        'desired_filename' => $desired_filename,
+                    );
+                }
+
+                // Create the decryption requests for each of the files/images
+                self::createArchiveRequest($archive_filepath, $requests);
             }
 
+            // TODO - is there some way to return that there are going to be duplicate filenames and/or duplicate files before the download starts?
             $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
         }
         catch (\Exception $e) {
@@ -1855,6 +1943,91 @@ exit();
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
         return $response;
+    }
+
+
+    /**
+     * Need to ensure that all files/images going into the archive have unique names, otherwise the
+     * background process will never finish creating the archive.
+     *
+     * @param string $requested_filename
+     * @param string $ext
+     * @param array $filename_list
+     * @param array $filename_count
+     *
+     * @return string
+     */
+    private function getArchiveFilename($requested_filename, $ext, &$filename_list, &$filename_count)
+    {
+        if ( !isset($filename_list[$requested_filename]) ) {
+            // A file/image with this filename hasn't been seen before
+            $filename_list[$requested_filename] = 1;
+            $filename_count[$requested_filename] = 1;
+
+            // Can use this filename
+            return $requested_filename;
+        }
+        else {
+            // A file/image with this filename has been seen before...need to modify the filename
+            //  so there's no collision
+            $duplicate_num = $filename_count[$requested_filename];
+
+            // Drop the extension from the previous filename...
+            $new_filename = substr($requested_filename, 0, strrpos($requested_filename, "."));
+            // ...so a number can be appended immediately before the extension
+            $new_filename .= '('.$duplicate_num.').'.$ext;
+
+            // Store the entity under the modified filename
+            $filename_list[$new_filename] = 1;
+
+            // Increment this number incase there's yet another duplicate of this filename later on...
+            $filename_count[$requested_filename]++;
+            // ...and also store the modified filename in case it collides with a later
+            //  file as well
+            $filename_count[$new_filename] = 1;
+
+            // Use the modified filename
+            return $new_filename;
+        }
+    }
+
+
+    /**
+     * Converts an array of files/images scheduled for decryption into background jobs.
+     *
+     * @param string $archive_filepath
+     * @param array $requests
+     */
+    private function createArchiveRequest($archive_filepath, $requests)
+    {
+        // Generate the url for cURL to use
+        $pheanstalk = $this->get('pheanstalk');
+        $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+        $api_key = $this->container->getParameter('beanstalk_api_key');
+
+        // Schedule a beanstalk job to start decrypting the requests in the array
+        foreach ($requests as $request) {
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "archive_filepath" => $archive_filepath,
+                    "crypto_type" => 'decrypt',
+
+                    "object_type" => $request['object_type'],
+                    "object_id" => $request['object_id'],
+                    "local_filename" => $request['local_filename'],
+                    "desired_filename" => $request['desired_filename'],
+
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $api_key,
+                )
+            );
+
+            $delay = 0;
+            $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+        }
     }
 
 

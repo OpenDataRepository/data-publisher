@@ -661,14 +661,14 @@ $ret .= '  Set current to '.$count."\n";
             $post = $_POST;
 //print_r($post);
 //return;
-            if ( !isset($post['crypto_type']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['target_filename']) || !isset($post['api_key']) )
+            if ( !isset($post['crypto_type']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['local_filename']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
             $crypto_type = $post['crypto_type'];
             $object_type = strtolower( $post['object_type'] );
             $object_id = $post['object_id'];
-            $target_filename = $post['target_filename'];
+            $local_filename = $post['local_filename'];
             $api_key = $post['api_key'];
 
             $error_prefix .= $crypto_type.' for '.$object_type.' '.$object_id.'...';
@@ -707,8 +707,8 @@ $ret .= '  Set current to '.$count."\n";
             $base_obj = null;
             if ($object_type == 'file')
                 $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-//            else if ($object_type == 'image')
-//                $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+            else if ($object_type == 'image')
+                $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
 
             // NOTE - encryption after image upload is currently done inline in ODRCustomController::finishUploadAction()
             // Also, they're decrypted inline when needed...if they were done asynch, the browser couldn't display non-public versions in <img> tags
@@ -758,10 +758,14 @@ $ret .= '  Set current to '.$count."\n";
                 // This is (currently) the only request the user has made for this file...begin manually decrypting it because the crypto bundle offers limited control over filenames
                 $crypto = $this->get("dterranova_crypto.crypto_adapter");
                 $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/';     // TODO - load from config file somehow?
-                $crypto_dir .= 'File_'.$object_id;
+
+                if ($object_type === 'file')
+                    $crypto_dir .= 'File_'.$object_id;
+                else
+                    $crypto_dir .= 'Image_'.$object_id;
 
                 $base_filepath = dirname(__FILE__).'/../../../../web/'.$base_obj->getUploadDir();
-                $local_filepath = $base_filepath.'/'.$target_filename;
+                $local_filepath = $base_filepath.'/'.$local_filename;
 
                 // Don't decrypt the file if it already exists on the server
                 if ( !file_exists($local_filepath) ) {
@@ -791,8 +795,8 @@ $ret .= '  Set current to '.$count."\n";
 
                     $file_decryptions = $cache_service->get('file_decryptions');
 
-                    if ( isset($file_decryptions[$target_filename]) )
-                        unset($file_decryptions[$target_filename]);
+                    if ( isset($file_decryptions[$local_filename]) )
+                        unset($file_decryptions[$local_filename]);
 
                     $cache_service->set('file_decryptions', $file_decryptions);
                 }

@@ -25,12 +25,16 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="delimiter" id="delimiter_field" class="ODRDelimiterField" maxlength="1"
-                               size="3"/>
+                        <input id="delimiter_field" class="ODRDelimiterField"
+                               type="text" name="delimiter"
+                               maxlength="1" size="3"
+                        />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRWarnWrapper"><i class="fa fa-warning"></i><span
-                                    id="delimiter_warn"></span></span>
+                        <span class="ODRInputError ODRWarnWrapper">
+                            <i class="fa fa-warning"></i>
+                            <span id="delimiter_warn"></span>
+                        </span>
                     </td>
                 </tr>
                 <tr class="ODRFileImageDelimiter">
@@ -40,16 +44,20 @@
                             {#<option>Select a delimiter...</option>#}
                             <option rel="|">{pipe}</option>
                             <option rel=",">{comma}</option>
-                            {#                <option rel="">{other}</option>#}
+                            {#<option rel="">{other}</option>#}
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="file_image_delimiter" id="file_image_delimiter_field"
-                               class="ODRDelimiterField" maxlength="3" size="4"/>
+                        <input id="file_image_delimiter_field" class="ODRDelimiterField"
+                               type="text" name="file_image_delimiter"
+                               maxlength="3" size="4"
+                        />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRFileImageWarnWrapper"><i class="fa fa-warning"></i><span
-                                    id="file_image_delimiter_warn"></span></span>
+                        <span class="ODRInputError ODRFileImageWarnWrapper">
+                            <i class="fa fa-warning"></i>
+                            <span id="file_image_delimiter_warn"></span>
+                        </span>
                     </td>
                 </tr>
                 <tr class="ODRRadioDelimiter">
@@ -64,12 +72,16 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="radio_delimiter" id="radio_delimiter_field" class="ODRDelimiterField"
-                               maxlength="3" size="4"/>
+                        <input id="radio_delimiter_field" class="ODRDelimiterField"
+                               type="text" name="radio_delimiter"
+                               maxlength="3" size="4"
+                        />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRRadioWarnWrapper"><i class="fa fa-warning"></i><span
-                                    id="radio_delimiter_warn"></span></span>
+                        <span class="ODRInputError ODRRadioWarnWrapper">
+                            <i class="fa fa-warning"></i>
+                            <span id="radio_delimiter_warn"></span>
+                        </span>
                     </td>
                 </tr>
                 <tr class="ODRTagDelimiter">
@@ -83,12 +95,16 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="tag_delimiter" id="tag_delimiter_field" class="ODRDelimiterField"
-                               maxlength="3" size="4"/>
+                        <input id="tag_delimiter_field" class="ODRDelimiterField"
+                               type="text" name="tag_delimiter"
+                               maxlength="3" size="4"
+                        />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRTagWarnWrapper"><i class="fa fa-warning"></i><span
-                                    id="tag_delimiter_warn"></span></span>
+                        <span class="ODRInputError ODRTagWarnWrapper">
+                            <i class="fa fa-warning"></i>
+                            <span id="tag_delimiter_warn"></span>
+                        </span>
                     </td>
                 </tr>
                 <tr class="ODRTagHierarchyDelimiter">
@@ -101,12 +117,16 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter_field"
-                               class="ODRDelimiterField" maxlength="3" size="4"/>
+                        <input id="tag_hierarchy_delimiter_field" class="ODRDelimiterField"
+                               type="text" name="tag_hierarchy_delimiter"
+                               maxlength="3" size="4"
+                        />
                     </td>
                     <td>
-                        <span class="ODRInputError ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span
-                                    id="tag_hierarchy_delimiter_warn"></span></span>
+                        <span class="ODRInputError ODRTagHierarchyWarnWrapper">
+                            <i class="fa fa-warning"></i>
+                            <span id="tag_hierarchy_delimiter_warn"></span>
+                        </span>
                     </td>
                 </tr>
                 </tbody>
@@ -156,457 +176,473 @@
 
 <script>
 
-$(function() {
-    // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
-    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-    // The overlay divs need this transition to finish before they can get the correct width
-    setTimeout("resizeOverlayDivs()", 300);
-    setTimeout("selectAll()", 300);
+    $(function() {
+        // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // The overlay divs need this transition to finish before they can get the correct width
+        setTimeout("resizeCSVExportOverlayDivs()", 300);
+        setTimeout("selectAll()", 300);
 
-    initPage();
-    window.scrollTo(0,0);
+        initCSVExportPage();
+        window.scrollTo(0,0);
 
-    // Need a tab id in html5 sessionStorage if one doesn't exist
-    if ( !window.sessionStorage.getItem('odr_tab_id') )
-        window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
-});
-
-function resizeOverlayDivs() {
-    // Attach an overlay div of sorts over each datafield
-    $(".ODROverlayDiv").each(function() {
-        // console.log('resized ' + $(this).attr('id') );
-
-        // Need dimensions of parent div...
-        var height = $(this).parent().css('height');
-        var width = $(this).parent().css('width');
-
-        // Apply dimensions of parent div to loading div
-        $(this).css({"height": height, "line-height": height, "width": width});
-
-        if ( $(this).hasClass('ODRBlockedDatafield') )
-            $(this).attr('title', "This datafield can't be exported");
-        else
-            $(this).attr('title', "This datafield will not be exported");
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
     });
-}
 
-function initPage() {
+    /**
+     * Resizes datafield overlays to fit the field.
+     */
+    function resizeCSVExportOverlayDivs() {
+        // Attach an overlay div of sorts over each datafield
+        $(".ODROverlayDiv").each(function() {
+            // console.log('resized ' + $(this).attr('id') );
 
-    // Hide all TEDs without input fields
-    $(".ODRThemeElement").each(function() {
-        var found = false;
-        $(this).find("input").each(function() {
-            found = true;
-            return false;
+            // Need dimensions of parent div...
+            var height = $(this).parent().css('height');
+            var width = $(this).parent().css('width');
+
+            // Apply dimensions of parent div to loading div
+            $(this).css({"height": height, "line-height": height, "width": width});
+
+            if ( $(this).hasClass('ODRBlockedDatafield') )
+                $(this).attr('title', "This datafield can't be exported");
+            else
+                $(this).attr('title', "This datafield will not be exported");
+        });
+    }
+
+    /**
+     * Hides elements and attaches click handlers to the page.
+     */
+    function initCSVExportPage() {
+
+        // Hide all TEDs without input fields
+        $(".ODRThemeElement").each(function() {
+            var found = false;
+            $(this).find("input").each(function() {
+                found = true;
+                return false;
+            });
+
+            if (!found)
+                $(this).hide();
         });
 
-        if (!found)
-            $(this).hide();
-    });
+        $(".ODRCSVExport").unbind('click').click(function() {
+            if ( $(this).hasClass('ODRUnselectedDatafield') ) {
+                $(this).attr('title', 'This datafield will be exported');
+                $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
 
-    $(".ODRCSVExport").unbind('click').click(function() {
-        if ( $(this).hasClass('ODRUnselectedDatafield') ) {
-            $(this).attr('title', 'This datafield will be exported');
-            $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
-
-            if ( $(this).hasClass('ODRExportFileImageField') ) {
-                $(".ODRFileImageDelimiter").show();
-
-                var option = $(".FileImageDelimiterSelect").children('option').first();
-                $("#file_image_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
-            }
-            if ( $(this).hasClass('ODRExportRadioField') ) {
-                $(".ODRRadioDelimiter").show();
-
-                var option = $(".RadioDelimiterSelect").children('option').first();
-                $("#radio_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
-            }
-            if ( $(this).hasClass('ODRExportTagField') ) {
-                $(".ODRTagDelimiter").show();
-
-                var option = $(".TagDelimiterSelect").children('option').first();
-                $("#tag_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
-            }
-            if ( $(this).hasClass('ODRExportTagHierarchy') ) {
-                $(".ODRTagHierarchyDelimiter").show();
-
-                var option = $(".TagHierarchyDelimiterSelect").children('option').first();
-                $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
-            }
-        }
-        else {
-            $(this).attr('title', 'This datafield will not be exported');
-            $(this).addClass('ODRUnselectedDatafield').removeClass('ODRSelectedDatafield');
-
-            // Don't want to disable secondary delimiter fields if another datafield being exported
-            //  still needs them
-            if ( $(this).hasClass('ODRExportFileImageField') ) {
-                if ( $(".ODRExportFileImageField.ODRSelectedDatafield").length === 0) {
-                    $(".ODRFileImageDelimiter").hide();
+                if ( $(this).hasClass('ODRExportFileImageField') ) {
+                    $(".ODRFileImageDelimiter").show();
 
                     var option = $(".FileImageDelimiterSelect").children('option').first();
-                    $(option).prop('selected', true);
-                    $("#file_image_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    $("#file_image_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
-            }
-            if ( $(this).hasClass('ODRExportRadioField') ) {
-                if ( $(".ODRExportRadioField.ODRSelectedDatafield").length === 0) {
-                    $(".ODRRadioDelimiter").hide();
+                if ( $(this).hasClass('ODRExportRadioField') ) {
+                    $(".ODRRadioDelimiter").show();
 
                     var option = $(".RadioDelimiterSelect").children('option').first();
-                    $(option).prop('selected', true);
-                    $("#radio_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    $("#radio_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
-            }
-            if ( $(this).hasClass('ODRExportTagField') ) {
-                if ( $(".ODRExportTagField.ODRSelectedDatafield").length === 0) {
-                    $(".ODRTagDelimiter").hide();
+                if ( $(this).hasClass('ODRExportTagField') ) {
+                    $(".ODRTagDelimiter").show();
 
                     var option = $(".TagDelimiterSelect").children('option').first();
-                    $(option).prop('selected', true);
-                    $("#tag_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    $("#tag_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
-            }
-            if ( $(this).hasClass('ODRExportTagHierarchy') ) {
-                if ( $(".ODRExportTagHierarchy.ODRSelectedDatafield").length === 0) {
-                    $(".ODRTagHierarchyDelimiter").hide();
+                if ( $(this).hasClass('ODRExportTagHierarchy') ) {
+                    $(".ODRTagHierarchyDelimiter").show();
 
                     var option = $(".TagHierarchyDelimiterSelect").children('option').first();
-                    $(option).prop('selected', true);
-                    $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
                 }
             }
+            else {
+                $(this).attr('title', 'This datafield will not be exported');
+                $(this).addClass('ODRUnselectedDatafield').removeClass('ODRSelectedDatafield');
+
+                // Don't want to disable secondary delimiter fields if another datafield being exported
+                //  still needs them
+                if ( $(this).hasClass('ODRExportFileImageField') ) {
+                    if ( $(".ODRExportFileImageField.ODRSelectedDatafield").length === 0) {
+                        $(".ODRFileImageDelimiter").hide();
+
+                        var option = $(".FileImageDelimiterSelect").children('option').first();
+                        $(option).prop('selected', true);
+                        $("#file_image_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    }
+                }
+                if ( $(this).hasClass('ODRExportRadioField') ) {
+                    if ( $(".ODRExportRadioField.ODRSelectedDatafield").length === 0) {
+                        $(".ODRRadioDelimiter").hide();
+
+                        var option = $(".RadioDelimiterSelect").children('option').first();
+                        $(option).prop('selected', true);
+                        $("#radio_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    }
+                }
+                if ( $(this).hasClass('ODRExportTagField') ) {
+                    if ( $(".ODRExportTagField.ODRSelectedDatafield").length === 0) {
+                        $(".ODRTagDelimiter").hide();
+
+                        var option = $(".TagDelimiterSelect").children('option').first();
+                        $(option).prop('selected', true);
+                        $("#tag_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    }
+                }
+                if ( $(this).hasClass('ODRExportTagHierarchy') ) {
+                    if ( $(".ODRExportTagHierarchy.ODRSelectedDatafield").length === 0) {
+                        $(".ODRTagHierarchyDelimiter").hide();
+
+                        var option = $(".TagHierarchyDelimiterSelect").children('option').first();
+                        $(option).prop('selected', true);
+                        $("#tag_hierarchy_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                    }
+                }
+            }
+
+            updateWarnings();
+        });
+
+        $(".ODRDelimiterField").unbind('keyup paste').on('keyup paste', function() {
+            updateWarnings();
+        });
+
+        // Hide these until a field that needs them is selected
+        $(".ODRFileImageDelimiter").hide();
+        $(".ODRRadioDelimiter").hide();
+        $(".ODRTagDelimiter").hide();
+        $(".ODRTagHierarchyDelimiter").hide();
+
+        $("#delimiter_field").hide();
+        $("#delimiter_field").val(',');
+        $("#file_image_delimiter_field").hide().prop('disabled', true);
+        $("#radio_delimiter_field").hide().prop('disabled', true);
+        $("#tag_delimiter_field").hide().prop('disabled', true);
+        $("#tag_hierarchy_delimiter_field").hide().prop('disabled', true);
+
+        $(".ODRWarnWrapper").hide();
+        $(".ODRFileImageWarnWrapper").hide();
+        $(".ODRRadioWarnWrapper").hide();
+        $(".ODRTagWarnWrapper").hide();
+        $(".ODRTagHierarchyWarnWrapper").hide();
+
+        $(".DelimiterSelect").unbind('change').change(function() {
+            var char = $(this).children(':selected').attr('rel');
+            $("#delimiter_field").val(char);
+
+            if (char === "")
+                $("#delimiter_field").show();
+            else
+                $("#delimiter_field").hide();
+
+            updateWarnings();
+        });
+        $(".FileImageDelimiterSelect").unbind('change').change(function() {
+            var char = $(this).children(':selected').attr('rel');
+            $("#file_image_delimiter_field").val(char);
+
+            if (char === "")
+                $("#file_image_delimiter_field").show();
+            else
+                $("#file_image_delimiter_field").hide();
+
+            updateWarnings();
+        });
+        $(".RadioDelimiterSelect").unbind('change').change(function() {
+            var char = $(this).children(':selected').attr('rel');
+            $("#radio_delimiter_field").val(char);
+
+            if (char === "")
+                $("#radio_delimiter_field").show();
+            else
+                $("#radio_delimiter_field").hide();
+
+            updateWarnings();
+        });
+        $(".TagDelimiterSelect").unbind('change').change(function() {
+            var char = $(this).children(':selected').attr('rel');
+            $("#tag_delimiter_field").val(char);
+
+            if (char === "")
+                $("#tag_delimiter_field").show();
+            else
+                $("#tag_delimiter_field").hide();
+
+            updateWarnings();
+        });
+        $(".TagHierarchyDelimiterSelect").unbind('change').change(function() {
+            var char = $(this).children(':selected').attr('rel');
+            $("#tag_hierarchy_delimiter_field").val(char);
+
+            if (char === "")
+                $("#tag_hierarchy_delimiter_field").show();
+            else
+                $("#tag_hierarchy_delimiter_field").hide();
+
+            updateWarnings();
+        });
+    }
+
+    /**
+     * Updates the delimiter selectors to match the selected fields.
+     */
+    function updateWarnings() {
+        $(".ODRWarnWrapper").hide();
+        $(".ODRFileImageWarnWrapper").hide();
+        $(".ODRRadioWarnWrapper").hide();
+        $(".ODRTagWarnWrapper").hide();
+        $(".ODRTagHierarchyWarnWrapper").hide();
+
+        var needs_file_image_delimiter = false;
+        if ( $(".FileImageDelimiterSelect").is(':visible') )
+            needs_file_image_delimiter = true;
+        var needs_radio_delimiter = false;
+        if ( $(".RadioDelimiterSelect").is(':visible') )
+            needs_radio_delimiter = true;
+        var needs_tag_delimiter = false;
+        if ( $(".TagDelimiterSelect").is(':visible') )
+            needs_tag_delimiter = true;
+        var needs_tag_hierarchy_delimiter = false;
+        if ( $(".TagHierarchyDelimiterSelect").is(':visible') )
+            needs_tag_hierarchy_delimiter = true;
+
+        var delimiter_value = $("#delimiter_field").val().trim();
+        var file_image_delimiter_value = $("#file_image_delimiter_field").val().trim();
+        var radio_delimiter_value = $("#radio_delimiter_field").val().trim();
+        var tag_delimiter_value = $("#tag_delimiter_field").val().trim();
+        var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter_field").val().trim();
+
+        // Complain about needing a value first...
+        var complaint = 'Needs a value';
+        var needs_value = false;
+        if ( delimiter_value === '' ) {
+            $("#delimiter_warn").html(complaint);
+            $(".ODRWarnWrapper").show();
+            needs_value = true;
         }
-
-        updateWarnings();
-    });
-
-    $(".ODRDelimiterField").unbind('keyup paste').on('keyup paste', function() {
-        updateWarnings();
-    });
-
-    // Hide these until a field that needs them is selected
-    $(".ODRFileImageDelimiter").hide();
-    $(".ODRRadioDelimiter").hide();
-    $(".ODRTagDelimiter").hide();
-    $(".ODRTagHierarchyDelimiter").hide();
-
-    $("#delimiter_field").hide();
-    $("#delimiter_field").val(',');
-    $("#file_image_delimiter_field").hide().prop('disabled', true);
-    $("#radio_delimiter_field").hide().prop('disabled', true);
-    $("#tag_delimiter_field").hide().prop('disabled', true);
-    $("#tag_hierarchy_delimiter_field").hide().prop('disabled', true);
-
-    $(".ODRWarnWrapper").hide();
-    $(".ODRFileImageWarnWrapper").hide();
-    $(".ODRRadioWarnWrapper").hide();
-    $(".ODRTagWarnWrapper").hide();
-    $(".ODRTagHierarchyWarnWrapper").hide();
-
-
-    $(".DelimiterSelect").unbind('change').change(function() {
-        var char = $(this).children(':selected').attr('rel');
-        $("#delimiter_field").val(char);
-
-        if (char === "")
-            $("#delimiter_field").show();
-        else
-            $("#delimiter_field").hide();
-
-        updateWarnings();
-    });
-    $(".FileImageDelimiterSelect").unbind('change').change(function() {
-        var char = $(this).children(':selected').attr('rel');
-        $("#file_image_delimiter_field").val(char);
-
-        if (char === "")
-            $("#file_image_delimiter_field").show();
-        else
-            $("#file_image_delimiter_field").hide();
-
-        updateWarnings();
-    });
-    $(".RadioDelimiterSelect").unbind('change').change(function() {
-        var char = $(this).children(':selected').attr('rel');
-        $("#radio_delimiter_field").val(char);
-
-        if (char === "")
-            $("#radio_delimiter_field").show();
-        else
-            $("#radio_delimiter_field").hide();
-
-        updateWarnings();
-    });
-    $(".TagDelimiterSelect").unbind('change').change(function() {
-        var char = $(this).children(':selected').attr('rel');
-        $("#tag_delimiter_field").val(char);
-
-        if (char === "")
-            $("#tag_delimiter_field").show();
-        else
-            $("#tag_delimiter_field").hide();
-
-        updateWarnings();
-    });
-    $(".TagHierarchyDelimiterSelect").unbind('change').change(function() {
-        var char = $(this).children(':selected').attr('rel');
-        $("#tag_hierarchy_delimiter_field").val(char);
-
-        if (char === "")
-            $("#tag_hierarchy_delimiter_field").show();
-        else
-            $("#tag_hierarchy_delimiter_field").hide();
-
-        updateWarnings();
-    });
-}
-
-function updateWarnings() {
-    $(".ODRWarnWrapper").hide();
-    $(".ODRFileImageWarnWrapper").hide();
-    $(".ODRRadioWarnWrapper").hide();
-    $(".ODRTagWarnWrapper").hide();
-    $(".ODRTagHierarchyWarnWrapper").hide();
-
-    var needs_file_image_delimiter = false;
-    if ( $(".FileImageDelimiterSelect").is(':visible') )
-        needs_file_image_delimiter = true;
-    var needs_radio_delimiter = false;
-    if ( $(".RadioDelimiterSelect").is(':visible') )
-        needs_radio_delimiter = true;
-    var needs_tag_delimiter = false;
-    if ( $(".TagDelimiterSelect").is(':visible') )
-        needs_tag_delimiter = true;
-    var needs_tag_hierarchy_delimiter = false;
-    if ( $(".TagHierarchyDelimiterSelect").is(':visible') )
-        needs_tag_hierarchy_delimiter = true;
-
-    var delimiter_value = $("#delimiter_field").val().trim();
-    var file_image_delimiter_value = $("#file_image_delimiter_field").val().trim();
-    var radio_delimiter_value = $("#radio_delimiter_field").val().trim();
-    var tag_delimiter_value = $("#tag_delimiter_field").val().trim();
-    var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter_field").val().trim();
-
-    // Complain about needing a value first...
-    var complaint = 'Needs a value';
-    var needs_value = false;
-    if ( delimiter_value === '' ) {
-        $("#delimiter_warn").html(complaint);
-        $(".ODRWarnWrapper").show();
-        needs_value = true;
-    }
-    if ( needs_file_image_delimiter && file_image_delimiter_value === '' ) {
-        $("#file_image_delimiter_warn").html(complaint);
-        $(".ODRFileImageWarnWrapper").show();
-        needs_value = true;
-    }
-    if ( needs_radio_delimiter && radio_delimiter_value === '' ) {
-        $("#radio_delimiter_warn").html(complaint);
-        $(".ODRRadioWarnWrapper").show();
-        needs_value = true;
-    }
-    if ( needs_tag_delimiter && tag_delimiter_value === '' ) {
-        $("#tag_delimiter_warn").html(complaint);
-        $(".ODRTagWarnWrapper").show();
-        needs_value = true;
-    }
-    if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value === '' ) {
-        $("#tag_hierarchy_delimiter_warn").html(complaint);
-        $(".ODRTagHierarchyWarnWrapper").show();
-        needs_value = true;
-    }
-    if (needs_value)
-        return;
-
-    // ...complain about use of double-quote
-    complaint = 'Double-quote is not allowed';
-    var has_quote = false;
-    if ( delimiter_value.indexOf("\"") !== -1) {
-        $("#delimiter_warn").html(complaint);
-        $(".ODRWarnWrapper").show();
-        has_quote = true;
-    }
-    if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf("\"") !== -1) {
-        $("#file_image_delimiter_warn").html(complaint);
-        $(".ODRFileImageWarnWrapper").show();
-        has_quote = true;
-    }
-    if ( needs_radio_delimiter && radio_delimiter_value.indexOf("\"") !== -1) {
-        $("#radio_delimiter_warn").html(complaint);
-        $(".ODRRadioWarnWrapper").show();
-        has_quote = true;
-    }
-    if ( needs_tag_delimiter && tag_delimiter_value.indexOf("\"") !== -1) {
-        $("#tag_delimiter_warn").html(complaint);
-        $(".ODRTagWarnWrapper").show();
-        has_quote = true;
-    }
-    if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value.indexOf("\"") !== -1) {
-        $("#tag_hierarchy_delimiter_warn").html(complaint);
-        $(".ODRTagHierarchyWarnWrapper").show();
-        has_quote = true;
-    }
-    if (has_quote)
-        return;
-
-    // ...the other delimiter strings should not contain the primary delimiter character
-    complaint = "Delimiter conflict";
-    if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-        $(".ODRWarnWrapper").show();
-        $(".ODRFileImageWarnWrapper").show();
-
-        $("#delimiter_warn").html(complaint);
-        $("#file_image_delimiter_warn").html(complaint);
-    }
-    if ( needs_radio_delimiter && radio_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-        $(".ODRWarnWrapper").show();
-        $(".ODRRadioWarnWrapper").show();
-
-        $("#delimiter_warn").html(complaint);
-        $("#radio_delimiter_warn").html(complaint);
-    }
-    if ( needs_tag_delimiter && tag_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-        $(".ODRWarnWrapper").show();
-        $(".ODRTagWarnWrapper").show();
-
-        $("#delimiter_warn").html(complaint);
-        $("#tag_delimiter_warn").html(complaint);
-    }
-    if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value.indexOf(delimiter_value) !== -1 ) {
-        $(".ODRWarnWrapper").show();
-        $(".ODRTagHierarchyWarnWrapper").show();
-
-        $("#delimiter_warn").html(complaint);
-        $("#tag_hierarchy_delimiter_warn").html(complaint);
-    }
-
-    // The radio delimiter is independent of the tag delimiters, but the two tag delimiters should
-    //  not contain the same characters
-    if ( needs_tag_delimiter && needs_tag_hierarchy_delimiter ) {
-        if ( tag_delimiter_value.indexOf(tag_hierarchy_delimiter_value) !== -1
-            || tag_hierarchy_delimiter_value.indexOf(tag_delimiter_value) !== -1
-        ) {
+        if ( needs_file_image_delimiter && file_image_delimiter_value === '' ) {
+            $("#file_image_delimiter_warn").html(complaint);
+            $(".ODRFileImageWarnWrapper").show();
+            needs_value = true;
+        }
+        if ( needs_radio_delimiter && radio_delimiter_value === '' ) {
+            $("#radio_delimiter_warn").html(complaint);
+            $(".ODRRadioWarnWrapper").show();
+            needs_value = true;
+        }
+        if ( needs_tag_delimiter && tag_delimiter_value === '' ) {
+            $("#tag_delimiter_warn").html(complaint);
             $(".ODRTagWarnWrapper").show();
+            needs_value = true;
+        }
+        if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value === '' ) {
+            $("#tag_hierarchy_delimiter_warn").html(complaint);
+            $(".ODRTagHierarchyWarnWrapper").show();
+            needs_value = true;
+        }
+        if (needs_value)
+            return;
+
+        // ...complain about use of double-quote
+        complaint = 'Double-quote is not allowed';
+        var has_quote = false;
+        if ( delimiter_value.indexOf("\"") !== -1) {
+            $("#delimiter_warn").html(complaint);
+            $(".ODRWarnWrapper").show();
+            has_quote = true;
+        }
+        if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf("\"") !== -1) {
+            $("#file_image_delimiter_warn").html(complaint);
+            $(".ODRFileImageWarnWrapper").show();
+            has_quote = true;
+        }
+        if ( needs_radio_delimiter && radio_delimiter_value.indexOf("\"") !== -1) {
+            $("#radio_delimiter_warn").html(complaint);
+            $(".ODRRadioWarnWrapper").show();
+            has_quote = true;
+        }
+        if ( needs_tag_delimiter && tag_delimiter_value.indexOf("\"") !== -1) {
+            $("#tag_delimiter_warn").html(complaint);
+            $(".ODRTagWarnWrapper").show();
+            has_quote = true;
+        }
+        if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value.indexOf("\"") !== -1) {
+            $("#tag_hierarchy_delimiter_warn").html(complaint);
+            $(".ODRTagHierarchyWarnWrapper").show();
+            has_quote = true;
+        }
+        if (has_quote)
+            return;
+
+        // ...the other delimiter strings should not contain the primary delimiter character
+        complaint = "Delimiter conflict";
+        if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf(delimiter_value) !== -1 ) {
+            $(".ODRWarnWrapper").show();
+            $(".ODRFileImageWarnWrapper").show();
+
+            $("#delimiter_warn").html(complaint);
+            $("#file_image_delimiter_warn").html(complaint);
+        }
+        if ( needs_radio_delimiter && radio_delimiter_value.indexOf(delimiter_value) !== -1 ) {
+            $(".ODRWarnWrapper").show();
+            $(".ODRRadioWarnWrapper").show();
+
+            $("#delimiter_warn").html(complaint);
+            $("#radio_delimiter_warn").html(complaint);
+        }
+        if ( needs_tag_delimiter && tag_delimiter_value.indexOf(delimiter_value) !== -1 ) {
+            $(".ODRWarnWrapper").show();
+            $(".ODRTagWarnWrapper").show();
+
+            $("#delimiter_warn").html(complaint);
+            $("#tag_delimiter_warn").html(complaint);
+        }
+        if ( needs_tag_hierarchy_delimiter && tag_hierarchy_delimiter_value.indexOf(delimiter_value) !== -1 ) {
+            $(".ODRWarnWrapper").show();
             $(".ODRTagHierarchyWarnWrapper").show();
 
-            $("#tag_delimiter_warn").html(complaint);
+            $("#delimiter_warn").html(complaint);
             $("#tag_hierarchy_delimiter_warn").html(complaint);
         }
-    }
-}
 
-function selectAll() {
-    $(".ODRCSVExport").each(function() {
-        if ( $(this).hasClass('ODRUnselectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
-            $(this).trigger('click');
-    });
-}
+        // The radio delimiter is independent of the tag delimiters, but the two tag delimiters should
+        //  not contain the same characters
+        if ( needs_tag_delimiter && needs_tag_hierarchy_delimiter ) {
+            if ( tag_delimiter_value.indexOf(tag_hierarchy_delimiter_value) !== -1
+                || tag_hierarchy_delimiter_value.indexOf(tag_delimiter_value) !== -1
+            ) {
+                $(".ODRTagWarnWrapper").show();
+                $(".ODRTagHierarchyWarnWrapper").show();
 
-function deselectAll() {
-    $(".ODRCSVExport").each(function() {
-        if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
-            $(this).trigger('click');
-    });
-}
-
-function doCSVExport() {
-    // Require delimiters before exporting...
-    var delimiter_value = $("#delimiter_field").val().trim();
-    var file_image_delimiter_value = $("#file_image_delimiter_field").val().trim();
-    var radio_delimiter_value = $("#radio_delimiter_field").val().trim();
-    var tag_delimiter_value = $("#tag_delimiter_field").val().trim();
-    var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter_field").val().trim();
-
-    if ( delimiter_value === '' || delimiter_value.indexOf("\"") !== -1) {
-        alert('Invalid column delimiter');
-        return;
-    }
-    if ( $(".FileImageDelimiterSelect").is(':visible')
-        && (file_image_delimiter_value === '' || file_image_delimiter_value.indexOf("\"") !== -1)
-    ) {
-        alert('Invalid file/image delimiter');
-        return;
-    }
-    if ( $(".RadioDelimiterSelect").is(':visible')
-        && (radio_delimiter_value === '' || radio_delimiter_value.indexOf("\"") !== -1)
-    ) {
-        alert('Invalid radio delimiter');
-        return;
-    }
-    if ( $(".TagDelimiterSelect").is(':visible')
-        && (tag_delimiter_value === '' || tag_delimiter_value.indexOf("\"") !== -1)
-    ) {
-        alert('Invalid tag delimiter');
-        return;
-    }
-    if ( $(".TagHierarchyDelimiterSelect").is(':visible')
-        && (tag_hierarchy_delimiter_value === '' || tag_hierarchy_delimiter_value.indexOf("\"") !== -1)
-    ) {
-        alert('Invalid tag hierarchy delimiter');
-        return;
-    }
-
-
-    // Delete any datafields already marked for export so a new list can be constructed
-    $(".ODRExportEntry").remove();
-
-    // Grab which fields to export
-    var do_export = false;
-    $(".ODRCSVExport").each(function() {
-        if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') ) {
-            // Grab the ID of the field
-            var datafield_id = $(this).attr('rel');
-
-            do_export = true;
-            var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[]"});
-            $("#csvexport_form").append(element);
-        }
-    });
-
-    if ( !do_export ) {
-        alert( 'No datafields selected for export' );
-        return;
-    }
-
-    var data = $("#csvexport_form").serialize();
-    var url = $("#csvexport_form").attr('action');
-
-    // console.log( data );
-    // return;
-
-    $.ajax({
-        type: 'POST',
-        url: url,
-        data: data,
-        dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
-            if (data.r == 0) {
-                // Replace this with loading message/checker directly
-                $('#CSVExportForm').hide();
-                $('#LoadingBlock').fadeIn('fast');
-                // Get CSV Exports from Jobs Page - add messaging
-
-                // data.d.tracked_job_id
-                getJobProgress('csv_export', data.d.tracked_job_id);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                $("#tag_delimiter_warn").html(complaint);
+                $("#tag_hierarchy_delimiter_warn").html(complaint);
             }
         }
-    });
+    }
 
-}
+    /**
+     * Selects all datafields on the CSVExport page.
+     */
+    function selectAll() {
+        $(".ODRCSVExport").each(function() {
+            if ( $(this).hasClass('ODRUnselectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
+                $(this).trigger('click');
+        });
+    }
+
+    /**
+     * Deselects all datafields on the CSVExport page.
+     */
+    function deselectAll() {
+        $(".ODRCSVExport").each(function() {
+            if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
+                $(this).trigger('click');
+        });
+    }
+
+    /**
+     * Performs a final verification check, then creates/submits a form from the selected datafields.
+     */
+    function doCSVExport() {
+        // Require delimiters before exporting...
+        var delimiter_value = $("#delimiter_field").val().trim();
+        var file_image_delimiter_value = $("#file_image_delimiter_field").val().trim();
+        var radio_delimiter_value = $("#radio_delimiter_field").val().trim();
+        var tag_delimiter_value = $("#tag_delimiter_field").val().trim();
+        var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter_field").val().trim();
+
+        if ( delimiter_value === '' || delimiter_value.indexOf("\"") !== -1) {
+            alert('Invalid column delimiter');
+            return;
+        }
+        if ( $(".FileImageDelimiterSelect").is(':visible')
+            && (file_image_delimiter_value === '' || file_image_delimiter_value.indexOf("\"") !== -1)
+        ) {
+            alert('Invalid file/image delimiter');
+            return;
+        }
+        if ( $(".RadioDelimiterSelect").is(':visible')
+            && (radio_delimiter_value === '' || radio_delimiter_value.indexOf("\"") !== -1)
+        ) {
+            alert('Invalid radio delimiter');
+            return;
+        }
+        if ( $(".TagDelimiterSelect").is(':visible')
+            && (tag_delimiter_value === '' || tag_delimiter_value.indexOf("\"") !== -1)
+        ) {
+            alert('Invalid tag delimiter');
+            return;
+        }
+        if ( $(".TagHierarchyDelimiterSelect").is(':visible')
+            && (tag_hierarchy_delimiter_value === '' || tag_hierarchy_delimiter_value.indexOf("\"") !== -1)
+        ) {
+            alert('Invalid tag hierarchy delimiter');
+            return;
+        }
+
+
+        // Delete any datafields already marked for export so a new list can be constructed
+        $(".ODRExportEntry").remove();
+
+        // Grab which fields to export
+        var do_export = false;
+        $(".ODRCSVExport").each(function() {
+            if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') ) {
+                // Grab the ID of the field
+                var datafield_id = $(this).attr('rel');
+
+                do_export = true;
+                var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[]"});
+                $("#csvexport_form").append(element);
+            }
+        });
+
+        if ( !do_export ) {
+            alert( 'No datafields selected for export' );
+            return;
+        }
+
+        var data = $("#csvexport_form").serialize();
+        var url = $("#csvexport_form").attr('action');
+
+        // console.log( data );
+        // return;
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: data,
+            dataType: 'json',
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    // Replace this with loading message/checker directly
+                    $('#CSVExportForm').hide();
+                    $('#LoadingBlock').fadeIn('fast');
+                    // Get CSV Exports from Jobs Page - add messaging
+
+                    // data.d.tracked_job_id
+                    getJobProgress('csv_export', data.d.tracked_job_id);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
 </script>
 
 {% include 'ODRAdminBundle:Job:job_progress.html.twig' %}

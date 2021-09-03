@@ -1,0 +1,58 @@
+<h2>Try me out!</h2>
+<div>
+    <form>
+{% for df_id,df_data in datafields %}
+        <label for="ODRRemoteSearch_{{ df_data.element_name }}">{{ df_data.datafield_name }}: </label>
+        <input id="ODRRemoteSearch_{{ df_data.element_name }}" type="text" />
+        <br>
+{% endfor %}
+        <button id="ODRRemoteSearch_submit">Search</button>
+    </form>
+</div>
+
+<script>
+    var submit_button = document.getElementById('ODRRemoteSearch_submit');
+    submit_button.addEventListener("click", (event) => {
+        // Don't trigger default form events
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Store required configuration values for convenience
+        let config_object = {
+            baseurl: '{{ protocol }}:{{ baseurl }}/{{ search_slug }}',
+            datatype_id: {{ datatype_id }},
+            mapping: {
+{% for df_id,df_data in datafields %}
+                '{{ df_id }}': "ODRRemoteSearch_{{ df_data.element_name }}",
+{% endfor %}
+            }
+        }
+
+        // Build a string from the values in the form
+        let search_key = '{"dt_id":"' + config_object.datatype_id + '"';
+
+        let has_value = false;
+        for (var df_id in config_object.mapping) {
+            if ( config_object.mapping.hasOwnProperty(df_id) ) {
+                let html_id = config_object.mapping[df_id];
+                let value = document.getElementById(html_id).value.trim().replaceAll('"', '\\\"');
+                if (value !== '') {
+                    search_key += ',"' + df_id + '":"' + value + '"';
+                    has_value = true;
+                }
+            }
+        }
+        search_key += '}';
+
+        // Don't try to search if nothing was entered in the form
+        if (!has_value)
+            return;
+
+        // The string needs to be base64 encoded
+        let encoded_search_key = btoa(search_key).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
+
+        // Open a new browser tab with the link to the search results
+        let new_url = config_object.baseurl + '#{{ path('odr_search_render', {'search_theme_id': 0, 'search_key': ''}) }}' + encoded_search_key;
+        window.open(new_url, '_blank');
+    });
+</script>

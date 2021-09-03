@@ -55,11 +55,11 @@ class CSVExportStartCommand extends ContainerAwareCommand
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
                 $output->writeln($str);
+                $output->writeln($data->url);
+
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
-
-$output->writeln($data->url);
 
                 // Create the required url and the parameters to send
                 $parameters = array(
@@ -72,9 +72,11 @@ $output->writeln($data->url);
                     'tag_delimiter' => $data->tag_delimiter,
                     'tag_hierarchy_delimiter' => $data->tag_hierarchy_delimiter,
 
-                    'datarecord_id' => $data->datarecord_id,
                     'datatype_id' => $data->datatype_id,
+                    'datarecord_id' => $data->datarecord_id,
+                    'complete_datarecord_list' => $data->complete_datarecord_list,
                     'datafields' => $data->datafields,
+
                     'api_key' => $data->api_key,
                 );
 

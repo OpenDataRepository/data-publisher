@@ -19,6 +19,12 @@ ODR\AdminBundle\Entity\ThemeDataType:
             default: 0
             column: display_type
 
+        # deprecated, but kept around because removing it makes migration excessively difficult
+        hidden:
+            type: integer
+            nullable: false
+            default: 0
+
         created:
             type: datetime
             gedmo:

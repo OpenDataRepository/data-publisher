@@ -1,0 +1,80 @@
+{#{% spaceless %}#}
+<div>
+    <div id="example_site_header">
+        <h2>Example Site Header</h2>
+        <hr>
+    </div>
+    <div id="example_side_pane">
+        <div id="example_search_control">
+            <form>
+                <label for="mineral_name">Mineral Name: </label>
+                <input id="mineral_name" type="text" size="11" />
+                <label for="uamm_id">UAMM ID: </label>
+                <input id="uamm_id" type="text" size="11" />
+                <br>
+                <button id="uamm_search">Search UAMM Samples</button>
+            </form>
+            <!-- this src url MUST be changed to match the location of odr_remote_search.js (or odr_remote_search.min.js) on your server -->
+            <script src="{{ site_baseurl }}/js/mylibs/odr_remote_search.js"></script>
+            <!-- this snippet MUST come after the search control and the included javascript file -->
+            <script>
+                var remoteSearch = new ODRRemoteSearch({
+                    baseurl: 'https://odr.io/UAMM',
+                    datatype_id: 20,
+
+                    // The double-quoted values below have been changed to match this page's HTML
+                    submit_button: "uamm_search",
+                    mapping: {
+                        '126': "mineral_name",
+                        '141': "uamm_id",
+                    }
+                });
+                remoteSearch.initialize();
+            </script>
+        </div>
+
+        <div id="example_news">
+            <h1>Step 1</h1>
+            <div>Click <a onclick="loadODRRemoteSearchDialog('basic1');">here.</a></div>
+            <h1>Step 2</h1>
+            <div>Click <a onclick="loadODRRemoteSearchDialog('basic2');">here.</a></div>
+            <h1>Step 3</h1>
+            <div>Click <a onclick="loadODRRemoteSearchDialog('basic3');">here.</a></div>
+        </div>
+    </div>
+    <div id="example_content">
+        <h1>Step 3 Explanation</h1>
+        <div>
+            The final step is to copy and apply both snippets of the javascript configuration that ODR provided onto your website.
+        </div>
+        <div>
+            The downloaded javascript file...either odr_remote_search.js or odr_remote_search.min.js...should reside with the rest of your website's javascript files, if you choose to use it.  The advanced examples accessible from the configuration results dialog show how to write your own implementation...it's really not very complicated.
+        </div>
+        <div>
+            The other javascript snippet needs to come after both the included javascript file, and the search control itself.  The initialize() call attaches a click handler to the HTML button with the given ID...when that button is clicked, the contents of the mapped fields will be turned into an ODR search key.
+        </div>
+        <div>
+            At this point, the example search control will work...type in a mineral name and click the "Search" button to try it out!
+        </div>
+
+        <h1>Step 2 Explanation</h1>
+        <div>
+            The second step is to modify your site to have some form of search control on it...ODR can't help with the design process because it's impossible to provide a search control layout that works for every possible search request and website.
+        </div>
+        <div>
+            In this case, we want to search the UA Mineral Museum database for samples based on user input of names and/or IDs.  The simplest design is a single text input per criteria, and a button to trigger the search...they don't work yet though, because the javascript hasn't been added.
+        </div>
+        <div>
+            Use the navigation panel on the left to advance to the final step, where the search control is made to work.
+        </div>
+
+        <h1>Step 1 Explanation</h1>
+        <div>
+            This example starts out with a very simple webpage layout...there's a navigation-type panel down the left side, and a couple blog/news-type posts down the right.  The goal is to demonstrate splicing the ODR Remote Search configuration into a website.
+        </div>
+        <div>
+            Use the navigation panel on the left to advance to the second step.
+        </div>
+    </div>
+</div>
+{#{% endspaceless %}#}

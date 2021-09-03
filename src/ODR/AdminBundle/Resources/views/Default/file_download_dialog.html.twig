@@ -221,7 +221,7 @@
 
         // Init display of progress
         $('#ODRFileDownloadForm_current').html("0");
-        $('#ODRFileDownloadForm_total').html(file_count);
+        // $('#ODRFileDownloadForm_total').html(file_count);    // don't know how many files, yet
 
         // Hide before ajax stuff
         $('#ODRFileDownloadFormWrapper').hide();
@@ -238,6 +238,10 @@
             success: function(data, textStatus, jqXHR) {
                 var archive_filename = data.d.archive_filename;
                 var archive_size = data.d.archive_size;
+
+                // Couldn't do this earlier...
+                $('#ODRFileDownloadForm_total').html(archive_size);
+
                 createZipArchiveProgressCheck(archive_filename, archive_size, form_id);
             },
             error: function (jqXHR, textStatus, errorThrown) {

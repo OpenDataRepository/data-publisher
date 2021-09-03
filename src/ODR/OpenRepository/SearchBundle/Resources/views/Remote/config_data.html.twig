@@ -3,11 +3,11 @@
         baseurl: '{{ protocol }}:{{ baseurl }}/{{ search_slug }}',
         datatype_id: {{ datatype_id }},
 
-        // The quoted values below *MUST* be changed to match your page's HTML
-        submit_button: 'submit',
+        // The double-quoted values below *MUST* be changed to match your page's HTML
+        submit_button: "< submit >",
         mapping: {
-        {% for df_id,element_name in datafields %}
-            {{ df_id }}: '{{ element_name }}',
+        {% for df_id,df_data in datafields %}
+            '{{ df_id }}': "< {{ df_data.element_name }} >",
         {% endfor %}
         }
     });

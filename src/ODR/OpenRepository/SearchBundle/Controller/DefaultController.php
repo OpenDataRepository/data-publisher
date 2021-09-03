@@ -579,10 +579,22 @@ class DefaultController extends Controller
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
             if ($filtered_search_key !== $search_key) {
                 if ($intent === 'searching') {
-                    // User can't view the results of this search key, redirect to the one they can view
-                    return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
+                    // The search key got changed...determine whether it's because something was out of
+                    //  order, or the user tried to search on a field they can't view
+                    $decoded_original = $search_key_service->decodeSearchKey($search_key);
+                    $decoded_modified = $search_key_service->decodeSearchKey($filtered_search_key);
+
+                    if ( count($decoded_original) == count($decoded_modified) ) {
+                        // User submitted a search key that's "out of order"...silently redirect to the sorted one
+                        return $search_redirect_service->redirectToSearchResult($filtered_search_key, $search_theme_id);
+                    }
+                    else {
+                        // User can't view the results of this search key, redirect to the one they can view
+                        return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
+                    }
                 }
                 else {
+                    // TODO - this currently happens when something gets filtered in the "link to datarecord" search page
                     // TODO - what to do here?  can't redirect, and silently modifying their search key probably isn't the best idea...
                     $search_key = $filtered_search_key;
                 }

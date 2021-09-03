@@ -1,0 +1,48 @@
+{#{% spaceless %}#}
+<h2>Try me out!</h2>
+<div id="example_side_pane">
+    <label for="mineral_name">Mineral Name: </label>
+    <input id="mineral_name" type="text" size="25" />
+    <br>
+    <button id="uamm_search">Search UAMM samples</button>
+</div>
+<div id="example_content">
+    <div>
+        In this example, we want to search for samples in the UA Mineral Museum by name...and for
+        demonstration purposes, only display samples from the USA.
+    </div>
+</div>
+
+<script>
+// This example is using jQuery instead of pure javascript because it's shorter
+$(function() {
+    $("#uamm_search").unbind('click').click(function(event) {
+        // Don't trigger default form events
+        event.preventDefault();
+        event.stopPropagation();
+
+        // In this example, we want to search for samples in the UA Mineral Museum by name...
+        //  ...and for demonstration purposes, only display samples from the USA.
+        var mineral_name = $("#mineral_name").val();
+        if (mineral_name === '')
+            return;
+
+        // By going through the remote_search "wizard", we can figure out that the museum's
+        //  datatype_id is 20, the datafield_id of the "Name" field is 126, and the id of the
+        //  "Locality" field is 128
+
+        // The search key is set to search on the Museum datatype, and to always provide a
+        //  value of "USA" for the "Locality" field (128)...the "Name" field (126) is set to
+        //  whatever the user entered in the form...
+        var search_key = '{"dt_id":"20","128":"USA","126":"' + mineral_name + '"}';
+        // ...which then gets converted into base64 with the correct substitutions...
+        search_key = btoa(search_key).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
+
+        // ...and that's all that's required to build a search key that an ODR server understands
+        // The database itself is hosted at "https://odr.io/uamm"
+        var new_url = 'https://odr.io/uamm#/search/display/0/' + search_key;
+        window.open(new_url, '_blank');
+    });
+});
+</script>
+{#{% endspaceless %}#}

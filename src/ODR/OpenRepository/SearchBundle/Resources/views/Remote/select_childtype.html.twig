@@ -1,0 +1,25 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+<div class="ODRDataType pure-u-1 ODRAccordionWrapper ODRFormAccordion" id="DataType_{{ datatype.id }}">
+
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span class="ui-icon ui-icon-triangle-1-s"></span>
+        <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
+    </h3>
+
+    <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
+        {% include 'ODROpenRepositorySearchBundle:Remote:select_fieldarea.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
+
+            'target_datatype_id': target_datatype_id,
+            'target_theme_id': target_theme_id,
+
+            'permitted_datafields': permitted_datafields
+        } %}
+    </div><!-- End of #FieldArea_{{ datatype.id }} -->
+
+{% endspaceless %}

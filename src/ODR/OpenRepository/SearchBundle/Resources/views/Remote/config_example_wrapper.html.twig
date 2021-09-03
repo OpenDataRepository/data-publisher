@@ -1,0 +1,34 @@
+{% spaceless %}
+
+{% if template_type is not defined %}
+    {% set template_type = 'adv' %}
+{% endif %}
+
+<div class="ODRRemoteSearch_dialog ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRBodyContent">
+                The left side of this dialog displays some raw HTML/javascript...the right side renders that same HTML/javascript as a working example.  For brevity, CSS rules are not displayed.
+                <br><br>
+                To return to the example implementation, click <a onclick="loadODRRemoteSearchDialog();">here.</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRRemoteSearch_pre {% if template_type == 'adv' %}pure-u-13-24{% else %}pure-u-12-24{% endif %}">
+                <pre style="text-align: left;">{{ str|escape }}</pre>
+            </div>
+            <div class="ODRRemoteSearch_extra {% if template_type == 'adv' %}pure-u-10-24{% else %}pure-u-11-24{% endif %}">
+                <div style="margin-top: 20px;">
+                    {{ str|raw }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link href="{{ site_baseurl }}/css/odr_remote_search_examples.css" type="text/css" rel="stylesheet">
+
+{% endspaceless %}

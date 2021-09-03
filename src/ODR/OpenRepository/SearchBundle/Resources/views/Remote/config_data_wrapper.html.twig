@@ -4,28 +4,127 @@
      <div class="ODRThemeElement pure-u-1">
          <div class="ODRInnerBox pure-u-1">
              <div class="ODRFieldArea accordion-content">
-                 <div class="ODRBodyContent">
-                     The final step in this process is apply the configuration to your site.
+
+                 <div class="ODRRemoteSearch_short_version ODRBodyContent">
+                     <div style="text-indent: 20px;">
+                         The final step is to modify your website to have some type of search control
+                         on it...ODR can't really do this for you because it's impossible to provide
+                         a search control layout that works for every possible database and website.
+                         That being said...a crude (but working) implementation is displayed below
+                         to help give an idea of what needs to be done.
+                     </div>
+                     <br>
+                     <div>
+                         If you're interested in seeing an explanation of the reasoning behind the
+                         javascript, click <a class="ODRRemoteSearch_toggle_config">here</a>.
+                     </div>
                  </div>
+
+                 <div class="ODRRemoteSearch_long_version ODRBodyContent" style="display:none;">
+                     <div>
+                         To view the simple example implementation again, click <a class="ODRRemoteSearch_toggle_config">here</a>
+                         <br>
+                         For a more advanced example of writing your own javascript to customize the search key, click <a onclick="loadODRRemoteSearchDialog('defaults');">here.</a>
+                         <br>
+                         For a similar advanced example, click <a onclick="loadODRRemoteSearchDialog('alt');">here.</a>
+                     </div>
+                 </div>
+
              </div>
          </div>
     </div>
-    <div class="ODRThemeElement pure-u-1">
+
+    <div class="ODRRemoteSearch_short_version ODRThemeElement pure-u-1">
         <div class="ODRInnerBox pure-u-1">
             <div class="ODRRemoteSearch_pre pure-u-11-24">
-                This snippet of javascript needs to be placed after the relevant HTML elements.
-                <br>
-                <pre style="text-align: left;">{{ config|escape }}</pre>
+                <div style="text-indent: 20px;">
+                    The left side of this dialog displays some raw HTML/javascript...the right side
+                    renders that same HTML/javascript as a working example.  The javascript needs to
+                    be placed after the HTML in order to work properly.
+                </div>
+                <pre style="text-align: left;">{{ long_config|escape }}</pre>
             </div>
             <div class="ODRRemoteSearch_extra pure-u-1-2">
-                TODO
-                <br>
-                <a href="{{ path('odr_remote_search_download', {'minified': 1}) }}">Minified</a>
-                <br>
-                <a href="{{ path('odr_remote_search_download', {'minified': 0}) }}">Unminified</a>
+                <div style="margin-top: 20px;">
+                    {{ long_config|raw }}
+                </div>
             </div>
         </div>
     </div>
+
+    <div class="ODRRemoteSearch_long_version ODRThemeElement pure-u-1" style="display:none;">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRRemoteSearch_pre pure-u-11-24">
+                <div style="text-indent: 20px;">
+                    During ODR's design process, it became apparent that ODR needed the ability to
+                    "store" search criteria in URLs.  The easiest method of doing this was to use a
+                    base64 encoding of a JSON array.
+                </div>
+                <div style="text-indent: 20px;">
+                    The only required key in this array is "dt_id", which must be set to the id of
+                    the datatype being searched on.  When "dt_id" is the only item in the array, the
+                    search will return all records from the relevant database.
+                </div>
+                <div style="text-indent: 20px;">
+                    All other keys, such as datafield ids or the "gen" key, are optional...if any are
+                    present, the list of records is filtered by the given criteria.  Values for a
+                    datafield only search in that specific field, while values for the "gen" key
+                    effectively check all "searchable" fields in the relevant database.
+                </div>
+                <pre style="text-align: left;">let search_key = '{
+    "dt_id": "< datatype_id >",
+    "gen": "< value >",
+    "< df_1_id >": "< df_1_value >",
+    "< df_2_id >": "< df_2_value >",
+    ...
+    "< df_n_id >": "< df_n_value >",
+}'</pre>
+                <div style="text-indent: 20px;">
+                    It's important to note that, because the ODR search key is basically a JSON array,
+                    all keys and values must be quoted.  However, you don't need to worry about the
+                    order of the properties in the search key...ODR will automatically clean up
+                    "non-optimal" or unsorted search keys if required.
+                </div>
+            </div>
+            <div class="ODRRemoteSearch_extra pure-u-1-2">
+                <div style="text-indent: 20px;">
+                    The next step is to convert the search key into a web-safe base64 encoding...
+                    this is typically done by substituting the 62nd and 63rd characters from the
+                    base64 alphabet ("+" and "/", respectively) with the "-" and "_" characters instead.
+                </div>
+                <pre style="text-align: left;">let encoded_search_key = btoa(search_key).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');</pre>
+                <div style="text-indent: 20px;">
+                    The pad character "=" is technically not needed, and ODR will complain if that
+                    character is present in the resulting encoded search key.
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<style>
+    .ODRRemoteSearch_short_version input {
+        border: 1px solid #7fb9d8;
+    }
+    .ODRRemoteSearch_extra > .ODRTableWrap {
+        border: none !important;
+    }
+</style>
+
+<script>
+    $(function() {
+        $(".ODRRemoteSearch_toggle_config").unbind('click').click(function() {
+            if ( $(".ODRRemoteSearch_short_version").is(':visible') ) {
+                $(".ODRRemoteSearch_short_version").hide();
+                $(".ODRRemoteSearch_long_version").show();
+            }
+            else {
+                $(".ODRRemoteSearch_long_version").hide();
+                $(".ODRRemoteSearch_short_version").show();
+            }
+        });
+    });
+</script>
 
 {% endspaceless %}

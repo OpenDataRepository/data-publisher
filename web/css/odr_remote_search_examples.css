@@ -1,0 +1,57 @@
+#example_side_pane {
+    float: left;
+    width: 33%;
+    height: 500px;
+}
+
+#example_news {
+    margin-top: 10px;
+    border: 1px solid #7fb9d8;
+    background: #ddd;
+    border-radius: 5px;
+}
+#example_news > h1 {
+    color: #3b8bba;
+    cursor: default;
+    padding-left: 5px;
+}
+#example_news > div {
+    padding-left: 25px;
+    cursor: default;
+}
+
+
+#example_content {
+    float: right;
+    width: 66%;
+}
+#example_content > h1 {
+    color: #3b8bba;
+    cursor: default;
+    margin-top: 10px;
+}
+#example_content > div {
+    padding-left: 20px;
+    cursor: default;
+    text-indent: 20px;
+}
+
+
+#example_search_control {
+    margin-top: 10px;
+    border: 1px solid #7fb9d8;
+    /*background: #ddd;*/
+    border-radius: 5px;
+}
+#example_search_control > form {
+    padding: 10px;
+}
+
+
+#mineral_name,#uamm_id {
+    border: 1px solid #7fb9d8;
+}
+
+#mineral_select {
+    width: 10em;
+}

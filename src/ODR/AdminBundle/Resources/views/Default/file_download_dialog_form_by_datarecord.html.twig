@@ -2,7 +2,7 @@
 
 {% if file_array|length == 0 %}
 <div class="ODRMarkdownContent">
-    <p>No Files are available for downloading</p>
+    <p>No Files or Images are available for downloading</p>
 </div>
 {% endif %}
 
@@ -13,13 +13,17 @@
         <ul>
         {% if dr['datafields'] is defined and dr['datafields']|length > 0 %}
             {% for df_id, files in dr['datafields'] %}
-                <li id="FileList_{{ dr_id }}_{{ df_id }}"><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id] }}
+                <li id="FileList_{{ dr_id }}_{{ df_id }}"><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id]['fieldName'] }}
                     <ul>
                     {% for file_id, filename in files %}
                         <li>
                             <span class="ODRTristateCheckbox binary">
                                 <i class="fa"></i>
+                                {% if entity_names['datafields'][df_id]['typeName'] == 'File' %}
                                 <input type="hidden" value="{{ file_id }}" name="files[]" disabled />
+                                {% else %}
+                                <input type="hidden" value="{{ file_id }}" name="images[]" disabled />
+                                {% endif %}
                             </span>
                             {{ filename }}
                         </li>
