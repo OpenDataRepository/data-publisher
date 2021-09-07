@@ -29,8 +29,6 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -1659,167 +1657,6 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Handles selection changes made to SingleRadio, MultipleRadio, SingleSelect, and MultipleSelect DataFields
-     *
-     * @param integer $datarecord_id    The database id of the Datarecord being modified
-     * @param integer $datafield_id     The database id of the Datafield being modified
-     * @param integer $radio_option_id  The database id of the RadioOption entity being (de)selected.  If 0, then no RadioOption should be selected.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function radioselectionAction($datarecord_id, $datafield_id, $radio_option_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
-
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-
-
-            /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ($datafield == null)
-                throw new ODRNotFoundException('Datafield');
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                throw new ODRNotFoundException('Datarecord');
-
-            $datatype = $datafield->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
-
-            /** @var RadioOptions $radio_option */
-            $radio_option = null;
-            if ($radio_option_id != 0) {
-                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
-                if ($radio_option == null)
-                    throw new ODRNotFoundException('RadioOption');
-            }
-
-            // This should only work on a Radio field
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass !== 'Radio')
-                throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
-
-            if ( $datatype->getIsMasterType() )
-                throw new ODRBadRequestException('Unable to make selections on a Master Template');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-
-            // ----------------------------------------
-            // Locate the existing datarecordfield entry, or create one if it doesn't exist
-            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
-
-            // Course of action differs based on whether multiple selections are allowed
-            $typename = $datafield->getFieldType()->getTypeName();
-
-            // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
-            if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
-                // Don't care about selected status of other RadioSelection entities...
-                $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
-
-                // Default to a value of 'selected' if an older RadioSelection entity does not exist
-                $new_value = 1;
-                if ($radio_selection !== null) {
-                    // An older version does exist...toggle the existing value for the new value
-                    if ($radio_selection->getSelected() == 1)
-                        $new_value = 0;
-                }
-
-                // Update the RadioSelection entity to match $new_value
-                $properties = array('selected' => $new_value);
-                $emm_service->updateRadioSelection($user, $radio_selection, $properties);
-            }
-            else if ($typename == 'Single Radio' || $typename == 'Single Select') {
-                // Probably need to change selected status of at least one other RadioSelection entity...
-                /** @var RadioSelection[] $radio_selections */
-                $radio_selections = $repo_radio_selection->findBy(
-                    array(
-                        'dataRecordFields' => $drf->getId()
-                    )
-                );
-
-                foreach ($radio_selections as $rs) {
-                    if ( $radio_option_id != $rs->getRadioOption()->getId() ) {
-                        if ($rs->getSelected() == 1) {
-                            // Deselect all RadioOptions that are selected and are not the one the user wants to be selected
-                            $properties = array('selected' => 0);
-                            $emm_service->updateRadioSelection($user, $rs, $properties, true);    // should only be one, technically...
-                        }
-                    }
-                }
-
-                // If the user selected something other than "<no option selected>"...
-                if ($radio_option_id != 0) {
-                    // ...locate the RadioSelection entity the user wanted to set to selected
-                    $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
-
-                    // ...ensure it's selected
-                    $properties = array('selected' => 1);
-                    $emm_service->updateRadioSelection($user, $radio_selection, $properties, true);    // flushing doesn't help...
-                }
-
-                // Flush now that all the changes have been made
-                $em->flush();
-            }
-            else {
-                // No point doing anything if not a radio fieldtype
-                throw new ODRBadRequestException('EditController::radioselectionAction() called on Datafield that is not a Radio FieldType');
-            }
-
-
-            // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
-
-        }
-        catch (\Exception $e) {
-            $source = 0x01019cfb;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Parses a $_POST request to update the contents of a datafield.
      * File and Image uploads are handled by @see FlowController
      * Changes to RadioSelections are handled by EditController::radioselectionAction()
@@ -1932,6 +1769,7 @@ class EditController extends ODRCustomController
                     break;
 
                 default:
+                    // The Markdown fieldtype can't have its value changed
                     // Radio and Tag fieldtypes aren't supposed to be updated here ever
                     // Files/Images might be permissible in the future
                     throw new ODRBadRequestException('EditController::updateAction() called for a Datafield using the '.$typeclass.' FieldType');
@@ -1945,7 +1783,13 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Create a new form for this storage entity and bind it to the request
-            $form = $this->createForm($form_class, $form_object, array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()));
+            $form = $this->createForm($form_class,
+                $form_object,
+                array(
+                    'datarecord_id' => $datarecord->getId(),
+                    'datafield_id' => $datafield->getId()
+                )
+            );
             $form->handleRequest($request);
 
             if ($form->isSubmitted()) {
