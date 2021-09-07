@@ -185,6 +185,9 @@ class ODRUserController extends ODRCustomController
                 else {
                     // A user with this email already exists, return their user id
                     $return['d'] = $target_user->getId();
+
+                    // TODO - this also returns "success" with the ids of deleted users...is this a problem?
+                    // TODO - should non-super-admins be able to undelete users?
                 }
             }
             else {
@@ -590,7 +593,14 @@ class ODRUserController extends ODRCustomController
             if ($user->getId() !== $user_id)
                 throw new ODRBadRequestException();
 
-            self::saveProfile($user_id, $request);
+            // Save any changes to the profile
+            $username = self::saveProfile($user_id, $request);
+
+            if ( !is_null($username) ) {
+                $return['d'] = array(
+                    'username' => $username
+                );
+            }
         }
         catch (\Exception $e) {
             $source = 0x4c69f197;
@@ -655,7 +665,13 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             // Save any changes to the profile
-            self::saveProfile($user_id, $request);
+            $username = self::saveProfile($user_id, $request);
+
+            if ( !is_null($username) ) {
+                $return['d'] = array(
+                    'username' => $username
+                );
+            }
         }
         catch (\Exception $e) {
             $source = 0xc6125a86;
@@ -676,6 +692,8 @@ class ODRUserController extends ODRCustomController
      *
      * @param integer $target_user_id
      * @param Request $request
+     *
+     * @return string|null the (possibly new) name of the user, or null if the form didn't save
      * 
      * @throws ODRException
      */
@@ -716,6 +734,10 @@ class ODRUserController extends ODRCustomController
                 // Save changes to the user
                 $target_user->setEmail($email);     // as of right now, binding the form will clear the user's email/username because that field is disabled...set the email/username back to what it was originally
                 $user_manager->updateUser($target_user);
+
+                // Return the most up-to-date version of the user's first/last name
+                $em->refresh($target_user);
+                return $target_user->getUserString();
             }
             else {
                 // Form validation failed
@@ -723,6 +745,8 @@ class ODRUserController extends ODRCustomController
                 throw new ODRException($error_str);
             }
         }
+
+        return null;
     }
 
 
@@ -1289,6 +1313,9 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
+
+
+            // TODO - should non-super-admins be able to undelete users?
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */

@@ -4,7 +4,7 @@
     <div class="ODRThemeElement pure-u-1">
         <div class="ODRInnerBox pure-u-1 {% if has_oauth_providers or has_oauth_clients %}pure-u-md-1-2{% endif %}" style="border:none;">
             <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
-                User Profile{% if target_user != null %} - {{ target_user.getuserstring }}{% endif %}
+                User Profile{% if target_user != null %} - <span id="ODRUserProfile_username">{{ target_user.getuserstring }}</span>{% endif %}
                 <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
             </h3>
 
@@ -73,6 +73,20 @@
             data: $("#ODRUserProfileForm_{{ target_user.id }}").serialize(),
             success: function(data, textStatus, jqXHR) {
                 $('#saved').fadeIn();
+
+                if ( data.d.username !== undefined ) {
+                    var own_username = $("#ODRProfileLink").find('a').html().trim();
+                    var target_username = $("#ODRUserProfile_username").html().trim();
+
+                    // Update the username displayed on the profile page's header
+                    $("#ODRUserProfile_username").html(data.d.username);
+
+                    // If the user was editing their own profile...
+                    if ( own_username === target_username ) {
+                        // ...then also change the name displayed in the top-right corner of the window
+                        $("#ODRProfileLink").find('a').html(data.d.username);
+                    }
+                }
 
                 setTimeout(function() {
                     $('#saved').fadeOut();
