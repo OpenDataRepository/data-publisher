@@ -1,28 +1,30 @@
 {% spaceless %}
 
     <ul id="ODRChooseView" class="pure-u-1">
-        {# user's selected theme goes at the top of the list... #}
+        {# The user's currently selected theme goes at the top of the list... #}
         {% for theme in themes %}
             {% if theme.id == selected_theme_id %}
                 {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
+                    'theme': theme,
                     'user': user,
                     'is_datatype_admin': is_datatype_admin,
-                    'theme': theme,
+
                     'selected_theme_id': selected_theme_id,
-                    'user_default_theme': user_default_theme
+                    'user_preferred_theme_id': user_preferred_theme_id
                 } %}
             {% endif %}
         {% endfor %}
 
-        {# ...all other themes come after the user's selected theme #}
+        {# ...all other themes come after the currently selected theme #}
         {% for theme in themes %}
             {% if theme.id != selected_theme_id %}
                 {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
+                    'theme': theme,
                     'user': user,
                     'is_datatype_admin': is_datatype_admin,
-                    'theme': theme,
+
                     'selected_theme_id': selected_theme_id,
-                    'user_default_theme': user_default_theme
+                    'user_preferred_theme_id': user_preferred_theme_id
                 } %}
             {% endif %}
         {% endfor %}

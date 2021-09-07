@@ -104,7 +104,12 @@ class ThemeController extends ODRCustomController
                 $themes = $theme_service->getAvailableThemes($user, $datatype, "master");
 
             // Get the user's default theme for this datatype, if they have one
-            $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
+            $user_preferred_theme_id = null;
+            $user_preferred_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
+            if ( !is_null($user_preferred_theme) )
+                $user_preferred_theme_id = $user_preferred_theme->getTheme()->getId();
+
+            // Get the theme currently being used on this page
             $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);
 
 
@@ -114,7 +119,7 @@ class ThemeController extends ODRCustomController
                 'ODRAdminBundle:Default:choose_view.html.twig',
                 array(
                     'themes' => $themes,
-                    'user_default_theme' => $user_default_theme,
+                    'user_preferred_theme_id' => $user_preferred_theme_id,
                     'selected_theme_id' => $selected_theme_id,
 
                     'user' => $user,
@@ -1404,13 +1409,6 @@ class ThemeController extends ODRCustomController
                 UpdateThemeDatatypeForm::class,
                 $theme_datatype,
                 array(
-                    'action' => $this->generateUrl(
-                        'odr_design_save_theme_datatype',
-                        array(
-                            'theme_element_id' => $theme_element_id,
-                            'datatype_id' => $datatype_id,
-                        )
-                    ),
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             )->createView();
