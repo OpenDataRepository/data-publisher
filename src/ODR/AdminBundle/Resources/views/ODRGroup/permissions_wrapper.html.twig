@@ -72,13 +72,17 @@
         });
     }
 
+    /**
+     * Loads all groups for the given datatype.
+     *
+     * @param {number} datatype_id
+     */
     function LoadGroupList(datatype_id) {
         var url = '{{ path('odr_load_group_list', { 'datatype_id': 0, } ) }}';
         url = url.substring(0, (url.length - 1));
         url += datatype_id;
 
-//alert(url);
-//return;
+        // alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -109,6 +113,9 @@
         });
     }
 
+    /**
+     * Initializes the header section of the Group Permissions page.
+     */
     function InitHeader() {
 
         $(".ODRDatatypeGroupMembers").unbind('click').click(function() {
@@ -126,8 +133,7 @@
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
-//alert(url);
-//return;
+            // alert(url);  return;
 
             $.ajax({
                 cache: false,
@@ -167,8 +173,7 @@
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
-//alert(url);
-//return;
+            // alert(url);  return;
 
             $.ajax({
                 cache: false,
@@ -208,7 +213,6 @@
         });
 
         $(".ODREditGroup").unbind('click').click(function() {
-
             // Clear the currently selected group indicator
             $(".ODRGroupMembers").removeClass('ODRActiveIcon');
             $("#ODRGroupPropertiesFormDiv").html('');
@@ -226,8 +230,7 @@
             url += group_id;
 
             $("#ODRGroupListContent").html('');
-//alert(url);
-//return;
+            // alert(url);  return;
 
             $.ajax({
                 cache: false,
@@ -306,8 +309,28 @@
                 }
             });
         });
+
+        $(".ODRDeleteGroup").each(function() {
+            var group_id_data = $(this).attr('id').split(/_/);
+            var group_id = group_id_data[2];
+
+            var datatype_id = $(this).attr('rel');
+
+            $(this).unbind('click').click(function() {
+                if ( $(this).hasClass('pure-button-disabled') ) {
+                    return;
+                }
+                else if( confirm("Are you certain you want to delete this Group?")) {
+                    DeleteGroup(datatype_id, group_id);
+                }
+            });
+        });
     }
 
+    /**
+     * Attaches handlers to user names in the group membership lists, so that clicking on a username
+     * opens their associated group management page.
+     */
     function attachUserLinks() {
         $(".ODRUserLink").unbind('click').click(function() {
             var user_id = $(this).attr('rel');
@@ -320,23 +343,40 @@
         });
     }
 
-    var SaveGroupPropertyInterval = [];
+    // Need to be able to delay saving changes to the group properties form for a couple seconds
+    //  so that users aren't getting constantly interrupted
+    var SaveGroupProperty_Interval = [];
+    var SaveGroupProperty_Data = [];
+
+    /**
+     * Saves properties in a Group form...group name and description, etc.
+     *
+     * @param {number} datatype_id
+     * @param {number} group_id
+     * @param {bool} reload_group_list
+     */
     function SaveGroupProperties(datatype_id, group_id, reload_group_list) {
-        // Clear the save timeout for this specific group
-        clearTimeout(SaveGroupPropertyInterval[group_id]);
+        // Clear the save interval for this group if there is one
+        if (SaveGroupProperty_Interval[group_id] !== undefined)
+            SaveGroupProperty_Interval[group_id] = window.clearInterval(SaveGroupProperty_Interval[group_id]);
+
+        // Load the saved form data for this group
+        if ( SaveGroupProperty_Data[group_id] === undefined)
+            return;
+        var post_data = SaveGroupProperty_Data[group_id];
+        SaveGroupProperty_Data[group_id] = null;
+        // console.log('entered SaveGroupProperties() for group', group_id, post_data);
 
         var url = '{{ path('odr_group_properties', { 'group_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
         url += group_id;
 
-//alert( url );
-//return;
+        // alert( url );  return;
 
-        var form_data = $("#GroupPropertiesForm_" + group_id).serialize();
         $.ajax({
             type: 'POST',
             url: url,
-            data: form_data,
+            data: post_data,
             dataType: "json",
             success: function(data) {
                 notifySaved();
@@ -365,24 +405,10 @@
         });
     }
 
+    /**
+     * Attaches javascript handlers to the Group Properties form.
+     */
     function InitGroupPropertyForm() {
-        // Init Group Properties forms
-        $("#ThemeDesignForm").find(".ODRDeleteGroup").each(function() {
-            var group_id_data = $(this).attr('id').split(/_/);
-            var group_id = group_id_data[1];
-
-            var datatype_id = $(this).attr('rel');
-
-            $(this).unbind('click').click(function() {
-                if ( $(this).hasClass('pure-button-disabled') ) {
-                    return;
-                }
-                else if( confirm("Are you certain you want to delete this Group?")) {
-                    DeleteGroup(datatype_id, group_id);
-                }
-            });
-        });
-
         $("#ThemeDesignForm").find("input, textarea").each(function() {
             // Grab group id
             var group_id_data = $("#ThemeDesignForm").find(".ODRGroupPropertiesForm").attr('id').split(/_/);
@@ -393,9 +419,11 @@
             // Save changes
             if( $(this).is(":checkbox") ) {
                 $(this).unbind('change').change(function() {
-                    // Only want to execute the save function once
-                    clearTimeout(SaveGroupPropertyInterval[group_id]);
-                    SaveGroupPropertyInterval[group_id] = setTimeout("SaveGroupProperties(" + datatype_id + "," + group_id + ", true)", SaveTimeout);
+                    // Trigger a delayed save of the properties form for this group
+                    // console.log('<checkbox> changed, triggering delayed save for group', group_id);
+                    SaveGroupProperty_Interval[group_id] = window.clearInterval(SaveGroupProperty_Interval[group_id]);
+                    SaveGroupProperty_Interval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", true)", SaveTimeout);
+                    SaveGroupProperty_Data[group_id] = $("#GroupPropertiesForm_" + group_id).serialize();
                 });
             }
             else {
@@ -408,21 +436,28 @@
                         $(".ODRGroup_" + group_id + "_name").html(text);
                     }
 
-                    // Only want to execute the save function once
-                    clearTimeout(SaveGroupPropertyInterval[group_id]);
-                    SaveGroupPropertyInterval[group_id] = setTimeout("SaveGroupProperties(" + datatype_id + "," + group_id + ", false)", SaveTimeout);
+                    // Trigger a delayed save of the properties form for this group
+                    // console.log('<input> changed, triggering delayed save for group', group_id);
+                    SaveGroupProperty_Interval[group_id] = window.clearInterval(SaveGroupProperty_Interval[group_id]);
+                    SaveGroupProperty_Interval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", false)", SaveTimeout);
+                    SaveGroupProperty_Data[group_id] = $("#GroupPropertiesForm_" + group_id).serialize();
                 });
             }
         });
     }
 
+    /**
+     * Deletes the given group.
+     *
+     * @param {number} datatype_id
+     * @param {number} group_id
+     */
     function DeleteGroup(datatype_id, group_id) {
         var url = '{{ path('odr_delete_group', { 'group_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
         url += group_id;
 
-//alert( url );
-//return;
+        // alert( url );  return;
 
         $.ajax({
             cache: false,
