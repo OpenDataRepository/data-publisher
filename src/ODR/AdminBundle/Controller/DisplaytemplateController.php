@@ -2521,8 +2521,13 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            if ( !$datafield_form->isSubmitted() || !$datafield_form->isValid() || $force_slideout_reload ) {
-                // This was a GET request, or the form wasn't valid originally, or the form was valid but needs to be reloaded anyways
+            if ( !$datafield_form->isSubmitted()
+                || !$datafield_form->isValid()
+                || $reload_datafield
+                || $force_slideout_reload
+            ) {
+                // This was a GET request, or the form wasn't valid originally, or the form was
+                //  valid but needs to be reloaded anyways
                 $em->refresh($datafield);
                 $em->refresh($datafield->getDataFieldMeta());
 
