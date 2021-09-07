@@ -11,37 +11,43 @@
     <div id="ODRRemoteDatatypeHasLinks" class="pure-u-1">
         <div>
             <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
-            <span>Several Datarecords of the local Datatype "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Datatype "{{ remote_datatype.getShortName }}".</span>
+            <span>Several Datarecords of the local Database "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Database "{{ remote_datatype.getShortName }}".</span>
         </div>
         <div>
             <i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i>&nbsp;&nbsp;
-            <span>Click the gear icon to see which connections would be deleted if the local Datatype is unlinked from the remote Datatype.</span>
+            <span>Click the gear icon to see which connections would be deleted if the local Database is unlinked from the remote Database.</span>
         </div>
     </div>
 {% endif %}
 
     <fieldset>
         <div class="pure-control-group">
+        {% if linkable_datatypes is empty %}
+            <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
+            <span>There are no {% if local_datatype.isMasterType %}Templates{% else %}Databases{% endif %} that can be linked to.</span>
+        {% else %}
+
             <label for="selected_datatype">
-            {% if local_datatype.isMasterType %}
-                <strong>Template Name:</strong>
-            {% else %}
-                <strong>DataType Name:</strong>
-            {% endif %}
+                {% if local_datatype.isMasterType %}
+                    <strong>Template Name:</strong>
+                {% else %}
+                    <strong>Database Name:</strong>
+                {% endif %}
             </label>
 
             <select name="selected_datatype" id="selected_datatype">
-            {% if remote_datatype == null %}
-                <option value=""></option>
-            {% endif %}
-            {% for dt in linkable_datatypes %}
-                {% set is_selected = false %}
-                {% if remote_datatype != null and remote_datatype.id == dt.id %}
-                    {% set is_selected = true %}
+                {% if remote_datatype == null %}
+                    <option value=""></option>
                 {% endif %}
+                {% for dt in linkable_datatypes %}
+                    {% set is_selected = false %}
+                    {% if remote_datatype != null and remote_datatype.id == dt.id %}
+                        {% set is_selected = true %}
+                    {% endif %}
 
-                <option value="{{ dt.id }}" {% if is_selected %}selected{% endif %}>{{ dt.dataTypeMeta.shortName }}</option>
-            {% endfor %}
+                    <option value="{{ dt.id }}" {% if is_selected %}selected{% endif %}>{{ dt.dataTypeMeta.shortName }}</option>
+                {% endfor %}
+            {% endif %}
             </select>
         </div>
     </fieldset>
