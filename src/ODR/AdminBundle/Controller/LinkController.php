@@ -1764,9 +1764,12 @@ class LinkController extends ODRCustomController
 
 
     /**
-     * Parses a $_POST request to modify whether a 'local' datarecord is linked to a 'remote'
-     * datarecord.  If such a link exists, GetDisplayData() will render a read-only version of the
-     * 'remote' datarecord in a ThemeElement of the 'local' datarecord.
+     * Parses a $_POST request to update the links between a 'local' datarecord and some number of
+     *  'remote' datarecords.
+     *
+     * The $datarecords variable from the POST request contains the ids of remote datarecords that
+     *  the local datarecord should be linked to...any records that the local datarecord is currently
+     *  linked to, but are not listed in $datarecords, will be unlinked.
      *
      * @param Request $request
      *
@@ -1918,6 +1921,9 @@ class LinkController extends ODRCustomController
                 $local_datarecord_is_ancestor = false;
             }
 
+            // Keep track of whether any change was made
+            $change_made = false;
+
 
             // ----------------------------------------
             // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
@@ -1971,6 +1977,9 @@ class LinkController extends ODRCustomController
                         $ldt->setDeletedBy($user);
                         $ldt->setDeletedAt(new \DateTime());
                         $em->persist($ldt);
+
+                        // The local record is no longer linked to this remote record
+                        $change_made = true;
                     }
                     else {
                         // Otherwise, a datarecord was linked and still is linked...
@@ -2014,6 +2023,9 @@ class LinkController extends ODRCustomController
                 $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
                 // Setup for figuring out which cache entries need deleted
                 $records_to_check[ $ancestor_datarecord->getGrandparent()->getId() ] = 1;
+
+                // The local record is now linked to this remote record
+                $change_made = true;
             }
 
             // Done modifying the database
@@ -2022,7 +2034,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
-            //  cache entry removed so the view/edit pages show the correct linked records
+            //  entry removed so the view/edit pages show the correct linked records
             $records_to_check = array_flip($records_to_check);
             $dri_service->deleteCachedDatarecordLinkData($records_to_check);
             // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
@@ -2033,7 +2045,9 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             $return['d'] = array(
                 'datatype_id' => $descendant_datatype->getId(),
-                'datarecord_id' => $local_datarecord->getId()
+                'datarecord_id' => $local_datarecord->getId(),
+
+                'change_made' => $change_made,
             );
         }
         catch (\Exception $e) {
@@ -2051,9 +2065,11 @@ class LinkController extends ODRCustomController
 
 
     /**
-     * Parses a $_POST request to modify whether a 'local' datarecord is linked to a 'remote'
-     * datarecord.  If such a link exists, GetDisplayData() will render a read-only version of the
-     * 'remote' datarecord in a ThemeElement of the 'local' datarecord.
+     * Parses a $_POST request to delete the links between a 'local' datarecord and some number of
+     *  'remote' datarecords.
+     *
+     * Unlike self::linkdatarecordsAction(), the $datarecords variable from the POST request contains
+     *  ids of remote datarecords that will be unlinked.
      *
      * @param Request $request
      *
@@ -2249,7 +2265,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
-            //  cache entry removed so the view/edit pages show the correct linked records
+            //  entry removed so the view/edit pages show the correct linked records
             $records_to_check = array_flip($records_to_check);
             $dri_service->deleteCachedDatarecordLinkData($records_to_check);
             // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
