@@ -1380,6 +1380,7 @@ class DatatypeController extends ODRCustomController
         }
     }
 
+
     /**
      * Creates a new top-level DataType.
      *
@@ -1413,7 +1414,13 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
-            $form = $this->createForm(CreateDatatypeForm::class, $submitted_data);
+            $params = array(
+                'form_settings' => array(
+                    'is_master_type' => false,
+                    'master_type_id' => 0,
+                )
+            );
+            $form = $this->createForm(CreateDatatypeForm::class, $submitted_data, $params);
 
             $form->handleRequest($request);
 

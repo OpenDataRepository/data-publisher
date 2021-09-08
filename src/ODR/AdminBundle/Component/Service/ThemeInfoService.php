@@ -616,14 +616,6 @@ class ThemeInfoService
      */
     private function buildThemeData($parent_theme_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this cache entry
@@ -670,20 +662,30 @@ class ThemeInfoService
         $theme_data = $query->getArrayResult();
 
         // TODO - if $theme_data is empty, then $parent_theme_id was deleted...should this return something special in that case?
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildThemeData('.$theme_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
         // perspective, even though there's only supposed to be a single non-deleted entity_metadata
         // object for each entity.  Therefore, the preceding query generates an array that needs
         // to be somewhat flattened in a few places.
         foreach ($theme_data as $theme_num => $theme) {
+
+            // If the theme's datatype is null, then it belongs to a deleted datatype and should
+            //  be completely ignored
+            // TODO - should this filtering happen inside the mysql query?
+            if ( is_null($theme['dataType']) ) {
+                unset( $theme_data[$theme_num] );
+                continue;
+            }
+
             // Flatten theme meta
+            if ( count($theme['themeMeta']) == 0 ) {
+                // TODO - this comparison (and the other one in this function) really needs to be strict (!== 1)
+                // TODO - ...but that would lock up multiple dev servers until their databases get fixed
+                // ...throwing an exception here because this shouldn't ever happen, and also requires
+                //  manual intervention to fix...
+                throw new ODRException('Unable to rebuild the cached_theme_'.$parent_theme_id.' array because of a database error for theme '.$parent_theme_id);
+            }
+
             $theme_meta = $theme['themeMeta'][0];
             $theme_data[$theme_num]['themeMeta'] = $theme_meta;
 
@@ -691,9 +693,8 @@ class ThemeInfoService
             $theme_data[$theme_num]['createdBy'] = UserUtility::cleanUserData( $theme['createdBy'] );
             $theme_data[$theme_num]['updatedBy'] = UserUtility::cleanUserData( $theme['updatedBy'] );
 
-            // Only want to keep the id of this theme's datatype?
+            // Need to save the theme's datatype's id for later...
             $dt_id = $theme_data[$theme_num]['dataType']['id'];
-            $theme_data[$theme_num]['dataType'] = array('id' => $dt_id);
 
 
             // ----------------------------------------
@@ -701,6 +702,12 @@ class ThemeInfoService
             $new_te_array = array();
             foreach ($theme['themeElements'] as $te_num => $te) {
                 // Flatten theme_element_meta of each theme_element
+                if ( count($te['themeElementMeta']) == 0 ) {
+                    // ...throwing an exception here because this shouldn't ever happen, and also requires
+                    //  manual intervention to fix...
+                    throw new ODRException('Unable to rebuild the cached_theme_'.$parent_theme_id.' array because of a database error for theme_element '.$te['id']);
+                }
+
                 $tem = $te['themeElementMeta'][0];
                 $te['themeElementMeta'] = $tem;
 
@@ -761,15 +768,6 @@ class ThemeInfoService
             $t_id = $t_data['id'];
             $formatted_theme_data[$t_id] = $t_data;
         }
-
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildThemeData('.$theme_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
-//exit( '<pre>'.print_r($formatted_theme_data, true).'</pre>' );
 
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_theme_'.$parent_theme_id, $formatted_theme_data);

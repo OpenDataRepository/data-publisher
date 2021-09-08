@@ -969,7 +969,7 @@ class AMCSDPlugin implements DatatypePluginInterface
         }
 
         // Want all file contents in a single field
-        $value_mapping['File Contents'] = implode($all_lines);
+        $value_mapping['File Contents'] = implode("", $all_lines);
 
         // Ensure the values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)

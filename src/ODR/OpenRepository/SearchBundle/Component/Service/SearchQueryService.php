@@ -1530,7 +1530,7 @@ class SearchQueryService
 
             $pieces = explode(' AND ', $block);
             foreach ($pieces as $piece) {
-                $char = $piece{8};
+                $char = $piece[8];
                 if ($char === 'L') {
                     // searching for  e.value LIKE <something>  ...can't be null
                     $possible = false;
@@ -1760,6 +1760,7 @@ class SearchQueryService
             }
         }
 
+        // TODO - a search string of a single doublequote ends up being interpreted the same as a search string of two doublequotes
         // Save any remaining piece
         if ($tmp !== '')
             $pieces[] = $tmp;
