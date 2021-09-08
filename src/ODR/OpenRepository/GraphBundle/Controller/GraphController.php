@@ -125,6 +125,12 @@ class GraphController extends ODRCustomController
             $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
             $theme_array = $theme_service->getThemeArray($theme->getId());
 
+            // Need to restrict to the master theme of the datatype being rendered, however
+            foreach ($theme_array as $theme_id => $t) {
+                if ( $t['dataType']['id'] != $datatype_id )
+                    unset( $theme_array[$theme_id] );
+            }
+
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays

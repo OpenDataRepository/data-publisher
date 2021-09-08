@@ -64,7 +64,7 @@ class SearchSidebarService
      *
      * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
-     * @param DataTreeInfoService $datatree_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param UserManager $user_manager
      * @param Logger $logger
@@ -72,7 +72,7 @@ class SearchSidebarService
     public function __construct(
         EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
-        DataTreeInfoService $datatree_info_service,
+        DatatreeInfoService $datatree_info_service,
         PermissionsManagementService $permissions_service,
         UserManager $user_manager,
         Logger $logger

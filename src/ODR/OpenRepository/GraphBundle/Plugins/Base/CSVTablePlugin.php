@@ -13,8 +13,9 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
-// ODR
+// Services
 use ODR\AdminBundle\Component\Service\CryptoService;
+// ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -44,10 +45,13 @@ class CSVTablePlugin implements DatafieldPluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
-     * @param $odr_web_directory
+     * @param string $odr_web_directory
      */
-    public function __construct(EngineInterface $templating, CryptoService $crypto_service, $odr_web_directory)
-    {
+    public function __construct(
+        EngineInterface $templating,
+        CryptoService $crypto_service,
+        $odr_web_directory
+    ) {
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
         $this->odr_web_directory = $odr_web_directory;
@@ -97,13 +101,25 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 // TODO - test whether this'll work on stupid csv files like CSVImport has to deal with
                 // Load file and parse into array
                 $data_array = array();
-                if (($handle = fopen($local_filepath, "r")) !== FALSE) {
-                    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                        array_push($data_array, $data);
-                    }
-                    fclose($handle);
+
+                $handle = fopen($local_filepath, "r");
+                if ( !$handle )
+                    throw new \Exception('Could not open "'.$local_filepath.'"');
+
+                // TODO - modify so the plugin can effectively "auto-detect" separators like web/js/mylibs/odr_plotly_graphs.js does?
+                // TODO - ...the afformentioned js file uses regex to break lines into "words", instead of a pre-defined separator
+                $separator = ",";
+
+                $data = fgetcsv($handle, 1000, $separator);
+                while ( $data !== false ) {
+                    array_push($data_array, $data);
+                    $data = fgetcsv($handle, 1000, $separator);
                 }
 
+
+                // ----------------------------------------
+                // Done reading the file
+                fclose($handle);
 
                 // Delete previously encrypted non-public files
                 foreach ($files_to_delete as $file_path)

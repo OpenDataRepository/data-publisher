@@ -243,7 +243,8 @@ class DatafieldInfoService
 
 
         // TODO - the FieldType table has a list of sortable fieldtypes...but migration takes so long that the datatype will usually be sorted with an incomplete set of values...
-        // Also prevent a fieldtype change if the datafield is being used as the sort field by any datatype
+        // Also prevent a fieldtype change if the datafield is being used as a sort field by
+        //  any datatype
         $query = $this->em->createQuery(
            'SELECT dtm.shortName
             FROM ODRAdminBundle:DataFields AS df
@@ -439,12 +440,14 @@ class DatafieldInfoService
             $values = array();
             foreach ($results as $result) {
                 $value = $result['value'];
-                if ( isset($values[$value]) )
+                if ( isset($values[$value]) ) {
                     // Found duplicate, return false
                     return false;
-                else
+                }
+                else {
                     // Found new value, save and continue checking
                     $values[$value] = 1;
+                }
             }
         }
         else {
@@ -469,12 +472,14 @@ class DatafieldInfoService
                 if ( !isset($values[$parent_id]) )
                     $values[$parent_id] = array();
 
-                if ( isset($values[$parent_id][$value]) )
+                if ( isset($values[$parent_id][$value]) ) {
                     // Found duplicate, return false
                     return false;
-                else
+                }
+                else {
                     // Found new value, save and continue checking
                     $values[$parent_id][$value] = 1;
+                }
             }
         }
 
