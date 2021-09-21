@@ -115,7 +115,7 @@ console.log(files);
 
 {% if single_file == true %}
             // Block uploads any further uploads after a single file
-            $("#ODRFileUpload_{{ target }} input").attr('disabled', 'disabled');
+            $("#ODRFileUpload_{{ target }} input").prop('disabled', true);
             $("#ODRFileUpload_{{ target }}").parent().hide();
             // TODO - other CSS?
 {% endif %}
@@ -152,7 +152,7 @@ console.log(file);
 
 {% if single_file == true %}
             // TODO - re-enable file upload on error?
-            $("#ODRFileUpload_{{ target }} input").removeAttr('disabled');
+            $("#ODRFileUpload_{{ target }} input").prop('disabled', false);
             $("#ODRFileUpload_{{ target }}").parent().show();
 {% endif %}
         });

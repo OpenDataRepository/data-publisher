@@ -754,7 +754,7 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
             //  the upload button again since this datafield's only file just got deleted
-            if ($datafield->getAllowMultipleUploads() == "0")
+            if ( !$datafield->getAllowMultipleUploads() )
                 $return['d'] = array('need_reload' => true);
 
         }

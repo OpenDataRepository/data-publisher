@@ -1064,8 +1064,10 @@ function DeleteFile(file_id, callback) {
                 }
 
                 {# NOTE - this doesn't actually "reload" anything, just shows the upload div again #}
-                if (data.d.need_reload == true)
+                if (data.d.need_reload == true) {
+                    $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id + " input").prop('disabled', false);
                     $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
+                }
 
                 // Run the given callback
                 callback();
