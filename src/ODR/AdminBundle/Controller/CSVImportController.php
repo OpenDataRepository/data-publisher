@@ -53,6 +53,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
@@ -403,7 +404,7 @@ class CSVImportController extends ODRCustomController
             $datafields = $datatype_array[$target_datatype_id]['dataFields'];
             uasort($datafields, "self::name_sort");
 
-            // Grab the FieldTypes that the csv importer can read data into
+            // Load the FieldTypes that the csv importer can read data into
             $query = $em->createQuery('SELECT ft FROM ODRAdminBundle:FieldType ft ORDER BY ft.typeName');
             /** @var FieldType[] $fieldtypes */
             $fieldtypes = $query->getResult();
@@ -437,7 +438,7 @@ class CSVImportController extends ODRCustomController
 
 
             // Ensure the file exists before attempting to read it...
-            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $session->get('csv_file');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
@@ -812,7 +813,7 @@ class CSVImportController extends ODRCustomController
             if ( !$session->has('csv_delimiter') )
                 throw new ODRBadRequestException('No delimiter set');
 
-            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv/';
             $csv_filename = $session->get('csv_file');
             $absolute_filepath = $csv_import_path.$csv_filename;
 
@@ -889,11 +890,12 @@ class CSVImportController extends ODRCustomController
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = array();
-            $upload_directory = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/storage';
+            $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
             // Don't include the default linux directory pointers...
+            // TODO - shouldn't this display in the local timezone?
             $filelist = array();
             foreach ($uploaded_files as $num => $filename) {
                 if ($filename !== '.' && $filename !== '..')
@@ -940,7 +942,7 @@ class CSVImportController extends ODRCustomController
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = array();
-            $upload_directory = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/storage';
+            $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -989,7 +991,7 @@ class CSVImportController extends ODRCustomController
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
                 $filename = $session->get('csv_file');
-                $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
+                $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
                 if ( file_exists($csv_import_path.$filename) )
                     unlink($csv_import_path.$filename);
 
@@ -1389,7 +1391,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Attempt to load csv file
-            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
@@ -2118,7 +2120,7 @@ class CSVImportController extends ODRCustomController
                     case "Image":
                         if ( $value !== '' && isset($column_delimiters[$column_num]) ) {
                             // Due to validation in self::processAction(), this will exist when the datafield is a file/image
-                            $upload_dir = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/storage/';
+                            $upload_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_storage/';
 
                             // Grab a list of the files already uploaded to this datafield
                             $already_uploaded_files = array();
@@ -2155,7 +2157,9 @@ class CSVImportController extends ODRCustomController
 
                                 if ($already_uploaded) {
                                     // The File/Image has already been uploaded to this datafield
-                                    // ...regardless of whether the upload ignores the file/image or replaces the existing file/image, there will be no net change in the number of files/images uploaded
+                                    // Regardless of whether the upload ignores the file/image or
+                                    //  replaces the existing file/image, there will be no net change
+                                    //  in the number of files/images uploaded
                                     $total_file_count--;
                                 }
 
@@ -2695,7 +2699,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $presets['csv_filename'];
             $delimiter = $presets['delimiter'];
 
@@ -2955,7 +2959,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -3236,7 +3240,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
-            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -3490,6 +3494,8 @@ print_r($new_mapping);
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
+            /** @var ODRUploadService $upload_service */
+            $upload_service = $this->container->get('odr.upload_service');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -3755,8 +3761,7 @@ exit();
                             $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
                             // Store the path to the user's upload area...
-                            $path_prefix = $this->getParameter('odr_web_directory').'/';
-                            $storage_filepath = 'uploads/csv/user_'.$user->getId().'/storage';
+                            $storage_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
 
                             // Grab a list of the files/images already uploaded to this datafield
                             $existing_files = array();
@@ -3772,8 +3777,11 @@ exit();
                             /** @var File[]|Image[] $objects */
                             $objects = $query->getResult();
                             foreach ($objects as $tmp => $file)
-                                $existing_files[ $file->getOriginalFileName() ] = $file;    // TODO - duplicate original filenames in datafield?
+                                $existing_files[ $file->getOriginalFileName() ] = $file;
                             /** @var File[]|Image[] $existing_files */
+
+                            // TODO - how to handle duplicate original filenames in datafield?
+                            // TODO - ...add ability to rename files/images?
 
                             // ----------------------------------------
                             // For each file/image listed in the csv file...
@@ -3787,83 +3795,60 @@ exit();
                                 // ...there are three possibilities...
                                 if ( !isset($existing_files[$csv_filename]) ) {
                                     // ...need to add a new file/image
-                                    parent::finishUpload($em, $storage_filepath, $csv_filename, $user->getId(), $drf->getId());
+                                    if ( $typeclass === 'File' )
+                                        $upload_service->uploadNewFile($storage_filepath.'/'.$csv_filename, $user, $drf);
+                                    else
+                                        $upload_service->uploadNewImage($storage_filepath.'/'.$csv_filename, $user, $drf);
 
                                     $status .= '      ...uploaded new '.$typeclass.' ("'.$csv_filename.'")'."\n";
 
                                     // The version of the file in the storage directory will get
                                     //  deleted as part of the crypto worker job
                                 }
-                                else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($path_prefix.$storage_filepath.'/'.$csv_filename) ) {
+                                else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($storage_filepath.'/'.$csv_filename) ) {
                                     // ...the specified file/image is already in datafield
                                     $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is an exact copy of existing version, skipping.'."\n";
 
                                     // Delete the file/image from the csv import storage directory
                                     //  on the server since it already exists as an officially
                                     //  uploaded file
-                                    if ( file_exists($path_prefix.$storage_filepath.'/'.$csv_filename) )
-                                        unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
+                                    if ( file_exists($storage_filepath.'/'.$csv_filename) )
+                                        unlink($storage_filepath.'/'.$csv_filename);
                                 }
                                 else {
                                     // ...need to "update" the existing file/image
-                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is different than existing version, "updating"...';
+                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is different than existing version, "updating"...'."\n";
 
-                                    // Load old file/image and its associated metadata
+                                    // Ensure no decrypted versions of the original file/image
+                                    //  remain on the server
                                     $old_obj = $existing_files[$csv_filename];
-                                    $old_obj_meta = null;
-                                    $properties = array();
                                     if ($typeclass == 'File') {
-                                        /** @var File $obj_obj */
-                                        $old_obj_meta = $old_obj->getFileMeta();
-                                        $properties = array(
-                                            'description' => $old_obj_meta->getDescription(),
-                                            'original_filename' => $old_obj_meta->getOriginalFileName(),
-                                            'external_id' => $old_obj_meta->getExternalId(),
-                                            'publicDate' => $old_obj_meta->getPublicDate(),
-                                        );
-
-                                        // Ensure no decrypted version of the original file remains on the server
-                                        $filepath = $this->getParameter('odr_web_directory').'/uploads/files/File_'.$old_obj->getId().'.'.$old_obj->getExt();
+                                        $filepath = $this->getParameter('odr_web_directory').'/'.$old_obj->getLocalFileName();
                                         if ( file_exists($filepath) )
                                             unlink($filepath);
                                     }
                                     else {
-                                        /** @var Image $old_obj */
-                                        $old_obj_meta = $old_obj->getImageMeta();
-                                        $properties = array(
-                                            'caption' => $old_obj_meta->getCaption(),
-                                            'original_filename' => $old_obj_meta->getOriginalFileName(),
-                                            'external_id' => $old_obj_meta->getExternalId(),
-                                            'publicDate' => $old_obj_meta->getPublicDate(),
-                                            'display_order' => $old_obj_meta->getDisplayorder()
-                                        );
-
-                                        // Ensure no decrypted version of the original image or its thumbnails remain on the server
+                                        // Need to find the resized versions of the original image
                                         /** @var Image[] $old_images */
                                         $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('parent' => $old_obj->getId()) );
+                                        $old_images[] = $old_obj;
+
                                         foreach ($old_images as $img) {
-                                            $filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                                            $filepath = $this->getParameter('odr_web_directory').'/'.$img->getLocalFileName();
                                             if ( file_exists($filepath) )
                                                 unlink($filepath);
                                         }
                                     }
 
-                                    // "Upload" the new file, and copy over the existing metadata
-                                    $new_obj = parent::finishUpload($em, $storage_filepath, $csv_filename, $user->getId(), $drf->getId());
-                                    if ($typeclass == 'File')
-                                        $emm_service->updateFileMeta($user, $new_obj, $properties);
+                                    // "Upload" the new file/image
+                                    if ( $typeclass === 'File' )
+                                        $upload_service->replaceExistingFile($old_obj, $storage_filepath.'/'.$csv_filename, $user);
                                     else
-                                        $emm_service->updateImageMeta($user, $new_obj, $properties);
-
-                                    // Delete the old object and its metadata entry
-                                    $old_obj->setDeletedBy($user);
-                                    $old_obj->setDeletedAt(new \DateTime());
-                                    $em->persist($old_obj);
-
-                                    $em->flush();
+                                        $upload_service->replaceExistingImage($old_obj, $storage_filepath.'/'.$csv_filename, $user);
                                 }
                             }
                         }
+
 
                         // ----------------------------------------
                         // Delete all files/images not listed in csv file if user selected that option

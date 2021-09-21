@@ -39,10 +39,8 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
-use ODR\AdminBundle\Component\Service\LockService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -53,7 +51,8 @@ class WorkerController extends ODRCustomController
 {
 
     /**
-     * Called by the migration background process to transfer data from one storage entity to another compatible storage entity.
+     * Called by the migration background process to transfer data from one storage entity to
+     * another compatible storage entity.
      *
      * @param Request $request
      *
@@ -638,10 +637,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Performs an asynchronous encrypt or decrypt on a specified file.  Also has the option
-     *
-     * Ideally this will eventually replaced by the crypto service...but for now file encryption
-     * after uploading still goes through here...
+     * Called by background processes to perform an asynchronous encryption or decryption of a File
+     *  or Image.  Also asynchronously adds files/images into a zip archive.
      *
      * @param Request $request
      *
@@ -655,7 +652,6 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = "";
 
         $error_prefix = 'Error 0x65384782: ';
-        $handle = null;
 
         try {
             $post = $_POST;
@@ -687,12 +683,8 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var LockService $lock_service */
-            $lock_service = $this->container->get('odr.lock_service');
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
 
 
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
@@ -709,9 +701,8 @@ $ret .= '  Set current to '.$count."\n";
                 $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
             else if ($object_type == 'image')
                 $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-
-            // NOTE - encryption after image upload is currently done inline in ODRCustomController::finishUploadAction()
-            // Also, they're decrypted inline when needed...if they were done asynch, the browser couldn't display non-public versions in <img> tags
+            else
+                throw new ODRBadRequestException('Invalid object_type');
 
 
             if ($base_obj == null)
@@ -721,111 +712,26 @@ $ret .= '  Set current to '.$count."\n";
 
             // ----------------------------------------
             if ($crypto_type == 'encrypt') {
-
-                // ----------------------------------------
-                // Move file from completed directory to decrypted directory in preparation for encryption...
-                $current_path = $base_obj->getLocalFileName();
-                $current_filename = $current_path.'/'.$base_obj->getOriginalFileName();
-
-                $destination_path = $this->container->getParameter('odr_web_directory');
-                $destination_filename = $base_obj->getUploadDir().'/File_'.$object_id.'.'.$base_obj->getExt();
-                rename( $current_filename, $destination_path.'/'.$destination_filename );
-
-                // Update local filename and checksum in database...
-                $base_obj->setLocalFileName($destination_filename);
-
-                $original_checksum = md5_file($destination_path.'/'.$destination_filename);
-                $base_obj->setOriginalChecksum($original_checksum);
-
-                // Encryption of a given file/image is simple...
-                parent::encryptObject($object_id, $object_type);
-
-                if ($object_type == 'file') {
-                    $base_obj->setProvisioned(false);
-
-                    $em->persist($base_obj);
-                    $em->flush();
-                    $em->refresh($base_obj);
-                }
-
-                // Update the datarecord cache so whichever controller is handling the "are you done encrypting yet?" javascript requests can return the correct HTML
-                $datarecord = $base_obj->getDataRecord();
-                $dri_service->updateDatarecordCacheEntry($datarecord, $base_obj->getCreatedBy());
+                // Need to encrypt this file/image...
+                if ($object_type === 'file')
+                    $crypto_service->encryptFile($object_id, $local_filename);
+                else
+                    $crypto_service->encryptImage($object_id, $local_filename);    // NOTE - images are currently not encrypted through this controller action
 
                 // TODO - this would be the place to fire some sort of FilePostEncrypt event...but is that even useful?
             }
             else if ($crypto_type == 'decrypt') {
-                // This is (currently) the only request the user has made for this file...begin manually decrypting it because the crypto bundle offers limited control over filenames
-                $crypto = $this->get("dterranova_crypto.crypto_adapter");
-                $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/';     // TODO - load from config file somehow?
-
-                if ($object_type === 'file')
-                    $crypto_dir .= 'File_'.$object_id;
-                else
-                    $crypto_dir .= 'Image_'.$object_id;
-
-                $base_filepath = dirname(__FILE__).'/../../../../web/'.$base_obj->getUploadDir();
-                $local_filepath = $base_filepath.'/'.$local_filename;
-
-                // Don't decrypt the file if it already exists on the server
-                if ( !file_exists($local_filepath) ) {
-                    // Grab the hex string representation that the file was encrypted with
-                    $key = $base_obj->getEncryptKey();
-                    // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
-                    $key = pack("H*", $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
-
-                    // Open the target file
-                    $handle = fopen($local_filepath, "wb");
-                    if (!$handle)
-                        throw new \Exception('Unable to open "'.$local_filepath.'" for writing');
-
-                    // Decrypt each chunk and write to target file
-                    $chunk_id = 0;
-                    while (file_exists($crypto_dir.'/'.'enc.'.$chunk_id)) {
-                        if (!file_exists($crypto_dir.'/'.'enc.'.$chunk_id))
-                            throw new \Exception('Encrypted chunk not found: '.$crypto_dir.'/'.'enc.'.$chunk_id);
-
-                        $data = file_get_contents($crypto_dir.'/'.'enc.'.$chunk_id);
-                        fwrite($handle, $crypto->decrypt($data, $key));
-                        $chunk_id++;
-                    }
-                }
-
-                if ( $archive_filepath == '' ) {
-
-                    $file_decryptions = $cache_service->get('file_decryptions');
-
-                    if ( isset($file_decryptions[$local_filename]) )
-                        unset($file_decryptions[$local_filename]);
-
-                    $cache_service->set('file_decryptions', $file_decryptions);
+                // Need to decrypt this file/image...
+                if ( $archive_filepath !== '' ) {
+                    // ...and store it in a zip archive
+                    $crypto_service->decryptObjectForArchive($object_type, $object_id, $local_filename, $desired_filename, $archive_filepath);
                 }
                 else {
-                    // Acquire a lock on this zip archive so that multiple processes don't clobber
-                    //  each other
-                    $offset = strrpos($archive_filepath, '/') + 1;
-                    $lockpath = substr($archive_filepath, $offset);
-
-                    $lockHandler = $lock_service->createLock($lockpath.'.lock', 15);    // 15 second ttl
-                    if ( !$lockHandler->acquire() ) {
-                        // Another process is in the mix...block until it finishes
-                        $lockHandler->acquire(true);
-                    }
-
-                    // Open the archive for appending, or create if it doesn't exist
-                    $zip_archive = new \ZipArchive();
-                    $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
-
-                    // Add the specified file to the zip archive
-                    $zip_archive->addFile($local_filepath, $desired_filename);
-                    $zip_archive->close();
-
-                    // Delete decrypted version of non-public files off the server
-                    if (!$base_obj->isPublic())
-                        unlink($local_filepath);
-
-                    // Release the previously acquired lock
-                    $lockHandler->release();
+                    // ...and store it on the server
+                    if ($object_type === 'file')
+                        $crypto_service->decryptFile($object_id, $local_filename);
+                    else
+                        $crypto_service->decryptImage($object_type, $local_filename);
                 }
             }
             else {
@@ -836,319 +742,10 @@ $ret .= '  Set current to '.$count."\n";
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = $error_prefix.$e->getMessage();
-
-            // TODO - delete the partial non-public file if some sort of error during decryption?
-
-            if ($handle != null) {
-                flock($handle, LOCK_UN);
-                fclose($handle);
-            }
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Begins the process of forcibly (re)encrypting every uploaded file/image on the site
-     *
-     * @param string $object_type "File" or "Image"...which type of entity to encrypt
-     * @param Request $request
-     *
-     */
-    public function startencryptAction($object_type, Request $request)
-    {
-        throw new ODRNotImplementedException();
-/*
-        $em = $this->getDoctrine()->getManager();
-        $pheanstalk = $this->get('pheanstalk');
-        $router = $this->container->get('router');
-        $redis = $this->container->get('snc_redis.default');;
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $api_key = $this->container->getParameter('beanstalk_api_key');
-
-        // Generate the url for cURL to use
-        $url = $this->container->getParameter('site_baseurl');
-        $url .= $router->generate('odr_force_encrypt');
-
-        if ($object_type == 'file' || $object_type == 'File')
-            $object_type = 'File';
-        else if ($object_type == 'image' || $object_type == 'Image')
-            $object_type = 'Image';
-        else
-            return null;
-
-        $query = $em->createQuery(
-           'SELECT e.id
-            FROM ODRAdminBundle:'.$object_type.' AS e
-            WHERE e.deletedAt IS NULL'
-        );
-        $results = $query->getResult();
-
-//print_r($results);
-//return;
-
-        $object_type = strtolower($object_type);
-        foreach ($results as $num => $result) {
-            $object_id = $result['id'];
-
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    "object_type" => $object_type,
-                    "object_id" => $object_id,
-                    "redis_prefix" => $redis_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $api_key,
-                )
-            );
-
-            $delay = 1;
-            $pheanstalk->useTube('mass_encrypt')->put($payload, $priority, $delay);
-
-//return;
-        }
-*/
-    }
-
-
-    /**
-     * Called by the mass_encrypt worker background process to (re)encrypt a single file or image.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function encryptAction(Request $request)
-    {
-/*
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
-
-        try {
-            $post = $_POST;
-            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
-
-            // Pull data from the post
-            $object_type = $post['object_type'];
-            $object_id = $post['object_id'];
-            $api_key = $post['api_key'];
-
-            // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
-
-            parent::decryptObject($object_id, $object_type);    // ensure a decrypted object exists prior to attempting to encrypt
-            parent::encryptObject($object_id, $object_type);
-
-            $return['d'] = '>> Encrypted '.$object_type.' '.$object_id."\n";
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38378231 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-*/
-    }
-
-
-    /**
-     * Begins the process of forcibly decrypting every uploaded file/image on the site.
-     *
-     * @param string $object_type "File" or "Image"...which type of entity to encrypt
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function startdecryptAction($object_type, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            throw new ODRNotImplementedException();
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $pheanstalk = $this->get('pheanstalk');
-            $router = $this->container->get('router');
-            $redis = $this->container->get('snc_redis.default');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-
-            // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_crypto_request');
-
-            if ($object_type == 'file' || $object_type == 'File')
-                $object_type = 'File';
-//            else if ($object_type == 'image' || $object_type == 'Image')
-//                $object_type = 'Image';
-            else
-                return null;
-
-            $query = null;
-            if ($object_type == 'File') {
-                $query = $em->createQuery(
-                    'SELECT e.id
-                    FROM ODRAdminBundle:'.$object_type.' AS e
-                    WHERE e.deletedAt IS NULL AND (e.original_checksum IS NULL OR e.filesize = 0)'
-                );
-            }
-/*
-            else if ($object_type == 'Image') {
-                $query = $em->createQuery(
-                    'SELECT e.id
-                    FROM ODRAdminBundle:'.$object_type.' AS e
-                    WHERE e.deletedAt IS NULL AND e.original_checksum IS NULL'
-                );
-            }
-*/
-            $results = $query->getResult();
-
-            $object_type = strtolower($object_type);
-            foreach ($results as $num => $file) {
-                // Insert the new job into the queue
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        "object_type" => $object_type,
-                        "object_id" => $file['id'],
-                        "target_filename" => '',
-                        "crypto_type" => 'decrypt',
-
-                        "archive_filepath" => '',
-                        "desired_filename" => '',
-
-                        "redis_prefix" => $redis_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    )
-                );
-
-                $delay = 1;
-                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
-            }
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x45387831 '.$e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * TODO
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function updatedatatypenamesAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $save = false;
-//        $save = true;
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-                throw new ODRForbiddenException();
-
-
-            /** @var DataType[] $all_datatypes */
-            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
-
-            $use_shortname = array(
-//                29, 108, 220, 225, 253,
-//                308, 342, 384, 391, 392,
-//                397
-            );
-
-            print '<table border="1">';
-            print '<tr><th>ID</th><th>Grandparent ID</th><th>Short Name</th><th>Long Name</th><th>Fix</th>';
-            foreach ($all_datatypes as $dt) {
-                print '<tr>';
-                print '<td>'.$dt->getId().'</td>';
-                print '<td>'.$dt->getGrandparent()->getId().'</td>';
-                print '<td>'.$dt->getShortName().'</td>';
-                print '<td>'.$dt->getLongName().'</td>';
-
-                print '<td>';
-                if ( $dt->getShortName() === $dt->getLongName() ) {
-                    print '';
-                }
-                else if ( $dt->getId() !== $dt->getGrandparent()->getId() && $dt->getLongName() === "New Child" ) {
-                    if ( $save ) {
-                        $dt->getDataTypeMeta()->setLongName( $dt->getShortName() );
-                        $em->persist( $dt->getDataTypeMeta() );
-                    }
-
-                    print '<b>set long_name to "'.$dt->getShortName().'"</b>';
-                }
-                else if ( in_array($dt->getId(), $use_shortname) ) {
-                    if ( $save ) {
-                        $dt->getDataTypeMeta()->setLongName( $dt->getShortName() );
-                        $em->persist( $dt->getDataTypeMeta() );
-                    }
-
-                    print '<b>set long_name to "'.$dt->getShortName().'"</b>';
-                }
-                else {
-                    if ( $save ) {
-                        $dt->getDataTypeMeta()->setShortName( $dt->getLongName() );
-                        $em->persist( $dt->getDataTypeMeta() );
-                    }
-
-                    print '<b>set short_name to "'.$dt->getLongName().'"</b>';
-                }
-                print '</td>';
-            }
-            print '</table>';
-
-            if ($save)
-                $em->flush();
-        }
-        catch (\Exception $e) {
-            $source = 0x2e4e2e42;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 }

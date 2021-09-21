@@ -15,13 +15,13 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\RenderPluginMap;
 // Events
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 // ODR
-use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -45,6 +45,11 @@ class GraphPlugin implements DatatypePluginInterface
     /**
      * @var string
      */
+    private $odr_tmp_directory;
+
+    /**
+     * @var string
+     */
     private $odr_web_directory;
 
 
@@ -53,12 +58,18 @@ class GraphPlugin implements DatatypePluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
+     * @param string $odr_tmp_directory
      * @param string $odr_web_directory
      */
-    public function __construct(EngineInterface $templating, CryptoService $crypto_service, $odr_web_directory)
-    {
+    public function __construct(
+        EngineInterface $templating,
+        CryptoService $crypto_service,
+        $odr_tmp_directory,
+        $odr_web_directory
+    ) {
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
+        $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
     }
 
@@ -249,9 +260,12 @@ class GraphPlugin implements DatatypePluginInterface
                 $display_graph = false;
 
             // Only create a directory for the graph file if the graph is actually being displayed...
-            if ( $display_graph && !file_exists($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder) )
-                mkdir($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder);
-
+            if ( $display_graph ) {
+                if ( !file_exists($this->odr_web_directory.'/uploads/files/graphs/') )
+                    mkdir($this->odr_web_directory.'/uploads/files/graphs/');
+                if ( !file_exists($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder) )
+                    mkdir($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder);
+            }
 
             // Rollup related calculations
             $file_id_list = implode('_', $odr_chart_file_ids);
@@ -334,14 +348,25 @@ class GraphPlugin implements DatatypePluginInterface
                             // ...ensure that it exists
                             $filepath = $this->odr_web_directory.'/'.$file['localFileName'];
                             if ( !file_exists($filepath) ) {
-                                // File does not exist, decrypt it
-                                $file_path = $this->crypto_service->decryptFile($file['id']);
-
-                                // If file is not public, make sure it gets deleted later
+                                // File does not exist, decryption depends on whether the file is
+                                //  public or not...
                                 $public_date = $file['fileMeta']['publicDate'];
                                 $now = new \DateTime();
-                                if ($now < $public_date)
-                                    array_push($files_to_delete, $file_path);
+                                if ($now < $public_date) {
+                                    // File is not public...decrypt to something hard to guess
+                                    $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
+                                    $filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+
+                                    // Tweak the stored filename so phantomJS can find it
+                                    $page_data['odr_chart_files'][$dr_id]['localFileName'] = 'uploads/files/'.$non_public_filename;
+
+                                    // Ensure the decrypted version gets deleted later
+                                    array_push($files_to_delete, $filepath);
+                                }
+                                else {
+                                    // File is public, but not decrypted for some reason
+                                    $filepath = $this->crypto_service->decryptFile($file['id']);
+                                }
                             }
 
                             // Check the file for errors now, since errors inside plotly end up
@@ -361,14 +386,25 @@ class GraphPlugin implements DatatypePluginInterface
 
                         $filepath = $this->odr_web_directory.'/'.$file['localFileName'];
                         if ( !file_exists($filepath) ) {
-                            // File does not exist, decrypt it
-                            $file_path = $this->crypto_service->decryptFile($file['id']);
-
-                            // If file is not public, make sure it gets deleted later
+                            // File does not exist, decryption depends on whether the file is
+                            //  public or not...
                             $public_date = $file['fileMeta']['publicDate'];
                             $now = new \DateTime();
-                            if ($now < $public_date)
-                                array_push($files_to_delete, $file_path);
+                            if ($now < $public_date) {
+                                // File is not public...decrypt to something hard to guess
+                                $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
+                                $filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+
+                                // Tweak the stored filename so phantomJS can find it
+                                $page_data['odr_chart_files'][$dr_id]['localFileName'] = 'uploads/files/'.$non_public_filename;
+
+                                // Ensure the decrypted version gets deleted later
+                                array_push($files_to_delete, $filepath);
+                            }
+                            else {
+                                // File is public, but not decrypted for some reason
+                                $filepath = $this->crypto_service->decryptFile($file['id']);
+                            }
                         }
 
                         // Check the file for errors now, since errors inside plotly end up never
@@ -429,31 +465,36 @@ class GraphPlugin implements DatatypePluginInterface
      */
     private function buildGraph($page_data, $filename)
     {
-        // Prepare the file_id list
-        $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
-
-        // Path to writeable files in web folder
-        $files_path = $this->odr_web_directory.'/uploads/files/';
+        // Going to use Symfony to write files
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 
+        // Files written by this function must be in web folder, otherwise phantomJS can't find them
+        $output_path = $this->odr_web_directory.'/uploads/files/';
+
+        // Prepare other variables needed for the graph file's name
+        $datatype_folder = 'datatype_'.$page_data['target_datatype_id'].'/';
+        $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
+
+
         // The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
-        //TODO Make paths relative
         $output1 = $this->templating->render(
             'ODROpenRepositoryGraphBundle:Base:Graph/graph_builder.html.twig', $page_data
         );
-        $fs->dumpFile($files_path . "Chart__" . $file_id_list . '.html', $output1);
+        $fs->dumpFile($output_path."Chart__".$file_id_list.'.html', $output1);
+        // Note that this will save graphs with data from non-public files in the web-accessible space
+        // TODO - is there a way of keeping them outside of web-accessible space?
 
-        $datatype_folder = 'datatype_'.$page_data['target_datatype_id'].'/';
 
-        // Temporary output file masked by UUIDv4 (random)
-        // TODO - Create cleaner to remove masked_files from /tmp
-        $output_tmp_svg = "/tmp/graph_" . Uuid::uuid4()->toString();
-        $output_svg = $files_path.'graphs/'.$datatype_folder.$filename;
+        // phantomJS's temporary output needs to be in ODR's tmp directory, otherwise ODR isn't
+        //  guaranteed to be able to move it to the web-accessible directory
+        $output_tmp_svg = $this->odr_tmp_directory."/graph_" . Uuid::uuid4()->toString();
+        // The final svg needs to be in a web-accessible directory
+        $output_svg = $output_path.'graphs/'.$datatype_folder.$filename;
 
         // JSON data to be passed to the phantom js server
         $json_data = array(
             "data" => array(
-                'URL' => $files_path . "Chart__" . $file_id_list . '.html',
+                'URL' => $output_path."Chart__".$file_id_list.'.html',
                 'selector' => $page_data['odr_chart_id'],
                 'output' => $output_tmp_svg
             )
@@ -461,7 +502,7 @@ class GraphPlugin implements DatatypePluginInterface
 
         $data_string = json_encode($json_data);
 
-        //Curl request to the PhantomJS server
+        // Curl request to the PhantomJS server
         $ch = curl_init('localhost:9494');
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -481,8 +522,12 @@ class GraphPlugin implements DatatypePluginInterface
             $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
             file_put_contents($output_svg, $fixed_file);
 
+            // Remove the svg file in the temporary directory
+            unlink($output_tmp_svg);
+
             // Remove the HTML file
-            unlink($files_path . "Chart__" . $file_id_list . '.html');
+            unlink($output_path."Chart__".$file_id_list.'.html');
+            // Return the relative path to the final svg file so the browser can download it
             return '/uploads/files/graphs/'.$datatype_folder.$filename;
         }
         else {

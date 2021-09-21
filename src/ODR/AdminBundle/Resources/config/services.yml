@@ -69,10 +69,26 @@ services:
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
             $cache_service: "@odr.cache_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $lock_service: "@odr.lock_service"
+            $generator: "@security.util.secure_random"
             $crypto_adapter: "@dterranova_crypto.crypto_adapter"
             $crypto_dir: "%dterranova_crypto.temp_folder%"
             $odr_web_dir: "%odr_web_directory%"
             $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
+
+    odr.upload_service:
+        class: ODR\AdminBundle\Component\Service\ODRUploadService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $crypto_service: "@odr.crypto_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $event_dispatcher: "@event_dispatcher"
+            $pheanstalk: "@pheanstalk"
+            $router: "@router"
+            $redis_prefix: "%memcached_key_prefix%"
+            $api_key: "%beanstalk_api_key%"
             $logger: "@logger"
 
     odr.tab_helper_service:

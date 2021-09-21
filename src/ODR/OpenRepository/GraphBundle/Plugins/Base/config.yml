@@ -18,6 +18,7 @@ services:
         arguments:
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
+            $odr_tmp_directory: '%odr_tmp_directory%'
             $odr_web_directory: '%odr_web_directory%'
 
 #    odr_plugins.base.gcms:

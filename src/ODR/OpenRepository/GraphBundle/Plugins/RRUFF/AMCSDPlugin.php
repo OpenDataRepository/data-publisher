@@ -509,8 +509,9 @@ class AMCSDPlugin implements DatatypePluginInterface
                 $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'"...', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
 
                 // Since the file hasn't been encrypted yet, it's currently in something of an odd
-                //  spot as far as ODR files usually go
-                $local_filepath = $file->getLocalFileName().$file->getOriginalFileName();
+                //  spot as far as ODR files usually go...getLocalFileName() returns a directory
+                //  instead of a full path
+                $local_filepath = $file->getLocalFileName().'/'.$file->getOriginalFileName();
 
 
                 // ----------------------------------------

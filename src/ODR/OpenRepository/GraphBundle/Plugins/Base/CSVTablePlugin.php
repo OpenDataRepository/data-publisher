@@ -82,14 +82,22 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 $file = $datarecord['dataRecordFields'][$datafield['id']]['file']['0'];
                 $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
                 if (!$local_filepath) {
-                    // File does not exist, decrypt it
-                    $local_filepath = $this->crypto_service->decryptFile($file['id']);
-
-                    // If file is not public, make sure it gets deleted later
+                    // File does not exist, decryption depends on whether the file is
+                    //  public or not...
                     $public_date = $file['fileMeta']['publicDate'];
                     $now = new \DateTime();
-                    if ($now < $public_date)
+                    if ($now < $public_date) {
+                        // File is not public...decrypt to something hard to guess
+                        $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
+                        $local_filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+
+                        // Ensure the decrypted version gets deleted later
                         array_push($files_to_delete, $local_filepath);
+                    }
+                    else {
+                        // File is public, but not decrypted for some reason
+                        $local_filepath = $this->crypto_service->decryptFile($file['id']);
+                    }
                 }
 
                 // Only allow this action for files smaller than 5Mb?
@@ -121,7 +129,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 // Done reading the file
                 fclose($handle);
 
-                // Delete previously encrypted non-public files
+                // Delete any non-public files that got decrypted
                 foreach ($files_to_delete as $file_path)
                     unlink($file_path);
 

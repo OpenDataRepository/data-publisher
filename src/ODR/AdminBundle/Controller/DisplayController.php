@@ -428,7 +428,7 @@ class DisplayController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -443,119 +443,67 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Generate the url for cURL to use
-            $pheanstalk = $this->get('pheanstalk');
-            $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            // Determine the decrypted filename
+            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            if ( !$file->isPublic() )
+                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            // Ensure file exists before attempting to download it
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            if ( !file_exists($local_filepath) ) {
+                // Need to decrypt the file...generate the url for cURL to use
+                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+                $pheanstalk = $this->get('pheanstalk');
+                $api_key = $this->container->getParameter('beanstalk_api_key');
 
-            $file_decryptions = $cache_service->get('file_decryptions');
+                // Schedule a beanstalk job to start decrypting the file
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "object_type" => 'File',
+                        "object_id" => $file_id,
+                        "crypto_type" => 'decrypt',
 
+                        "local_filename" => $filename,
+                        "archive_filepath" => '',
+                        "desired_filename" => '',
 
-            // ----------------------------------------
-            // Slightly different courses of action depending on the public status of the file
-            if ( $file->isPublic() ) {
-                // Check that the file exists...
-                $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
-                if (!$local_filepath) {
-                    // File does not exist for some reason...see if it's getting decrypted right now
-                    $target_filename = 'File_'.$file_id.'.'.$file->getExt();
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
 
-                    if ( !isset($file_decryptions[$target_filename]) ) {
-                        // File is not scheduled to get decrypted at the moment, store that it will be decrypted
-                        $file_decryptions[$target_filename] = 1;
-                        $cache_service->set('file_decryptions', $file_decryptions);
+                $delay = 0;
+                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
 
-                        // Schedule a beanstalk job to start decrypting the file
-                        $priority = 1024;   // should be roughly default priority
-                        $payload = json_encode(
-                            array(
-                                "object_type" => 'File',
-                                "object_id" => $file_id,
-                                "local_filename" => $target_filename,
-                                "crypto_type" => 'decrypt',
+                // Return a URL to monitor decryption progress
+                $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
 
-                                "archive_filepath" => '',
-                                "desired_filename" => '',
+                $response = new JsonResponse(array());
+                $response->setStatusCode(202);
+                $response->headers->set('Location', $monitor_url);
 
-                                "redis_prefix" => $redis_prefix,    // debug purposes only
-                                "url" => $url,
-                                "api_key" => $api_key,
-                            )
-                        );
-
-                        //$delay = 1;
-                        $delay = 0;
-                        $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
-                    }
-                }
-                else {
-                    // Grab current filesize of file
-                    clearstatcache(true, $local_filepath);
-                    $current_filesize = filesize($local_filepath);
-
-                    if ( $file->getFilesize() == $current_filesize ) {
-
-                        // File exists and is fully decrypted, determine path to download it
-                        $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
-
-                        // Return a link to the download URL
-                        $response = new JsonResponse(array());
-                        $response->setStatusCode(200);
-                        $response->headers->set('Location', $download_url);
-
-                        return $response;
-                    }
-                    else {
-                        /* otherwise, decryption in progress, do nothing */
-                    }
-                }
+                return $response;
             }
             else {
-                // File is not public...see if it's getting decrypted right now
-                // Determine the temporary filename for this file
-                $target_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
-                $target_filename .= '.'.$file->getExt();
+                // File already exists, determine whether it's done decrypting yet
+                clearstatcache(true, $local_filepath);
+                $current_filesize = filesize($local_filepath);
 
-                if ( !isset($file_decryptions[$target_filename]) ) {
-                    // File is not scheduled to get decrypted at the moment, store that it will be decrypted
-                    $file_decryptions[$target_filename] = 1;
-                    $cache_service->set('file_decryptions', $file_decryptions);
+                if ( $file->getFilesize() == $current_filesize ) {
 
-                    // Schedule a beanstalk job to start decrypting the file
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "object_type" => 'File',
-                            "object_id" => $file_id,
-                            "local_filename" => $target_filename,
-                            "crypto_type" => 'decrypt',
+                    // File exists and is fully decrypted, determine path to download it
+                    $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
 
-                            "archive_filepath" => '',
-                            "desired_filename" => '',
+                    // Return a link to the download URL
+                    $response = new JsonResponse(array());
+                    $response->setStatusCode(200);
+                    $response->headers->set('Location', $download_url);
 
-                            "redis_prefix" => $redis_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
-
-                    //$delay = 1;
-                    $delay = 0;
-                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                    return $response;
                 }
-
-                /* otherwise, decryption already in progress, do nothing */
             }
-
-            // Return a URL to monitor decryption progress
-            $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
-
-            $response = new JsonResponse(array());
-            $response->setStatusCode(202);
-            $response->headers->set('Location', $monitor_url);
-
-            return $response;
         }
         catch (\Exception $e) {
             $source = 0xcc3f073c;
@@ -611,7 +559,7 @@ class DisplayController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -718,101 +666,6 @@ class DisplayController extends ODRCustomController
             fclose($handle);
         });
 
-        return $response;
-    }
-
-
-    /**
-     * Provides users the ability to cancel the decryption of a file.
-     * @deprecated
-     *
-     * @param integer $file_id  The database id of the file currently being decrypted
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function cancelfiledecryptAction($file_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            throw new ODRNotImplementedException();
-
-            // ----------------------------------------
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-
-            /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
-            if ($file == null)
-                throw new ODRNotFoundException('File');
-
-            $datafield = $file->getDataField();
-            if ($datafield->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datafield');
-            $datarecord = $file->getDataRecord();
-            if ($datarecord->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datarecord');
-            $datatype = $datarecord->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
-            // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getEncryptKey() == '')
-                throw new ODRException('This File is not ready for download', 503, 0xe8386807);
-
-
-            // ----------------------------------------
-            // Ensure user has permissions to be doing this
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
-            if ( !$pm_service->canEditDatarecord($user, $datarecord) )
-                throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatafield($user, $datafield) )
-                throw new ODRForbiddenException();
-            // ----------------------------------------
-
-
-            // ----------------------------------------
-            // Only able to cancel downloads of non-public files...
-            if ( !$file->isPublic() ) {
-
-                // Determine the temporary filename being used to store the decrypted file
-                $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
-                $temp_filename .= '.'.$file->getExt();
-
-                // Ensure that the memcached marker for the decryption of this file does not exist
-                $file_decryptions = $cache_service->get('file_decryptions');
-                if ($file_decryptions != false && isset($file_decryptions[$temp_filename])) {
-                    unset($file_decryptions[$temp_filename]);
-                    $cache_service->set('file_decryptions', $file_decryptions);
-                }
-            }
-
-        }
-        catch (\Exception $e) {
-            $source = 0x81bed420;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 
@@ -1456,7 +1309,7 @@ class DisplayController extends ODRCustomController
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -1877,7 +1730,7 @@ class DisplayController extends ODRCustomController
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -1930,7 +1783,10 @@ class DisplayController extends ODRCustomController
             }
 
             // TODO - is there some way to return that there are going to be duplicate filenames and/or duplicate files before the download starts?
-            $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
+            $return['d'] = array(
+                'archive_filename' => $archive_filename,
+                'archive_size' => $archive_size
+            );
         }
         catch (\Exception $e) {
             $source = 0x23ed5770;
@@ -2000,6 +1856,12 @@ class DisplayController extends ODRCustomController
      */
     private function createArchiveRequest($archive_filepath, $requests)
     {
+        // Ensure the directory that the zip archive will reside in exists...ZipArchive::open()
+        //  does not create missing directories
+        $archive_directory = substr($archive_filepath, 0, strrpos($archive_filepath, '/'));
+        if ( !file_exists($archive_directory) )
+            mkdir( $archive_directory );
+
         // Generate the url for cURL to use
         $pheanstalk = $this->get('pheanstalk');
         $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
@@ -2032,7 +1894,8 @@ class DisplayController extends ODRCustomController
 
 
     /**
-     * Downloads a zip archive constructed by self::startdownloadarchiveAction()
+     * Zip archives constructed by startdownloadarchiveAction() or startsearchresultfilesdownloadAction()
+     * are downloaded with this controller action.
      *
      * @param string $archive_filename
      * @param Request $request
@@ -2047,13 +1910,19 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // TODO - some level of permissions checking?  maybe store archive filename in user's session?
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Don't need to check user's permissions
+            // ----------------------------------------
+
 
             // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
                 throw new FileNotFoundException($archive_filename);
 

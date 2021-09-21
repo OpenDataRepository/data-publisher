@@ -5,12 +5,24 @@
     var encrypt_check_timeout = 1500;
 
     var pending_file_decryptions = {};
-    function handleFileDownload(event, file_id, can_cancel) {
+
+    /**
+     * Attempts to download a file from a datafield, setting up a decryption progress tracker if
+     * needed.
+     *
+     * @param {Event} event
+     * @param {number} file_id
+     */
+    function handleFileDownload(event, file_id) {
         // Prevent a normal file download
         event.preventDefault();
 
         // Don't start a new download if one is already in progress
-        if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
+        if ( pending_file_decryptions[file_id] != null
+            || pending_file_decryptions[file_id] != undefined
+            || file_decrypt_timeouts[file_id] != null
+            || file_decrypt_timeouts[file_id] != undefined
+        ) {
             //alert('download in progress already');
             return false;
         }
@@ -69,6 +81,11 @@
         });
     }
 
+    /**
+     * Triggers a download of the requested file from the server.
+     *
+     * @param {number} file_id
+     */
     function downloadFile(file_id) {
 
         var href = '{{ path('odr_file_download', {'file_id': 0}) }}';
@@ -135,37 +152,18 @@
             }
         });
     }
-{#
-    function cancelFileDecryption(download, file_id) {
-//console.log('cancel for file ' + file_id);
-        var url = "{{ path('odr_cancel_file_decrypt', {'file_id': 0}) }}";
-        url = url.substr(0, url.length-1);
-        url += file_id;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json"
-        });
-
-        // This will trigger failCallback for this download
-        download.abort();
-    }
-#}
-
 
     // TODO - All of these setTimeout calls need to be intervals. So they can be destroyed properly.
-    var file_encrypt_timeouts = {};
-    function createFileEncryptProgressCheck(file_id, datarecord_id, datafield_id) {
-        // Ensure that at most a single timeout is running for a given file at any given time
-        if ( file_encrypt_timeouts[ file_id ] == null || file_encrypt_timeouts[ file_id ] == undefined ) {
-            file_encrypt_timeouts[ file_id ] = 1;
-            window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
-        }
-    }
-
     var file_decrypt_timeouts = {};
+
+    /**
+     * Ensure that at most a single progress request is active for a file decryption at any given
+     * time.
+     *
+     * @param {number} file_id
+     * @param {number} download_file_after If "1", then trigger a file download once the decryption
+     *                                     is complete.
+     */
     function createFileDecryptProgressCheck(file_id, download_file_after) {
         // Ensure that at most a single timeout is running for a given file at any given time
         if ( file_decrypt_timeouts[ file_id ] == null || file_decrypt_timeouts[ file_id ] == undefined ) {
@@ -174,6 +172,11 @@
         }
     }
 
+    /**
+     * Queries the server for the decryption progress on the given file.
+     *
+     * @param {number} file_id
+     */
     function checkFileDecryptProgress(file_id) {
         // Get progress of file encryption from server
         var url = "{{ path('odr_get_file_decrypt_progress', {'file_id': 0}) }}";
@@ -237,14 +240,29 @@
     }
 
     var file_encrypt_timeouts = {};
+
+    /**
+     * Ensure that at most a single progress request is active for a file encryption at any given
+     * time.
+     *
+     * @param {number} file_id
+     * @param {number} datarecord_id
+     * @param {number} datafield_id
+     */
     function createFileEncryptProgressCheck(file_id, datarecord_id, datafield_id) {
-        // Ensure that at most a single timeout is running for a given file at any given time
         if ( file_encrypt_timeouts[ file_id ] == null || file_encrypt_timeouts[ file_id ] == undefined ) {
             file_encrypt_timeouts[ file_id ] = 1;
             window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
         }
     }
 
+    /**
+     * Queries the server for the encryption progress on the given file
+     *
+     * @param {number} file_id
+     * @param {number} datarecord_id
+     * @param {number} datafield_id
+     */
     function checkFileEncryptProgress(file_id, datarecord_id, datafield_id) {
         // Get progress of file encryption from server
         var url = "{{ path('odr_get_file_encrypt_progress', {'file_id': 0}) }}";
@@ -293,14 +311,30 @@
     }
 
     var zip_archive_timeouts = {};
+
+    /**
+     * Ensure that at most a single progress request is active for a given zip archive at any given
+     * time.
+     *
+     * @param {string} archive_filename
+     * @param {string} archive_size
+     * @param {string} form_id
+     */
     function createZipArchiveProgressCheck(archive_filename, archive_size, form_id) {
-        // Ensure that at most a single timeout is running for a given zip archive at any given time
         if ( zip_archive_timeouts[ archive_filename ] == null || zip_archive_timeouts[ archive_filename ] == undefined ) {
             zip_archive_timeouts[ archive_filename ] = 1;
             window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
         }
     }
 
+    /**
+     * Queries the server for the progress on the construction of the requested zip archive, and
+     * triggers a download of the archive when it's complete.
+     *
+     * @param {string} archive_filename
+     * @param {string} archive_size
+     * @param {string} form_id
+     */
     function checkZipArchiveProgress(archive_filename, archive_size, form_id) {
         // Get progress of zip archive from server
         var url = "{{ path('odr_get_zip_archive_progress', {'archive_filename': 0}) }}";

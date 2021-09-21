@@ -183,6 +183,8 @@ class XMLImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             $post = $_POST;
 //print_r($post);
 //return;
@@ -270,7 +272,7 @@ class XMLImportController extends ODRCustomController
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x6642397854 ' . $e->getMessage();
+            $return['d'] = 'Error 0x6ab7106b: ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -296,6 +298,8 @@ class XMLImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             $post = $_POST;
 //print_r($post);
 //return;
@@ -415,7 +419,7 @@ class XMLImportController extends ODRCustomController
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x643392754 ' . $e->getMessage();
+            $return['d'] = 'Error 0xc8d551a3: ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -440,6 +444,8 @@ class XMLImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             $post = $_POST;
 //print_r($post);
 //return;
@@ -605,7 +611,7 @@ if ($write) {
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x6642397855 ' . $e->getMessage();
+            $return['d'] = 'Error 0xbbc59de2: ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -1495,6 +1501,8 @@ if ($write) {
         $ret = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             $post = $_POST;
 //print_r($post);
 //return;

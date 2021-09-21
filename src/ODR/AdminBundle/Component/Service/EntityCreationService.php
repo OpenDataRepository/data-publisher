@@ -29,10 +29,14 @@ use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
 use ODR\AdminBundle\Entity\GroupMeta;
+use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LinkedDataTree;
@@ -61,13 +65,15 @@ use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\UserGroup;
-use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 
 class EntityCreationService
@@ -1123,6 +1129,431 @@ class EntityCreationService
         // Flush changes, unless otherwise requested
         if ( !$delay_flush )
             $this->em->flush();
+    }
+
+
+    /**
+     * Creates entries in the database for a File that has not been encrypted yet.
+     *
+     * IMPORTANT: The localFilename, encryptKey, and originalChecksum properties will NOT be
+     *  correctly set in the returned File entity.  The encryption processes will need to be run
+     *  in order to set them correctly.
+     *
+     * @param ODRUser $user
+     * @param DataRecordFields $drf
+     * @param string $filepath The path to the unencrypted file on the server
+     *
+     * @return File
+     */
+    public function createFile($user, $drf, $filepath)
+    {
+        // Ensure a file exists at the given path
+        if ( !file_exists($filepath) )
+            throw new ODRNotFoundException('Uploaded File');
+
+        // Determine several properties of the file before it gets encrypted
+        $uploaded_file = new SymfonyFile($filepath);
+        $extension = $uploaded_file->guessExtension();    // TODO - ...shouldn't this be based on the filename itself?
+        $filesize = $uploaded_file->getSize();
+
+        // Use PHP to split the path info
+        $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
+        $original_filename = pathinfo($filepath, PATHINFO_BASENAME);
+
+
+        // ----------------------------------------
+        // Fill out most of the database entry for this file...
+        $file = new File();
+        $file->setDataRecordFields($drf);
+        $file->setDataRecord($drf->getDataRecord());
+        $file->setDataField($drf->getDataField());
+        $file->setFieldType($drf->getDataField()->getFieldType());
+
+        $file->setProvisioned(false);
+        $file->setUniqueId( $this->uuid_service->generateFileUniqueId() );
+        $file->setCreatedBy($user);
+
+        // ...these properties can be set immediately...
+        $file->setExt($extension);
+        $file->setFilesize($filesize);
+
+        // The local_filename property will get changed to the web-accessible directory later
+        $file->setLocalFileName($dirname);
+        // The encrypt_key property is left blank, because the encryption process will set it later
+        $file->setEncryptKey('');
+        // The original_checksum property is also left blank...it'll be set after encryption, to let
+        //  the rest of ODR know it can start using the file
+        $file->setOriginalChecksum('');
+
+        // Done with the file entity, for now
+        $this->em->persist($file);
+
+
+        // ----------------------------------------
+        // Also need to create a FileMeta entry for this new File
+        $file_meta = new FileMeta();
+        $file_meta->setFile($file);
+
+        $file_meta->setOriginalFileName($original_filename);
+        $file_meta->setDescription(null);    // TODO
+        $file_meta->setExternalId('');
+
+        if ( $drf->getDataField()->getNewFilesArePublic() )
+            $file_meta->setPublicDate( new \DateTime() );
+        else
+            $file_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+        $file_meta->setCreatedBy($user);
+        $file_meta->setUpdatedBy($user);
+
+        // Done with the FileMeta entity
+        $this->em->persist($file_meta);
+
+
+        // ----------------------------------------
+        // Flush changes and return the new File entity
+        $this->em->flush();
+        $this->em->refresh($file);
+        return $file;
+    }
+
+
+    /**
+     * Creates entries in the database for an Image that has not been encrypted yet.
+     *
+     * IMPORTANT: The localFilename, encryptKey, and originalChecksum properties will NOT be
+     *  correctly set in the returned Image.  The encryption processes will need to be run in order
+     *  to set them correctly.
+     *
+     * @param ODRUser $user
+     * @param DataRecordFields $drf
+     * @param string $filepath The path to the unencrypted image on the server
+     *
+     * @return Image
+     */
+    public function createImage($user, $drf, $filepath)
+    {
+        // Ensure a file exists at the given path
+        if ( !file_exists($filepath) )
+            throw new ODRNotFoundException('Uploaded Image');
+
+        // Determine several properties of the image before it gets encrypted
+        $uploaded_file = new SymfonyFile($filepath);
+        $extension = $uploaded_file->guessExtension();
+
+        $sizes = getimagesize($filepath);
+        $image_width = $sizes[0];
+        $image_height = $sizes[1];
+
+        // Also need to locate/set the ImageSize property
+        $original_image_size = null;
+        /** @var ImageSizes[] $image_sizes */
+        $image_sizes = $drf->getDataField()->getImageSizes();
+        foreach ($image_sizes as $image_size) {
+            if ( $image_size->getOriginal() ) {
+                $original_image_size = $image_size;
+                break;
+            }
+        }
+
+        // Use PHP to split the path info
+        $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
+        $original_filename = pathinfo($filepath, PATHINFO_BASENAME);
+
+
+        // ----------------------------------------
+        // Fill out most of the database entry for this image...
+        $image = new Image();
+        $image->setDataRecordFields($drf);
+        $image->setDataRecord($drf->getDataRecord());
+        $image->setDataField($drf->getDataField());
+        $image->setFieldType($drf->getDataField()->getFieldType());
+
+        $image->setOriginal(true);
+        $image->setImageSize($original_image_size);
+        $image->setUniqueId( $this->uuid_service->generateImageUniqueId() );
+
+        // ...these properties can be set immediately...
+        $image->setExt($extension);
+        $image->setImageWidth($image_width);
+        $image->setImageHeight($image_height);
+
+        // The local_filename property will get changed to the web-accessible directory later
+        $image->setLocalFileName($dirname);
+        // The encrypt_key property is left blank, because the encryption process will set it later
+        $image->setEncryptKey('');
+        // The original_checksum property is also left blank...it'll be set after encryption, to let
+        //  the rest of ODR know it can start using the image
+        $image->setOriginalChecksum('');
+
+        $image->setCreatedBy($user);
+
+        // Done with the file entity, for now
+        $this->em->persist($image);
+
+
+        // ----------------------------------------
+        // Also need to create an ImageMeta entry for this image
+        $image_meta = new ImageMeta();
+        $image_meta->setImage($image);
+        $image_meta->setDisplayorder(0);
+
+        $image_meta->setOriginalFileName($original_filename);
+        $image_meta->setCaption(null);    // TODO
+        $image_meta->setExternalId('');
+
+        if ( $drf->getDataField()->getNewFilesArePublic() )
+            $image_meta->setPublicDate( new \DateTime() );
+        else
+            $image_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+        $image_meta->setCreatedBy($user);
+        $image_meta->setUpdatedBy($user);
+
+        // Done with the ImageMeta entity
+        $this->em->persist($image_meta);
+
+
+        // ----------------------------------------
+        // Flush changes and return the new Image entity
+        $this->em->flush();
+        $this->em->refresh($image);
+        return $image;
+    }
+
+
+    /**
+     * Creates resized versions of the given Image.
+     *
+     * IMPORTANT: The localFilename, encryptKey, and originalChecksum properties will NOT be
+     *  correctly set in the returned Image.  The encryption processes will need to be run in order
+     *  to set them correctly.
+     *
+     * @param Image $original_image
+     * @param string $filepath The path to the unencrypted original (source) image on the server
+     * @param bool $overwrite_existing If true, locate and overwrite $original_image's existing
+     *                                 resized Image entities, instead of creating new ones
+     *
+     * @return Image[]
+     */
+    public function createResizedImages($original_image, $filepath, $overwrite_existing = false)
+    {
+        // Ensure a file exists at the given path
+        if ( !file_exists($filepath) )
+            throw new ODRNotFoundException('Uploaded Image');
+
+        // Load existing resizes of the original image if required
+        $existing_resizes = array();
+        if ($overwrite_existing) {
+            /** @var Image[] $images */
+            $images = $this->em->getRepository('ODRAdminBundle:Image')->findBy(
+                array(
+                    'parent' => $original_image->getId()
+                )
+            );
+            foreach ($images as $i)
+                $existing_resizes[ $i->getImageSize()->getId() ] = $i;
+        }
+
+
+        // ----------------------------------------
+        // Need to create/overwrite one Image per ImageSize entity for this Datafield
+        /** @var ImageSizes[] $image_sizes */
+        $image_sizes = $original_image->getDataField()->getImageSizes();
+        foreach ($image_sizes as $image_size) {
+            if ( $image_size->getOriginal() ) {
+                /* do nothing */
+            }
+            else {
+                // Get the resized Image, or create one if it doesn't exist
+                $resized_image = null;
+                if ( isset($existing_resizes[$image_size->getId()]) ) {
+                    $resized_image = $existing_resizes[$image_size->getId()];
+                }
+                else {
+                    // Make a clone of the database entries for the original image
+                    $resized_image = clone $original_image;
+
+                    // ...update the properties that are different from the original image...
+                    $resized_image->setParent($original_image);
+                    $resized_image->setImageSize($image_size);
+                    $resized_image->setOriginal(false);
+                    $resized_image->setUniqueId( $this->uuid_service->generateImageUniqueId() );
+
+                    // ...and reset the properties that will change once the original image gets resized
+                    $resized_image->setLocalFileName('');
+                    $resized_image->setEncryptKey('');
+                    $resized_image->setOriginalChecksum('');
+
+                    $resized_image->setImageWidth(0);
+                    $resized_image->setImageHeight(0);
+
+                    // Persist and flush the new image, since the database ID will be needed
+                    $this->em->persist($resized_image);
+                    $this->em->flush();
+                }
+
+                // Create a copy of the original image and ensure it's named in "Image_<id>.<ext>"
+                //  format, so that the crypto bundle uses that same format inside the encryption
+                //  directory
+                $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
+                $new_filename = 'Image_'.$resized_image->getId().'.'.$resized_image->getExt();
+                copy($filepath, $dirname.'/'.$new_filename);
+
+                // TODO - ?
+                $proportional = false;
+                if ($image_size->getSizeConstraint() == "width"
+                    || $image_size->getSizeConstraint() == "height"
+                    || $image_size->getSizeConstraint() == "both"
+                ) {
+                    $proportional = true;
+                }
+
+                // Resize the image
+                self::smart_resize_image(
+                    $dirname.'/'.$new_filename,
+                    $image_size->getWidth(),
+                    $image_size->getHeight(),
+                    $proportional,
+                    'file',
+                    false,
+                    false
+                );
+
+                // Store the new width/height of the resized image
+                $sizes = getimagesize($dirname.'/'.$new_filename);
+                $image_width = $sizes[0];
+                $image_height = $sizes[1];
+
+                $resized_image->setImageWidth($image_width);
+                $resized_image->setImageHeight($image_height);
+                $this->em->persist($resized_image);
+                $this->em->flush();
+
+                // NOTE - at this time, the encryptKey and the localFilename properties of the
+                //  resized image are still blank
+
+                // Store the newly resized image in order to return it later
+                $existing_resizes[ $image_size->getId() ] = $resized_image;
+            }
+        }
+
+        return $existing_resizes;
+    }
+
+
+    /**
+     * Does the actual work of resizing an image to some arbitrary dimension.
+     * TODO - need source for this...pretty sure it's copy/pasted from somewhere
+     *
+     * @param string $file                Should be a path to the file
+     * @param integer $width              Desired width for the resulting thumbnail
+     * @param integer $height             Desired height for the resulting thumbnail
+     * @param boolean $proportional       Whether to preserve aspect ratio while resizing
+     * @param string $output              'browser', 'file', or 'return'
+     * @param boolean $delete_original    Whether to delete the original file or not after resizing
+     * @param boolean $use_linux_commands If true, use linux commands to delete the original file, otherwise use windows commands
+     *
+     * @return array Contains height/width after resizing
+     */
+    private function smart_resize_image(
+        $file,
+        $width              = 0,
+        $height             = 0,
+        $proportional       = false,
+        $output             = 'file',
+        $delete_original    = true,
+        $use_linux_commands = false
+    ) {
+
+        if ( $height <= 0 && $width <= 0 ) return false;
+
+        # Setting defaults and meta
+        $info                         = getimagesize($file);
+        $image                        = '';
+        $final_width                  = 0;
+        $final_height                 = 0;
+
+        list($width_old, $height_old) = $info;
+
+        # Calculating proportionality
+        if ($proportional) {
+            if      ($width  == 0)  $factor = $height/$height_old;
+            elseif  ($height == 0)  $factor = $width/$width_old;
+            else                    $factor = min( $width / $width_old, $height / $height_old );
+
+            $final_width  = round( $width_old * $factor );
+            $final_height = round( $height_old * $factor );
+        }
+        else {
+            $final_width = ( $width <= 0 ) ? $width_old : $width;
+            $final_height = ( $height <= 0 ) ? $height_old : $height;
+        }
+
+        # Loading image to memory according to type
+        switch ( $info[2] ) {
+            case IMAGETYPE_GIF:   $image = imagecreatefromgif($file);   break;
+            case IMAGETYPE_JPEG:  $image = imagecreatefromjpeg($file);  break;
+            case IMAGETYPE_PNG:   $image = imagecreatefrompng($file);   break;
+            case IMAGETYPE_WBMP:   $image = imagecreatefromwbmp($file);   break;
+            default: return false;
+        }
+
+        # This is the resizing/resampling/transparency-preserving magic
+        $image_resized = imagecreatetruecolor( $final_width, $final_height );
+        if ( ($info[2] == IMAGETYPE_GIF) || ($info[2] == IMAGETYPE_PNG) ) {
+            $transparency = imagecolortransparent($image);
+
+            if ($transparency >= 0) {
+                // TODO figure out what trnprt_index is used for.
+                $trnprt_indx = null;
+                $transparent_color  = imagecolorsforindex($image, $trnprt_indx);
+                $transparency       = imagecolorallocate($image_resized, $transparent_color['red'], $transparent_color['green'], $transparent_color['blue']);
+                imagefill($image_resized, 0, 0, $transparency);
+                imagecolortransparent($image_resized, $transparency);
+            }
+            elseif ($info[2] == IMAGETYPE_PNG) {
+                imagealphablending($image_resized, false);
+                $color = imagecolorallocatealpha($image_resized, 0, 0, 0, 127);
+                imagefill($image_resized, 0, 0, $color);
+                imagesavealpha($image_resized, true);
+            }
+        }
+        imagecopyresampled($image_resized, $image, 0, 0, 0, 0, $final_width, $final_height, $width_old, $height_old);
+
+        # Taking care of original, if needed
+        if ( $delete_original ) {
+            if ( $use_linux_commands ) exec('rm '.$file);
+            else @unlink($file);
+        }
+
+        # Preparing a method of providing result
+        switch ( strtolower($output) ) {
+            case 'browser':
+                $mime = image_type_to_mime_type($info[2]);
+                header("Content-type: $mime");
+                $output = NULL;
+                break;
+            case 'file':
+                $output = $file;
+                break;
+            case 'return':
+                return $image_resized;
+                break;
+            default:
+                break;
+        }
+
+        # Writing image according to type to the output destination
+        switch ( $info[2] ) {
+            case IMAGETYPE_GIF:   imagegif($image_resized, $output );    break;
+            case IMAGETYPE_JPEG:  imagejpeg($image_resized, $output, '90');   break;
+            case IMAGETYPE_PNG:   imagepng($image_resized, $output, '2');    break;
+            default: return false;
+        }
+
+        $stats = array($final_height, $final_width);
+        return $stats;
     }
 
 
