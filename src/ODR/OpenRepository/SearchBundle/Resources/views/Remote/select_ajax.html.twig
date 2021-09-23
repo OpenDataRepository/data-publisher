@@ -17,22 +17,21 @@
                         The second step in this process is to select which datafields you're interested in.
                         <br>
                         If no datafields are displayed, then the database is likely unsuitable for remote searching.
-
-                        {% if include_general_search %}
-                        <div id="general_checkbox_div" style="margin-top:5px;">
+                    </div>
+                    {% if include_general_search %}
+                        <div id="general_checkbox_div" style="margin-top:5px; margin-left:10px;">
                             <input id="general_checkbox" class="ODRRemoteSearch_select" rel="gen" type="checkbox" />
                             <label for="general_checkbox" style="font-size:100%;">
                                 Search across all datafields in the database
                             </label>
                         </div>
-                        {% endif %}
-                    </div>
+                    {% endif %}
                     <div class="ODRHidden">
                         <form id="ODRRemoteSearch_form">
                             <input type="hidden" name="datatype_id" value="{{ datatype_id }}" />
                         </form>
                     </div>
-                    <button id="ODRRemoteSearch_config" class="pure-button pure-button-disabled">Show Config</button>
+                    <button class="pure-button pure-button-disabled ODRRemoteSearch_config">Show Resulting Configuration</button>
                 </div>
             </div>
         </div>
@@ -53,12 +52,20 @@
     </div>
 </div>
 
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRFormWrap pure-u-1">
+        <button class="pure-button pure-button-disabled ODRRemoteSearch_config">Show Resulting Configuration</button>
+    </div>
+</div>
+
 <div id="odrremotesearch_config_dialog_wrapper">
     {% include 'ODROpenRepositorySearchBundle:Remote:config_dialog.html.twig' %}
 </div>
 
 <script>
     $(function() {
+        window.scrollTo(0,0);
+
         // $("#ODRDatatypeList").dataTable({
         $("table.ODRDatafieldList").dataTable({
             "columnDefs": [
@@ -84,7 +91,8 @@
             },
             "info": false,
             "language": {
-                "emptyTable": "No Datafields found"
+                "emptyTable": "No Datafields found",
+                "search": "Filter table:"
             }
         });
         $("table.ODRDatafieldList").removeAttr('style');
@@ -104,13 +112,13 @@
             });
 
             if ( has_selections )
-                $("#ODRRemoteSearch_config").removeClass('pure-button-disabled');
+                $(".ODRRemoteSearch_config").removeClass('pure-button-disabled');
             else
-                $("#ODRRemoteSearch_config").addClass('pure-button-disabled');
+                $(".ODRRemoteSearch_config").addClass('pure-button-disabled');
 
         });
 
-        $("#ODRRemoteSearch_config").unbind('click').click(function() {
+        $(".ODRRemoteSearch_config").unbind('click').click(function() {
             // Don't want to open the dialog if nothing is selected
             var has_selections = false;
             $(".ODRRemoteSearch_select").each(function(index,elem) {
@@ -143,7 +151,7 @@
             .attr('data-step', '5')
             .attr('data-intro', "To include the ability to search all datafields at the same time, select this checkbox.");
         {% endif %}
-        $('#ODRRemoteSearch_config')
+        $('.ODRRemoteSearch_config').first()
             .attr('data-step', '6')
             .attr('data-intro', 'After selecting the general search or at least one datafield, click this button to move on to the next stage of the process.');
     });

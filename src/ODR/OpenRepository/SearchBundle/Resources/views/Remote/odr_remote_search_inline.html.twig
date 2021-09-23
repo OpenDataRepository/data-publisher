@@ -1,10 +1,11 @@
 <h2>Try me out!</h2>
 <div>
-    <form>
+    <form style="display:table;">
 {% for df_id,df_data in datafields %}
-        <label for="ODRRemoteSearch_{{ df_data.element_name }}">{{ df_data.datafield_name }}: </label>
-        <input id="ODRRemoteSearch_{{ df_data.element_name }}" type="text" />
-        <br>
+        <div style="display:table-row;">
+            <label for="ODRRemoteSearch_{{ df_data.element_name }}" style="display:table-cell;">{{ df_data.datafield_name }}:&nbsp;</label>
+            <input id="ODRRemoteSearch_{{ df_data.element_name }}" type="text" style="display:table-cell;" />
+        </div>
 {% endfor %}
         <button id="ODRRemoteSearch_submit">Search</button>
     </form>
