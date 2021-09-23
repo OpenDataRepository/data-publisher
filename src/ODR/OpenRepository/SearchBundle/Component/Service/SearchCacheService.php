@@ -76,6 +76,157 @@ class SearchCacheService
 
 
     /**
+     * Deletes search cache entries for all datafields belonging to the given datatypes
+     *
+     * @param array $datatype_ids
+     */
+    private function clearCachedDatafieldsByDatatype($datatype_ids)
+    {
+        $query = $this->em->createQuery(
+           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.dataType IN (:datatype_ids)
+            AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $datatype_ids) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $df_id = $result['df_id'];
+                $template_df_uuid = $result['template_field_uuid'];
+
+                $this->cache_service->delete('cached_search_df_'.$df_id);
+                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
+
+                if ( !is_null($template_df_uuid) ) {
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_fieldstats');
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Clears search cache entries for all radio options belonging to the given datatypes
+     *
+     * @param array $datatype_ids
+     */
+    private function clearCachedRadioOptionsByDatatype($datatype_ids)
+    {
+        $query = $this->em->createQuery(
+           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
+            FROM ODRAdminBundle:RadioOptions AS ro
+            JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
+            WHERE df.dataType IN (:datatype_ids)
+            AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $datatype_ids) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $ro_uuid = $result['ro_uuid'];
+
+                $this->cache_service->delete('cached_search_ro_'.$ro_id);
+
+                if ( !is_null($ro_uuid) )
+                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+            }
+        }
+    }
+
+
+    /**
+     * Clears search cache entries for all tags belonging to the given datatypes
+     *
+     * @param array $datatype_ids
+     */
+    private function clearCachedTagsByDatatype($datatype_ids)
+    {
+        $query = $this->em->createQuery(
+           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
+            FROM ODRAdminBundle:Tags AS t
+            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
+            WHERE df.dataType IN (:datatype_ids)
+            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $datatype_ids) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $t_uuid = $result['t_uuid'];
+
+                $this->cache_service->delete('cached_search_tag_'.$t_id);
+
+                if ( !is_null($t_uuid) )
+                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
+            }
+        }
+    }
+
+
+    /**
+     * Clears search cache entries for all radio options belonging to the given datafields
+     *
+     * @param array $datafield_ids
+     */
+    private function clearCachedRadioOptionsByDatafield($datafield_ids)
+    {
+        $query = $this->em->createQuery(
+           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
+            FROM ODRAdminBundle:RadioOptions AS ro
+            WHERE ro.dataField IN (:datafield_ids)
+            AND ro.deletedAt IS NULL'
+        )->setParameters( array('datafield_ids' => $datafield_ids) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $ro_uuid = $result['ro_uuid'];
+
+                $this->cache_service->delete('cached_search_ro_'.$ro_id);
+
+                if ( !is_null($ro_uuid) )
+                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+            }
+        }
+    }
+
+
+    /**
+     * Clears search cache entries for all tags belonging to the given datatypes
+     *
+     * @param array $datatype_ids
+     */
+    private function clearCachedTagsByDatafield($datafield_ids)
+    {
+        $query = $this->em->createQuery(
+           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
+            FROM ODRAdminBundle:Tags AS t
+            WHERE t.dataField IN (:datafield_ids)
+            AND t.deletedAt IS NULL'
+        )->setParameters( array('datafield_ids' => $datafield_ids) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $t_uuid = $result['t_uuid'];
+
+                $this->cache_service->delete('cached_search_tag_'.$t_id);
+
+                if ( !is_null($t_uuid) )
+                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
+            }
+        }
+    }
+
+
+    /**
      * When a datatype is deleted, it also deletes a mess of datarecords, datafields, and could
      * also end up deleting a pile of other child datatypes...so anything related to the datatype
      * being deleted needs to be cleared.
@@ -147,76 +298,16 @@ class SearchCacheService
 
         // ----------------------------------------
         // Delete all cached search entries for all datafields of these datatypes
-        $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
-            FROM ODRAdminBundle:DataFields AS df
-            WHERE df.dataType IN (:datatype_ids)
-            AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $related_datatypes) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $df_id = $result['df_id'];
-                $template_df_uuid = $result['template_field_uuid'];
-
-                $this->cache_service->delete('cached_search_df_'.$df_id);
-                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
-
-                if ( !is_null($template_df_uuid) ) {
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_fieldstats');
-                }
-            }
-        }
+        self::clearCachedDatafieldsByDatatype($related_datatypes);
 
         // Delete all cached search entries for all radio options in these datatypes
-        $query = $this->em->createQuery(
-           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
-            WHERE df.dataType IN (:datatype_ids)
-            AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $related_datatypes) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $ro_id = $result['ro_id'];
-                $ro_uuid = $result['ro_uuid'];
-
-                $this->cache_service->delete('cached_search_ro_'.$ro_id);
-
-                if ( !is_null($ro_uuid) )
-                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
-            }
-        }
+        self::clearCachedRadioOptionsByDatatype($related_datatypes);
 
         // Delete all cached search entries for all tags in these datatypes
         $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
         $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
 
-        $query = $this->em->createQuery(
-           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
-            FROM ODRAdminBundle:Tags AS t
-            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
-            WHERE df.dataType IN (:datatype_ids)
-            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $related_datatypes) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $t_id = $result['t_id'];
-                $t_uuid = $result['t_uuid'];
-
-                $this->cache_service->delete('cached_search_tag_'.$t_id);
-
-                if ( !is_null($t_uuid) )
-                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
-            }
-        }
+        self::clearCachedTagsByDatatype($related_datatypes);
     }
 
 
@@ -287,51 +378,12 @@ class SearchCacheService
             $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_fieldstats');
         }
 
-        // If the datafield is a radio options datafield, then any change should also delete all of
-        //  the cached radio options associated with this datafield
-        if ($datafield->getFieldType()->getTypeClass() === 'Radio') {
-            $query = $this->em->createQuery(
-               'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-                FROM ODRAdminBundle:RadioOptions AS ro
-                WHERE ro.dataField = :datafield_id
-                AND ro.deletedAt IS NULL'
-            )->setParameters( array('datafield_id' => $datafield->getId()) );
-            $results = $query->getArrayResult();
-
-            if ( is_array($results) ) {
-                foreach ($results as $result) {
-                    $ro_id = $result['ro_id'];
-                    $ro_uuid = $result['ro_uuid'];
-
-                    $this->cache_service->delete('cached_search_ro_'.$ro_id);
-
-                    if ( !is_null($ro_uuid) )
-                        $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
-                }
-            }
-        }
-        // Do the same if it's a tag datafield
-        else if ($datafield->getFieldType()->getTypeClass() === 'Tag') {
-            $query = $this->em->createQuery(
-               'SELECT t.id AS t_id, t.tagUuid AS t_uuid
-                FROM ODRAdminBundle:Tags AS t
-                WHERE t.dataField = :datafield_id
-                AND t.deletedAt IS NULL'
-            )->setParameters( array('datafield_id' => $datafield->getId()) );
-            $results = $query->getArrayResult();
-
-            if ( is_array($results) ) {
-                foreach ($results as $result) {
-                    $t_id = $result['t_id'];
-                    $t_uuid = $result['t_uuid'];
-
-                    $this->cache_service->delete('cached_search_tag_'.$t_id);
-
-                    if ( !is_null($t_uuid) )
-                        $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
-                }
-            }
-        }
+        // If the datafield is a radio options or tag datafield, then any change should also delete
+        //  all of the cached radio options or tags associated with this datafield
+        if ($datafield->getFieldType()->getTypeClass() === 'Radio')
+            self::clearCachedRadioOptionsByDatafield( array($datafield->getId()) );
+        else if ($datafield->getFieldType()->getTypeClass() === 'Tag')
+            self::clearCachedTagsByDatafield( array($datafield->getId()) );
     }
 
 
@@ -399,74 +451,15 @@ class SearchCacheService
         // Technically only need to delete datafield searches that involve the empty string
         // However, determining that takes too much effort...just delete all cached datafield
         //  entries for this datatype
-        $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
-            FROM ODRAdminBundle:DataFields AS df
-            WHERE df.dataType = :datatype_id
-            AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $df_id = $result['df_id'];
-                $template_df_uuid = $result['template_field_uuid'];
-
-                $this->cache_service->delete('cached_search_df_'.$df_id);
-                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
-
-                if ( !is_null($template_df_uuid) ) {
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
-                }
-            }
-        }
+        self::clearCachedDatafieldsByDatatype( array($datatype->getId()) );
 
         // Technically only need to delete all "unselected" entries from the cached radio option
         //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
         //  section as it does to rebuild both "unselected" and "selected"
-        $query = $this->em->createQuery(
-           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
-            WHERE df.dataType = :datatype_id
-            AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $ro_id = $result['ro_id'];
-                $ro_uuid = $result['ro_uuid'];
-
-                $this->cache_service->delete('cached_search_ro_'.$ro_id);
-
-                if ( !is_null($ro_uuid) )
-                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
-            }
-        }
+        self::clearCachedRadioOptionsByDatatype( array($datatype->getId()) );
 
         // Same deal for tag datafields
-        $query = $this->em->createQuery(
-           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
-            FROM ODRAdminBundle:Tags AS t
-            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
-            WHERE df.dataType = :datatype_id
-            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $t_id = $result['t_id'];
-                $t_uuid = $result['t_uuid'];
-
-                $this->cache_service->delete('cached_search_tag_'.$t_id);
-
-                if ( !is_null($t_uuid) )
-                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
-            }
-        }
+        self::clearCachedTagsByDatatype( array($datatype->getId()) );
     }
 
 
@@ -535,74 +528,15 @@ class SearchCacheService
         // Technically only need to delete datafield searches that involve the empty string
         // However, determining that takes too much effort...just delete all cached datafield
         //  entries for this datatype
-        $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
-            FROM ODRAdminBundle:DataFields AS df
-            WHERE df.dataType IN (:datatype_ids)
-            AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $related_datatypes) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $df_id = $result['df_id'];
-                $template_df_uuid = $result['template_field_uuid'];
-
-                $this->cache_service->delete('cached_search_df_'.$df_id);
-                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
-
-                if ( !is_null($template_df_uuid) ) {
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
-                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
-                }
-            }
-        }
+        self::clearCachedDatafieldsByDatatype($related_datatypes);
 
         // Technically only need to delete all "unselected" entries from the cached radio option
         //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
         //  section as it does to rebuild both "unselected" and "selected"
-        $query = $this->em->createQuery(
-           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
-            WHERE df.dataType IN (:datatype_ids)
-            AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $related_datatypes) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $ro_id = $result['ro_id'];
-                $ro_uuid = $result['ro_uuid'];
-
-                $this->cache_service->delete('cached_search_ro_'.$ro_id);
-
-                if ( !is_null($ro_uuid) )
-                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
-            }
-        }
+        self::clearCachedRadioOptionsByDatatype($related_datatypes);
 
         // Same theory for tag datafields
-        $query = $this->em->createQuery(
-           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
-            FROM ODRAdminBundle:Tags AS t
-            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
-            WHERE df.dataType = :datatype_id
-            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result) {
-                $t_id = $result['t_id'];
-                $t_uuid = $result['t_uuid'];
-
-                $this->cache_service->delete('cached_search_tag_'.$t_id);
-
-                if ( !is_null($t_uuid) )
-                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
-            }
-        }
+        self::clearCachedTagsByDatatype($related_datatypes);
     }
 
 

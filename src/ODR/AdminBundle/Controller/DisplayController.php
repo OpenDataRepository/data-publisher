@@ -1636,6 +1636,10 @@ class DisplayController extends ODRCustomController
             $file_list = array();
             foreach ($results as $drf) {
                 foreach ($drf['file'] as $file_num => $file) {
+                    // Need to ignore files from deleted datafields...
+                    if ( is_null($file['dataField']) )
+                        continue;
+
                     // Need to filter out non-public files if the user can't view them
                     $is_public = true;
                     if ( $file['fileMeta'][0]['publicDate']->format('Y-m-d') == '2200-01-01' )
@@ -1690,6 +1694,10 @@ class DisplayController extends ODRCustomController
                 foreach ($drf['image'] as $image_num => $thumbnail_image) {
                     // Want to store the original image in the archive
                     $image = $thumbnail_image['parent'];
+
+                    // Need to ignore images from deleted datafields...
+                    if ( is_null($image['dataField']) )
+                        continue;
 
                     // Need to filter out non-public images if the user can't view them
                     $is_public = true;

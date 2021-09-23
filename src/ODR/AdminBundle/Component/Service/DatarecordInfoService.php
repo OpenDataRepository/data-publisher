@@ -511,8 +511,8 @@ class DatarecordInfoService
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
                 // Not going to end up saving datafield/datafieldmeta...but need to verify it exists
                 if ( !is_array($drf['dataField']) || count($drf['dataField']) == 0 ) {
-                    // If the dataField array is empty, then this is most likely a datarecordfield
-                    //  entry that references a deleted datafield
+                    // If the dataField array isn't an array or is empty, then this is most likely
+                    //  a datarecordfield entry that references a deleted datafield
 
                     // Not really an error, since deleting datafields doesn't also delete drf entries
                     continue;

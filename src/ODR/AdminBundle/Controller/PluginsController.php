@@ -1274,7 +1274,7 @@ class PluginsController extends ODRCustomController
                         $datatype_ids[] = $result['dataType']['grandparent']['id'];
 
                     // Store the grandparent datatype id of the datafield, if it exists...
-                    if ( isset($result['dataField']) )
+                    if ( isset($result['dataField']) && isset($result['dataField']['dataType']) )
                         $datatype_ids[] = $result['dataField']['dataType']['grandparent']['id'];
                 }
             }

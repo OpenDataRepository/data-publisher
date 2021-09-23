@@ -498,14 +498,14 @@ class DatabaseInfoService
         // The default render plugin won't have an instance
         foreach ($render_plugin_instances as $rpi_num => $rpi) {
             // Don't need to do anything with the render plugin entry
-            // All plugins will have an entry for required fields, althought it might be empty
+            // All plugins will have an entry for required fields, although it might be empty
 
             foreach ($rpi['renderPluginMap'] as $rpm_num => $rpm) {
                 // ...then each renderPluginMap will have a single renderPluginField entry...
                 $rpf_fieldName = $rpm['renderPluginFields']['fieldName'];
                 $rpf_allowedFieldtypes = $rpm['renderPluginFields']['allowedFieldtypes'];
-                // ...and will have a single dataField entry if it's a datatype plugin (but won't have
-                //  one if it's a datafield plugin)
+                // ...and will have a single dataField entry if it's a datatype plugin (but won't
+                //  if it's a datafield plugin)
                 $rpf_df = array();
                 if ( isset($rpm['dataField']) )
                     $rpf_df = $rpm['dataField'];

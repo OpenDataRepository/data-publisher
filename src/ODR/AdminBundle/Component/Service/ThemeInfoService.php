@@ -711,26 +711,29 @@ class ThemeInfoService
                 $tem = $te['themeElementMeta'][0];
                 $te['themeElementMeta'] = $tem;
 
-                // theme_datafield entries are ordered, so preserve $tdf_num
+                // hemeDatafield entries are ordered, so preserve $tdf_num
                 foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                    // Only want to preserve the id of the datafield
-                    $df_id = $tdf['dataField']['id'];
-
-                    $te['themeDataFields'][$tdf_num]['dataField'] = array('id' => $df_id);
+                    // Don't preserve entries for deleted datafields
+                    if ( is_null($tdf['dataField']) )
+                        unset( $te['themeDataFields'][$tdf_num] );
                 }
 
-                //
+                // Currently only one themeDatatype is allowed per themeElement, but preserve
+                //  $tdt_num anyways incase this changes in the future...
                 foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                    // Only want to preserve the id of the child/linked datatype
-                    $child_dt_id = $tdt['dataType']['id'];
-                    $te['themeDataType'][$tdt_num]['dataType'] = array('id' => $child_dt_id);
+                    // Don't preserve entries for deleted datatypes
+                    if ( is_null($tdt['dataType']) ) {
+                        unset( $te['themeDataType'][$tdt_num] );
+                        continue;
+                    }
 
-                    // Store the 'is_link' and 'multiple_allowed' properties from the Datatree
-                    //  entity here for convenience
+                    // Otherwise, don't need to verify that this is actually a child/linked datatype
+                    $child_dt_id = $tdt['dataType']['id'];
+
+                    // Want to store the 'is_link' and 'multiple_allowed' properties from the
+                    //  datatree array here for convenience...
                     $te['themeDataType'][$tdt_num]['is_link'] = 0;
                     $te['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
-
-                    // Don't need to check the 'descendant_of' segment of the datatree array...
 
                     if ( isset($datatree_array['linked_from']) && isset($datatree_array['linked_from'][$child_dt_id]) ) {
                         // This child is a linked datatype somewhere...figure out whether the
@@ -749,7 +752,7 @@ class ThemeInfoService
                     }
                 }
 
-                // Easier on twig if these arrays simply don't exist if nothing is in them...
+                // Easier on twig for these arrays to simply not exist, if nothing is in them...
                 if ( count($te['themeDataFields']) == 0 )
                     unset( $te['themeDataFields'] );
                 if ( count($te['themeDataType']) == 0 )
