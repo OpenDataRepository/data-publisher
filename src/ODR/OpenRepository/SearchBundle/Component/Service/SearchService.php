@@ -126,6 +126,7 @@ class SearchService
         // ----------------------------------------
         // Want to perform an exact search for this value...this only works because it's a text/number
         //  datafield...other fieldtypes with more complicated searches can't be unique
+        $value = strval($value);
         if ( $value[0] !== '"' && $value[-1] !== '"' ) {
             // Only put quotes around the given value if it's not already quoted
             $value = '"'.$value.'"';
@@ -1349,7 +1350,7 @@ class SearchService
         // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'DatetimeValue' )
-            throw new ODRBadRequestException('searchDatetimeDatafield() called with '.$typeclass.' datafield', 0x58a164e0);
+            throw new ODRBadRequestException('searchDatetimeDatafield() called with '.$typeclass.' datafield', 0xeb03c973);
 
 
         // ----------------------------------------

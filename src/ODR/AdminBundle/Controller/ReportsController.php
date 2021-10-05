@@ -206,6 +206,8 @@ class ReportsController extends ODRCustomController
         $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
 
         // Build a query to determine which top-level datarecords have duplicate values
+        // TODO - this doesn't find values that are empty because of a missing drf/storage entity
+        // TODO - ...is that actually a problem?
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id, e.value AS datafield_value
             FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' AS e

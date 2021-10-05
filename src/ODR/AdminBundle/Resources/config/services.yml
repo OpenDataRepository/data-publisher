@@ -324,6 +324,15 @@ services:
         arguments:
             $logger: "@logger"
 
+    odr.csv_import_helper_service:
+        class: ODR\AdminBundle\Component\Service\CSVImportHelperService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $dti_service: "@odr.datatree_info_service"
+            $search_service: "@odr.search_service"
+            $sort_service: "@odr.sort_service"
+            $logger: "@logger"
+
     # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:
         class: ODR\AdminBundle\Form\Type\DatafieldType
