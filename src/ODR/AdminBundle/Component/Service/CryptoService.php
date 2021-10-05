@@ -307,11 +307,31 @@ class CryptoService
             // Decrypt each chunk and write to target file
             $chunk_id = 0;
             while (file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id)) {
-                if (!file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id))
+                if ( !file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id) ) {
+                    // Error encoutered...delete any partially decrypted data
+                    fclose($handle);
+                    if ( file_exists($local_filepath) )
+                        unlink($local_filepath);
+
+                    // Ensure the lock is released too
+                    $lockHandler->release();
                     throw new ODRException('Encrypted chunk not found: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+                }
 
                 $data = file_get_contents($crypto_chunk_dir.'/'.'enc.'.$chunk_id);
-                fwrite($handle, $this->crypto_adapter->decrypt($data, $key));
+                $decrypted_data = $this->crypto_adapter->decrypt($data, $key);
+                if ( $decrypted_data === false ) {
+                    // Error encoutered...delete any partially decrypted data
+                    fclose($handle);
+                    if ( file_exists($local_filepath) )
+                        unlink($local_filepath);
+
+                    // Ensure the lock is released too
+                    $lockHandler->release();
+                    throw new ODRException('Unable to decrypt chunk: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+                }
+
+                fwrite($handle, $decrypted_data);
                 $chunk_id++;
             }
 

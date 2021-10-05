@@ -1745,7 +1745,7 @@ class DisplaytemplateController extends ODRCustomController
                         'backgroundImageField' => null,
 
                         'searchSlug' => $submitted_data->getSearchSlug(),
-                        'shortName' => $submitted_data->getShortName(),
+                        'shortName' => $submitted_data->getLongName(),    // short name should be equivalent to long name
                         'longName' => $submitted_data->getLongName(),
                         'description' => $submitted_data->getDescription(),
 

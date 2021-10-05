@@ -396,7 +396,7 @@ class GraphPlugin implements DatatypePluginInterface
                                 $filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
 
                                 // Tweak the stored filename so phantomJS can find it
-                                $page_data['odr_chart_files'][$dr_id]['localFileName'] = 'uploads/files/'.$non_public_filename;
+                                $file['localFileName'] = 'uploads/files/'.$non_public_filename;
 
                                 // Ensure the decrypted version gets deleted later
                                 array_push($files_to_delete, $filepath);
