@@ -3710,6 +3710,7 @@ class APIController extends ODRCustomController
             $user = $user_manager->findUserBy(array('email' => $data['user_email']));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
+            /** @var ODRUser $user */
 
             // Find datatype for Dataset UUID
             /** @var DataType $data_type */
@@ -3858,8 +3859,8 @@ class APIController extends ODRCustomController
                         $original_filename = $file->getClientOriginalName();
                     }
                     // Check whether file is uploaded completely and properly
-                    $path_prefix = $this->getParameter('odr_web_directory').'/';
-                    $destination_folder = 'uploads/files/chunks/user_'.$user->getId().'/completed';
+                    $path_prefix = $this->getParameter('odr_tmp_directory').'/';
+                    $destination_folder = 'user_'.$user->getId().'/chunks/completed';
                     if ( !file_exists($path_prefix.$destination_folder) )
                         mkdir( $path_prefix.$destination_folder, 0777, true );
 
@@ -3874,8 +3875,9 @@ class APIController extends ODRCustomController
                     else {
                         $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
                         $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
+
                         // Download file to temp folder
-                        $file->move($destination_folder);
+                        $file->move($path_prefix.$destination_folder);
                     }
 
                     // TODO Need to also check file size here
