@@ -246,9 +246,10 @@ class SearchKeyService
             $prev_char = $char;
         }
 
-        // If the quotation marks are unmatched, add one to the end of the string...
-        if ( $in_quote )
-            $cleaned .= '"';
+        // Don't add extra doublequotes if they're unmatched...user could be trying to search for
+        //  a single doublequote
+//        if ( $in_quote )
+//            $cleaned .= '"';
 
         return $cleaned;
     }

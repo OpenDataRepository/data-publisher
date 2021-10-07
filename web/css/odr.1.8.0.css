@@ -3275,6 +3275,7 @@ form .row {
     max-width: 500px;
     z-index: 999;
     cursor: default;
+    left: 0px;
 }
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;

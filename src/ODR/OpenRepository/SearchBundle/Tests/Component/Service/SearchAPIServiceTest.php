@@ -238,6 +238,128 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
+            // want "exact searches" with a space character to use "LIKE" instead of "="
+            'RRUFF Reference: authors exactly matches "Effenberger H"' => [
+                array(
+                    'dt_id' => 1,
+                    '1' => "\"Effenberger H\""
+                ),
+                array(4, 37, 86),    // term is an exact match for 4 and 37, but only a subset of 86
+                false
+            ],
+            'RRUFF Sample: contains the phrase "sample description"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\"sample description\""
+                ),
+                array(134,110,135),
+                false
+            ],
+            'RRUFF Sample: does not contain the phrase "associated with"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "!\"associated with\""
+                ),
+                array(98,100,101,103,105,106,107,108,109,111,114,116,117,118,120,121,122,123,124,125,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104),
+                false
+            ],
+            'RRUFF Sample: does not contain the phrase "associated with" and does not contain "variety"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "!\"associated with\" !variety"
+                ),
+                array(98,101,103,105,106,107,108,109,111,114,117,118,120,121,122,123,124,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104),
+                false
+            ],
+
+            // searches for a single doublequote should be handled differently than paired quotes
+            'RRUFF Sample: sample_descriptions containing "\""' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\""
+                ),
+                array(99,104,110,134,135),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions not containing "\""' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "!\""
+                ),
+                array(98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,136,137,138,139),
+                false
+            ],
+
+            'RRUFF Sample: sample_descriptions containing "\"a"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\"a"
+                ),
+                array(134,110),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions containing "\"description of"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\"description of"
+                ),
+                array(99,104),
+                false
+            ],
+
+            'RRUFF Sample: sample_descriptions containing "description\""' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "description\""
+                ),
+                array(134,110,135),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions containing "of a sample\""' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "of a sample\""
+                ),
+                array(99,104),
+                false
+            ],
+
+            // single doublequotes followed by a space
+            'RRUFF Sample: sample_descriptions containing "z OR \""' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "z OR \""
+                ),
+                array(102,115,127,132,134,110,99,135,104),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions containing "\"" OR "z"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\" OR z"
+                ),
+                array(102,115,127,132,134,110,99,135,104),
+                false
+            ],
+
+            // no closing doublequote means this should search for "\"" AND "sample" AND "description"
+            'RRUFF Sample: sample_descriptions containing "\" sample description"' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\" sample description"
+                ),
+                array(134,110,99,135,104),
+                false
+            ],
+            // closing doublequote means this should search for the phrase " sample description"
+            'RRUFF Sample: sample_descriptions containing "\" sample description\""' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\" sample description\""
+                ),
+                array(134,110,135),
+                false
+            ],
         ];
     }
 }
