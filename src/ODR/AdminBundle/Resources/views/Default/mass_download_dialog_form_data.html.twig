@@ -17,7 +17,7 @@
         {% if dt['dataFields'] is defined and dt['dataFields']|length > 0 %}
             <ul>
             {% for df_id, dr_list in dt['dataFields'] %}
-                <li><span class="ODRTristateCheckbox binary" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id] }}
+                <li><span id="ODRMassDownloadForm_df_{{ df_id }}" class="ODRTristateCheckbox binary" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datafields'][df_id] }}
                     <input type="hidden" value="{{ df_id }}" name="datafields[]" disabled />
                 </li>
             {% endfor %}

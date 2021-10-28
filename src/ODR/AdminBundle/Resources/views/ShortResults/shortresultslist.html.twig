@@ -8,6 +8,11 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
+{% set can_edit_datatype = false %}
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_datatype = true %}
+{% endif %}
+
 <div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
@@ -117,6 +122,24 @@
 
             handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
         });
+
+{% if not can_edit_datatype %}
+        $(".ODRDownloadAllFiles").remove();
+{% else %}
+        $(".ODRDownloadAllFiles").unbind('click').click(function() {
+
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+            // Locate necessary attributes
+            var id_data = $(this).closest(".ODRDataField").first().attr('id').split(/_/);
+            var datarecord_id = id_data[1];
+            var datafield_id = id_data[2];
+
+            {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
+            openMassDownloadDialog("{{ search_key }}", datafield_id);
+        });
+{% endif %}
 
         if (!prevent_scroll) {
             {% if scroll_target != '' %}
