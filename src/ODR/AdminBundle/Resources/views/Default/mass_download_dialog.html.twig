@@ -19,8 +19,9 @@
      * to a zip archive for download.
      *
      * @param {string} search_key
+     * @param {number} [datafield_id]
      */
-    function openMassDownloadDialog(search_key) {
+    function openMassDownloadDialog(search_key, datafield_id = 0) {
         // open dialog
         modal_options = {
             title: "Select datafields to download:",
@@ -42,7 +43,7 @@
         };
         openODRRemodal(modal_options);
 
-        loadMassDownloadData(search_key);
+        loadMassDownloadData(search_key, datafield_id);
     }
 
 
@@ -51,8 +52,9 @@
      * descendants.
      *
      * @param {string} search_key
+     * @param {number} [datafield_id]
      */
-    function loadMassDownloadData(search_key) {
+    function loadMassDownloadData(search_key, datafield_id = 0) {
         var url = '{{ path('odr_get_search_results_file_list', {'search_key': ''}) }}';
         url += search_key;
 
@@ -64,6 +66,10 @@
             success: function (data, textStatus, jqXHR) {
                 $("#ODRMassDownloadForm").html( data.d );
                 initMassDownloadDialogForm();
+
+                if ( datafield_id !== 0 )
+                    $("#ODRMassDownloadForm_df_" + datafield_id).trigger('click');
+
                 // remove loading
                 $(".ODRRemodalLoading").fadeOut('150', function() {
                     $(".ODRRemodalBody").show();
@@ -105,7 +111,7 @@
      * Attaches click handlers to the tristate checkboxes.
      */
     function initMassDownloadDialogForm() {
-        $(".ODRTristateCheckbox").each(function() {
+        $("#ODRMassDownloadForm .ODRTristateCheckbox").each(function() {
             if ( $(this).hasClass('binary') ) {
                 // Ignore the checkboxes for selecting datafields
                 return;
@@ -118,7 +124,7 @@
             }
         });
 
-        $(".ODRTristateCheckbox").unbind('click').click(function() {
+        $("#ODRMassDownloadForm .ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();
 
             if ( $(this).hasClass('binary') ) {
