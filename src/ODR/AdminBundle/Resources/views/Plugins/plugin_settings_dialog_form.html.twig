@@ -45,6 +45,9 @@
 </form>
 
 <script>
+    var current_unique_fields = [{% for num,df_id in current_unique_fields %}{{ df_id }},{% endfor %}];
+    var current_single_upload_fields = [{% for num,df_id in current_single_upload_fields %}{{ df_id }},{% endfor %}];
+
     $( function() {
         {% if plugin_to_load is not null %}
         // Load initial plugin settings

@@ -1257,9 +1257,15 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form...deleted DataField');
 
+                    $is_external_id_field = false;
+                    if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield_id )
+                        $is_external_id_field = true;
+
                     // If the datafield is set to prevent user edits, and the user bypassed the UI
                     //  in an attempt to force CSVImport to make a change to it, throw an error
-                    if ($datafield->getPreventUserEdits())
+                    // ...unless it's the datatype's external id field, since that one is critical
+                    //  for a CSV import to work properly
+                    if ( $datafield->getPreventUserEdits() && !$is_external_id_field )
                         throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
 
                     // Ensure fieldtype mapping entry exists
@@ -2824,10 +2830,16 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form');
 
+                    $is_external_id_field = false;
+                    if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield_id )
+                        $is_external_id_field = true;
+
                     // If the datafield is set to prevent user edits, and the user somehow managed
                     //  to sneak a field into here to force CSVImport to make a change to it, throw
                     //  an error
-                    if ($datafield->getPreventUserEdits())
+                    // ...unless it's the datatype's external id field, since that one is critical
+                    //  for a CSV import to work properly
+                    if ( $datafield->getPreventUserEdits() && !$is_external_id_field )
                         throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
 
                     // Store for later...
@@ -3468,11 +3480,12 @@ exit();
                     $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 }
                 catch (\Exception $e) {
-                    // ...don't particularly want to rethrow the error since it'll interrupt
-                    //  everything downstream of the event (such as file encryption...), but
-                    //  having the error disappear is less ideal on the dev environment...
-                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                        throw $e;
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event.  In this case, a datarecord gets created, but the rest of the values
+                    //  aren't saved and the provisioned flag never gets changed to "false"...leaving
+                    //  the datarecord in a state that the user can't view/edit
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
             }
 

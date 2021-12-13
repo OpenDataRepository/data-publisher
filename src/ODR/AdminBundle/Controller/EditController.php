@@ -29,6 +29,7 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -67,6 +68,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -174,11 +176,12 @@ class EditController extends ODRCustomController
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event.  In this case, a datarecord gets created, but the rest of the values aren't
+                //  saved and the provisioned flag never gets changed to "false"...leaving the
+                //  datarecord in a state that the user can't view/edit
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // Datarecord is ready, remove provisioned flag
@@ -304,11 +307,12 @@ class EditController extends ODRCustomController
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event.  In this case, a datarecord gets created, but the rest of the values aren't
+                //  saved and the provisioned flag never gets changed to "false"...leaving the
+                //  datarecord in a state that the user can't view/edit
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // Datarecord is ready, remove provisioned flag
@@ -1737,6 +1741,7 @@ class EditController extends ODRCustomController
                 if ($form->isValid()) {
                     $new_value = $form_object->getValue();
 
+                    // TODO - this doesn't allow users to "update" a derived field unless they change the contents of the source field...
                     if ($old_value !== $new_value) {
 
                         // If the datafield is marked as unique...
@@ -2059,14 +2064,72 @@ class EditController extends ODRCustomController
             /** @var ThemeElement $theme_element */
             $theme_element = $result[0];
 
-            $return['d'] = array(
-                'html' => $odr_render_service->reloadEditDatafield(
+            $output = '';
+
+            // Check whether the datafield is using a render plugin that wants to override the
+            //  regular edit datafield reloading
+            $query = $em->createQuery(
+               'SELECT rpi
+                FROM ODRAdminBundle:RenderPluginFields rpf
+                JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginFields = rpf
+                JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
+                WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id
+                AND rpf.is_derived = :is_derived
+                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype->getId(),
+                    'datafield_id' => $datafield->getId(),
+                    'is_derived' => true
+                )
+            );
+            $results = $query->getResult();
+
+            if ( !is_null($results) ) {
+                /** @var RenderPluginInstance $render_plugin_instance */
+                $render_plugin_instance = $results[0];
+
+                // Load the render plugin as a service
+                $render_plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
+                /** @var DatafieldReloadOverrideInterface $render_plugin */
+                $render_plugin = $this->container->get($render_plugin_classname);
+
+                // Request a set of parameters from the render plugin for ODRRenderService to use
+                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord);
+
+                // If the render plugin is going to do something...
+                if ( isset($extra_parameters['template_name']) ) {
+                    // ...extract the template name and remove it from the list of parameters
+                    $template_name = $extra_parameters['template_name'];
+                    unset( $extra_parameters['template_name'] );
+
+                    // Attempt to render the datafield using the given template and parameters
+                    $output = $odr_render_service->reloadPluginDatafield(
+                        $user,
+                        $datatype,
+                        $theme_element,
+                        $datafield,
+                        $datarecord,
+                        $template_name,
+                        $extra_parameters
+                    );
+                }
+            }
+
+            // If the datafield isn't using a render plugin, or the plugin didn't return anything...
+            if ( $output === '' ) {
+                // ...then use the standard edit datafield reload instead
+                $output = $odr_render_service->reloadEditDatafield(
                     $user,
                     $source_datarecord->getDataType(),
                     $theme_element,
                     $datafield,
                     $datarecord
-                )
+                );
+            }
+
+            $return['d'] = array(
+                'html' => $output
             );
         }
         catch (\Exception $e) {

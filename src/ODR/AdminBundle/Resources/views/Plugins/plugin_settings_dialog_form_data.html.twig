@@ -22,7 +22,7 @@
     <fieldset>
         {# Determine if the rendering plugin has any required fields #}
         {% if render_plugin['renderPluginFields']|length == 0 %}
-            This Render Plugin does not require specific fields.
+            This Render Plugin does not need to be mapped to any datafields.
         {% else %}
             {# Print out all required fields for this plugin #}
             <table class="pure-table pure-table-bordered pure-table-striped Cursor">
@@ -31,6 +31,7 @@
                     <th>Field Description</th>
                     <th>Field Type</th>
                     <th>Map to DataField...</th>
+                    <th></th>
                 </tr></thead>
                 <tbody>
                 {% for rpf_id,rpf in render_plugin['renderPluginFields'] %}
@@ -57,6 +58,13 @@
                                 {% endfor %}
                             </select>
                         </td>
+                        <td>
+                            {% if rpf.must_be_unique %}
+                            <i id="rpf_{{ rpf_id }}_warning" rel="must_be_unique" class="fa fa-lg fa-exclamation-triangle ODRRenderPluginField_warnings Info" title="This field must be unique."></i>
+                            {% elseif rpf.single_uploads_only %}
+                            <i id="rpf_{{ rpf_id }}_warning" rel="single_uploads_only" class="fa fa-lg fa-exclamation-triangle ODRRenderPluginField_warnings Info" title="This field must not allow multiple file/images."></i>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -71,11 +79,13 @@
 
     <script>
         $(function() {
-            {# apparently this block of code can't be moved to plugin_settings_dialog_form.html.twig #}
+            $(".ODRRenderPluginField_warnings").hide();
+
             $(".ODRRenderPluginMap").unbind('change').change(function() {
-                var datafield_id = $(this).val();
+                var datafield_id = parseInt( $(this).val() );
                 var render_plugin_field_id = $(this).attr('rel');
                 var fieldtype_id = $(this).children(':selected').attr('rel');
+                var rpf_warning = $("#rpf_" + render_plugin_field_id + "_warning");
 
                 if (datafield_id != '-1') {
                     // Prevent user from changing fieldtype of existing datafield
@@ -96,12 +106,33 @@
                         $("#plugin_datafield_creation_warn").show();
                     else
                         $("#plugin_datafield_creation_warn").hide();
+
+                    // Show required property warnings if needed
+                    if ( $(rpf_warning).length > 0 ) {
+                        var warning_type = $(rpf_warning).attr('rel');
+                        if ( warning_type === "must_be_unique" ) {
+                            if ( !current_unique_fields.includes(datafield_id) )
+                                $(rpf_warning).show();
+                            else
+                                $(rpf_warning).hide();
+                        }
+                        else if ( warning_type === "single_uploads_only" ) {
+                            if ( !current_single_upload_fields.includes(datafield_id) )
+                                $(rpf_warning).show();
+                            else
+                                $(rpf_warning).hide();
+                        }
+                    }
                 }
                 else {
                     // Let user select fieldtype of new datafield
                     $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', false);
                      // Show warning about creating new datafields
                     $("#plugin_datafield_creation_warn").show();
+
+                    // Hide warnings about required properties
+                    if ( $(rpf_warning).length > 0 )
+                        $(rpf_warning).hide();
                 }
             });
 

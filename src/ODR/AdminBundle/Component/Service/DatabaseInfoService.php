@@ -263,7 +263,9 @@ class DatabaseInfoService
 
                 partial dt_rpi.{id}, dt_rpi_rp,
                 partial dt_rpom.{id, value}, partial dt_rpo.{id, name},
-                partial dt_rpm.{id}, partial dt_rpf.{id, fieldName, allowedFieldtypes}, dt_rpm_df,
+                partial dt_rpm.{id},
+                partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived},
+                dt_rpm_df,
 
                 df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
@@ -271,7 +273,8 @@ class DatabaseInfoService
                 ro, rom, t, tm,
                 partial df_rpi.{id}, df_rpi_rp,
                 partial df_rpom.{id, value}, partial df_rpo.{id, name},
-                partial df_rpm.{id}, partial df_rpf.{id, fieldName, allowedFieldtypes}
+                partial df_rpm.{id},
+                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived}
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -502,16 +505,31 @@ class DatabaseInfoService
 
             foreach ($rpi['renderPluginMap'] as $rpm_num => $rpm) {
                 // ...then each renderPluginMap will have a single renderPluginField entry...
-                $rpf_fieldName = $rpm['renderPluginFields']['fieldName'];
-                $rpf_allowedFieldtypes = $rpm['renderPluginFields']['allowedFieldtypes'];
+                $rpf = $rpm['renderPluginFields'];
+                $rpf_fieldName = $rpf['fieldName'];
+                $rpf_allowedFieldtypes = $rpf['allowedFieldtypes'];
+
                 // ...and will have a single dataField entry if it's a datatype plugin (but won't
                 //  if it's a datafield plugin)
                 $rpf_df = array();
                 if ( isset($rpm['dataField']) )
                     $rpf_df = $rpm['dataField'];
 
-                // The datafield entry in here should also have the allowedFieldtype values
+                // The datafield entry in here should also have the rpf's allowedFieldtype values
                 $rpf_df['allowedFieldtypes'] = $rpf_allowedFieldtypes;
+
+                // It also needs any of the rpf's properties
+                $rpf_df['properties'] = array();
+                if ( $rpf['must_be_unique'] )
+                    $rpf_df['properties']['must_be_unique'] = 1;
+                if ( $rpf['single_uploads_only'] )
+                    $rpf_df['properties']['single_uploads_only'] = 1;
+                if ( $rpf['no_user_edits'] )
+                    $rpf_df['properties']['no_user_edits'] = 1;
+                if ( $rpf['autogenerate_values'] )
+                    $rpf_df['properties']['autogenerate_values'] = 1;
+                if ( $rpf['is_derived'] )
+                    $rpf_df['properties']['is_derived'] = 1;
 
                 // ...so the label of the renderPluginField can just point to the datafield that's
                 //  fulfilling the role defined by the rendrPluginField

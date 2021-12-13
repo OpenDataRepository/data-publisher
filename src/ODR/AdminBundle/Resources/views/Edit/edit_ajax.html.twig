@@ -1343,8 +1343,9 @@ function DeleteLinkedRecord(datarecord_id) {
  *
  * @param {string} form_id
  * @param {number} interval
+ * @param {number[]} datafields_to_reload
  */
-function SaveRecordData(form_id, interval) {
+function SaveRecordData(form_id, interval, datafields_to_reload = []) {
     // Clear the save timeout for this specific datafield
     clearTimeout(interval);
 
@@ -1386,6 +1387,11 @@ function SaveRecordData(form_id, interval) {
             // Could potentially be a jquery validate error message in here too...since the save
             //  finished successfully, remove all warning labels
             $(input_div).children('label').remove();
+
+            $.each(datafields_to_reload, function(index, df_id) {
+                // TODO - should this be a generic callback instead?
+                ReloadEditDatafield(datarecord_id, df_id);
+            });
         },
         error: function(jqXHR, textStatus, errorThrown) {
             if ( jqXHR.status !== 409 ) {

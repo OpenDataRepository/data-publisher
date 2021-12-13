@@ -5,7 +5,7 @@
 {% set typeclass = fieldtype.gettypeclass %}
 
 {% set is_external_id_field = false %}
-{% if datafield.datatype.externalIdField != null and datafield.id == datafield.datatype.externalIdField.id %}
+{% if datatype.externalIdField != null and datafield.id == datatype.externalIdField.id %}
     {% set is_external_id_field = true %}
 {% endif %}
 
@@ -125,16 +125,11 @@
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.is_unique) }}
             {% if must_be_unique %}
-                {{ form_widget(datafield_form.is_unique,
-                    {
-                        'attr': {
-                            'style': 'width:auto',
-                            'class': 'ODRFloatingCheckbox',
-                            'disabled': 'disabled',
-                            'title': 'This datafield is currently being used as the Datatype\'s External ID field, and must remain unique.'
-                        }
-                    })
-                }}
+                {% if is_external_id_field %}
+                    {{ form_widget(datafield_form.is_unique, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'title': 'This datafield is currently being used as the Datatype\'s External ID field, and must remain unique.'} }) }}
+                {% else %}
+                    {{ form_widget(datafield_form.is_unique, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'title': 'This datafield is currently required to be unique due to a Render Plugin.'} }) }}
+                {% endif %}
             {% else %}
                 {{ form_widget(datafield_form.is_unique,
                     {
@@ -145,7 +140,13 @@
                     })
                 }}
             {% endif %}
-            <label for="{{ datafield_form.is_unique.vars.id }}" {% if must_be_unique %}title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."{% endif %}>
+            <label for="{{ datafield_form.is_unique.vars.id }}"
+                   {% if must_be_unique and is_external_id_field%}
+                       title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."
+                   {% elseif must_be_unique %}
+                       title="This datafield is currently required to be unique due to a Render Plugin."
+                   {% endif %}
+            >
                 {{ datafield_form.is_unique.vars.label }}
                 <span>
                     <a target="_blank"
@@ -165,14 +166,11 @@
         %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.prevent_user_edits) }}
-            {{ form_widget(datafield_form.prevent_user_edits,
-                {
-                    'attr': {
-                        'style': 'width:auto',
-                        'class': 'ODRFloatingCheckbox',
-                    }
-                })
-            }}
+            {% if no_user_edits %}
+                {{ form_widget(datafield_form.prevent_user_edits, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox', 'disabled': 'disabled'} }) }}
+            {% else %}
+                {{ form_widget(datafield_form.prevent_user_edits, {'attr': {'style': 'width:auto', 'class': 'ODRFloatingCheckbox'} }) }}
+            {% endif %}
             <label for="{{ datafield_form.prevent_user_edits.vars.id }}" title="If checked, nobody is allowed to directly change values in this field.  Only useful when paired with specific render plugins.">
                 {{ datafield_form.prevent_user_edits.vars.label }}
             </label>
@@ -263,11 +261,19 @@
                 {{ datafield_form.allow_multiple_uploads.vars.label }}
             </label>
 
-            <span{% if has_multiple_uploads %} title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"{% endif %}>
+            <span {% if has_multiple_uploads %}
+                title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
+                  {% elseif single_uploads_only %}
+                title="This option can't be changed because a Render Plugin requires at most a single {{ typename }} uploaded to this Datafield"
+                  {% endif %}
+            >
 
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
             {% if has_multiple_uploads %}
                 <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
+                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
+            {% elseif single_uploads_only %}
+                <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="0" />
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
             {# TODO - warn when changing this would end up changing table layouts?
             {% elseif used_by_table_theme == true %}

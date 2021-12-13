@@ -87,13 +87,20 @@
                             <option value="new">Create new datafield...</option>
                             {% for df_id, df in datafields %}
                                 {% set df_meta = df.dataFieldMeta %}
+
+                                {# Fields marked as "no user edits" shouldn't be selectable, except when they're also the external id field #}
+                                {% set disable_selection = false %}
+                                {% if df_meta.prevent_user_edits and df_id != external_id_field.id %}
+                                    {% set disable_selection = true %}
+                                {% endif %}
+
                                 {% if df_meta.fieldType.id in allowed_fieldtypes|keys %}
                                     <option value="{{ df_id }}"
                                             rel="{{ df_meta.fieldType.id }}"
-                                        {% if not df_meta.prevent_user_edits and column_name|lower == df_meta.fieldName|lower %}
+                                        {% if column_name|lower == df_meta.fieldName|lower and not disable_selection%}
                                             selected
                                         {% endif %}
-                                        {% if df_meta.prevent_user_edits %}
+                                        {% if disable_selection %}
                                             disabled title="The Datatype's administrator has blocked changes to this Datafield."
                                         {% endif %}
                                     >
@@ -224,8 +231,15 @@
         allowed_fieldtypes[{{ ft_id }}] = "{{ ft_typename }}";
     {% endfor %}
 
+        {# make a note of all unique datafields that the user can edit #}
     {% for df in datafields %}
-        {% if df.dataFieldMeta.is_unique == 1 %}
+        {# Fields marked as "no user edits" shouldn't be selectable, except when they're also the external id field #}
+        {% set disable_selection = false %}
+        {% if df.dataFieldMeta.prevent_user_edits and df.id != external_id_field.id %}
+            {% set disable_selection = true %}
+        {% endif %}
+
+        {% if df.dataFieldMeta.is_unique == 1 and not disable_selection %}
         unique_datafields.push("{{ df.id }}");
         {% endif %}
     {% endfor %}

@@ -54,13 +54,21 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+// Events
+use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class EntityMetaModifyService
 {
+    /**
+     * @var string
+     */
+    private $env;
+
     /**
      * @var EntityManager
      */
@@ -77,6 +85,11 @@ class EntityMetaModifyService
     private $dti_service;
 
     /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -85,20 +98,26 @@ class EntityMetaModifyService
     /**
      * EntityMetaModifyService constructor.
      *
+     * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
+        string $environment,
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
+        EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
+        $this->env = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
     }
 
@@ -1557,10 +1576,11 @@ class EntityMetaModifyService
      * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
      * @param array $properties
      * @param bool $delay_flush
+     * @param bool $fire_event
      *
      * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
-    public function updateStorageEntity($user, $entity, $properties, $delay_flush = false)
+    public function updateStorageEntity($user, $entity, $properties, $delay_flush = false, $fire_event = true)
     {
         // Determine which type of entity to create if needed
         $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
@@ -1586,8 +1606,30 @@ class EntityMetaModifyService
                 $changes_made = true;
         }
 
-        if (!$changes_made)
+        if ( !$changes_made ) {
+            if ( $fire_event ) {
+                // ----------------------------------------
+                // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+                //  event subscribers will prevent file encryption otherwise...
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    $event = new PostUpdateEvent($entity, $user);
+                    $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+
+                    // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+                }
+                catch (\Exception $e) {
+                    // ...the event stuff is likely going to "disappear" any error it encounters, but
+                    //  might as well rethrow anything caught here since there shouldn't be a critical
+                    //  process downstream anyways
+                    if ( $this->env === 'dev' )
+                        throw $e;
+                }
+            }
+
             return $entity;
+        }
 
 
         // If this is an IntegerValue entity, set the value back to an integer or null so it gets
@@ -1639,6 +1681,27 @@ class EntityMetaModifyService
         if (!$delay_flush) {
             $this->em->persist($new_entity);
             $this->em->flush();
+        }
+
+        if ( $fire_event ) {
+            // ----------------------------------------
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                $event = new PostUpdateEvent($new_entity, $user);
+                $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+
+                // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+            }
+            catch (\Exception $e) {
+                // ...the event stuff is likely going to "disappear" any error it encounters, but
+                //  might as well rethrow anything caught here since there shouldn't be a critical
+                //  process downstream anyways
+                if ( $this->env === 'dev' )
+                    throw $e;
+            }
         }
 
         return $new_entity;

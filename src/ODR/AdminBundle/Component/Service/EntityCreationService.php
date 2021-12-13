@@ -70,14 +70,22 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Events
+use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 
 class EntityCreationService
 {
+
+    /**
+     * @var string
+     */
+    private $env;
 
     /**
      * @var EntityManager
@@ -100,6 +108,11 @@ class EntityCreationService
     private $uuid_service;
 
     /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -108,24 +121,29 @@ class EntityCreationService
     /**
      * EntityCreationService constructor.
      *
+     * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param LockService $lock_service
      * @param UUIDService $uuid_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
+        string $environment,
         EntityManager $entity_manager,
         CacheService $cache_service,
         LockService $lock_service,
         UUIDService $uuid_service,
+        EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
+        $this->env = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->lock_service = $lock_service;
         $this->uuid_service = $uuid_service;
-
+        $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
     }
 
@@ -247,6 +265,7 @@ class EntityCreationService
         $datarecord->setGrandparent($datarecord);
 
         // TODO - the part about "most areas" is not correct, it's currently only checked in EditController::editAction()
+        // TODO - ...does it actually need to be checked in more places, though?
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
         $datarecord->setUniqueId( $this->uuid_service->generateDatarecordUniqueId() );
 
@@ -1936,10 +1955,11 @@ class EntityCreationService
      * @param DataRecord $datarecord
      * @param DataFields $datafield
      * @param boolean|integer|string|\DateTime $initial_value
+     * @param boolean $fire_event
      *
      * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
-    public function createStorageEntity($user, $datarecord, $datafield, $initial_value = null)
+    public function createStorageEntity($user, $datarecord, $datafield, $initial_value = null, $fire_event = true)
     {
         // Locate the table name that will be inserted into if the storage entity doesn't exist
         $fieldtype = $datafield->getFieldType();
@@ -1997,6 +2017,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the storage entity that got created
+                /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
                 $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
                     array(
                         'dataRecord' => $datarecord->getId(),
@@ -2041,8 +2062,29 @@ class EntityCreationService
                 $this->em->flush();
                 $this->em->refresh($storage_entity);
 
-                // Now that the storage entity is is created, release the lock on it
+                // Now that the storage entity is created, release the lock on it
                 $lockHandler->release();
+            }
+        }
+
+        if ( !is_null($initial_value) && $fire_event ) {
+            // ----------------------------------------
+            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+            //  event subscribers will prevent file encryption otherwise...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                $event = new PostUpdateEvent($storage_entity, $user);
+                $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+
+                // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+            }
+            catch (\Exception $e) {
+                // ...the event stuff is likely going to "disappear" any error it encounters, but
+                //  might as well rethrow anything caught here since there shouldn't be a critical
+                //  process downstream anyways
+                if ( $this->env === 'dev' )
+                    throw $e;
             }
         }
 

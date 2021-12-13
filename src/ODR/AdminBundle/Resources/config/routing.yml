@@ -200,6 +200,12 @@ odr_install_plugin:
     defaults: { _controller: ODRAdminBundle:Plugins:installplugin }
     methods: [ POST ]
 
+odr_plugin_problems:
+    path:  /admin/plugins/problems/{plugin_classname}
+    defaults: { _controller: ODRAdminBundle:Plugins:pluginproblems }
+    requirements:
+        plugin_classname: '^[a-z0-9\.\_\-]*$'
+
 odr_update_plugin:
     path:  /admin/plugins/update
     defaults: { _controller: ODRAdminBundle:Plugins:updateplugin }
@@ -1442,6 +1448,12 @@ odr_compare_datatypes:
         left_datatype_id: \d+
         right_datatype_id: \d+
         filter: 0|1
+
+odr_purge_datatype:
+    path: /admin/purge/{datatype_ids}
+    defaults: { _controller: ODRAdminBundle:Validation:purge }
+    requirements:
+        datatype_ids: "^[0-9,]+$"
 
 #-----------------------------------------
 

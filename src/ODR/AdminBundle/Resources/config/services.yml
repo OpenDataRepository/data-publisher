@@ -244,18 +244,22 @@ services:
     odr.entity_creation_service:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
+            $environment: "%kernel.environment%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $lock_service: "@odr.lock_service"
             $uuid_service: "@odr.uuid_service"
+            $event_dispatcher: "@event_dispatcher"
             $logger: "@logger"
 
     odr.entity_meta_modify_service:
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
+            $environment: "%kernel.environment%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
+            $event_dispatcher: "@event_dispatcher"
             $logger: "@logger"
 
     odr.entity_deletion_service:

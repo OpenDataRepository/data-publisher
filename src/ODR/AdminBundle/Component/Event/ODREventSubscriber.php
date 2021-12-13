@@ -82,6 +82,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             FilePreEncryptEvent::NAME => 'onFilePreEncrypt',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
             PluginPreRemoveEvent::NAME => 'onPluginPreRemove',
+            PostUpdateEvent::NAME => 'onPostUpdate',
         );
     }
 
@@ -101,6 +102,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     private function isEventRelevant($event_name, $datatype, $datafield, $plugin_classname = null)
     {
+        // TODO - cache this?  it would only need to change when a renderPluginInstance gets added/removed
+
         // Need to cut the namespace out of $event_name, or it won't match the database
         $event_name = substr($event_name, strrpos($event_name, "\\") + 1);
 
@@ -376,6 +379,50 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datatype = $rpi->getDataType();
 
             $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
+            if ( !empty($relevant_plugins) ) {
+                // If any plugins remain, then load each plugin and call their required function
+                self::relayEvent($relevant_plugins, $event);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched PostUpdate events
+     *
+     * @param PostUpdateEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onPostUpdate(PostUpdateEvent $event)
+    {
+        try {
+            // TODO - technically, there's a chance for infinite recursion...a change to datafield A
+            // TODO -  triggers a change to datafield B, which can trigger a change to datafield A
+
+            // TODO - is there any method to completely prevent this recursion from inside the event?
+
+            // Determine whether any render plugins should run something in response to this event
+            $storage_entity = $event->getStorageEntity();
+            $datafield = $storage_entity->getDataField();
+            $datatype = $datafield->getDataType();
+
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);

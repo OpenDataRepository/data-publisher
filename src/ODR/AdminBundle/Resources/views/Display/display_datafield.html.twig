@@ -52,6 +52,7 @@
 {% endif %}
 
 {% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
 
     <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
@@ -82,7 +83,7 @@
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield_meta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                    <input type="checkbox" value="1" {% if valuefield_value == 1 %}checked{% endif %} disabled />
+                    <input id="{{ input_id }}" type="checkbox" value="1" {% if valuefield_value == 1 %}checked{% endif %} disabled />
                     {{ datafield_meta.fieldName }}
                 </div>
             </label>
@@ -178,7 +179,7 @@
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                <textarea class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
+                <textarea id="{{ input_id }}" class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
             </div>
         </fieldset>
 
@@ -186,7 +187,7 @@
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                <input class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
+                <input id="{{ input_id }}" class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
             </div>
         </fieldset>
 
@@ -235,7 +236,7 @@
         <fieldset>
             <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                <input type="text" class="pure-u-1 Cursor" value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
+                <input id="{{ input_id }}" type="text" class="pure-u-1 Cursor" value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
             </div>
         </fieldset>
 

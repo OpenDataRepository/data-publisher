@@ -56,12 +56,12 @@
                     {% endif %}
 
                     {% set is_amc_file_datafield = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ] == "AMC File" %}
+                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "AMC File" %}
                         {% set is_amc_file_datafield = true %}
                     {% endif %}
 
                     {% set is_file_contents_datafield = false %}
-                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ] == "File Contents" %}
+                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "File Contents" %}
                         {% set is_file_contents_datafield = true %}
                     {% endif %}
 

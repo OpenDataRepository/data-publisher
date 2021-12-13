@@ -222,7 +222,7 @@ class ReportsController extends ODRCustomController
         $values = array();
         foreach ($results as $num => $result) {
             $dr_id = $result['dr_id'];
-            $value = $result['datafield_value'];
+            $value = strval($result['datafield_value']);
 
             // Use the datarecord's name if it exists
             $dr_name = $dr_id;
@@ -291,7 +291,7 @@ class ReportsController extends ODRCustomController
             $dr_id = $result['dr_id'];
             $parent_id = $result['parent_id'];
             $grandparent_id = $result['grandparent_id'];
-            $value = $result['datafield_value'];
+            $value = strval($result['datafield_value']);
 
             // Use the grandparent datarecord's name if it exists
             $dr_name = $dr_id;

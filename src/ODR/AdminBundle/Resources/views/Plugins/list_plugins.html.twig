@@ -35,7 +35,11 @@
                     {% if installed_plugins[plugin_classname] is not defined %}
                         <button class="pure-button pure-button-primary ODRInstallRenderPlugin" rel="{{ plugin_classname }}">Install</button>
                     {% elseif plugins_with_updates[plugin_classname] is defined %}
-                        <button class="pure-button ODRUpdateRenderPlugin" rel="{{ plugin_classname }}">Update</button>
+                        {% if plugin_update_problems[plugin_classname] is defined %}
+                            <button class="pure-button ODRRenderPluginUpdateProblems" rel="{{ plugin_classname }}">Update <i class="fa fa-lg fa-exclamation-triangle"></i></button>
+                        {% else %}
+                            <button class="pure-button ODRUpdateRenderPlugin" rel="{{ plugin_classname }}">Update</button>
+                        {% endif %}
                     {% else %}
                         Yes
                     {% endif %}
@@ -183,6 +187,11 @@
                 }
             });
         });
+
+        $(".ODRRenderPluginUpdateProblems").unbind('click').click(function() {
+            var plugin_classname = $(this).attr('rel');
+            openPluginUpdateProblemsDialog(plugin_classname);
+        });
     });
 
     function redoRowClasses() {
@@ -194,6 +203,82 @@
                     $(this).removeClass('odd').addClass('even');
                 else
                     $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
+
+    var plugin_update_problems_body = '<div id="ODRPluginUpdateProblemsDialogWrapper" class="ODRHidden"> </div>';
+
+    /**
+     * Opens ODR's modal to display the problems associated with updating a render plugin
+     */
+    function openPluginUpdateProblemsDialog(plugin_classname) {
+        // open dialog
+        var modal_options = {
+            title: 'Problems when updating "' + plugin_classname + '"',
+            loading: true,
+            body: plugin_update_problems_body,
+            buttons: [
+                {
+                    id: 'ODRPluginUpdateProblems_close',
+                    text: 'Close'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadPluginProblems(plugin_classname);
+
+        // Attach an event handler to the close button
+        $("#ODRPluginUpdateProblems_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
+    }
+
+    /**
+     * Loads the HTML for a list of problems with updating a given render plugin.
+     *
+     * @param {string} plugin_classname
+     */
+    function loadPluginProblems(plugin_classname) {
+
+        var url  = '{{ path('odr_plugin_problems', {'plugin_classname': '' } ) }}';
+        url += plugin_classname;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRPluginUpdateProblemsDialogWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRPluginUpdateProblemsDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
         });
     }

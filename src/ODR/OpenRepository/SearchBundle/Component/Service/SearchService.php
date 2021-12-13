@@ -142,17 +142,23 @@ class SearchService
         else {
             // Otherwise, behavior depends on whether a datarecord was specified...
             if ( is_null($datarecord) ) {
-                // ...no datarecord specified, so this is likely a request from a fake record...having
-                // anything in the search results means the fake record should not be saved
+                // ...no datarecord specified, so this is likely a request from a fake record...since
+                //  there's at least one record in the search result, the value already exists
                 return true;
             }
             else {
                 // ...datarecord was specified, so this is likely a request from a regular record...
-                //  exactly one search result that points to this datarecord is still acceptable
-                if ( isset($search_results['records'][$datarecord->getId()]) )
+                if ( count($search_results['records']) === 1
+                    && isset($search_results['records'][$datarecord->getId()])
+                ) {
+                    //  ...exactly one search result that has this datarecord is still acceptable
                     return false;
-                else
+                }
+                else {
+                    // ...but more than one record in the search result isn't allowed regardless
+                    //  of whether the specified datarecord is in there or not
                     return true;
+                }
             }
         }
     }

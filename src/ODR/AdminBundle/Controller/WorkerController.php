@@ -263,7 +263,13 @@ class WorkerController extends ODRCustomController
                     // Create a new storage entity with the correct fieldtype...
                     $new_obj = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                     // ...then update it to have the desired value
-                    $emm_service->updateStorageEntity($user, $new_obj, array('value' => $value));
+                    $emm_service->updateStorageEntity(
+                        $user,
+                        $new_obj,
+                        array('value' => $value),
+                        false,    // don't delay flush
+                        false,    // don't fire PostUpdate Event...nothing fundamental has changed
+                    );
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";

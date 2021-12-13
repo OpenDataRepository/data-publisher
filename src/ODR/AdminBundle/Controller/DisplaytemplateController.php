@@ -2135,7 +2135,6 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
             $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
 
-            // TODO - how to handle render plugins demanding that datafields must_be_unique, must_not_allow_multiple_uploads, and must_prevent_user_edits?
             // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
 
             // Keep track of conditions where parts of the datafield shouldn't be changed...
@@ -2153,10 +2152,15 @@ class DisplaytemplateController extends ODRCustomController
             // Determine which fieldtypes the datafield is allowed to have
             $allowed_fieldtypes = $dfi_service->getAllowedFieldtypes($datafield, $datatype_array);
 
-            // Fields which are being used as the external id field must remain unique
-            $external_id_df = $datatype->getExternalIdField();
+            // Render plugins can demand that a file/image datafield only allows a single upload...
+            $single_uploads_only = $datafield_properties['single_uploads_only'];
+            // ...or that the field must remain unique...
+            $must_be_unique = $datafield_properties['must_be_unique'];
+            // ...or that the user isn't allowed to make changes in Edit mode
+            $no_user_edits = $datafield_properties['no_user_edits'];
 
-            $must_be_unique = false;
+            // Additionally, datafields which are being used as the external id field must be unique
+            $external_id_df = $datatype->getExternalIdField();
             if ( !is_null($external_id_df) && $external_id_df->getId() === $datafield->getId() )
                 $must_be_unique = true;
 
@@ -2410,9 +2414,21 @@ class DisplaytemplateController extends ODRCustomController
                         }
                     }
 
-                    // If the file/image field has multiple uploads, ensure that option remains checked
+
+                    // ----------------------------------------
+                    // Ensure the datafield only allows single uploads if it needs to
+                    if ( $single_uploads_only )
+                        $submitted_data->setAllowMultipleUploads(false);
+
+                    // If the file/image field has multiple uploads, ensure that option remains
+                    //  checked even if it's supposed to only allow single uploads...
                     if ( $has_multiple_uploads )
                         $submitted_data->setAllowMultipleUploads(true);
+
+
+                    // Ensure the datafield prevents user edits if it needs to
+                    if ( $no_user_edits )
+                        $submitted_data->setPreventUserEdits(true);
 
                     // If the tag field has multiple levels, ensure that option remains checked
                     if ( $has_tag_hierarchy )
@@ -2509,8 +2525,8 @@ class DisplaytemplateController extends ODRCustomController
                     //  entry needs to get recached anyways
                     $datatype_array = $dbi_service->getDatatypeArray($grandparent_datatype->getId());
                     // Don't need to filter here
-                    $datafield_properties = json_encode($dfi_service->getDatafieldProperties($datatype_array, $datafield->getId()));
-                    $return['d']['datafield_properties'] = $datafield_properties;
+                    $datafield_properties = $dfi_service->getDatafieldProperties($datatype_array, $datafield->getId());
+                    $return['d']['datafield_properties'] = json_encode($datafield_properties);
                 }
                 else {
                     // Form validation failed
@@ -2559,13 +2575,15 @@ class DisplaytemplateController extends ODRCustomController
                 $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
                     array(
+                        'must_be_unique' => $must_be_unique,
+                        'no_user_edits' => $no_user_edits,
+                        'single_uploads_only' => $single_uploads_only,
+
                         'has_multiple_uploads' => $has_multiple_uploads,
                         'has_tag_hierarchy' => $has_tag_hierarchy,
 
                         'prevent_fieldtype_change' => $prevent_fieldtype_change,
                         'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
-
-                        'must_be_unique' => $must_be_unique,
 
                         'datatype' => $datatype,
                         'datafield' => $datafield,

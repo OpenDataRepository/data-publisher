@@ -217,7 +217,8 @@ Forms Core
 
 .pure-skin-odr .pure-form button[disabled],
 .pure-skin-odr .pure-form input[disabled] {
-    cursor: default;
+    /*cursor: default;*/
+    cursor: not-allowed;
 }
 
 /*

@@ -38,6 +38,32 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             nullable: false
             column: active
 
+        must_be_unique:
+            type: boolean
+            nullable: false
+            default: false
+            column: must_be_unique
+        single_uploads_only:
+            type: boolean
+            nullable: false
+            default: false
+            column: single_uploads_only
+        no_user_edits:
+            type: boolean
+            nullable: false
+            default: false
+            column: no_user_edits
+        autogenerate_values:
+            type: boolean
+            nullable: false
+            default: false
+            column: autogenerate_values
+        is_derived:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_derived
+
         deletedAt:
             type: datetime
             nullable: true
@@ -55,6 +81,17 @@ ODR\AdminBundle\Entity\RenderPluginFields:
     indexes:
         rpf_name:
             columns: ["field_name"]
+
+        unique_idx:
+            columns: ["must_be_unique"]
+        uploads_idx:
+            columns: ["single_uploads_only"]
+        edits_idx:
+            columns: ["no_user_edits"]
+        autogenerate_idx:
+            columns: ["autogenerate_values"]
+        derived_idx:
+            columns: ["is_derived"]
 
     manyToOne:
         renderPlugin:
