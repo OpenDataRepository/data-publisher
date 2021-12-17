@@ -49,7 +49,7 @@
                             {% set datafield = datatype['dataFields'][datafield_id] %}
 
                             {% set is_file_contents_datafield = false %}
-                            {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ] == "File Contents" %}
+                            {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "File Contents" %}
                                 {% set is_file_contents_datafield = true %}
                             {% endif %}
 

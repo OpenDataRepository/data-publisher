@@ -2,6 +2,7 @@
 /app/cache/*
 /app/crypto_dir/*
 /app/logs/*
+/app/tmp/*
 !app/cache/.gitkeep
 !app/logs/.gitkeep
 

@@ -1229,6 +1229,31 @@ class ODRRenderService
 
 
     /**
+     * Entry point for render plugins that need to override datafield reloading.
+     *
+     * @param ODRUser $user
+     * @param DataType $source_datatype The Datatype of the top-level Datarecord the edit page is currently displaying
+     * @param ThemeElement $theme_element The id of the ThemeElement being re-rendered
+     * @param DataFields $datafield The id of the Datafield inside $datarecord_id being re-rendered
+     * @param DataRecord $datarecord The id of the Datarecord being re-rendered
+     * @param string $template_name The template to use
+     * @param array $extra_parameters Any extra parameters required for the plugin's template
+     *
+     * @return string
+     */
+    public function reloadPluginDatafield($user, $source_datatype, $theme_element, $datafield, $datarecord, $template_name, $extra_parameters)
+    {
+        if ($datafield->getDataType()->getId() !== $datarecord->getDataType()->getId())
+            throw new ODRBadRequestException();
+
+        // It doesn't make sense to synchronize the entire theme when just the datafield is getting
+        //  reloaded
+
+        return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);
+    }
+
+
+    /**
      * Renders and returns the HTML required to replace a single datafield in various display
      * modes of ODR.
      *

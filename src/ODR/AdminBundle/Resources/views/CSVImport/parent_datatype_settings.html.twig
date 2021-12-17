@@ -52,7 +52,7 @@
     {% if presets != null %}
         $("#parent_external_id_column").val( {{ presets.parent_external_id_column }} );
         $("#parent_external_id_column").trigger('change');
-        $("#parent_external_id_column").prop('disabled', true);
+        $("#parent_external_id_column").prop('disabled', false);    // Need to be able to change this after a failed csv validation
     {% endif %}
 
 {% if linked_importing %}
@@ -67,7 +67,7 @@
     {% if presets != null %}
         $("#remote_external_id_column").val( {{ presets.remote_external_id_column }} );
         $("#remote_external_id_column").trigger('change');
-        $("#remote_external_id_column").prop('disabled', true);
+        $("#remote_external_id_column").prop('disabled', false);    // Need to be able to change this after a failed csv validation
     {% endif %}
 {% endif %}
     });

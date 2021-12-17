@@ -58,6 +58,7 @@ class File
     private $unique_id;
 
     /**
+     * @deprecated
      * @var boolean
      */
     private $provisioned;
@@ -272,6 +273,7 @@ class File
     }
 
     /**
+     * @deprecated
      * Set provisioned
      *
      * @param boolean $provisioned
@@ -286,6 +288,7 @@ class File
     }
 
     /**
+     * @deprecated
      * Get provisioned
      *
      * @return boolean

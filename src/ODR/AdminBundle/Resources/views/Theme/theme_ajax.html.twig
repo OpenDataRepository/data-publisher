@@ -195,6 +195,7 @@
         updateChildtypeVisibility();
 
         $(".ODRReturn").unbind('click').click(function() {
+            {# TODO - this doesn't return to the correct page if the user got here through the linking UI #}
 {% if not is_short_form %}
             {# Don't need to change any value in the URL #}
             window.history.back();

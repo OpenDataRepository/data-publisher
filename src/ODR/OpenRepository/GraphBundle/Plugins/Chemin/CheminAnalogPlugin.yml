@@ -3,15 +3,20 @@ odr_plugins.chemin.chemin_analog:
     category: Chemin
     datatype: true
     render: true
-    version: 1.0.0
+    version: 1.0.1
     override_fields: truea
     override_child: false
     description: This plugin attempts to automatically increment the Database ID field for the Chemin Analog database.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
+
     required_fields:
         database_id_field:
             name: Database ID
             description: Database ID (CAxxxxx)
             type: ShortVarchar
+            properties:
+                - autogenerate_values
+                - must_be_unique
+
     config_options:

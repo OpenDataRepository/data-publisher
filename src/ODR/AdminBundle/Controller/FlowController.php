@@ -7,16 +7,18 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The Flow controller is originally based off the flow-php-server library,
- * but has been modified to work with Symfony's natural file handling, and
- * further modified to meed the specific needs of ODR.
+ * The Flow controller is originally based off the flow-php-server library, but has been modified
+ * to work with Symfony's natural file handling, and further modified to meet the specific needs of
+ * ODR.
  *
- * Due to the needs of the library, this controller intentionally does not use ODR's custom exceptions.
+ * Due to the needs of the library, this controller intentionally does not allow exceptions to
+ * go through ODR's custom exception handling...they're intercepted and sent back to flow.js
  *
  * @see https://github.com/flowjs/flow.js
  * @see https://github.com/flowjs/flow-php-server
  *
- * saveFile(), validateFile(), saveChunk(), validateChunk(), getChunkPath(), checkChunk() in particular borrow heavily from
+ * saveFile(), validateFile(), saveChunk(), validateChunk(), getChunkPath(), checkChunk() in
+ * particular borrow heavily from
  * @see https://github.com/flowjs/flow-php-server/blob/master/src/Flow/File.php
  */
 
@@ -29,9 +31,14 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\LockService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -136,8 +143,6 @@ class FlowController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -183,9 +188,9 @@ class FlowController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             if ( $upload_type == 'csv'
-                || $upload_type == 'xml'
+//                || $upload_type == 'xml'
                 || $upload_type == 'csv_import_file_storage'
-                || $upload_type == 'xml_import_file_storage'
+//                || $upload_type == 'xml_import_file_storage'
             ) {
                 if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     return self::flowAbort('Not allowed to upload csv/xml files for importing');
@@ -199,22 +204,34 @@ class FlowController extends ODRCustomController
                 if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                     return self::flowAbort('Not allowed to edit this Datafield');
 
-                // If user is trying to upload to a datafield that only allows a single file/image to be uploaded...
-                if ( !$datafield->getAllowMultipleUploads() ) {
-                    // ...ensure the datafield doesn't already have a file/image uploaded
-                    if ($upload_type == 'file') {
-                        $files = $em->getRepository('ODRAdminBundle:File')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-                        if ( count($files) > 0 ) {
-                            // return self::flowAbort('This Datafield already has a file uploaded to it');
-                        }
-                    }
-                    else if ($upload_type == 'image') {
-                        $images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId(), 'original' => 1) );
-                        if ( count($images) > 0 ){
-                           // return self::flowAbort('This Datafield already has an image uploaded to it');
-                        }
-                    }
-                }
+                // TODO - why was this verification check disabled several years ago?
+//                // If user is trying to upload to a datafield that only allows a single file/image...
+//                if ( !$datafield->getAllowMultipleUploads() ) {
+//                    // ...ensure the datafield doesn't already have a file/image uploaded
+//                    if ($upload_type == 'file') {
+//                        $files = $em->getRepository('ODRAdminBundle:File')->findBy(
+//                            array(
+//                                'dataRecord' => $datarecord->getId(),
+//                                'dataField' => $datafield->getId()
+//                            )
+//                        );
+//                        if ( count($files) > 0 ) {
+////                             return self::flowAbort('This Datafield already has a file uploaded to it');
+//                        }
+//                    }
+//                    else if ($upload_type == 'image') {
+//                        $images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+//                            array(
+//                                'dataRecord' => $datarecord->getId(),
+//                                'dataField' => $datafield->getId(),
+//                                'original' => 1
+//                            )
+//                        );
+//                        if ( count($images) > 0 ){
+////                            return self::flowAbort('This Datafield already has an image uploaded to it');
+//                        }
+//                    }
+//                }
             }
 
 
@@ -222,9 +239,9 @@ class FlowController extends ODRCustomController
             // Load file validation parameters
             $validation_params = $this->container->getParameter('file_validation');
             switch ($upload_type) {
-                case 'xml':
-                    $validation_params = $validation_params['xml'];
-                    break;
+//                case 'xml':
+//                    $validation_params = $validation_params['xml'];
+//                    break;
                 case 'csv':
                     $validation_params = $validation_params['csv'];
                     break;
@@ -235,7 +252,7 @@ class FlowController extends ODRCustomController
                     $validation_params = $validation_params['image'];
                     break;
                 case 'csv_import_file_storage':
-                case 'xml_import_file_storage':
+//                case 'xml_import_file_storage':
                     $maxsize = max( intval($validation_params['file']['maxSize']), intval($validation_params['image']['maxSize']) );
                     $validation_params = array(
                         'maxSize' => $maxsize,
@@ -245,7 +262,14 @@ class FlowController extends ODRCustomController
                         'mimeTypesErrorMessage' => 'Please upload a valid file for later importing.',   // TODO
                     );
                     break;
+                default:
+                    throw new ODRBadRequestException('Invalid upload type');
             }
+
+            // The maximum allowed filesize is stored in AdminBundle/Resources/config/services.yml
+            //  ...convert it from megabytes into bytes
+            $allowed_filesize = intval( $validation_params['maxSize'] );
+            $allowed_filesize = $allowed_filesize * 1024 * 1024;
 
 
             // ----------------------------------------
@@ -255,12 +279,10 @@ class FlowController extends ODRCustomController
                 $index = $request->query->get('flowChunkNumber');
                 $expected_size = intval( $request->query->get('flowTotalSize') );
 
-                $allowed_filesize = intval( $validation_params['maxSize'] );
-
                 if ( $expected_size === 0 ) {
                     return self::flowAbort("Unable to upload an zero-length file");
                 }
-                else if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
+                else if ( $expected_size > $allowed_filesize ) {
                     // TODO - delete uploaded chunks on abort/cancel?
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
@@ -287,15 +309,13 @@ class FlowController extends ODRCustomController
                 $identifier = $post->get('flowIdentifier');
                 $original_filename = trim( $post->get('flowFilename') );
 
-                $allowed_filesize = intval( $validation_params['maxSize'] );
-
                 if ( $expected_size === 0 ) {
                     // The chunk being uploaded is empty...in case this was a network problem,
                     //  instruct flow.js to re-attempt upload.  If the user is actually trying to
                     //  upload an empty file, flow.js will eventually give up
                     return self::flowError('Unable to upload file');
                 }
-                if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
+                if ( $expected_size > $allowed_filesize ) {
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
                 }
@@ -315,21 +335,26 @@ class FlowController extends ODRCustomController
             }
 
             // Check whether file is uploaded completely and properly
-            $path_prefix = $this->getParameter('odr_web_directory').'/';
-            $destination_folder = 'uploads/files/chunks/user_'.$user_id.'/completed';
+            $path_prefix = $this->getParameter('odr_tmp_directory').'/';
+            $destination_folder = 'user_'.$user_id.'/chunks/completed';
             if ( !file_exists($path_prefix.$destination_folder) )
                 mkdir( $path_prefix.$destination_folder );
 
             $destination = $path_prefix.$destination_folder.'/'.$original_filename;
 
-            if ( self::validateFile($user_id, $identifier, $total_chunks, $expected_size) && self::saveFile($user_id, $identifier, $total_chunks, $destination) ) {
+            if ( self::validateFile($user_id, $identifier, $total_chunks, $expected_size)
+                && self::saveFile($user_id, $identifier, $total_chunks, $destination)
+            ) {
                 // All file chunks sucessfully uploaded and spliced back together
                 $uploaded_file = new SymfonyFile($destination);
 
-                // Don't have to check filesize again...the sum of the sizes of the uploaded chunks have to match $expected_size, and too large of a file would be caught earlier
+                // Don't have to check filesize again...the sum of the sizes of the uploaded chunks
+                //  have to match $expected_size, and too large of a file would be caught earlier
 
                 // Have Symfony check mimetype now that file is uploaded...
-                if ( count($validation_params['mimeTypes']) > 0 && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
+                if ( count($validation_params['mimeTypes']) > 0
+                    && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes'])
+                ) {
                     $mimetype = $uploaded_file->getMimeType();
 
                     // Not allowed to upload file...delete it
@@ -345,17 +370,22 @@ class FlowController extends ODRCustomController
                 }
                 else if ($upload_type == 'xml') {
                     // Upload is an XMLImport file
-                    self::finishXMLUpload($path_prefix.$destination_folder, $original_filename, $user_id, $request);
+                    throw new ODRNotImplementedException('XML Importing');
+
+//                    self::finishXMLUpload($path_prefix.$destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($datarecord_id != 0 && $datafield_id != 0) {
-                    // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
+                    // Upload is meant for a file/image datafield
+                    /** @var EntityCreationService $ec_service */
+                    $ec_service = $this->container->get('odr.entity_creation_service');
                     $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
-                    parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $drf->getId());
 
-                    // Mark this datarecord as updated
-                    /** @var DatarecordInfoService $dri_service */
-                    $dri_service = $this->container->get('odr.datarecord_info_service');
-                    $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+                    /** @var ODRUploadService $upload_service */
+                    $upload_service = $this->container->get('odr.upload_service');
+                    if ( $upload_type === 'file' )
+                        $upload_service->uploadNewFile($destination, $user, $drf);
+                    else
+                        $upload_service->uploadNewImage($destination, $user, $drf);
                 }
                 else {
                     // Upload is a file/image meant to be referenced by a later XML/CSV Import
@@ -373,7 +403,8 @@ class FlowController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            return self::flowError( $e->getMessage() );     // TODO - this will let flow.js continue trying to upload...should it abort instead?
+            // TODO - this will let flow.js continue trying to upload...should it abort instead?
+            return self::flowError( $e->getMessage() );
         }
     }
 
@@ -381,22 +412,22 @@ class FlowController extends ODRCustomController
     /**
      * Moves the specified file from the upload directory to the user's CSVImport directory.
      *
-     * @param string $filepath             The absolute path to the file
-     * @param string $original_filename    The original name of the file
-     * @param integer $user_id             Which user is doing the uploading
+     * @param string $dirname The directory the CSV file is stored in
+     * @param string $original_filename The original name of the CSV file
+     * @param integer $user_id
      * @param Request $request
      *
      */
-    private function finishCSVUpload($filepath, $original_filename, $user_id, Request $request)
+    private function finishCSVUpload($dirname, $original_filename, $user_id, Request $request)
     {
         // Grab the uploaded file at its current location
-        $csv_file = new SymfonyFile($filepath.'/'.$original_filename);
+        $csv_file = new SymfonyFile($dirname.'/'.$original_filename);
 
         // Ensure a CSVImport directory exists for this user
-        $destination_folder = $this->getParameter('odr_web_directory').'/uploads/csv';
+        $destination_folder = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
-        $destination_folder .= '/user_'.$user_id;
+        $destination_folder .= '/csv';
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
 
@@ -423,6 +454,8 @@ class FlowController extends ODRCustomController
      */
     private function finishXMLUpload($filepath, $original_filename, $user_id, Request $request)
     {
+        throw new ODRNotImplementedException('XML Importing');
+
         // Grab the uploaded file at its current location
         $xml_file = new SymfonyFile($filepath.'/'.$original_filename);
 
@@ -450,34 +483,34 @@ class FlowController extends ODRCustomController
 
 
     /**
-     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a CSV/XML Import...
+     * Moves the specified file from the upload directory to the directory used for storing
+     *  files/images referenced as part of a CSV/XML Import...
      *
-     * @param string $filepath          The absolute path to the file
+     * @param string $dirname The directory this file is stored in
      * @param string $original_filename The original name of the file
-     * @param integer $user_id          Which user is doing the uploading
-     * @param string $upload_type       csv|xml
+     * @param integer $user_id
+     * @param string $upload_type Either "csv" or "xml"
      *
      */
-    private function finishImportFileUpload($filepath, $original_filename, $user_id, $upload_type)
+    private function finishImportFileUpload($dirname, $original_filename, $user_id, $upload_type)
     {
         // Grab the uploaded file at its current location
-        $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
+        $uploaded_file = new SymfonyFile($dirname.'/'.$original_filename);
 
         // Determine which directory structure to switch to
         $type = '';
         if ($upload_type == 'csv_import_file_storage')
             $type = 'csv';
-        else if ($upload_type == 'xml_import_file_storage')
-            $type = 'xml';
+//        else if ($upload_type == 'xml_import_file_storage')
+//            $type = 'xml';
+        else
+            throw new ODRBadRequestException('finishImportFileUpload(): invalid upload type "'.$upload_type.'"');
 
         // Ensure a CSV/XML Import directory exists for this user
-        $destination_folder = $this->getParameter('odr_web_directory').'/uploads/'.$type;
+        $destination_folder = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
-        $destination_folder .= '/user_'.$user_id;
-        if ( !file_exists($destination_folder) )
-            mkdir( $destination_folder );
-        $destination_folder .= '/storage';
+        $destination_folder .= '/'.$type.'_storage';
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         
@@ -505,58 +538,54 @@ class FlowController extends ODRCustomController
         if (!$handle)
             throw new \Exception('failed to open destination file: '.$destination);
 
-        // Get locks on destination file
-        if (!flock($handle, LOCK_EX | LOCK_NB, $blocked)) {
-            // @codeCoverageIgnoreStart
-            if ($blocked) {
-                // Concurrent request has requested a lock.
-                // File is being processed at the moment.
-                // Warning: lock is not checked in windows.
-                return false;
+        /** @var LockService $lock_service */
+        $lock_service = $this->container->get('odr.lock_service');
+        $lockHandler = $lock_service->createLock('user_'.$user_id.'_'.$identifier.'.lock');
+        if ( !$lockHandler->acquire() ) {
+            // There's apparently another process attempting to splice these chunks together?
+            // This shouldn't happen, so...
+            throw new ODRException('Unexpected lock encountered while attempting to save "'.$identifier.'"');
+        }
+        else {
+            // Got the lock, start splicing together the chunks of the file
+            try {
+                for ($i = 1; $i <= $total_chunks; $i++) {
+                    $file = self::getChunkPath($user_id, $identifier, $i);
+                    $chunk = fopen($file, "rb");
+
+                    if (!$chunk)
+                        throw new \Exception('failed to open chunk: '.$file);
+
+                    stream_copy_to_stream($chunk, $handle);
+                    fclose($chunk);
+                }
+
+                // File is now spliced together, delete intermediary chunks
+                for ($i = 1; $i <= $total_chunks; $i++) {
+                    $chunk = self::getChunkPath($user_id, $identifier, $i);
+
+                    if ( file_exists($chunk) )
+                        unlink($chunk);
+                }
             }
-            // @codeCoverageIgnoreEnd
-            throw new \Exception('failed to lock file: '.$destination);
-        }
+            catch (\Exception $e) {
+                // Some problem encountered, release the locks and rethrow the exception
+                $lockHandler->release();
 
-        try {
-            // Splice together all of the chunks of this specific file
-            for ($i = 1; $i <= $total_chunks; $i++) {
-                $file = self::getChunkPath($user_id, $identifier, $i);
-                $chunk = fopen($file, "rb");
-
-                if (!$chunk)
-                    throw new \Exception('failed to open chunk: '.$file);
-
-                stream_copy_to_stream($chunk, $handle);
-                fclose($chunk);
+                throw $e;
             }
         }
-        catch (\Exception $e) {
-            // Release locks
-            flock($handle, LOCK_UN);
-            fclose($handle);
 
-            throw $e;
-        }
-
-        // File completely uploaded, delete intermediary chunks
-        for ($i = 1; $i <= $total_chunks; $i++) {
-            $file = self::getChunkPath($user_id, $identifier, $i);
-
-            if ( file_exists($file) )
-                unlink( $file );
-        }
-
-        // Release locks
-        flock($handle, LOCK_UN);
-        fclose($handle);
+        // Finished successfully, release the locks
+        $lockHandler->release();
 
         return true;
     }
 
 
     /**
-     * Returns whether the size of the uploaded chunks equals the expected size of the complete file being uploaded.
+     * Returns whether the size of the uploaded chunks equals the expected size of the full file
+     * being uploaded...if not, then the file hasn't finished uploading yet.
      *
      * @param integer $user_id
      * @param string $identifier
@@ -579,7 +608,8 @@ class FlowController extends ODRCustomController
             $actual_size += filesize($chunk_file);
         }
 
-        // If the size of the uploaded chunks doesn't equal the expected size of the file, then something went wrong
+        // If the size of the uploaded chunks doesn't equal the expected size of the file, then
+        //  the file hasn't finished uploading yet
         if ( $actual_size !== $expected_size )
             return false;
 
@@ -599,16 +629,16 @@ class FlowController extends ODRCustomController
     {
         // Determine where the uploaded chunk should go, and break the path apart for UploadedFile::move()
         $destination = self::getChunkPath($user_id, $identifier, $index);
-        $filepath = substr( $destination, 0, strrpos($destination, '/') );
-        $filename = substr( $destination, strrpos($destination, '/')+1 );
+        $dirname = pathinfo($destination, PATHINFO_DIRNAME);
+        $filename = pathinfo($destination, PATHINFO_BASENAME);
 
         // Move the uploaded chunk to the correct spot
-        $file->move($filepath, $filename);
+        $file->move($dirname, $filename);
     }
 
 
     /**
-     * Returns whether an uploaded chunk conforms to expectations.
+     * Returns whether Symfony managed to correctly upload a chunk..
      *
      * @param UploadedFile $file
      * @param integer $current_chunk_size
@@ -641,7 +671,10 @@ class FlowController extends ODRCustomController
      */
     private function getChunkPath($user_id, $identifier, $index)
     {
-        $chunk_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/chunks/user_'.$user_id;
+        $chunk_upload_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        if ( !file_exists($chunk_upload_path) )
+            mkdir( $chunk_upload_path );
+        $chunk_upload_path .= '/chunks';
         if ( !file_exists($chunk_upload_path) )
             mkdir( $chunk_upload_path );
 

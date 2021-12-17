@@ -83,7 +83,10 @@ class PlugExtension extends \Twig_Extension
             return $svc->canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
         }
         catch (\Exception $e) {
-            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -118,7 +121,10 @@ class PlugExtension extends \Twig_Extension
             return $svc->execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord, $datatype_permissions, $datafield_permissions, $token_list);
         }
         catch (\Exception $e) {
-            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -154,7 +160,10 @@ class PlugExtension extends \Twig_Extension
             return $svc->execute($datafield, $datarecord, $render_plugin_instance, $themeType);
         }
         catch (\Exception $e) {
-            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
         }
     }
 

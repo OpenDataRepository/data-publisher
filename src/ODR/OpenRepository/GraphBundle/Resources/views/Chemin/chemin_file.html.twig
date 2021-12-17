@@ -36,7 +36,8 @@
                 <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
             </span>
 
-            {% if file.provisioned == true %}
+            {# NOTE - would be using encryptKey, but that property is stripped out of the cached array #}
+            {% if file.original_checksum == '' %}
                 <script>
                     $(function() {
                         createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});

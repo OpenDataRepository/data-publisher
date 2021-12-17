@@ -217,7 +217,8 @@ Forms Core
 
 .pure-skin-odr .pure-form button[disabled],
 .pure-skin-odr .pure-form input[disabled] {
-    cursor: default;
+    /*cursor: default;*/
+    cursor: not-allowed;
 }
 
 /*
@@ -3275,6 +3276,7 @@ form .row {
     max-width: 500px;
     z-index: 999;
     cursor: default;
+    left: 0px;
 }
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;

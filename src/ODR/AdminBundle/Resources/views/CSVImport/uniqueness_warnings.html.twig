@@ -45,10 +45,10 @@
             </div>
         {% endif %}
 
-        {# every other unique datafield needs a warning too #}
+        {# every other unique datafield that the user can edit needs a warning too #}
         {% for df_id, df in datafields %}
             {% set df_meta = df.dataFieldMeta %}
-            {% if df_meta.is_unique == 1 and external_id_field != null and external_id_field.id != df_id %}
+            {% if df_meta.is_unique == 1 and df_meta.prevent_user_edits == 0 and external_id_field != null and external_id_field.id != df_id %}
             <div id="datafield_{{ df_id }}_unique_notice" class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
                 <span>&nbsp;The unique Datafield "{{ df_meta.fieldName }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>

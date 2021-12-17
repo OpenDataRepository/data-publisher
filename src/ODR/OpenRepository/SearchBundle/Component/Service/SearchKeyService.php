@@ -64,14 +64,14 @@ class SearchKeyService
      * SearchKeyService constructor.
      *
      * @param DatabaseInfoService $database_info_service
-     * @param DataTreeInfoService $datatree_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param UserManager $user_manager
      * @param Logger $logger
      */
     public function __construct(
         DatabaseInfoService $database_info_service,
-        DataTreeInfoService $datatree_info_service,
+        DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         UserManager $user_manager,
         Logger $logger
@@ -246,9 +246,10 @@ class SearchKeyService
             $prev_char = $char;
         }
 
-        // If the quotation marks are unmatched, add one to the end of the string...
-        if ( $in_quote )
-            $cleaned .= '"';
+        // Don't add extra doublequotes if they're unmatched...user could be trying to search for
+        //  a single doublequote
+//        if ( $in_quote )
+//            $cleaned .= '"';
 
         return $cleaned;
     }
@@ -284,7 +285,7 @@ class SearchKeyService
         //  so the string no longer needs special UTF-8 treatment
         $len = strlen($str);
         for ($i = 0; $i < $len; $i++) {
-            $char = $str{$i};
+            $char = $str[$i];
 
             switch ($char) {
                 case "\"":
@@ -333,8 +334,8 @@ class SearchKeyService
                         //  AND operator and there's a space after the "OR"...
                         if ( $prev_token === '&&' && ($i+2) < $len ) {
                             // Determine whether this is an OR operator or not...
-                            $second_char = $str{$i+1};
-                            $third_char = $str{$i+2};
+                            $second_char = $str[$i+1];
+                            $third_char = $str[$i+2];
 
                             if ( ($second_char === 'r' || $second_char === 'R') && $third_char === ' ' ) {
                                 // This is an OR operator...replace the previous token with this one
@@ -366,8 +367,8 @@ class SearchKeyService
                         //  AND operator and there's a space after the "||"...
                         if ( $prev_token === '&&' && ($i+2) < $len ) {
                             // Determine whether this is an OR operator or not...
-                            $second_char = $str{$i+1};
-                            $third_char = $str{$i+2};
+                            $second_char = $str[$i+1];
+                            $third_char = $str[$i+2];
 
                             if ( $second_char === '|' && $third_char === ' ' ) {
                                 // This is an OR operator...replace the previous token with this one
@@ -495,7 +496,7 @@ class SearchKeyService
                     // Convert the given string into an array of radio option ids...
                     $radio_options = explode(',', $search_params[$df_id]);
                     foreach ($radio_options as $num => $ro_id) {
-                        if ( $ro_id{0} === '-' )
+                        if ( $ro_id[0] === '-' )
                             $ro_id = intval(substr($ro_id, 1));
                         else
                             $ro_id = intval($ro_id);
@@ -532,7 +533,7 @@ class SearchKeyService
                     // Convert the given string into an array of tag ids...
                     $tags = explode(',', $search_params[$df_id]);
                     foreach ($tags as $num => $t_id) {
-                        if ( $t_id{0} === '-' )
+                        if ( $t_id[0] === '-' )
                             $t_id = intval(substr($t_id, 1));
                         else
                             $t_id = intval($t_id);
@@ -888,7 +889,7 @@ class SearchKeyService
                     $selections = array();
                     foreach ($items as $num => $item) {
                         // Searches for unselected radio options or tags are preceded by a dash
-                        if ( $item{0} === '-' ) {
+                        if ( $item[0] === '-' ) {
                             $item = substr($item, 1);
                             $selections[$item] = 0;
                         }
@@ -1698,7 +1699,7 @@ class SearchKeyService
 
                     foreach ($value as $num => $entity_id) {
                         $selected = 'selected';
-                        if ( $entity_id{0} === '-' ) {
+                        if ( $entity_id[0] === '-' ) {
                             $entity_id = substr($entity_id, 1);
                             $selected = 'unselected';
                         }

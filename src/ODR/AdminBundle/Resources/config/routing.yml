@@ -200,6 +200,12 @@ odr_install_plugin:
     defaults: { _controller: ODRAdminBundle:Plugins:installplugin }
     methods: [ POST ]
 
+odr_plugin_problems:
+    path:  /admin/plugins/problems/{plugin_classname}
+    defaults: { _controller: ODRAdminBundle:Plugins:pluginproblems }
+    requirements:
+        plugin_classname: '^[a-z0-9\.\_\-]*$'
+
 odr_update_plugin:
     path:  /admin/plugins/update
     defaults: { _controller: ODRAdminBundle:Plugins:updateplugin }
@@ -666,14 +672,6 @@ odr_record_addchild:
         datatype_id:  \d+
         parent_id:  \d+
 
-odr_record_radio_selection:
-    path:  /edit/radioselection/{datarecord_id}/{datafield_id}/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Edit:radioselection }
-    requirements:
-        datarecord_id:  \d+
-        datafield_id:  \d+
-        radio_option_id:  \d+
-
 odr_record_delete_file:
     path:  /edit/deletefile/{file_id}
     defaults: { _controller: ODRAdminBundle:Edit:deletefile }
@@ -791,6 +789,14 @@ odr_design_save_radio_option_list:
     requirements:
         datafield_id:  \d+
 
+odr_record_radio_selection:
+    path:  /edit/radioselection/{datarecord_id}/{datafield_id}/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:RadioOptions:radioselection }
+    requirements:
+        datarecord_id:  \d+
+        datafield_id:  \d+
+        radio_option_id:  \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -841,7 +847,7 @@ odr_rename_tag:
         tag_id: \d+
 
 odr_tag_selection:
-    path:  /design/tags/selection/{datarecord_id}/{datafield_id}/{tag_id}
+    path:  /edit/tags/selection/{datarecord_id}/{datafield_id}/{tag_id}
     defaults: { _controller: ODRAdminBundle:Tags:tagselection }
     requirements:
         datarecord_id: \d+
@@ -953,13 +959,6 @@ odr_file_download:
     defaults: { _controller: ODRAdminBundle:Display:filedownload }
     requirements:
         file_id:  \d+
-
-# deprecated?
-#odr_cancel_file_decrypt:
-#    path:  /view/downloadfile_cancel/{file_id}
-#    defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }
-#    requirements:
-#        file_id:  \d+
 
 odr_image_download:
     path:  /view/downloadimage/{image_id}
@@ -1379,44 +1378,6 @@ odr_get_zip_archive_progress:
 #-----------------------------------------
 
 #-----------------------------------------
-# Other stuff
-#odr_mass_encrypt:
-#    path: /admin/mass_encrypt/{object_type}
-#    defaults: { _controller: ODRAdminBundle:Worker:startencrypt }
-#    requirements:
-#        object_type: 'file|File|image|Image'
-#odr_force_encrypt:
-#    path: /beanstalk/force_encrypt
-#    defaults: { _controller: ODRAdminBundle:Worker:encrypt }
-#    requirements: { methods: POST }
-
-#odr_mass_decrypt:
-#    path: /admin/mass_decrypt/{object_type}
-#    defaults: { _controller: ODRAdminBundle:Worker:startdecrypt }
-#    requirements:
-#        object_type: 'file|File|image|Image'
-
-odr_child_theme_migrate:
-    path: /admin/child_theme_migrate
-    defaults: { _controller: ODRAdminBundle:Worker:childthememigrate }
-odr_migrate_plugins:
-    path: /admin/plugins_migrate
-    defaults: { _controller: ODRAdminBundle:Worker:migrateplugins }
-odr_create_theme_versions:
-    path: /admin/theme_version_init
-    defaults: { _controller: ODRAdminBundle:Worker:themeversioninit }
-odr_set_unique_ids:
-    path: /admin/set_unique_ids/{uuid_type}
-    defaults: { _controller: ODRAdminBundle:Worker:setuniqueids }
-    requirements:
-        uuid_type: 'datatype|datafield|radio|datarecord|file|image|tag'
-odr_fix_setup_steps:
-    path: /admin/fix_setup_steps
-    defaults: { _controller: ODRAdminBundle:Worker:fixsetupsteps }
-
-#-----------------------------------------
-
-#-----------------------------------------
 # Validation Controller
 
 # Ensures dates aren't in a "0000-00-00 ..." format
@@ -1480,10 +1441,6 @@ odr_check_fieldtype_table:
     path:  /admin/check_fieldtype_table
     defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
 
-odr_update_datatype_names:
-    path:  /admin/update_datatype_names
-    defaults: { _controller: ODRAdminBundle:Worker:updatedatatypenames }
-
 odr_compare_datatypes:
     path:  /admin/type/compare/{left_datatype_id}/{right_datatype_id}/{filter}
     defaults: { _controller:  ODRAdminBundle:Validation:comparedatatypes, filter: 1 }
@@ -1491,6 +1448,12 @@ odr_compare_datatypes:
         left_datatype_id: \d+
         right_datatype_id: \d+
         filter: 0|1
+
+odr_purge_datatype:
+    path: /admin/purge/{datatype_ids}
+    defaults: { _controller: ODRAdminBundle:Validation:purge }
+    requirements:
+        datatype_ids: "^[0-9,]+$"
 
 #-----------------------------------------
 

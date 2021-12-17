@@ -167,8 +167,9 @@ class CheminAnalogPlugin implements DatatypePluginInterface
                 if ($df == null)
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
-                // The "Database ID" field needs to be handled differently
-                $plugin_fields[$rpf_df_id] = $rpf_name;
+                // Need to tweak display parameters for several of the fields...
+                $plugin_fields[$rpf_df_id] = $rpf_df;
+                $plugin_fields[$rpf_df_id]['rpf_name'] = $rpf_name;
             }
 
 
@@ -293,7 +294,7 @@ class CheminAnalogPlugin implements DatatypePluginInterface
 
         // Convert it back into the expected format so the storage entity can get created
         $new_value = 'CA'.str_pad($val, 5, '0', STR_PAD_LEFT);
-        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value);
+        $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
 
         // No longer need the lock
         $lockHandler->release();

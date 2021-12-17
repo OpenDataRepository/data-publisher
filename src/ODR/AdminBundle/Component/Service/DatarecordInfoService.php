@@ -261,14 +261,13 @@ class DatarecordInfoService
             $associated_datarecords[] = $grandparent_datarecord_id;
         }
 
-        // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+        // Grab the cached versions of all of the associated datarecords, and store them all at the
+        //  same level in a single array
         $datarecord_array = array();
         foreach ($associated_datarecords as $num => $dr_id) {
             $datarecord_data = $this->cache_service->get('cached_datarecord_'.$dr_id);
             if ($datarecord_data == false)
                 $datarecord_data = self::buildDatarecordData($dr_id);
-
-            // TODO - if sortfield belongs to a linked datatype, then sortfieldValue doesn't contain the value used for sorting
 
             foreach ($datarecord_data as $dr_id => $data)
                 $datarecord_array[$dr_id] = $data;
@@ -396,6 +395,7 @@ class DatarecordInfoService
         //  subarrays...all but the following keys should be unset in order to reduce the amount of
         //  memory that php needs to allocate to store a cached datarecord entry...it adds up.
         $drf_keys_to_keep = array(
+//            'dataField',
             'id', 'created',
             'file', 'image',       // keeping these for now because multiple pieces of code assume they exist
             'child_tagSelections', // this property will only be created if 'tagSelection' exists
@@ -413,6 +413,14 @@ class DatarecordInfoService
         //  to be slightly flattened in a few places.
         foreach ($datarecord_data as $dr_num => $dr) {
             $dr_id = $dr['id'];
+
+            // If the datarecord's datatype is null, then it belongs to a deleted datatype and
+            //  should be completely ignored
+            // TODO - should this filtering happen inside the mysql query?
+            if ( is_null($dr['dataType']) ) {
+                unset( $datarecord_data[$dr_num] );
+                continue;
+            }
 
             // Flatten datarecord_meta
             if ( count($dr['dataRecordMeta']) == 0 ) {
@@ -462,28 +470,36 @@ class DatarecordInfoService
             $child_datarecords = array();
             foreach ($dr['children'] as $child_num => $cdr) {
                 $cdr_id = $cdr['id'];
-                $cdr_dt_id = $cdr['dataType']['id'];
 
                 // A top-level datarecord is listed as its own parent in the database
                 // Don't store it as its own child
                 if ( $cdr_id == $dr['id'] )
                     continue;
 
-                if ( $cdr_dt_id !== null && !isset($child_datarecords[$cdr_dt_id]) )
-                    $child_datarecords[$cdr_dt_id] = array();
+                // Need to verify that the child datatype isn't deleted before attempting to store
+                //  the child datarecord
+                if ( !is_null($cdr['dataType']) ) {
+                    $cdr_dt_id = $cdr['dataType']['id'];
 
-                if ( $cdr_id !== null )
+                    // Store that this datarecord is a child of its parent
+                    if ( !isset($child_datarecords[$cdr_dt_id]) )
+                        $child_datarecords[$cdr_dt_id] = array();
                     $child_datarecords[$cdr_dt_id][] = $cdr_id;
+                }
             }
             foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
                 $ldr_id = $ldt['descendant']['id'];
-                $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
-                if ( $ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
-                    $child_datarecords[$ldr_dt_id] = array();
+                // The deletion process does extra work to ensure nothing can link to a deleted
+                //  datatype...but make doubly sure here
+                if ( !is_null($ldt['descendant']['dataType']) ) {
+                    $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
-                if ( $ldr_id !== null )
+                    // Store this linked datarecord as a "child" of the datarecord that links to it
+                    if ( !isset($child_datarecords[$ldr_dt_id]) )
+                        $child_datarecords[$ldr_dt_id] = array();
                     $child_datarecords[$ldr_dt_id][] = $ldr_id;
+                }
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
@@ -495,8 +511,8 @@ class DatarecordInfoService
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
                 // Not going to end up saving datafield/datafieldmeta...but need to verify it exists
                 if ( !is_array($drf['dataField']) || count($drf['dataField']) == 0 ) {
-                    // If the dataField array is empty, then this is most likely a datarecordfield
-                    //  entry that references a deleted datafield
+                    // If the dataField array isn't an array or is empty, then this is most likely
+                    //  a datarecordfield entry that references a deleted datafield
 
                     // Not really an error, since deleting datafields doesn't also delete drf entries
                     continue;
@@ -709,6 +725,9 @@ class DatarecordInfoService
             // These two values should default to the datarecord id if empty
             if ( $dr_data['nameField_value'] == '' )
                 $dr_data['nameField_value'] = $dr_id;
+
+            // TODO - if sortfield belongs to a linked datatype, then this value will always be blank
+            // TODO - would have to do something else to locate the correct value...
             if ( $dr_data['sortField_value'] == '' ) {
                 $dr_data['sortField_value'] = $dr_id;
                 $dr_data['sortField_typeclass'] = '';
@@ -812,7 +831,7 @@ class DatarecordInfoService
      * Deletes the cached table entries for the specified datatype...currently used by several
      * render plugins after they get removed or their settings get changed...
      *
-     * TODO - better way of handling this requirement?
+     * TODO - is there a better place for this function?  CacheService doesn't load the database...
      *
      * @param int $grandparent_datatype_id
      */

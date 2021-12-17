@@ -13,8 +13,9 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
-// ODR
+// Services
 use ODR\AdminBundle\Component\Service\CryptoService;
+// ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -44,10 +45,13 @@ class CSVTablePlugin implements DatafieldPluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
-     * @param $odr_web_directory
+     * @param string $odr_web_directory
      */
-    public function __construct(EngineInterface $templating, CryptoService $crypto_service, $odr_web_directory)
-    {
+    public function __construct(
+        EngineInterface $templating,
+        CryptoService $crypto_service,
+        $odr_web_directory
+    ) {
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
         $this->odr_web_directory = $odr_web_directory;
@@ -78,14 +82,22 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 $file = $datarecord['dataRecordFields'][$datafield['id']]['file']['0'];
                 $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
                 if (!$local_filepath) {
-                    // File does not exist, decrypt it
-                    $local_filepath = $this->crypto_service->decryptFile($file['id']);
-
-                    // If file is not public, make sure it gets deleted later
+                    // File does not exist, decryption depends on whether the file is
+                    //  public or not...
                     $public_date = $file['fileMeta']['publicDate'];
                     $now = new \DateTime();
-                    if ($now < $public_date)
+                    if ($now < $public_date) {
+                        // File is not public...decrypt to something hard to guess
+                        $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
+                        $local_filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+
+                        // Ensure the decrypted version gets deleted later
                         array_push($files_to_delete, $local_filepath);
+                    }
+                    else {
+                        // File is public, but not decrypted for some reason
+                        $local_filepath = $this->crypto_service->decryptFile($file['id']);
+                    }
                 }
 
                 // Only allow this action for files smaller than 5Mb?
@@ -97,15 +109,27 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 // TODO - test whether this'll work on stupid csv files like CSVImport has to deal with
                 // Load file and parse into array
                 $data_array = array();
-                if (($handle = fopen($local_filepath, "r")) !== FALSE) {
-                    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                        array_push($data_array, $data);
-                    }
-                    fclose($handle);
+
+                $handle = fopen($local_filepath, "r");
+                if ( !$handle )
+                    throw new \Exception('Could not open "'.$local_filepath.'"');
+
+                // TODO - modify so the plugin can effectively "auto-detect" separators like web/js/mylibs/odr_plotly_graphs.js does?
+                // TODO - ...the afformentioned js file uses regex to break lines into "words", instead of a pre-defined separator
+                $separator = ",";
+
+                $data = fgetcsv($handle, 1000, $separator);
+                while ( $data !== false ) {
+                    array_push($data_array, $data);
+                    $data = fgetcsv($handle, 1000, $separator);
                 }
 
 
-                // Delete previously encrypted non-public files
+                // ----------------------------------------
+                // Done reading the file
+                fclose($handle);
+
+                // Delete any non-public files that got decrypted
                 foreach ($files_to_delete as $file_path)
                     unlink($file_path);
 

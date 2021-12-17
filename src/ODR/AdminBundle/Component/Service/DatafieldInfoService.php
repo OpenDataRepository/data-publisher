@@ -124,6 +124,12 @@ class DatafieldInfoService
 
                         'has_tag_hierarchy' => $has_tag_hierarchy,
                     );
+
+                    // There are a couple more properties that can be required as a result of a
+                    //  render plugin
+                    $render_plugin_properties = self::getRenderPluginProperties($datatype_array, $dt_id, $df_id);
+                    foreach ($render_plugin_properties as $key => $value)
+                        $datafield_properties[$df_id][$key] = $value;
                 }
             }
         }
@@ -221,6 +227,67 @@ class DatafieldInfoService
 
 
     /**
+     * Helper function to determine whether a datafield should have/keep a property as a result of
+     * the render plugin it's mapped to.
+     *
+     * @param array $datatype_array
+     * @param int $datatype_id
+     * @param int $datafield_id
+     *
+     * @return array
+     */
+    public function getRenderPluginProperties($datatype_array, $datatype_id, $datafield_id)
+    {
+        // Render plugins can require these properties...
+        $props = array(
+            'must_be_unique' => false,
+            'single_uploads_only' => false,
+            'no_user_edits' => false,
+
+            // These have no bearing on datafield properties TODO - right?
+//            'autogenerate_values' => false,
+//            'is_derived' => false,
+        );
+
+        // ...but the datafield isn't guaranteed to be used by a render plugin
+        $dt = $datatype_array[$datatype_id];
+        $df = $dt['dataFields'][$datafield_id];
+
+        // Check whether a datatype plugin is using this datafield
+        if ( !empty($dt['renderPluginInstances']) ) {
+            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                    if ( $rpf['id'] === $datafield_id ) {
+                        // This datafield is being used by a datatype plugin
+                        foreach ($rpf['properties'] as $key => $value) {
+                            // Save whether the datatype plugin requires a given property
+                            if ( isset($props[$key]) && $value === 1 )
+                                $props[$key] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check whether a datafield plugin is using this datafield
+        if ( !empty($df['renderPluginInstances']) ) {
+            foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                    // If this point is reached, the datafield is using a datafield plugin
+                    foreach ($rpf['properties'] as $key => $value) {
+                        // Save whether the datafield plugin requires a given property
+                        if ( isset($props[$key]) && $value === 1 )
+                            $props[$key] = true;
+                    }
+                }
+            }
+        }
+
+        return $props;
+    }
+
+
+    /**
      * Helper function to determine whether a datafield can have its fieldtype changed.
      *
      * Tracked jobs in-progress prevent changing of fieldtype too, but those need to be checked for
@@ -243,7 +310,8 @@ class DatafieldInfoService
 
 
         // TODO - the FieldType table has a list of sortable fieldtypes...but migration takes so long that the datatype will usually be sorted with an incomplete set of values...
-        // Also prevent a fieldtype change if the datafield is being used as the sort field by any datatype
+        // Also prevent a fieldtype change if the datafield is being used as a sort field by
+        //  any datatype
         $query = $this->em->createQuery(
            'SELECT dtm.shortName
             FROM ODRAdminBundle:DataFields AS df
@@ -439,12 +507,14 @@ class DatafieldInfoService
             $values = array();
             foreach ($results as $result) {
                 $value = $result['value'];
-                if ( isset($values[$value]) )
+                if ( isset($values[$value]) ) {
                     // Found duplicate, return false
                     return false;
-                else
+                }
+                else {
                     // Found new value, save and continue checking
                     $values[$value] = 1;
+                }
             }
         }
         else {
@@ -469,12 +539,14 @@ class DatafieldInfoService
                 if ( !isset($values[$parent_id]) )
                     $values[$parent_id] = array();
 
-                if ( isset($values[$parent_id][$value]) )
+                if ( isset($values[$parent_id][$value]) ) {
                     // Found duplicate, return false
                     return false;
-                else
+                }
+                else {
                     // Found new value, save and continue checking
                     $values[$parent_id][$value] = 1;
+                }
             }
         }
 

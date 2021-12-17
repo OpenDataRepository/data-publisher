@@ -251,6 +251,9 @@
 {% endif %}
     });
 
+    /**
+     * Attaches the slide open/shut to the "view options" icon.
+     */
     function initViewManager() {
         // Setup Theme System
         setupThemeSystem();
@@ -260,6 +263,9 @@
         });
     }
 
+    /**
+     * Attaches the correct click handler to the "Choose View" button.
+     */
     function setupThemeSystem() {
         // Init the choose view button
         $("#ChooseView").unbind('click').click(function(event) {
@@ -267,6 +273,9 @@
         });
     }
 
+    /**
+     * Opens the modal for users to view/select available themes for this datatype.
+     */
     function chooseView() {
         modal_options = {
             title: "Choose from available views:",
@@ -314,6 +323,9 @@
         });
     }
 
+    /**
+     * Attaches click handlers to all the buttons inside the "available themes" modal.
+     */
     function initChooseViewButtons() {
         $(".ODRDeleteTheme").unbind('click').click(function() {
             // Show loading with "Deleting" text
@@ -351,7 +363,8 @@
 
         $(".ODRModifyTheme").unbind('click').click(function() {
             var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-            openModifyThemeEditor(theme_id);
+            // Do not set this theme as the user's default for this datatype
+            openModifyThemeEditor(theme_id, false);
         });
 
         $(".ODRDefaultDatabase").unbind('click').click(function() {
@@ -362,13 +375,20 @@
         });
 
         $(".ODRMakeViewPublic").unbind('click').click(function() {
-            setModalMessage("Setting view as database default.");
+            setModalMessage("Toggling public status of view.");
 
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
             makeViewPublic(theme_id);
         });
     }
 
+    /**
+     * Triggers a change to the user's current theme.
+     *
+     * @param {number} theme_id The theme to use
+     * @param {bool} redirect If true, reloads the page to immediately use the selected theme
+     * @param {bool} persist If true, then the database is updated to indicate the user prefers to use the selected theme
+     */
     function applyView(theme_id, redirect, persist) {
         if (persist)
             persist = 1;
@@ -433,6 +453,11 @@
         });
     }
 
+    /**
+     * Triggers a copy of the selected theme, then redirects to the design page for the new theme.
+     *
+     * @param {number} theme_id
+     */
     function copyAndModifyView(theme_id) {
         var url = '{{ path('odr_clone_theme', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
@@ -451,8 +476,8 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 // Open the edit page for the new theme
-                // This will also make the new theme the user's current session theme
-                openModifyThemeEditor(data.d.new_theme_id);
+                // This will also make the new theme the user's default for this datatype
+                openModifyThemeEditor(data.d.new_theme_id, true);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -475,10 +500,15 @@
         });
     }
 
-    function openModifyThemeEditor(theme_id) {
+    /**
+     * Opens the design page for the given theme.
+     *
+     * @param {number} theme_id
+     * @param {bool} persist
+     */
+    function openModifyThemeEditor(theme_id, persist = false) {
         // Set view for session
         var redirect = false;
-        var persist = true;
         applyView(theme_id, redirect, persist);
 
         closeODRRemodal();
@@ -498,6 +528,11 @@
         window.location.hash = url;
     }
 
+    /**
+     * Toggles the public status of the given theme.
+     *
+     * @param {number} theme_id
+     */
     function makeViewPublic(theme_id) {
         var url = '{{ path('odr_toggle_theme_public', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
@@ -532,6 +567,12 @@
         });
     }
 
+    /**
+     * Sets the given theme as its datatype's default theme (for the inferred context...display,
+     *  table, search_results, etc)
+     *
+     * @param {number} theme_id
+     */
     function makeDatabaseDefault(theme_id) {
         var url = '{{ path('odr_make_default_theme', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
@@ -568,6 +609,11 @@
         });
     }
 
+    /**
+     * Deletes the given theme.
+     *
+     * @param {number} theme_id
+     */
     function deleteView(theme_id) {
         var url = '{{ path('odr_delete_custom_theme', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;

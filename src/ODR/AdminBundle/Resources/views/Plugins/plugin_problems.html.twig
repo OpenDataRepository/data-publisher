@@ -1,0 +1,73 @@
+{% spaceless %}
+
+<div id="ODRPluginProblemsWrapper">
+    <table id="ODRPluginUpdateProblemsTable" class="display dataTable">
+        <thead><tr>
+            <th></th>
+            <th>Database</th>
+            <th>Datafield</th>
+            <th>Error</th>
+        </tr></thead>
+        <tbody>
+{% for grandparent_dt_id, dt_data in plugin_update_problems %}
+    {% for dt_name, df_data in dt_data %}
+        {% for df_name, df_problems in df_data %}
+            {% for num, msg in df_problems %}
+                <tr>
+                    <td><i class='ODRRenderPluginProblemDatatype fa fa-external-link' rel="{{ grandparent_dt_id }}"></i></td>
+                    <td>{{ dt_name }}</td>
+                    <td>{{ df_name }}</td>
+                    <td>{{ msg }}</td>
+                </tr>
+           {% endfor %}
+        {% endfor %}
+    {% endfor %}
+{% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    #ODRPluginProblemsWrapper {
+        padding: 12px;
+        background: white none;
+        border-radius: 4px;
+        box-sizing: border-box;
+        color: #555;
+        line-height: 1.6;
+    }
+</style>
+
+<script>
+    $(function() {
+        $("#ODRPluginUpdateProblemsTable").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "orderable": false,
+                    "searchable": false
+                },
+            ],
+            "order": [ [0, "asc"] ],
+            "searching": false,
+            // "autoWidth": true,
+            "autoWidth": false,
+            "paging": false,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+            "info": false,
+        });
+        $("#ODRPluginUpdateProblemsTable").removeAttr('style');
+
+        $(".ODRRenderPluginProblemDatatype").unbind('click').click(function() {
+            var dt_id = $(this).attr('rel');
+            var url = '{{ path('odr_design_master_theme', {'datatype_id': 0}) }}';
+            url = url.substring(0,(url.length - 1)) + dt_id;
+
+            window.open('{{ path('odr_admin_homepage') }}#' + url, "_blank");
+        });
+    });
+</script>
+
+{% endspaceless %}

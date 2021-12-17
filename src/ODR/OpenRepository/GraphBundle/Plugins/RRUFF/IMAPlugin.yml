@@ -1,0 +1,97 @@
+odr_plugins.rruff.ima:
+    name: IMA Plugin
+    category: RRUFF
+    datatype: true
+    render: true
+    version: 1.0.0
+    override_fields: true
+    override_child: false
+    description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.
+    registered_events:
+        DatarecordCreatedEvent: onDatarecordCreate
+        PostUpdateEvent: onPostUpdate
+
+    ##### IMPORTANT #####
+    # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
+    # IMAPlugin.php and twig files for this plugin use them to match renderplugin fields to actual datafields
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
+    #####################
+
+    required_fields:
+        mineral_id:
+            name: Mineral ID
+            description: An external ID used for the data
+            type: IntegerValue
+            properties:
+                - autogenerate_values
+                - must_be_unique
+
+        mineral_name:
+            name: Mineral Name
+            description:
+            type: MediumVarchar
+            properties:
+                - must_be_unique
+                - no_user_edits
+                - is_derived
+        mineral_display_name:
+            name: Mineral Display Name
+            description:
+            type: MediumVarchar
+            properties:
+                - must_be_unique
+
+        mineral_abbrev:
+            name: Mineral Abbreviation
+            description:
+            type: ShortVarchar
+            properties:
+                - must_be_unique    # NOTE - comment this out if abbreviations are added after the rest of the mineral's data
+                - no_user_edits
+                - is_derived
+        mineral_display_abbrev:
+            name: Mineral Display Abbreviation
+            description:
+            type: ShortVarchar
+            properties:
+                - must_be_unique    # NOTE - comment this out if abbreviations are added after the rest of the mineral's data
+
+        chemistry_elements:
+            name: Chemistry Elements
+            description:
+            type: LongVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+        ima_formula:
+            name: IMA Formula
+            description:
+            type: LongVarchar
+
+        valence_elements:
+            name: Valence Elements
+            description:
+            type: LongVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+        rruff_formula:
+            name: RRUFF Formula
+            description:
+            type: LongVarchar
+
+#        end_member_elements:    # TODO - rruff.info derives end member elements from the RRUFF formula
+#            name: End Member Elements
+#            description:
+#            type: LongVarchar
+#            properties:
+#                - no_user_edits
+#                - is_derived
+#        end_member_formula:
+#            name: End Member Formula
+#            description:
+#            type: LongVarchar
+
+        # TODO - alternate display and search for first/second reference
+
+    config_options:

@@ -1530,7 +1530,7 @@ class SearchQueryService
 
             $pieces = explode(' AND ', $block);
             foreach ($pieces as $piece) {
-                $char = $piece{8};
+                $char = $piece[8];
                 if ($char === 'L') {
                     // searching for  e.value LIKE <something>  ...can't be null
                     $possible = false;
@@ -1692,13 +1692,31 @@ class SearchQueryService
                 else {
                     // found opening quote
                     $in_quotes = true;
-                    $tmp = "\"";
+                    $tmp .= "\"";    // Don't reset the piece incase this is a "dangling" doublequote
                 }
             }
             else {
                 if ($in_quotes) {
-                    // append to fragment
-                    $tmp .= $char;
+                    if ( $char === ' '                    // if this character is a space...
+                        && substr($tmp, -1) === "\""      // ...that was preceeded by a doublequote...
+                        && ($i-1) === strrpos($str, "\"") // ...and that was the final doublequote in the string...
+                    ) {
+                        // ...then assume that the user wants to search for a single doublequote,
+                        //  in addition to whatever else was in the string (though it's more likely
+                        //  they made a typo, technically...)
+
+                        // Immediately abort the "in quotes" state
+                        $in_quotes = false;
+                        $pieces[] = $tmp;
+                        $tmp = '';
+                        // Since this space is not being treated as "in a quote", need to splice an
+                        //  'AND' into the parsed query instead
+                        $pieces[] = '&&';
+                    }
+                    else {
+                        // append to fragment
+                        $tmp .= $char;
+                    }
                 }
                 else {
                     switch ($char) {
@@ -1903,6 +1921,10 @@ class SearchQueryService
             }
             else {
                 if (!$inequality) {
+                    $piece_is_quoted = false;
+                    if ( strlen($piece) > 2 && substr($piece, 0, 1) === "\"" && substr($piece, -1) === "\"" )
+                        $piece_is_quoted = true;
+
                     if ( $piece === "\"\"" && $can_be_null ) {
                         if ($negate)
                             $str .= ' IS NOT NULL ';
@@ -1911,8 +1933,16 @@ class SearchQueryService
 
                         $searching_on_null = true;
                     }
-                    else if ( strpos($piece, "\"") !== false && strpos($piece, " ") === false ) {  // does have a quote, but doesn't have a space
-                        $piece = str_replace("\"", '', $piece);    // replace doublequote with nothing
+                    else if ( $piece_is_quoted && strpos($piece, " ") === false ) {  // does have a quote, but doesn't have a space
+                        // NOTE - this intentionally excludes searches like "\"abc def\""...I'm
+                        //  betting that people using that construct are more likely to expect it to
+                        //  match some ~phrase~ inside the datafield, instead of expecting it to
+                        //  match the entire content of the datafield
+
+                        // If the first/last characters are doublequotes, replace them with nothing
+                        if ($piece_is_quoted)
+                            $piece = substr($piece, 1, -1);
+
                         if ( is_numeric($piece) )
                             if ( strpos($piece, '.') === false )
                                 $piece = intval($piece);
@@ -1928,7 +1958,10 @@ class SearchQueryService
                         // MYSQL escape characters due to use of LIKE
                         $piece = str_replace("\\", '\\\\', $piece);     // replace backspace character with double backspace
                         $piece = str_replace( array('%', '_'), array('\%', '\_'), $piece);   // escape existing percent and understore characters
-                        $piece = str_replace("\"", '', $piece);    // replace doublequote with nothing
+
+                        // If the first/last characters are doublequotes, replace them with nothing
+                        if ($piece_is_quoted)
+                            $piece = substr($piece, 1, -1);
 
                         $piece = '%'.$piece.'%';
                         if ($negate)

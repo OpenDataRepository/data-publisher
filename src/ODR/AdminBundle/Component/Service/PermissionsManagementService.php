@@ -974,7 +974,8 @@ class PermissionsManagementService
 
             // Build the permissions list for datatypes
             foreach ($group['groupDatatypePermissions'] as $num => $permission) {
-                if ( !isset($permission['dataType']['id']) )
+                // Ensure this permission doesn't belong to a deleted datatype
+                if ( is_null($permission['dataType']) )
                     continue;
 
                 $dt_id = $permission['dataType']['id'];
@@ -998,6 +999,10 @@ class PermissionsManagementService
 
             // Build the permissions list for datafields
             foreach ($group['groupDatafieldPermissions'] as $num => $permission) {
+                // Ensure this permission doesn't belong to a datafield from a deleted datatype
+                if ( is_null($permission['dataField']) || is_null($permission['dataField']['dataType']) )
+                    continue;
+
                 $dt_id = $permission['dataField']['dataType']['id'];
                 if ( !isset($datafield_permissions[$dt_id]) )
                     $datafield_permissions[$dt_id] = array();

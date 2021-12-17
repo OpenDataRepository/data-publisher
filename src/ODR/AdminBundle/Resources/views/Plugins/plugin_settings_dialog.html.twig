@@ -133,7 +133,8 @@
                 notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
+                // Should close the remodal on an error so the user can see the error message
+                closeODRRemodal();
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

@@ -1285,18 +1285,17 @@ class CSVExportController extends ODRCustomController
 
 
             // Ensure directories exists
-            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/';
             if ( !file_exists($csv_export_path) )
                 mkdir( $csv_export_path );
-
-            $tmp_csv_export_path = $csv_export_path.'tmp/';
-            if ( !file_exists($tmp_csv_export_path) )
-                mkdir( $tmp_csv_export_path );
+            $csv_export_path .= 'csv_export/';
+            if ( !file_exists($csv_export_path) )
+                mkdir( $csv_export_path );
 
 
             // Open the indicated file
             $filename = 'f_'.$random_key.'.csv';
-            $handle = fopen($tmp_csv_export_path.$filename, 'a');
+            $handle = fopen($csv_export_path.$filename, 'a');
             if ($handle !== false) {
                 // Write the line given to the file
                 // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
@@ -1408,7 +1407,7 @@ class CSVExportController extends ODRCustomController
 
                 // Make a "final" file for the export, and insert the header line
                 $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
-                $final_file = fopen($csv_export_path.$final_filename, 'w');     // this should be created in the web/uploads/csv_export/ directory, not the web/uploads/csv_export/tmp/ directory
+                $final_file = fopen($csv_export_path.$final_filename, 'w');
 
                 if ($final_file !== false) {
 //                    $delimiter = "\t";
@@ -1518,7 +1517,7 @@ class CSVExportController extends ODRCustomController
 
             // -----------------------------------------
             // Append the contents of one of the temporary files to the final file
-            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
             $final_file = fopen($csv_export_path.$final_filename, 'a');
             if (!$final_file)
                 throw new ODRException('Unable to open csv export finalize file');
@@ -1527,15 +1526,15 @@ class CSVExportController extends ODRCustomController
             $tracked_csv_export_id = null;
             foreach ($random_keys as $tracked_csv_export_id => $random_key) {
                 $tmp_filename = 'f_'.$random_key.'.csv';
-                $str = file_get_contents($csv_export_path.'tmp/'.$tmp_filename);
+                $str = file_get_contents($csv_export_path.$tmp_filename);
 //print $str."\n\n";
 
                 if ( fwrite($final_file, $str) === false )
                     print 'could not write to "'.$csv_export_path.$final_filename.'"'."\n";
 
                 // Done with this intermediate file, get rid of it
-                if ( unlink($csv_export_path.'tmp/'.$tmp_filename) === false )
-                    print 'could not unlink "'.$csv_export_path.'tmp/'.$tmp_filename.'"'."\n";
+                if ( unlink($csv_export_path.$tmp_filename) === false )
+                    print 'could not unlink "'.$csv_export_path.$tmp_filename.'"'."\n";
 
                 $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->find($tracked_csv_export_id);
                 $em->remove($tracked_csv_export);
@@ -1660,7 +1659,7 @@ class CSVExportController extends ODRCustomController
             // TODO Is there some reason user_id is passed rather than retrieved from the user object?
             $user_id = $user->getId();
 
-            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
 

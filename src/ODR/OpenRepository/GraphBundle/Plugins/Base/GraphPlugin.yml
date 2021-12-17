@@ -15,6 +15,8 @@ odr_plugins.base.graph:
             name: Graph File
             description: A file containing XY values for plotting.
             type: File
+#            properties:
+#                - single_uploads_only    # TODO - several dozen databases on ODR need tweaked prior to enabling this
         pivot:
             name: Pivot Field
             description: If multiple data sets are plotted, the pivot field will be displayed to allow the user to switch between data sets.

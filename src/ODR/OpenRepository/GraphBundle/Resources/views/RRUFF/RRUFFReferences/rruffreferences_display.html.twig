@@ -1,0 +1,113 @@
+{% spaceless %}
+
+{% if is_top_level == 1 %}
+<div class="ODRContentWrapper">
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
+{% endif %}
+
+<div class="ODRRenderPluginContent{% if is_top_level == 1 %} ODRReferenceSingle{% else %} ODRReference{% endif %}">
+{% if mapping is defined %}
+    {% set author = '' %}
+    {% if mapping.authors is defined %}
+        {% if mapping.authors is iterable and mapping.authors|length > 0 %}
+            {# NOTE - these datafield_plugin calls works because ReferencesPlugin.php finds the renderPluginInstance that actually renders something...it's not the original cached datafield array #}
+            {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin_instance, 'text')|raw %}
+        {% else %}
+            {% set author = mapping.authors %}
+        {% endif %}
+    {% endif %}
+
+    {% set year = '' %}
+    {% if mapping.year is defined %}
+        {% if mapping.year is iterable and mapping.year|length > 0 %}
+            {% set year = mapping.year.datafield|datafield_plugin(datarecord, mapping.year.render_plugin_instance, 'text')|raw %}
+        {% else %}
+            {% set year = mapping.year %}
+        {% endif %}
+    {% endif %}
+
+    {% set article_title = '' %}
+    {% if mapping.article_title is defined %}
+        {% if mapping.article_title is iterable and mapping.article_title|length > 0 %}
+            {% set article_title = mapping.article_title.datafield|datafield_plugin(datarecord, mapping.article_title.render_plugin_instance, 'text')|raw %}
+        {% else %}
+            {% set article_title = mapping.article_title %}
+        {% endif %}
+    {% endif %}
+
+    {% set journal = '' %}
+    {% if mapping.journal is defined %}
+        {% if mapping.journal is iterable and mapping.journal|length > 0 %}
+            {% set journal = mapping.journal.datafield|datafield_plugin(datarecord, mapping.journal.render_plugin_instance, 'text')|raw %}
+        {% else %}
+            {% set journal = mapping.journal %}
+        {% endif %}
+    {% endif %}
+
+    {% set volume = '' %}
+    {% if mapping.volume is defined %}
+        {% if mapping.volume is iterable and mapping.volume|length > 0 %}
+            {% set volume = mapping.volume.datafield|datafield_plugin(datarecord, mapping.volume.render_plugin_instance, 'text')|raw %}
+        {% else %}
+            {% set volume = mapping.volume %}
+        {% endif %}
+    {% endif %}
+
+    {% set pages = '' %}
+    {% if mapping.pages is defined %}
+        {% if mapping.pages is iterable and mapping.pages|length > 0 %}
+            {% set pages = mapping.pages.datafield|datafield_plugin(datarecord, mapping.pages.render_plugin_instance, 'text')|raw %}
+        {% else %}
+            {% set pages = mapping.pages %}
+        {% endif %}
+    {% endif %}
+{#
+    {% set book_title = '' %}
+    {% if mapping.book_title is defined and mapping.book_title|length > 0 %}
+        {% set book_title = mapping.book_title.datafield|datafield_plugin(datarecord, mapping.book_title.render_plugin_instance, 'text')|raw %}
+    {% endif %}
+
+    {% set publisher = '' %}
+    {% if mapping.publisher is defined and mapping.publisher|length > 0 %}
+        {% set publisher = mapping.publisher.datafield|datafield_plugin(datarecord, mapping.publisher.render_plugin_instance, 'text')|raw %}
+    {% endif %}
+
+    {% set publisher_location = '' %}
+    {% if mapping.publisher_location is defined and mapping.publisher_location|length > 0 %}
+        {% set publisher_location = mapping.publisher_location.datafield|datafield_plugin(datarecord, mapping.publisher_location.render_plugin_instance, 'text')|raw %}
+    {% endif %}
+#}
+
+    {% if not (author == '' and year == '' and article_title == '' and journal == '' and volume == '' and pages == '') %}
+        {{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
+    {% endif %}
+
+{#
+    {% if article_title != '' %}
+        {{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
+    {% elseif book_title != '' %}
+        {{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ book_title|raw }}&nbsp;{{ pages|raw }}&nbsp;{{ publisher|raw }},&nbsp;{{ publisher_location|raw }}
+    {% endif %}
+#}
+
+    {% if mapping.file|length > 0 %}
+        {% for file in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
+            &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" rel="{{ file.id }}">[view file]</a>
+
+            {# these spans are needed so the file downloading javascript doesn't crash...commenting out the classnames renders them invisible #}
+            <span id="ODRFileDecrypt_{{ file.id }}_overlay" {#class="ODRFakeProgressBar_overlay"#} style="visibility:hidden;">
+                <span id="ODRFileDecrypt_{{ file.id }}_progress" {#class="ODRFakeProgressBar"#}></span>
+            </span>
+        {% endfor %}
+    {% endif %}
+{% endif %}
+</div>
+
+{% if is_top_level == 1 %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endspaceless %}

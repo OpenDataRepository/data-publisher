@@ -90,10 +90,9 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
     /**
      * Returns the file that has been uploaded, BUT NOT ENCRYPTED YET.
      *
-     * Unlike fully encrypted files, the "provisioned" property is true and the "OriginalChecksum"
-     * property is not set.  The "LocalFileName" property is the path to the file (likely somewhere
-     * in /web/uploads/files/chunks/user_#/completed/), and the "OriginalFileName" property is the
-     * current filename.  @see WorkerController::cryptorequestAction() for more details.
+     * Unlike fully encrypted files, the originalChecksum and encryptKey properties are not set. Use
+     *  $file->getLocalFileName().'/'.$file->getOriginalFileName(); to get the full path to the file
+     *  on the server.
      *
      * @return File
      */

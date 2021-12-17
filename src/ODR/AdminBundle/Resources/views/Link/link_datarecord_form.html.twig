@@ -10,7 +10,7 @@
 {% endif %}
 
 <div class="ODRFormWrap">
-    <form action="{{ path('odr_link_datarecords') }}" method="post" class="full validate" id="LinkDataRecordForm">
+    <form method="post" class="full validate" id="LinkDataRecordForm">
         <input type="hidden" name="local_datarecord_id" value="{{ local_datarecord.id }}" />
         <input type="hidden" name="ancestor_datatype_id" value="{{ ancestor_datatype.id }}" />
         <input type="hidden" name="descendant_datatype_id" value="{{ descendant_datatype.id }}" />
@@ -122,7 +122,12 @@
         });
     });
 
-    // For the current page of the given table, update state of all checkboxes
+    /**
+     * Updates the given HTML able to match the linked status of the internal javascript arrays.
+     *
+     * @param {HTMLElement} table
+     * @param {boolean} force_enabled
+     */
     function initCheckboxes(table, force_enabled) {
         $(table).find('.ODRLinkCheckbox').each(function() {
             var dr_id = parseInt( $(this).attr('rel') );
@@ -139,7 +144,19 @@
         });
     }
 
-    // Handles check events from checkboxes
+    /**
+{% if allow_multiple_links or not local_datarecord_is_ancestor %}
+     * The local datarecord is allowed to link to multiple remote datarecords...toggles whether the
+     *  selected remote datarecord is linked to or not in the internal javascript arrays, but doesn't
+     *  actually save anything...that happens when submitForm() is called.
+{% else %}
+     * The local datarecord is only allowed to link to a single remote datarecord...changes which
+     *  remote datarecord is linked to in the internal javascript arrays, but doesn't actually save
+     *  anything...that happens when submitForm() is called.
+{% endif %}
+     *
+     * @param {number} dr_id
+     */
     function LinkRecord(dr_id) {
         var dr = "#dr_" + dr_id;    // This references the hidden input
 
@@ -176,20 +193,36 @@
     }
 
 {% if not allow_multiple_links and local_datarecord_is_ancestor %}
+    /**
+     * When the local record is only allowed to link to a single remote record, the UI uses a radio
+     *  option instead of a checkbox.  Since a radio option can't be deselected in the browser, there
+     *  needs to be a javascript function to do it instead.
+     */
     function unlinkCurrentDatarecord() {
         // Remove the datarecord id from the form so it isn't submitted
+        var change_made = false;
         $("#LinkDataRecordForm").children('input').each(function() {
-            if ( $(this).attr('name').indexOf('datarecords[') !== -1 )
+            if ( $(this).attr('name').indexOf('datarecords[') !== -1 ) {
                 $(this).remove();
+                change_made = true;
+            }
         });
 
         // Uncheck the radio checkbox
         var dr_id = $(".ODRCurrentLink").attr('rel');
         $('.dr_' + dr_id).prop('checked', false);
+
+        // If something was done...
+        if ( change_made ) {
+            // ...then immediately submit the form so users don't get confused
+            submitForm();
+        }
     }
 {% endif %}
 
-
+    /**
+     * Returns to the local datarecord's edit page.
+     */
     function returnToDatarecord() {
         var url = '{{ path('odr_record_edit', {'datarecord_id': 0} ) }}';
         url = url.substr(0, (url.length-1));
@@ -203,9 +236,12 @@
     }
 
 
+    /**
+     * Submits the form of remote datarecords that the user wants the local datarecord to link to.
+     */
     function submitForm() {
         var post_data = $("#LinkDataRecordForm").serialize();
-        var url = $("#LinkDataRecordForm").attr('action');
+        var url = "{{ path('odr_link_datarecords') }}";
 
 //alert(url);  return;
 
@@ -215,8 +251,9 @@
             dataType: "json",
             data: post_data,
             success: function(data, textStatus, xhr) {
-                // Force a reload of the page so stuff is guaranteed to display correctly
-                window.location.reload();
+                // Only reload the page if a change was made
+                if ( data.d.change_made )
+                    window.location.reload();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -237,6 +274,10 @@
         });
     }
 
+    /**
+     * Convenience function to select all datarecords in the returned search result, which will cause
+     *  the controller to link to all remote records in the search result if the form is submitted.
+     */
     function selectAllRecords() {
         // Add hidden input elements for all currently unselected datarecords
         jQuery.each(all_datarecords, function(index, dr_id) {
@@ -260,6 +301,10 @@
         linked_datarecords = all_datarecords.slice();
     }
 
+    /**
+     * Convenience function to deselect all datarecords on the page, which will cause the controller
+     *  to unlink all remote records of the remote datatype if the form is submitted.
+     */
     function deselectAllRecords() {
         // Remove hidden input elements for all currently selected datarecords
         jQuery.each(linked_datarecords, function(index, dr_id) {

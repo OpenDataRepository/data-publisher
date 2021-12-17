@@ -17,12 +17,15 @@ namespace ODR\OpenRepository\UserBundle\Controller;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Services
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Router;
 
 
 class UtilityController extends Controller
@@ -83,6 +86,7 @@ class UtilityController extends Controller
     {
         // Going to need these...
         $session = $request->getSession();
+        /** @var Router $router */
         $router = $this->get('router');
 
         // Ensure query was correctly formed
@@ -101,6 +105,40 @@ class UtilityController extends Controller
         // The fragment should be an actual route...
         // Not bothering to catch any exception that arises, would just rethrow it anyways
         $route = $router->match($fragment);
+
+        // If the user is attempting to log in from a search results page...
+        if ( $route['_route'] === 'odr_search_render' && isset($route['search_key']) ) {
+            // ...then there's a chance that they have a preferred theme for the current datatype
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_params = $search_key_service->decodeSearchKey($route['search_key']);
+            $datatype_id = $search_params['dt_id'];
+
+            // However, there's no way to know which user is going to log in, so the fragment needs
+            //  to be modified so that it doesn't tell the render action which theme to use.  However,
+            //  this should only happen when the search results theme that the user was using was
+            //  the datatype's default theme...don't want to override a previous selection.
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $default_search_theme = $theme_info_service->getDatatypeDefaultTheme($datatype_id, 'search_results');
+
+            $search_theme_id = intval($route['search_theme_id']);
+            if ( $search_theme_id === $default_search_theme->getId() ) {
+                // Regenerate the route, but set the search_theme_id to "0"
+                $fragment = $router->generate(
+                    'odr_search_render',
+                    array(
+                        'search_key' => $route['search_key'],
+                        'offset' => $route['offset'],
+                        'search_theme_id' => 0
+                    )
+                );
+
+                // Remove "/app_dev.php" from the beginning of the route, if it exists
+                if ( $has_appdev )
+                    $fragment = substr($fragment, 12);
+            }
+        }
 
         // Ensure target paths except for "_security.main.target_path" are cleared before saving
         // If that path was cleared, users would always get redirected to the dashboard

@@ -280,21 +280,27 @@ class CloneThemeService
             foreach ($t['themeElements'] as $te_num => $te) {
                 if (isset($te['themeDataFields'])) {
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $tdf_id = $tdf['id'];
-                        $df_id = $tdf['dataField']['id'];
+                        // Ignore themeDatafield entries for deleted datafields
+                        if ( !is_null($tdf['dataField']) ) {
+                            $tdf_id = $tdf['id'];
+                            $df_id = $tdf['dataField']['id'];
 
-                        $theme_array[$t_id]['theme_datafields'][$df_id] = $tdf_id;
+                            $theme_array[$t_id]['theme_datafields'][$df_id] = $tdf_id;
+                        }
                     }
                 }
 
                 if (isset($te['themeDataType'])) {
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                        $tdt_id = $tdt['id'];
-                        $c_dt_id = $tdt['dataType']['id'];
-                        $c_t_id = $tdt['childTheme']['id'];
-                        $c_s_t_id = $tdt['childTheme']['sourceTheme']['id'];
+                        // Ignore themeDatatype entries for deleted datatypes
+                        if ( !is_null($tdt['dataType']) ) {
+                            $tdt_id = $tdt['id'];
+                            $c_dt_id = $tdt['dataType']['id'];
+                            $c_t_id = $tdt['childTheme']['id'];
+                            $c_s_t_id = $tdt['childTheme']['sourceTheme']['id'];
 
-                        $theme_array[$t_id]['theme_datatypes'][$c_dt_id] = array('tdt_id' => $tdt_id, 'c_t_id' => $c_t_id, 'c_s_t_id' => $c_s_t_id);
+                            $theme_array[$t_id]['theme_datatypes'][$c_dt_id] = array('tdt_id' => $tdt_id, 'c_t_id' => $c_t_id, 'c_s_t_id' => $c_s_t_id);
+                        }
                     }
                 }
             }

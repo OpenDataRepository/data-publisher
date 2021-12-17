@@ -263,7 +263,7 @@ class DefaultController extends Controller
             $odr_tab_id = $odr_tab_service->createTabId();
 
             // TODO - modify search page to allow users to select from available themes
-            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
+//            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
 
 
@@ -303,7 +303,7 @@ class DefaultController extends Controller
                     'datatype_relations' => $datatype_relations,
 
                     // theme selection
-                    'available_themes' => $available_themes,
+//                    'available_themes' => $available_themes,
                     'preferred_theme_id' => $preferred_theme_id,
                 )
             );

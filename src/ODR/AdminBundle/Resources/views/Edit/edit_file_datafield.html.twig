@@ -46,11 +46,12 @@
             <a {#href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"#} class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
         </span>
 
-        <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.provisioned == false %}style="visibility:hidden;"{% endif %}>
+        <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
             <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
         </span>
 
-        {% if file.provisioned == true %}
+        {# NOTE - would be using encryptKey, but that property is stripped out of the cached array #}
+        {% if file.original_checksum == '' %}
             <script>
                 $(function() {
                     createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});

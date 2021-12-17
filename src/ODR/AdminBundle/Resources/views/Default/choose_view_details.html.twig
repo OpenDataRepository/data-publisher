@@ -30,7 +30,7 @@
         <div class="ODRViewNote">[ Currently selected view. ]</div>
     {% endif %}
 
-    {% if user != "anon." and user_default_theme is not null and theme.id == user_default_theme.id %}
+    {% if user != "anon." and theme.id == user_preferred_theme_id %}
         <div class="ODRViewNote">[ Personal default view. ]</div>
     {% endif %}
 
@@ -49,7 +49,7 @@
 
     <div class="pure-u-1 pure-u-md-5-24">
         <ul class="ODRViewOptions">
-        {% if user != "anon." and (user_default_theme is null or theme.id != user_default_theme.id) %}
+        {% if user != "anon." and (user_preferred_theme_id is null or theme.id != user_preferred_theme_id) %}
             {# users can select any theme they can view to be their personal default #}
             <li class="ODRDefaultPersonal">make personal default</li>
         {% endif %}

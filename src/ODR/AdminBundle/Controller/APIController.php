@@ -21,6 +21,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Entity\Boolean;
@@ -3348,7 +3349,7 @@ class APIController extends ODRCustomController
                 throw new ODRBadRequestException('User must be identified for permissions check.');
             }
         } catch (\Exception $e) {
-            $source = 0x1923491;
+            $source = 0x19234911;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -3395,7 +3396,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be deleted
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
             // Delete the file
@@ -3698,6 +3699,8 @@ class APIController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var ODRUploadService $upload_service */
+            $upload_service = $this->container->get('odr.upload_service');
 
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -3707,6 +3710,7 @@ class APIController extends ODRCustomController
             $user = $user_manager->findUserBy(array('email' => $data['user_email']));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
+            /** @var ODRUser $user */
 
             // Find datatype for Dataset UUID
             /** @var DataType $data_type */
@@ -3785,7 +3789,7 @@ class APIController extends ODRCustomController
 
             $using_local_files = false;
             $file_array = array();
-            if(isset($data['local_files']) && count($data['local_files'] > 0)) {
+            if (isset($data['local_files']) && count($data['local_files']) > 0) {
                 $using_local_files = true;
 
                 $file_array = $data['local_files'];
@@ -3851,12 +3855,12 @@ class APIController extends ODRCustomController
                         $original_filename = $file['original_file_name'];
                     }
                     else {
-                        $tmp_filename = $file->getFileName();
+                        $tmp_filename = $file->getFilename();
                         $original_filename = $file->getClientOriginalName();
                     }
                     // Check whether file is uploaded completely and properly
-                    $path_prefix = $this->getParameter('odr_web_directory').'/';
-                    $destination_folder = 'uploads/files/chunks/user_'.$user->getId().'/completed';
+                    $path_prefix = $this->getParameter('odr_tmp_directory').'/';
+                    $destination_folder = 'user_'.$user->getId().'/chunks/completed';
                     if ( !file_exists($path_prefix.$destination_folder) )
                         mkdir( $path_prefix.$destination_folder, 0777, true );
 
@@ -3871,8 +3875,9 @@ class APIController extends ODRCustomController
                     else {
                         $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
                         $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
+
                         // Download file to temp folder
-                        $file->move($destination_folder);
+                        $file->move($path_prefix.$destination_folder);
                     }
 
                     // TODO Need to also check file size here
@@ -3884,22 +3889,29 @@ class APIController extends ODRCustomController
                             // Check for Allow Multiple
                             // If single, delete existing
                             if ($existing_field && !$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+                                // Ensure a decrypted version of the file does not exist on the server
+                                /** @var File $existing_field */
+                                $decrypted_filename = $existing_field->getLocalFileName();
+                                if ( file_exists($path_prefix.$decrypted_filename) )
+                                    unlink( $path_prefix.$decrypted_filename );
+
                                 // Find existing file entry and delete
                                 $em->remove($existing_field);
                                 $em->flush();
                             }
 
 
-                            // Use ODRCC to create image meta
-                            $file_obj = parent::finishUpload(
-                                $em,
-                                $destination_folder,
-                                $original_filename,
-                                $user->getId(),
-                                $drf->getId()
-                            );
+                            // Create a new File entity from the uploaded file
+                            $file_obj = $upload_service->uploadNewFile($destination_file, $user, $drf);
 
-                            // set file public status to match field public status
+                            // NOTE - $file_obj does not have the correct localFilename, encryptKey,
+                            //  and originalChecksum properties at this time.  In addition, it's
+                            //  scheduled for encryption through beanstalk...at some unknown time in
+                            //  the future, those three properties will get changed and the file at
+                            //  $destination_file will be deleted.
+
+                            // ...that being said, it's still safe enough to change the public status
+                            //  of the new file to match the public status of the datafield
                             /** @var FileMeta $file_meta */
                             $file_meta = $file_obj->getFileMeta();
                             $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
@@ -3918,7 +3930,7 @@ class APIController extends ODRCustomController
                                 $images = $repo_image->findBy( array('parent' => $image->getId()) );
                                 foreach ($images as $img) {
                                     // Ensure no decrypted version of any of the thumbnails exist on the server
-                                    $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                                    $local_filepath = $this->getParameter('odr_web_directory').'/'.$img->getLocalFileName();
                                     if ( file_exists($local_filepath) )
                                         unlink($local_filepath);
 
@@ -3927,7 +3939,7 @@ class APIController extends ODRCustomController
                                 }
 
                                 // Ensure no decrypted version of the original image exists on the server
-                                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+                                $local_filepath = $this->getParameter('odr_web_directory').'/'.$image->getLocalFileName();
                                 if ( file_exists($local_filepath) )
                                     unlink($local_filepath);
 
@@ -3937,14 +3949,8 @@ class APIController extends ODRCustomController
 
                             // Download file to temp folder
 
-                            // Use ODRCC to create image meta
-                            $file_obj = parent::finishUpload(
-                                $em,
-                                $destination_folder,
-                                $original_filename,
-                                $user->getId(),
-                                $drf->getId()
-                            );
+                            // Create a new Image entity from the uploaded image
+                            $file_obj = $upload_service->uploadNewImage($destination_file, $user, $drf);
 
                             /** @var ImageMeta $file_meta */
                             $file_meta = $file_obj->getImageMeta();
@@ -4601,7 +4607,7 @@ class APIController extends ODRCustomController
             }
 
             // Files that aren't done encrypting shouldn't be downloaded
-            if (!$is_image && $file->getProvisioned() == true)
+            if (!$is_image && $file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -4689,7 +4695,7 @@ class APIController extends ODRCustomController
                 // Only allow this action for files smaller than 5Mb?
                 $filesize = $file->getFilesize() / 1024 / 1024;
                 if ($filesize > 50)
-                    throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
+                    throw new ODRNotImplementedException('Currently not allowed to download files larger than 50Mb');
 
                 $filename = 'File_' . $file->getId() . '.' . $file->getExt();
                 if (!$file->isPublic())
@@ -4784,7 +4790,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 

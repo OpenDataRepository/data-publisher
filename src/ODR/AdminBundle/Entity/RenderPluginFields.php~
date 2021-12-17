@@ -45,6 +45,31 @@ class RenderPluginFields
     private $active;
 
     /**
+     * @var bool
+     */
+    private $must_be_unique;
+
+    /**
+     * @var bool
+     */
+    private $single_uploads_only;
+
+    /**
+     * @var bool
+     */
+    private $no_user_edits;
+
+    /**
+     * @var bool
+     */
+    private $autogenerate_values;
+
+    /**
+     * @var bool
+     */
+    private $is_derived;
+
+    /**
      * @var \DateTime
      */
     private $deletedAt;
@@ -175,6 +200,126 @@ class RenderPluginFields
     public function getActive()
     {
         return $this->active;
+    }
+
+    /**
+     * Set mustBeUnique.
+     *
+     * @param bool $mustBeUnique
+     *
+     * @return RenderPluginFields
+     */
+    public function setMustBeUnique($mustBeUnique)
+    {
+        $this->must_be_unique = $mustBeUnique;
+
+        return $this;
+    }
+
+    /**
+     * Get mustBeUnique.
+     *
+     * @return bool
+     */
+    public function getMustBeUnique()
+    {
+        return $this->must_be_unique;
+    }
+
+    /**
+     * Set singleUploadsOnly.
+     *
+     * @param bool $singleUploadsOnly
+     *
+     * @return RenderPluginFields
+     */
+    public function setSingleUploadsOnly($singleUploadsOnly)
+    {
+        $this->single_uploads_only = $singleUploadsOnly;
+
+        return $this;
+    }
+
+    /**
+     * Get singleUploadsOnly.
+     *
+     * @return bool
+     */
+    public function getSingleUploadsOnly()
+    {
+        return $this->single_uploads_only;
+    }
+
+    /**
+     * Set noUserEdits.
+     *
+     * @param bool $noUserEdits
+     *
+     * @return RenderPluginFields
+     */
+    public function setNoUserEdits($noUserEdits)
+    {
+        $this->no_user_edits = $noUserEdits;
+
+        return $this;
+    }
+
+    /**
+     * Get noUserEdits.
+     *
+     * @return bool
+     */
+    public function getNoUserEdits()
+    {
+        return $this->no_user_edits;
+    }
+
+    /**
+     * Set autogenerateValues.
+     *
+     * @param bool $autogenerateValues
+     *
+     * @return RenderPluginFields
+     */
+    public function setAutogenerateValues($autogenerateValues)
+    {
+        $this->autogenerate_values = $autogenerateValues;
+
+        return $this;
+    }
+
+    /**
+     * Get autogenerateValues.
+     *
+     * @return bool
+     */
+    public function getAutogenerateValues()
+    {
+        return $this->autogenerate_values;
+    }
+
+    /**
+     * Set isDerived.
+     *
+     * @param bool $isDerived
+     *
+     * @return RenderPluginFields
+     */
+    public function setIsDerived($isDerived)
+    {
+        $this->is_derived = $isDerived;
+
+        return $this;
+    }
+
+    /**
+     * Get isDerived.
+     *
+     * @return bool
+     */
+    public function getIsDerived()
+    {
+        return $this->is_derived;
     }
 
     /**

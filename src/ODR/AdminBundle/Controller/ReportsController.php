@@ -33,7 +33,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
-use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -207,6 +206,8 @@ class ReportsController extends ODRCustomController
         $datarecord_names = self::getDatarecordNames($em, $datafield->getDataType());
 
         // Build a query to determine which top-level datarecords have duplicate values
+        // TODO - this doesn't find values that are empty because of a missing drf/storage entity
+        // TODO - ...is that actually a problem?
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id, e.value AS datafield_value
             FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' AS e
@@ -221,7 +222,7 @@ class ReportsController extends ODRCustomController
         $values = array();
         foreach ($results as $num => $result) {
             $dr_id = $result['dr_id'];
-            $value = $result['datafield_value'];
+            $value = strval($result['datafield_value']);
 
             // Use the datarecord's name if it exists
             $dr_name = $dr_id;
@@ -290,7 +291,7 @@ class ReportsController extends ODRCustomController
             $dr_id = $result['dr_id'];
             $parent_id = $result['parent_id'];
             $grandparent_id = $result['grandparent_id'];
-            $value = $result['datafield_value'];
+            $value = strval($result['datafield_value']);
 
             // Use the grandparent datarecord's name if it exists
             $dr_name = $dr_id;
@@ -1016,7 +1017,7 @@ class ReportsController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be checked for decryption progress
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
             // --------------------
@@ -1165,7 +1166,8 @@ class ReportsController extends ODRCustomController
                 $can_view_datarecord = true;
 
 
-            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+            // If datatype is not public and user doesn't have permissions to view anything other
+            //  than public sections of the datarecord, then don't allow them to view
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
@@ -1178,12 +1180,13 @@ class ReportsController extends ODRCustomController
 
             $progress = array('current_value' => 100, 'max_value' => 100);
 
-            if ($file->getProvisioned() == false) {
-                // Figure out whether the cached version of this datarecord lists this file as fully decrypted or not...
+            if ($file->getEncryptKey() !== '') {
+                // Figure out whether the cached version of this datarecord lists this file as fully
+                //  decrypted or not...
                 $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
 
-                // Not using datarecord_info_service because we don't really care what's associated with this
-                // datarecord, or want the cache entry to exist if it doesn't for some reason
+                // Not using datarecord_info_service because we don't really care what's associated
+                //  with this datarecord, or want to rebuild the cache entry if it doesn't exist
                 $datarecord_data = $cache_service->get('cached_datarecord_'.$grandparent_datarecord_id);
 
                 if ($datarecord_data != false) {
@@ -1204,7 +1207,8 @@ class ReportsController extends ODRCustomController
                     }
 
                     if ($delete_cache_entries) {
-                        // Somehow, the file is fully encrypted, but the cached array doesn't properly reflect that...wipe them so they get rebuilt
+                        // The file is fully encrypted, but the cached array entry doesn't properly
+                        //  reflect that...wipe the cache entry so they eventually get rebuilt
                         $cache_service->delete('cached_datarecord_'.$grandparent_datarecord_id);
                         $cache_service->delete('cached_table_data_'.$grandparent_datarecord_id);
                     }
@@ -1260,13 +1264,18 @@ class ReportsController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // TODO - some level of permissions checking?  maybe store archive filename in user's session?
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Don't need to check user's permissions
+            // ----------------------------------------
 
             // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
             if ( file_exists($archive_filepath) ) {
                 // Load the number of files currently in the archive
                 $zip_archive = new \ZipArchive();

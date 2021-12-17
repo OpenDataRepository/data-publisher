@@ -1,0 +1,160 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Boolean" and datarecordfield.boolean[0] is defined %}
+        {% set valuefield = datarecordfield.boolean[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "File" %}
+        {% set valuefield = datarecordfield.file %}
+    {% elseif field_typename == "Image" %}
+        {% set valuefield = datarecordfield.image %}
+    {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
+        {% set valuefield = datarecordfield.decimalValue[0] %}
+        {% set valuefield_value = valuefield.original_value %}
+    {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
+        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typeclass == "Radio" %}
+        {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typeclass == "Tag" %}
+        {% set valuefield = datarecordfield.tagSelection %}
+    {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
+        {% set valuefield = datarecordfield.datetimeValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Markdown" %}
+        {% set valuefield = '' %}
+    {% endif %}
+{% endif %}
+
+{% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
+    {% set valuefield = [] %}
+{% endif %}
+
+{% set max_length = '' %}
+{% if field_typename == "Long Text" %}
+    {% set max_length = 255 %}
+{% elseif field_typename == "Medium Text" %}
+    {% set max_length = 64 %}
+{% elseif field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+{% set datarecord_is_fake = false %}
+{% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+    {% set datarecord_is_fake = true %}
+{% endif %}
+
+{% set inline_search_link = false %}
+{% if datarecord_is_fake and is_link %}
+    {% set inline_search_link = true %}
+{% endif %}
+
+    <form
+        {% if is_link %} autocomplete="off"{% endif %}
+        {% if not datarecord_is_fake %}
+            action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+        {% endif %}
+        class="pure-u-1{% if is_link %} ODRLinkLookupForm{% endif %} {% if datarecord_is_fake and datafield_meta.is_unique %}ODRUniqueField{% endif %}"
+        id="EditForm_{{ unique_id }}"
+        method="POST"
+    >
+
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+
+    {% if field_typename == "Paragraph Text" %}
+        <fieldset>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {% if is_datatype_admin and not datarecord_is_fake %}
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                {% endif %}
+                {{ datafield_meta.fieldName }}
+            </label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea
+                    id="{{ input_id }}"
+                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
+                    name="{{ input_name }}"
+                    {% if datafield_meta.required == 1 %}required="required"{% endif %}
+                    data-error-type="inline"
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                >{{ valuefield_value }}</textarea>
+            </div>
+        </fieldset>
+
+    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+        <fieldset>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {% if is_datatype_admin and not datarecord_is_fake %}
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                {% endif %}
+                {{ datafield_meta.fieldName }}
+            </label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                    type="text"
+                    id="{{ input_id }}"
+                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
+                    name="{{ input_name }}"
+                    value="{{ valuefield_value }}"
+                    data-error-type="inline"
+                />
+                {% if datarecord_is_fake %}
+                <i class="fa fa-hourglass-2 ODRSaveIndicator"></i>
+                {% else %}
+                <i class="fa fa-save ODRSaveIndicator"></i>
+                {% endif %}
+            </div>
+        </fieldset>
+    {% endif %}
+    </form>
+
+    {% if field_typename == "Integer"
+        or field_typename == "Decimal"
+        or field_typename == "Paragraph Text"
+        or field_typename == "Long Text"
+        or field_typename == "Medium Text"
+        or field_typename == "Short Text"
+    %}
+    <script>
+        $(function() {
+            var input = $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('input').first();
+            var input_id = $(input).attr('id');
+            $(input).addClass('ODRInputError').attr('style', "border: 1px solid red;");
+            $('<label>', {
+                id: input_id + '-error',
+                class: 'ODRInputError',
+                for: input_id,
+            })
+                .html("{{ problem_fields[datafield.id] }}")
+                .appendTo("#Input_{{ datarecord.id }}_{{ datafield.id }}");
+        });
+    </script>
+    {% endif %}
+
+{% endspaceless %}

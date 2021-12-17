@@ -1,6 +1,6 @@
 {% spaceless %}
 
-<h2>List of Datarecords of the Datatype "{{ local_datatype.getshortname }}" linked to Datarecords of the Datatype "{{ remote_datatype.getshortname }}"</h2>
+<h2>List of Datarecords of the Datatype "{{ local_datatype.getshortname }}" that link to Datarecords of the Datatype "{{ remote_datatype.getshortname }}"</h2>
 
 {% if linked_datarecords | length == 0 %}
     <div class="ODRDatarecordListHeader">No linked Datarecords</div>

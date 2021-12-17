@@ -616,14 +616,6 @@ class ThemeInfoService
      */
     private function buildThemeData($parent_theme_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this cache entry
@@ -670,20 +662,30 @@ class ThemeInfoService
         $theme_data = $query->getArrayResult();
 
         // TODO - if $theme_data is empty, then $parent_theme_id was deleted...should this return something special in that case?
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildThemeData('.$theme_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
         // perspective, even though there's only supposed to be a single non-deleted entity_metadata
         // object for each entity.  Therefore, the preceding query generates an array that needs
         // to be somewhat flattened in a few places.
         foreach ($theme_data as $theme_num => $theme) {
+
+            // If the theme's datatype is null, then it belongs to a deleted datatype and should
+            //  be completely ignored
+            // TODO - should this filtering happen inside the mysql query?
+            if ( is_null($theme['dataType']) ) {
+                unset( $theme_data[$theme_num] );
+                continue;
+            }
+
             // Flatten theme meta
+            if ( count($theme['themeMeta']) == 0 ) {
+                // TODO - this comparison (and the other one in this function) really needs to be strict (!== 1)
+                // TODO - ...but that would lock up multiple dev servers until their databases get fixed
+                // ...throwing an exception here because this shouldn't ever happen, and also requires
+                //  manual intervention to fix...
+                throw new ODRException('Unable to rebuild the cached_theme_'.$parent_theme_id.' array because of a database error for theme '.$parent_theme_id);
+            }
+
             $theme_meta = $theme['themeMeta'][0];
             $theme_data[$theme_num]['themeMeta'] = $theme_meta;
 
@@ -691,9 +693,8 @@ class ThemeInfoService
             $theme_data[$theme_num]['createdBy'] = UserUtility::cleanUserData( $theme['createdBy'] );
             $theme_data[$theme_num]['updatedBy'] = UserUtility::cleanUserData( $theme['updatedBy'] );
 
-            // Only want to keep the id of this theme's datatype?
+            // Need to save the theme's datatype's id for later...
             $dt_id = $theme_data[$theme_num]['dataType']['id'];
-            $theme_data[$theme_num]['dataType'] = array('id' => $dt_id);
 
 
             // ----------------------------------------
@@ -701,29 +702,38 @@ class ThemeInfoService
             $new_te_array = array();
             foreach ($theme['themeElements'] as $te_num => $te) {
                 // Flatten theme_element_meta of each theme_element
+                if ( count($te['themeElementMeta']) == 0 ) {
+                    // ...throwing an exception here because this shouldn't ever happen, and also requires
+                    //  manual intervention to fix...
+                    throw new ODRException('Unable to rebuild the cached_theme_'.$parent_theme_id.' array because of a database error for theme_element '.$te['id']);
+                }
+
                 $tem = $te['themeElementMeta'][0];
                 $te['themeElementMeta'] = $tem;
 
-                // theme_datafield entries are ordered, so preserve $tdf_num
+                // hemeDatafield entries are ordered, so preserve $tdf_num
                 foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                    // Only want to preserve the id of the datafield
-                    $df_id = $tdf['dataField']['id'];
-
-                    $te['themeDataFields'][$tdf_num]['dataField'] = array('id' => $df_id);
+                    // Don't preserve entries for deleted datafields
+                    if ( is_null($tdf['dataField']) )
+                        unset( $te['themeDataFields'][$tdf_num] );
                 }
 
-                //
+                // Currently only one themeDatatype is allowed per themeElement, but preserve
+                //  $tdt_num anyways incase this changes in the future...
                 foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                    // Only want to preserve the id of the child/linked datatype
-                    $child_dt_id = $tdt['dataType']['id'];
-                    $te['themeDataType'][$tdt_num]['dataType'] = array('id' => $child_dt_id);
+                    // Don't preserve entries for deleted datatypes
+                    if ( is_null($tdt['dataType']) ) {
+                        unset( $te['themeDataType'][$tdt_num] );
+                        continue;
+                    }
 
-                    // Store the 'is_link' and 'multiple_allowed' properties from the Datatree
-                    //  entity here for convenience
+                    // Otherwise, don't need to verify that this is actually a child/linked datatype
+                    $child_dt_id = $tdt['dataType']['id'];
+
+                    // Want to store the 'is_link' and 'multiple_allowed' properties from the
+                    //  datatree array here for convenience...
                     $te['themeDataType'][$tdt_num]['is_link'] = 0;
                     $te['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
-
-                    // Don't need to check the 'descendant_of' segment of the datatree array...
 
                     if ( isset($datatree_array['linked_from']) && isset($datatree_array['linked_from'][$child_dt_id]) ) {
                         // This child is a linked datatype somewhere...figure out whether the
@@ -742,7 +752,7 @@ class ThemeInfoService
                     }
                 }
 
-                // Easier on twig if these arrays simply don't exist if nothing is in them...
+                // Easier on twig for these arrays to simply not exist, if nothing is in them...
                 if ( count($te['themeDataFields']) == 0 )
                     unset( $te['themeDataFields'] );
                 if ( count($te['themeDataType']) == 0 )
@@ -761,15 +771,6 @@ class ThemeInfoService
             $t_id = $t_data['id'];
             $formatted_theme_data[$t_id] = $t_data;
         }
-
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildThemeData('.$theme_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
-//exit( '<pre>'.print_r($formatted_theme_data, true).'</pre>' );
 
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_theme_'.$parent_theme_id, $formatted_theme_data);

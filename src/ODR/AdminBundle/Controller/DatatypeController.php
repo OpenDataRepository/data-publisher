@@ -285,11 +285,12 @@ class DatatypeController extends ODRCustomController
                         $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                     }
                     catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
+                        // ...don't want to rethrow the error since it'll interrupt everything after
+                        //  this event.  In this case, a datarecord gets created, but the rest of
+                        //  the values aren't saved and the provisioned flag never gets changed to
+                        //  "false"...leaving the datarecord in a state that the user can't view/edit
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
                     }
 
                     // Don't need to do anything else to the metadata datarecord, immediately
@@ -1380,6 +1381,7 @@ class DatatypeController extends ODRCustomController
         }
     }
 
+
     /**
      * Creates a new top-level DataType.
      *
@@ -1413,7 +1415,13 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
-            $form = $this->createForm(CreateDatatypeForm::class, $submitted_data);
+            $params = array(
+                'form_settings' => array(
+                    'is_master_type' => false,
+                    'master_type_id' => 0,
+                )
+            );
+            $form = $this->createForm(CreateDatatypeForm::class, $submitted_data, $params);
 
             $form->handleRequest($request);
 

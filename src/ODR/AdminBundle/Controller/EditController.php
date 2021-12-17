@@ -29,8 +29,7 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -64,10 +63,12 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -175,11 +176,12 @@ class EditController extends ODRCustomController
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event.  In this case, a datarecord gets created, but the rest of the values aren't
+                //  saved and the provisioned flag never gets changed to "false"...leaving the
+                //  datarecord in a state that the user can't view/edit
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // Datarecord is ready, remove provisioned flag
@@ -305,11 +307,12 @@ class EditController extends ODRCustomController
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event.  In this case, a datarecord gets created, but the rest of the values aren't
+                //  saved and the provisioned flag never gets changed to "false"...leaving the
+                //  datarecord in a state that the user can't view/edit
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // Datarecord is ready, remove provisioned flag
@@ -686,7 +689,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be modified
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -755,7 +758,7 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
             //  the upload button again since this datafield's only file just got deleted
-            if ($datafield->getAllowMultipleUploads() == "0")
+            if ( !$datafield->getAllowMultipleUploads() )
                 $return['d'] = array('need_reload' => true);
 
         }
@@ -823,7 +826,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be modified
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -865,44 +868,35 @@ class EditController extends ODRCustomController
 
                 // ----------------------------------------
                 // Need to decrypt the file...generate the url for cURL to use
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
-
-                $pheanstalk = $this->get('pheanstalk');
                 $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
+                $pheanstalk = $this->get('pheanstalk');
                 $api_key = $this->container->getParameter('beanstalk_api_key');
-                $file_decryptions = $cache_service->get('file_decryptions');
 
                 // Determine the filename after decryption
                 $target_filename = 'File_'.$file_id.'.'.$file->getExt();
-                if ( !isset($file_decryptions[$target_filename]) ) {
-                    // File is not scheduled to get decrypted at the moment, store that it will be decrypted
-                    $file_decryptions[$target_filename] = 1;
-                    $cache_service->set('file_decryptions', $file_decryptions);
 
-                    // Schedule a beanstalk job to start decrypting the file
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "object_type" => 'File',
-                            "object_id" => $file_id,
-                            "local_filename" => $target_filename,
-                            "crypto_type" => 'decrypt',
+                // Schedule a beanstalk job to start decrypting the file
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "object_type" => 'File',
+                        "object_id" => $file_id,
+                        "crypto_type" => 'decrypt',
 
-                            "archive_filepath" => '',
-                            "desired_filename" => '',
+                        "local_filename" => $target_filename,
+                        "archive_filepath" => '',
+                        "desired_filename" => '',
 
-                            "redis_prefix" => $redis_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
 
-                    $delay = 0;
-                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
-                }
-
-                /* otherwise, decryption already in progress, do nothing */
+                $delay = 0;
+                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
             }
 
             // Reload the file entity so its associated meta entry gets updated in the EntityManager
@@ -988,7 +982,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Images that aren't done encrypting shouldn't be downloaded
-            if ($image->getOriginalChecksum() == '')
+            if ($image->getEncryptKey() == '')
                 throw new ODRNotFoundException('Image');
 
             // --------------------
@@ -1118,7 +1112,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Images that aren't done encrypting shouldn't be modified
-            if ($image->getOriginalChecksum() == '')
+            if ($image->getEncryptKey() == '')
                 throw new ODRNotFoundException('Image');
 
 
@@ -1216,12 +1210,14 @@ class EditController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRUploadService $upload_service */
+            $upload_service = $this->container->get('odr.upload_service');
 
 
             // Grab the necessary entities
@@ -1243,7 +1239,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Images that aren't done encrypting shouldn't be modified
-            if ($image->getOriginalChecksum() == '')
+            if ($image->getEncryptKey() == '')
                 throw new ODRNotFoundException('Image');
 
 
@@ -1264,72 +1260,51 @@ class EditController extends ODRCustomController
 
             // TODO - duration in which image can be rotated without creating new entry?
             // Replace existing image if it has existed on the server for less than 30 minutes
-            $replace_existing = false;
+            $overwrite_existing = false;
             if ($interval->days == 0 && $interval->h == 0 && $interval->i <= 30)
-                $replace_existing = true;
+                $overwrite_existing = true;
 
 
             // ----------------------------------------
-            // Since the image is going to be rotated, its contents will change...
-            $image_path = $crypto_service->decryptImage($image_id);
-            if ($replace_existing) {
-                // ...the rotated image is going to be saved under the same id in the database, so
-                //  the checksum needs to be cleared
-                $image->setOriginalChecksum('');    // checksum will be updated after rotation
-                $em->persist($image);
+            // Going to need an array of the original image and each of its resized children...
+            /** @var Image[] $relevant_images */
+            $relevant_images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+                array(
+                    'parent' => $image->getId()
+                )
+            );
+            $relevant_images[] = $image;
 
-                // Since the image itself doesn't have an updated value, mark the image_meta as
-                //  updated
-                $image_meta = $image->getImageMeta();
-                $image_meta->setUpdated(new \DateTime());
-                $em->persist($image_meta);
-            }
-
-            // Load all of the saved alternate sizes for this image (typically thumbnails)
-            /** @var Image[] $images */
-            $images = $repo_image->findBy( array('parent' => $image->getId()) );
-            foreach ($images as $img) {
-                // Ensure no decrypted version of any of the thumbnails exist on the server
-                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
-                if ( file_exists($local_filepath) )
-                    unlink($local_filepath);
-
-                if ($replace_existing) {
-                    // ...the rotated thumbnail will be saved under its original id, so the
-                    //  checksum needs to be cleared
-                    $img->setOriginalChecksum('');    // checksum will be replaced after rotation
-                    $em->persist($img);
+            // Ensure all resized versions of the original image are deleted off the server...the
+            //  original image will get moved into ODR's tmp directory, so it doesn't need to be
+            //  deleted here
+            foreach ($relevant_images as $i) {
+                if ( !$i->getOriginal() ) {
+                    $path = $this->getParameter('odr_web_directory').'/'.$i->getLocalFileName();
+                    if ( file_exists($path) )
+                        unlink($path);
                 }
             }
 
-            if ($replace_existing)
-                $em->flush();
-
 
             // ----------------------------------------
-            // Locate where the rotated image will be saved
-            $dest_path = $image_path;
-            if (!$replace_existing) {
-                // ...if the image isn't getting saved under its old database id, then the easiest
-                //  way to handle this request is to fake the user "uploading" the image again
-                $dest_path = $this->getParameter('odr_web_directory').'/uploads/files';
-                if ( !file_exists($dest_path) )
-                    mkdir( $dest_path );
-                $dest_path .= '/chunks';
-                if ( !file_exists($dest_path) )
-                    mkdir( $dest_path );
-                $dest_path .= '/user_'.$user->getId();
-                if ( !file_exists($dest_path) )
-                    mkdir( $dest_path );
-                $dest_path .= '/completed';
-                if ( !file_exists($dest_path) )
-                    mkdir( $dest_path );
+            // Ensure the original image is decrypted
+            // TODO - decrypts non-public images to web-accessible directory, but it'll get moved almost immediately?
+            $image_path = $crypto_service->decryptImage($image_id);
+            $original_filename = $image->getOriginalFileName();
 
-                $dest_path.= '/'.$image->getOriginalFileName();
-            }
+            // Move the decrypted version into ODR's temporary directory, using the filename it was
+            //  originally uploaded with
+            $dirname = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId();
+            if ( !file_exists($dirname) )
+                mkdir($dirname);
+            rename($image_path, $dirname.'/'.$original_filename);
+            // Store the path to the image in the tmp directory
+            $new_image_path = $dirname.'/'.$original_filename;
 
-            // Rotate and save image back to server...apparently a positive number means
-            //  counter-clockwise rotation with imagerotate()
+
+            // Rotate the image on the server...apparently a positive number means counter-clockwise
+            //  rotation with imagerotate()
             $degrees = 90;
             if ($direction == 1)
                 $degrees = -90;
@@ -1337,94 +1312,61 @@ class EditController extends ODRCustomController
             $im = null;
             switch ( strtolower($image->getExt()) ) {
                 case 'gif':
-                    $im = imagecreatefromgif($image_path);
+                    $im = imagecreatefromgif($new_image_path);
                     $im = imagerotate($im, $degrees, 0);
-                    imagegif($im, $dest_path);
+                    imagegif($im, $new_image_path);
                     break;
                 case 'png':
-                    $im = imagecreatefrompng($image_path);
+                    $im = imagecreatefrompng($new_image_path);
                     $im = imagerotate($im, $degrees, 0);
-                    imagepng($im, $dest_path);
+                    imagepng($im, $new_image_path);
                     break;
                 case 'jpg':
                 case 'jpeg':
-                    $im = imagecreatefromjpeg($image_path);
+                    $im = imagecreatefromjpeg($new_image_path);
                     $im = imagerotate($im, $degrees, 0);
-                    imagejpeg($im, $dest_path);
+                    imagejpeg($im, $new_image_path);
                     break;
             }
             imagedestroy($im);
 
 
             // ----------------------------------------
-            if ($replace_existing) {
-                // Update the image's height/width as stored in the database
-                $sizes = getimagesize($image_path);
-                $image->setImageWidth($sizes[0]);
-                $image->setImageHeight($sizes[1]);
-                // Create thumbnails and other sizes/versions of the uploaded image
-                self::resizeImages($image, $user);
-
-                // Encrypt parent image AFTER thumbnails are created
-                self::encryptObject($image_id, 'image');
-
-                // Set original checksum for original image
-                $filepath = $crypto_service->decryptImage($image_id);
-                $original_checksum = md5_file($filepath);
-                $image->setOriginalChecksum($original_checksum);
-
-                // A decrypted version of the Image still exists on the server...delete it
-                unlink($filepath);
-
-                // Save changes again
-                $em->persist($image);
-                $em->flush();
+            if ( $overwrite_existing ) {
+                // This image is being overwritten
+                $upload_service->replaceExistingImage($image, $new_image_path, $user);
             }
             else {
-                // "Upload" the "new" rotated image
-                $filepath = 'uploads/files/chunks/user_'.$user->getId().'/completed';
-                $original_filename = $image->getOriginalFileName();
+                // This image is not being overwritten, so create a new one
+                $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                $new_image = $upload_service->uploadNewImage($new_image_path, $user, $drf);
 
-                $new_image = parent::finishUpload($em, $filepath, $original_filename, $user->getId(), $image->getDataRecordFields()->getId());
-
-                // Copy any metadata from the old image over to the new image
-                $old_image_meta = $image->getImageMeta();
-                $properties = array(
-                    'caption' => $old_image_meta->getCaption(),
-                    'original_filename' => $old_image_meta->getOriginalFileName(),
-                    'external_id' => $old_image_meta->getExternalId(),
-                    'publicDate' => $old_image_meta->getPublicDate(),
-                    'display_order' => $old_image_meta->getDisplayorder()
+                // Still need to copy several properties from the previous image to the new one
+                $props = array(
+                    'displayOrder' => $image->getDisplayorder(),
+                    'publicDate' => $image->getPublicDate(),
+                    'caption' => $image->getCaption(),
+                    'externalId' => $image->getExternalId(),
                 );
-                $emm_service->updateImageMeta($user, $new_image, $properties);
+                $emm_service->updateImageMeta($user, $new_image, $props);
 
+                // Mark the original image and its resizes as deleted
+                foreach ($relevant_images as $i) {
+                    $i->setDeletedBy($user);
+                    $i->setDeletedAt(new \DateTime());
+                    $em->persist($i);
 
-                // Ensure no decrypted version of the original image exists on the server
-                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
-                if ( file_exists($local_filepath) )
-                    unlink($local_filepath);
-
-                // Delete the original image and its metadata entry
-                $old_image_meta->setDeletedAt(new \DateTime());
-                $em->persist($old_image_meta);
-
-                $image->setDeletedBy($user);
-                $image->setDeletedAt(new \DateTime());
-                $em->persist($image);
-
-                // Delete any thumbnails of the original image
-                foreach ($images as $img) {
-                    $img->setDeletedBy($user);
-                    $img->setDeletedAt(new \DateTime());
-                    $em->persist($img);
+                    if ( $i->getOriginal() ) {
+                        $im = $i->getImageMeta();
+                        $im->setDeletedAt(new \DateTime());
+                        $em->persist($im);
+                    }
                 }
-
                 $em->flush();
             }
 
-
-            // Mark this image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Don't need to mark the datareord as updated...it already happened when the images
+            //  got re-encrypted
         }
         catch (\Exception $e) {
             $source = 0x4093b173;
@@ -1659,167 +1601,6 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Handles selection changes made to SingleRadio, MultipleRadio, SingleSelect, and MultipleSelect DataFields
-     *
-     * @param integer $datarecord_id    The database id of the Datarecord being modified
-     * @param integer $datafield_id     The database id of the Datafield being modified
-     * @param integer $radio_option_id  The database id of the RadioOption entity being (de)selected.  If 0, then no RadioOption should be selected.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function radioselectionAction($datarecord_id, $datafield_id, $radio_option_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
-
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-
-
-            /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ($datafield == null)
-                throw new ODRNotFoundException('Datafield');
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                throw new ODRNotFoundException('Datarecord');
-
-            $datatype = $datafield->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
-
-            /** @var RadioOptions $radio_option */
-            $radio_option = null;
-            if ($radio_option_id != 0) {
-                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
-                if ($radio_option == null)
-                    throw new ODRNotFoundException('RadioOption');
-            }
-
-            // This should only work on a Radio field
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass !== 'Radio')
-                throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
-
-            if ( $datatype->getIsMasterType() )
-                throw new ODRBadRequestException('Unable to make selections on a Master Template');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-
-            // ----------------------------------------
-            // Locate the existing datarecordfield entry, or create one if it doesn't exist
-            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
-
-            // Course of action differs based on whether multiple selections are allowed
-            $typename = $datafield->getFieldType()->getTypeName();
-
-            // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
-            if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
-                // Don't care about selected status of other RadioSelection entities...
-                $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
-
-                // Default to a value of 'selected' if an older RadioSelection entity does not exist
-                $new_value = 1;
-                if ($radio_selection !== null) {
-                    // An older version does exist...toggle the existing value for the new value
-                    if ($radio_selection->getSelected() == 1)
-                        $new_value = 0;
-                }
-
-                // Update the RadioSelection entity to match $new_value
-                $properties = array('selected' => $new_value);
-                $emm_service->updateRadioSelection($user, $radio_selection, $properties);
-            }
-            else if ($typename == 'Single Radio' || $typename == 'Single Select') {
-                // Probably need to change selected status of at least one other RadioSelection entity...
-                /** @var RadioSelection[] $radio_selections */
-                $radio_selections = $repo_radio_selection->findBy(
-                    array(
-                        'dataRecordFields' => $drf->getId()
-                    )
-                );
-
-                foreach ($radio_selections as $rs) {
-                    if ( $radio_option_id != $rs->getRadioOption()->getId() ) {
-                        if ($rs->getSelected() == 1) {
-                            // Deselect all RadioOptions that are selected and are not the one the user wants to be selected
-                            $properties = array('selected' => 0);
-                            $emm_service->updateRadioSelection($user, $rs, $properties, true);    // should only be one, technically...
-                        }
-                    }
-                }
-
-                // If the user selected something other than "<no option selected>"...
-                if ($radio_option_id != 0) {
-                    // ...locate the RadioSelection entity the user wanted to set to selected
-                    $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
-
-                    // ...ensure it's selected
-                    $properties = array('selected' => 1);
-                    $emm_service->updateRadioSelection($user, $radio_selection, $properties, true);    // flushing doesn't help...
-                }
-
-                // Flush now that all the changes have been made
-                $em->flush();
-            }
-            else {
-                // No point doing anything if not a radio fieldtype
-                throw new ODRBadRequestException('EditController::radioselectionAction() called on Datafield that is not a Radio FieldType');
-            }
-
-
-            // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
-
-        }
-        catch (\Exception $e) {
-            $source = 0x01019cfb;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Parses a $_POST request to update the contents of a datafield.
      * File and Image uploads are handled by @see FlowController
      * Changes to RadioSelections are handled by EditController::radioselectionAction()
@@ -1932,6 +1713,7 @@ class EditController extends ODRCustomController
                     break;
 
                 default:
+                    // The Markdown fieldtype can't have its value changed
                     // Radio and Tag fieldtypes aren't supposed to be updated here ever
                     // Files/Images might be permissible in the future
                     throw new ODRBadRequestException('EditController::updateAction() called for a Datafield using the '.$typeclass.' FieldType');
@@ -1945,7 +1727,13 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Create a new form for this storage entity and bind it to the request
-            $form = $this->createForm($form_class, $form_object, array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()));
+            $form = $this->createForm($form_class,
+                $form_object,
+                array(
+                    'datarecord_id' => $datarecord->getId(),
+                    'datafield_id' => $datafield->getId()
+                )
+            );
             $form->handleRequest($request);
 
             if ($form->isSubmitted()) {
@@ -1953,6 +1741,7 @@ class EditController extends ODRCustomController
                 if ($form->isValid()) {
                     $new_value = $form_object->getValue();
 
+                    // TODO - this doesn't allow users to "update" a derived field unless they change the contents of the source field...
                     if ($old_value !== $new_value) {
 
                         // If the datafield is marked as unique...
@@ -2275,14 +2064,72 @@ class EditController extends ODRCustomController
             /** @var ThemeElement $theme_element */
             $theme_element = $result[0];
 
-            $return['d'] = array(
-                'html' => $odr_render_service->reloadEditDatafield(
+            $output = '';
+
+            // Check whether the datafield is using a render plugin that wants to override the
+            //  regular edit datafield reloading
+            $query = $em->createQuery(
+               'SELECT rpi
+                FROM ODRAdminBundle:RenderPluginFields rpf
+                JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginFields = rpf
+                JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
+                WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id
+                AND rpf.is_derived = :is_derived
+                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype->getId(),
+                    'datafield_id' => $datafield->getId(),
+                    'is_derived' => true
+                )
+            );
+            $results = $query->getResult();
+
+            if ( !is_null($results) ) {
+                /** @var RenderPluginInstance $render_plugin_instance */
+                $render_plugin_instance = $results[0];
+
+                // Load the render plugin as a service
+                $render_plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
+                /** @var DatafieldReloadOverrideInterface $render_plugin */
+                $render_plugin = $this->container->get($render_plugin_classname);
+
+                // Request a set of parameters from the render plugin for ODRRenderService to use
+                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord);
+
+                // If the render plugin is going to do something...
+                if ( isset($extra_parameters['template_name']) ) {
+                    // ...extract the template name and remove it from the list of parameters
+                    $template_name = $extra_parameters['template_name'];
+                    unset( $extra_parameters['template_name'] );
+
+                    // Attempt to render the datafield using the given template and parameters
+                    $output = $odr_render_service->reloadPluginDatafield(
+                        $user,
+                        $datatype,
+                        $theme_element,
+                        $datafield,
+                        $datarecord,
+                        $template_name,
+                        $extra_parameters
+                    );
+                }
+            }
+
+            // If the datafield isn't using a render plugin, or the plugin didn't return anything...
+            if ( $output === '' ) {
+                // ...then use the standard edit datafield reload instead
+                $output = $odr_render_service->reloadEditDatafield(
                     $user,
                     $source_datarecord->getDataType(),
                     $theme_element,
                     $datafield,
                     $datarecord
-                )
+                );
+            }
+
+            $return['d'] = array(
+                'html' => $output
             );
         }
         catch (\Exception $e) {
