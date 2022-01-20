@@ -518,6 +518,9 @@
                 {% endif %}
                 }
             },
+            {% if datafield_meta.is_unique and (not is_link or not datarecord_is_fake) %}
+            onkeyup: false,    // If the datafield fires off a remote event to check uniqueness, then don't trigger validation on every keyup event
+            {% endif %}
             submitHandler: function(form) {
             {% if not datarecord_is_fake %}
                 SaveRecordData(

@@ -711,7 +711,7 @@ class ThemeInfoService
                 $tem = $te['themeElementMeta'][0];
                 $te['themeElementMeta'] = $tem;
 
-                // hemeDatafield entries are ordered, so preserve $tdf_num
+                // themeDatafield entries are ordered, so preserve $tdf_num
                 foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                     // Don't preserve entries for deleted datafields
                     if ( is_null($tdf['dataField']) )

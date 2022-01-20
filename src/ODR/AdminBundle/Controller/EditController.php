@@ -2085,7 +2085,7 @@ class EditController extends ODRCustomController
             );
             $results = $query->getResult();
 
-            if ( !is_null($results) ) {
+            if ( !empty($results) ) {
                 /** @var RenderPluginInstance $render_plugin_instance */
                 $render_plugin_instance = $results[0];
 

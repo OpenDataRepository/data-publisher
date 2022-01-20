@@ -1137,8 +1137,10 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        if ( isset($cached_searches[$value]) )
-            return $cached_searches[$value];
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $cache_key = mb_strtolower($value);
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
 
 
         // ----------------------------------------
@@ -1156,7 +1158,7 @@ class SearchService
         );
 
         // ...then recache the search result
-        $cached_searches[$value] = $end_result;
+        $cached_searches[$cache_key] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
@@ -1198,8 +1200,10 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        if ( isset($cached_searches[$value]) )
-            return $cached_searches[$value];
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $cache_key = mb_strtolower($value);
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
 
 
         // ----------------------------------------
@@ -1212,7 +1216,7 @@ class SearchService
 
 
         // ...then recache the search result
-        $cached_searches[$value] = $result;
+        $cached_searches[$cache_key] = $result;
         $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
 
         // ...then return it

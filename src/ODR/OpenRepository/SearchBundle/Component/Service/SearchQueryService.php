@@ -1674,8 +1674,8 @@ class SearchQueryService
 //            $char = $str[$i];
             $char = mb_substr($str, $i, 1);
 
-            // Attempt to treat doublequote (U+0022) the same as the unicode "smart quote" characters
-            //  e.g. (U+0022) should equal (U+201C and U+201D)
+            // Treat the doublequote character (U+0022) as equivalent to the unicode "smart quote"
+            //  characters (U+201C and U+201D)
             if ($char == "\"" || $char == "“" || $char == "”") {
                 if ($in_quotes) {
                     // found closing quote
@@ -1731,31 +1731,35 @@ class SearchQueryService
                         case '!':
 //                        case '-':
                             // attempt to ignore the operator if not attached to a term
-                            /*if ( $str[$i+1] !== ' ' )*/
                             $pieces[] = '!';
                             break;
                         case '>':
                             // attempt to ignore the operator if not attached to a term
-                            if ( $str[$i+1] == '=' /*&& $str[$i+2] !== ' '*/ ) {
+                            $next = $i + 1;    // need to ensure $str[$i+1] doesn't go out of bounds
+                            if ( $next < $len && $str[$next] == '=' ) {
                                 $pieces[] = '>=';
                                 $i++;
                             }
-                            else /*if ( $str[$i+1] !== ' ' )*/
+                            else {
                                 $pieces[] = '>';
+                            }
                             break;
                         case '<':
                             // attempt to ignore the operator if not attached to a term
-                            if ( $str[$i+1] == '=' /*&& $str[$i+2] !== ' '*/ ) {
+                            $next = $i + 1;    // need to ensure $str[$i+1] doesn't go out of bounds
+                            if ( $next < $len && $str[$next] == '=' ) {
                                 $pieces[] = '<=';
                                 $i++;
                             }
-                            else /*if ( $str[$i+1] !== ' ' )*/
+                            else {
                                 $pieces[] = '<';
+                            }
                             break;
                         case 'o':
                         case 'O':
                             // only count this as an operator if the 'O' is part of the substring ' OR '
-                            if ( $i != 0 && $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
+                            $check = $i + 2;    // need to ensure $str[$i+2] doesn't go out of bounds
+                            if ( $i != 0 && $check < $len && $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
                                 $pieces[] = '||';
 //                                $i++;
                                 $i += 2;
@@ -1851,16 +1855,20 @@ class SearchQueryService
                 $previous = $piece;
         }
 
+        // Remove trailing operators...they're unmatched by definition
+        $pieces = array_values($pieces);
+        while (true) {
+            $num = count($pieces) - 1;
+            if ( $num >= 0 && (self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num])) )
+                unset( $pieces[$num] );
+            else
+                break;
+        }
+
         // If no pieces remain, then the given string could never match anything in the field
         // Return impossible search params so the search functions can't return any results
         if ( empty($pieces) )
             return array('str' => "1=0", 'params' => array());
-
-        // Remove trailing operators...they're unmatched by definition
-        $pieces = array_values($pieces);
-        $num = count($pieces)-1;
-        if ( self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num]) )
-            unset( $pieces[$num] );
 
 
         // ----------------------------------------
