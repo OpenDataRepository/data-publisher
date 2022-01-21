@@ -46,7 +46,7 @@ odr_plugins.rruff.ima:
             description:
             type: ShortVarchar
             properties:
-                - must_be_unique    # NOTE - comment this out if abbreviations are added after the rest of the mineral's data
+#                - must_be_unique    # NOTE - This can't be unique...Sørensenite (display abbrev "Sør") and Sorosite (display abbrev "Sor") both derive to "Sor".  Those aren't the only ones.
                 - no_user_edits
                 - is_derived
         mineral_display_abbrev:

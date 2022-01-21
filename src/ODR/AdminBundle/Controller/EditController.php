@@ -65,6 +65,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
@@ -73,7 +74,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -1625,6 +1625,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatarecordInfoService $dri_service */
@@ -1637,10 +1639,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1748,7 +1748,7 @@ class EditController extends ODRCustomController
                         if ( $datafield->getIsUnique() ) {
                             // ...determine whether the new value is a duplicate of a value that
                             //  already exists, ignoring the current datarecord
-                            if ( $search_service->valueAlreadyExists($datafield, $new_value, $datarecord) )
+                            if ( $sort_service->valueAlreadyExists($datafield, $new_value, $datarecord) )
                                 throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
                         }
 

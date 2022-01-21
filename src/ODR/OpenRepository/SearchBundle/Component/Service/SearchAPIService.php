@@ -1148,7 +1148,6 @@ class SearchAPIService
                 // The sort datafield belongs to the datatype being searched on
                 $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
             }
-
             else {
                 // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
                 $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);

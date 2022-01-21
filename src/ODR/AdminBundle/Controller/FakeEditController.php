@@ -38,9 +38,9 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -215,8 +215,8 @@ class FakeEditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -378,7 +378,7 @@ class FakeEditController extends ODRCustomController
             foreach ($datafields as $df_id => $value) {
                 $df = $df_mapping[$df_id];
                 if ( $df->getIsUnique() ) {
-                    if ( $search_service->valueAlreadyExists($df, $value) )
+                    if ( $sort_service->valueAlreadyExists($df, $value) )
                         throw new ODRConflictException('A Datarecord already has the value "'.$value.'" stored in the "'.$df->getFieldName().'" Datafield.');
                 }
             }
@@ -624,8 +624,8 @@ class FakeEditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataFields $datafield */
@@ -668,7 +668,7 @@ class FakeEditController extends ODRCustomController
 
 
             // Determine whether the given value is a duplicate of a value that already exists
-            $is_duplicate = $search_service->valueAlreadyExists($datafield, $value, $datarecord);
+            $is_duplicate = $sort_service->valueAlreadyExists($datafield, $value, $datarecord);
             $error_str = 'A Datarecord already has the value "'.$value.'" stored in the "'.$datafield->getFieldName().'" Datafield.';
 
             if ( $error_type === 'json' ) {

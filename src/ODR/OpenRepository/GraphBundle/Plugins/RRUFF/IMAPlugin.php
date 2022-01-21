@@ -39,10 +39,10 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -89,9 +89,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
     private $search_cache_service;
 
     /**
-     * @var SearchService
+     * @var SortService
      */
-    private $search_service;
+    private $sort_service;
 
     /**
      * @var CsrfTokenManager
@@ -119,7 +119,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param LockService $lock_service
      * @param SearchCacheService $search_cache_service
-     * @param SearchService $search_service
+     * @param SortService $sort_service
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -132,7 +132,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
         EntityMetaModifyService $entity_meta_modify_service,
         LockService $lock_service,
         SearchCacheService $search_cache_service,
-        SearchService $search_service,
+        SortService $sort_service,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
@@ -144,7 +144,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
         $this->emm_service = $entity_meta_modify_service;
         $this->lock_service = $lock_service;
         $this->search_cache_service = $search_cache_service;
-        $this->search_service = $search_service;
+        $this->sort_service = $sort_service;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -264,12 +264,13 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
                 $derivation_problems = self::findDerivationProblems($relevant_fields);
                 $uniqueness_problems = array();
 
-                // Only check for uniqueness problems if these two fields have a value
+                // Only check for uniqueness problems if the "Mineral Name" field has a value
                 $unique_datafield_ids = array();
                 if ( $relevant_fields['Mineral Name']['value'] !== '' )
                     $unique_datafield_ids[] = $relevant_fields['Mineral Name']['id'];
-                if ( $relevant_fields['Mineral Abbreviation']['value'] !== '' )
-                    $unique_datafield_ids[] = $relevant_fields['Mineral Abbreviation']['id'];
+                // The "Mineral Abbrev" field can't be unique due to the source data
+//                if ( $relevant_fields['Mineral Abbreviation']['value'] !== '' )
+//                    $unique_datafield_ids[] = $relevant_fields['Mineral Abbreviation']['id'];
 
                 if ( !empty($unique_datafield_ids) ) {
                     $query = $this->em->createQuery(
@@ -514,7 +515,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
             $value = $data['value'];
 
             if ( $value !== '' && isset($datafields_to_check[$df_id]) ) {
-                if ( $this->search_service->valueAlreadyExists($datafields_to_check[$df_id], $value, $datarecord) ) {
+                if ( $this->sort_service->valueAlreadyExists($datafields_to_check[$df_id], $value, $datarecord) ) {
                     $problems[$df_id] = 'This field is supposed to be unique, but this value is a duplicate.';
                 }
             }
@@ -1085,9 +1086,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
                 'problem_fields' => $derivation_problems,
             );
         }
-        else if ( $relevant_rpf === 'Mineral Name' || $relevant_rpf === 'Mineral Abbreviation') {
-            // No derivation problems, so check for uniqueness problems if reloading one of these
-            //  two fields
+        else if ( $relevant_rpf === 'Mineral Name' /*|| $relevant_rpf === 'Mineral Abbreviation'*/) {
+            // No derivation problems, so check for uniqueness problems if the "Mineral Name" field
+            //  is getting reloaded...the Mineral Abbrev field is not unique due to the source data
             $uniqueness_problems = self::findUniquenessProblems($relevant_fields, array($datafield->getId() => $datafield), $datarecord);
             if ( isset($uniqueness_problems[ $datafield->getId() ]) ) {
                 // The derived field violates uniqueness constraints
