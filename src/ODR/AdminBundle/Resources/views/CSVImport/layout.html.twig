@@ -16,8 +16,14 @@
 {% endif %}
 
 {# Store the max length of all values in each given column #}
-{% for column_id, column_length in column_lengths %}
-    <input type="hidden" id="column_{{ column_id }}_length" value="{{ column_length }}"/>
+{% for column_id, column in column_metadata %}
+    <input type="hidden" id="column_{{ column_id }}_length" value="{{ column['length'] }}"/>
+    {% if not column['could_be_integer'] %}
+    <input type="hidden" id="column_{{ column_id }}_is_not_integer" value="1"/>
+    {% endif %}
+    {% if not column['could_be_decimal'] %}
+        <input type="hidden" id="column_{{ column_id }}_is_not_decimal" value="1"/>
+    {% endif %}
 {% endfor %}
 
     <form id="csv_import_form">
@@ -65,14 +71,16 @@
                     <td>
                         <input type="checkbox" id="import_checkbox_{{ column_id }}"
                                class="import_checkbox"
-                               rel="{{ column_id }}"/>
+                               rel="{{ column_id }}"
+                        />
                     </td>
 
                     <td>
                         <input type="checkbox" id="column_{{ column_id }}_unique"
                                class="unique_checkbox"
                                name="unique_columns[{{ column_id }}]" value="1"
-                               rel="{{ column_id }}"/>
+                               rel="{{ column_id }}"
+                        />
                         <span class="csvimport_inline_warning"
                               title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
                             &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
@@ -82,8 +90,8 @@
                     <td>
                         <select id="column_{{ column_id }}" class="datafield_mapping"
                                 name="datafield_mapping[{{ column_id }}]"
-                                rel="{{ column_id }}">
-
+                                rel="{{ column_id }}"
+                        >
                             <option value="new">Create new datafield...</option>
                             {% for df_id, df in datafields %}
                                 {% set df_meta = df.dataFieldMeta %}
@@ -97,7 +105,7 @@
                                 {% if df_meta.fieldType.id in allowed_fieldtypes|keys %}
                                     <option value="{{ df_id }}"
                                             rel="{{ df_meta.fieldType.id }}"
-                                        {% if column_name|lower == df_meta.fieldName|lower and not disable_selection%}
+                                        {% if column_name|lower == df_meta.fieldName|lower and not disable_selection %}
                                             selected
                                         {% endif %}
                                         {% if disable_selection %}
@@ -115,10 +123,25 @@
                         <select id="column_{{ column_id }}_fieldtype"
                                 class="fieldtype_mapping"
                                 name="fieldtype_mapping[{{ column_id }}]"
-                                rel="{{ column_id }}">
+                                rel="{{ column_id }}"
+                        >
+                            {% set preferred_typename = "Short Text" %}
+                            {% if column_metadata[column_id]['empty_column'] == true %}
+                                {# if column is empty, prefer short text #}
+                            {% elseif column_metadata[column_id]['could_be_integer'] == true %}
+                                {% set preferred_typename = "Integer" %}
+                            {% elseif column_metadata[column_id]['could_be_decimal'] == true %}
+                                {% set preferred_typename = "Decimal" %}
+                            {% elseif column_metadata[column_id]['length'] > 256 %}
+                                {% set preferred_typename = "Paragraph Text" %}
+                            {% elseif column_metadata[column_id]['length'] > 64 %}
+                                {% set preferred_typename = "Long Text" %}
+                            {% elseif column_metadata[column_id]['length'] > 32 %}
+                                {% set preferred_typename = "Medium Text" %}
+                            {% endif %}
 
                             {% for fieldtype in fieldtypes %}
-                                <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
+                                <option {% if fieldtype.typename == preferred_typename %}class="ODRPreferredFieldtype"{% endif %} value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
                             {% endfor %}
                         </select>
                     </td>
@@ -304,7 +327,7 @@
                 $(datafield_selector).prop('disabled', true);
 
                 // ...and the fieldtype mapping column
-                $(fieldtype_selector).children().first().prop('selected', true);
+                $(fieldtype_selector).children(".ODRPreferredFieldtype").prop('selected', true);
                 $(fieldtype_selector).prop('disabled', true);
 
                 // ...and the secondary delimiter column
@@ -499,8 +522,21 @@
 
             block_changes = true;
     {% else %}
+            // Disable updateHiddenFields() before triggering the subsequent change...otherwise it'll
+            //  run once per column of the csv file...which will repeatedly update the contents of
+            //  each .datafield_mapping when the function only needs to be called once
+            window.sessionStorage.setItem('updateHiddenFields', 'false');
+
+            // Select the preferred fieldtype for each of the columns in the CSV file...this
+            //  intentionally doesn't trigger the change handler for fieldtype mapping
+            $(".fieldtype_mapping").children(".ODRPreferredFieldtype").prop("selected", true);
             // Ensure all of the fields are up to date
             $(".datafield_mapping").trigger('change');
+
+            // Re-enable updateHiddenFields()
+            window.sessionStorage.removeItem('updateHiddenFields');
+            // Manually trigger updateHiddenFields() so stuff is up to date
+            updateHiddenFields();
     {% endif %} {# if presets != null #}
 
 {% endif %} {# if not linked_importing #}
@@ -691,6 +727,12 @@
             else
                 $(meta_column).html('<i class="fa fa-warning fa-lg Cursor"></i>&nbsp;Field can only store 32 characters, but column requires ' + column_length);
         }
+        else if ( typename === 'Integer' && $("#column_" + column_id + "_is_not_integer").length > 0 ) {
+            $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;The CSV file has non-integer values in this column');
+        }
+        else if ( typename === 'Decimal' && $("#column_" + column_id + "_is_not_decimal").length > 0 ) {
+            $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;The CSV file has non-decimal values in this column');
+        }
         else {
             $(meta_column).html('');
         }
@@ -701,6 +743,10 @@
      * displayed as "available to map" to a different column.
      */
     function updateHiddenFields() {
+        // If this session storage object exists, then this function shouldn't be run
+        if ( window.sessionStorage.getItem('updateHiddenFields') )
+            return;
+
         // Need to build a list of which datafields are currently mapped to a column
         var selected_fields = [];
         $(".datafield_mapping").each(function () {
@@ -809,22 +855,42 @@
      * Utility function to select all columns listed in the CSV file, marking them for import.
      */
     function selectAllFields() {
+        // Disable updateHiddenFields() before triggering the subsequent change...otherwise it'll
+        //  run once per column of the csv file...which will repeatedly update the contents of
+        //  each .datafield_mapping when the function only needs to be called once
+        window.sessionStorage.setItem('updateHiddenFields', 'false');
+
         $(".import_checkbox").each(function () {
             if (!$(this).is(':checked')) {
                 $(this).trigger('click');
             }
         });
+
+        // Re-enable updateHiddenFields()
+        window.sessionStorage.removeItem('updateHiddenFields');
+        // Manually trigger updateHiddenFields() so stuff is up to date
+        updateHiddenFields();
     }
 
     /**
      * Utility function to deselect all columns listed in the CSV file, preventing their import.
      */
     function deselectAllFields() {
+        // Disable updateHiddenFields() before triggering the subsequent change...otherwise it'll
+        //  run once per column of the csv file...which will repeatedly update the contents of
+        //  each .datafield_mapping when the function only needs to be called once
+        window.sessionStorage.setItem('updateHiddenFields', 'false');
+
         $(".import_checkbox").each(function () {
             if ($(this).is(':checked')) {
                 $(this).trigger('click');
             }
         });
+
+        // Re-enable updateHiddenFields()
+        window.sessionStorage.removeItem('updateHiddenFields');
+        // Manually trigger updateHiddenFields() so stuff is up to date
+        updateHiddenFields();
     }
 
     {% endif %} {# if not linked_importing #}

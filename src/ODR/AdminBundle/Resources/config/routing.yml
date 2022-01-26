@@ -1241,11 +1241,6 @@ odr_csv_export_start:
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
     methods: [ POST ]
 
-odr_csv_export_construct:
-    path: /beanstalk/csvexport/construct
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportConstruct }
-    methods: [ POST ]
-
 odr_csv_export_worker:
     path: /beanstalk/csvexport/worker
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExportWorker }

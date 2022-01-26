@@ -12,6 +12,10 @@
     {% set upload_text = 'XML File' %}
 {% endif %}
 
+{% if display_loading_spinner is not defined %}
+    {% set display_loading_spinner = false %}
+{% endif %}
+
 <div id="ODRFileUpload_{{ target }}" class="ODRFileUpload">
     <span class="ODRUploadBlurb">
         <span class="pure-button pure-button-primary">
@@ -112,6 +116,13 @@ console.log(files);
             ODRFileUpload_filesSubmitted(flow_{{ target }});
             flow_errors_{{ target }} = false;
             flow_cancelled_{{ target }} = false;
+
+{% if display_loading_spinner %}
+            // Want a loading overlay once the file gets uploaded...
+            $("#loading-overlay").fadeIn('fast');
+            $("#loading").html('<span>Loading...</span>');
+            $("#loading").fadeIn('fast');
+{% endif %}
 
 {% if single_file == true %}
             // Block uploads any further uploads after a single file
