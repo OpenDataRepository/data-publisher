@@ -19,6 +19,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -35,6 +36,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -1852,7 +1854,12 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                array(
+                    'ancestor' => $ancestor_datatype->getId(),
+                    'descendant' => $descendant_datatype->getId()
+                )
+            );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
 
@@ -1921,34 +1928,84 @@ class LinkController extends ODRCustomController
                 $local_datarecord_is_ancestor = false;
             }
 
-            // Keep track of whether any change was made
-            $change_made = false;
+            // Load all records currently linked to the local_datarecord
+            $remote = 'ancestor';
+            if (!$local_datarecord_is_ancestor)
+                $remote = 'descendant';
+
+            $query = $em->createQuery(
+               'SELECT ldt
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                WHERE ldt.'.$remote.' = :datarecord
+                AND ldt.deletedAt IS NULL'
+            )->setParameters( array('datarecord' => $local_datarecord->getId()) );
+            $results = $query->getResult();
+
+            $linked_datatree = array();
+            foreach ($results as $num => $ldt)
+                $linked_datatree[] = $ldt;
+            /** @var LinkedDataTree[] $linked_datatree */
 
 
             // ----------------------------------------
+            // Need to determine whether this linking request ends up violating the "multiple_allowed"
+            //  property of the datatree entry
+            if ( !$datatree->getMultipleAllowed() ) {
+                // This only matters when the datatree allows a single link/child
+                if ( !$remove_records_not_in_post ) {
+                    // The request is attempting to create a link to at least one record
+                    $existing_links_count = count($linked_datatree);
+                    $new_links_count = count($datarecords);
+                    if ( ($existing_links_count + $new_links_count) > 1 )
+                        throw new ODRBadRequestException('The relationship between "'.$ancestor_datatype->getShortName().'" and "'.$descendant_datatype->getShortName().'" only allows a single linked record, but this save request would exceed that number');
+                }
+                else {
+                    // Otherwise, the request could both delete existing links and create new ones
+                    $datarecords_to_link = $datarecords;
+                    $count_after_unlinking = count($linked_datatree);
+
+                    foreach ($linked_datatree as $ldt) {
+                        $remote_datarecord = null;
+                        if ($local_datarecord_is_ancestor)
+                            $remote_datarecord = $ldt->getDescendant();
+                        else
+                            $remote_datarecord = $ldt->getAncestor();
+
+                        if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
+                            // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
+                            continue;
+                        } else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+                            // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
+                            continue;
+                        }
+
+                        // If a descendant datarecord...
+                        if ( isset($datarecords_to_link[$remote_datarecord->getId()]) ) {
+                            // ...is in the post request, then it was linked before, and will
+                            //  continue to be linked
+                            unset( $datarecords_to_link[$remote_datarecord->getId()] );
+                        }
+                        else {
+                            // ...is not in the post request, then it will be unlinked
+                            $count_after_unlinking--;
+                        }
+                    }
+
+                    if ( (count($datarecords_to_link) + $count_after_unlinking) > 1 )
+                        throw new ODRBadRequestException('The relationship between "'.$ancestor_datatype->getShortName().'" and "'.$descendant_datatype->getShortName().'" only allows a single linked record, but this save request would exceed that number');
+                }
+            }
+
+
+            // ----------------------------------------
+            // Keep track of whether any change was made
+            $change_made = false;
+
             // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
             //  potentially multiple datarecords...
             $records_to_check = array();
 
             if ($remove_records_not_in_post) {
-                // Locate all records currently linked to the local_datarecord
-                $remote = 'ancestor';
-                if (!$local_datarecord_is_ancestor)
-                    $remote = 'descendant';
-
-                $query = $em->createQuery(
-                   'SELECT ldt
-                    FROM ODRAdminBundle:LinkedDataTree AS ldt
-                    WHERE ldt.'.$remote.' = :datarecord
-                    AND ldt.deletedAt IS NULL'
-                )->setParameters( array('datarecord' => $local_datarecord->getId()) );
-                $results = $query->getResult();
-
-                $linked_datatree = array();
-                foreach ($results as $num => $ldt)
-                    $linked_datatree[] = $ldt;
-                /** @var LinkedDataTree[] $linked_datatree */
-
                 foreach ($linked_datatree as $ldt) {
                     $remote_datarecord = null;
                     if ($local_datarecord_is_ancestor)
@@ -2224,6 +2281,10 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
+            // This controller action won't ever violate the "multiple_allowed" property of the
+            //  datatree entry
+
+            // ----------------------------------------
             // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
             //  potentially multiple datarecords...
             $records_to_check = array();
@@ -2281,6 +2342,110 @@ class LinkController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xdd047dcd;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Given a child datatype id and a datarecord, re-render and return the html for inline searches
+     * on that child datatype.
+     *
+     * @param int $theme_element_id        The theme element this child/linked datatype is in
+     * @param int $parent_datarecord_id    The parent datarecord of the child/linked datarecord
+     *                                       that is getting reloaded
+     * @param int $top_level_datarecord_id The datarecord currently being viewed in edit mode,
+     *                                       required incase the user tries to reload B or C in the
+     *                                       structure A => B => C => ...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function loadinlinelinkAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                throw new ODRNotFoundException('ThemeElement');
+
+            // This is only valid if the theme element has a child/linked datatype
+            if ( $theme_element->getThemeDataType()->isEmpty() )
+                throw new ODRBadRequestException();
+
+            $theme = $theme_element->getTheme();
+            $parent_datatype = $theme->getDataType();
+            $top_level_datatype = $theme->getParentTheme()->getDataType();
+
+
+            /** @var DataRecord $parent_datarecord */
+            $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_datarecord_id);
+            if ($parent_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            if ($parent_datarecord->getDataType()->getId() !== $parent_datatype->getId())
+                throw new ODRBadRequestException();
+
+
+            /** @var DataRecord $top_level_datarecord */
+            $top_level_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($top_level_datarecord_id);
+            if ($top_level_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            if ($top_level_datarecord->getDataType()->getId() !== $top_level_datatype->getId())
+                throw new ODRBadRequestException();
+
+
+            /** @var ThemeDataType $theme_datatype */
+            $theme_datatype = $theme_element->getThemeDataType()->first();
+            $child_datatype = $theme_datatype->getDataType();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            $return['d'] = array(
+                'html' => $odr_render_service->loadInlineLinkChildtype(
+                    $user,
+                    $theme_element,
+                    $parent_datarecord,
+                    $top_level_datarecord,
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xe36a63f7;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

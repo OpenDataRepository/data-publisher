@@ -50,7 +50,8 @@
             {% set file_delete_callback = 'function() { window.location.reload(); }' %}
             {% if not is_top_level %}
                 {# If it's not top level, then should attempt to surgically reload the childtype #}
-                {% set file_delete_callback = 'function() { ReloadEditChild(' ~ datatype.id ~ ',' ~ datarecord.parent.id ~ '); }' %}
+                {# NOTE - can't use datarecord.parent, because that won't work when the datatype is linked to #}
+                {% set file_delete_callback = 'function() { ReloadEditChild(' ~ datatype.id ~ ',' ~ parent_datarecord.id ~ '); }' %}
             {% endif %}
 
             {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
@@ -80,7 +81,8 @@
             {% set callback = 'window.location.reload(true);' %}
             {% if not is_top_level %}
                 {# If it's not top-level, then should attempt to surgically reload the childtype #}
-                {% set callback = 'ReloadEditChild(' ~ datatype.id ~ ',' ~ datarecord.parent.id ~ ');' %}
+                {# NOTE - can't use datarecord.parent, because that won't work when the datatype is linked to #}
+                {% set callback = 'ReloadEditChild(' ~ datatype.id ~ ',' ~ parent_datarecord.id ~ ');' %}
             {% endif %}
 
             {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {

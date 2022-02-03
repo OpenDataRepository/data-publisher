@@ -617,13 +617,12 @@ odr_record_edit:
         offset: \d+
 
 odr_record_reload_child:
-    path: /edit/childreload/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}/{insert_fake_datarecord}
-    defaults: { _controller: ODRAdminBundle:Edit:reloadchild, insert_fake_datarecord: 0 }
+    path: /edit/childreload/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Edit:reloadchild }
     requirements:
         theme_element_id: \d+
         parent_datarecord_id: \d+
         top_level_datarecord_id: \d+
-        insert_fake_datarecord: 0|1
 odr_record_reload_datafield:
     path: /edit/datafieldreload/{source_datarecord_id}/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:reloaddatafield }
@@ -739,6 +738,15 @@ odr_check_fake_record_field_uniqueness:
     requirements:
         datafield_id: \d+
         datarecord_id: \d+
+
+odr_fake_record_reload_child:
+    path: /edit/fake_childreload/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:FakeEdit:reloadchild }
+    methods: [ POST ]
+    requirements:
+        theme_element_id: \d+
+        parent_datarecord_id: \d+
+        top_level_datarecord_id: \d+
 
 #-----------------------------------------
 
@@ -912,6 +920,14 @@ odr_unlink_record:
     path:  /edit/unlinkrecord
     defaults: { _controller: ODRAdminBundle:Link:unlinkrecord }
     methods: [ POST ]
+
+odr_record_inline_link:
+    path: /edit/inlinelink/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Link:loadinlinelink }
+    requirements:
+        theme_element_id: \d+
+        parent_datarecord_id: \d+
+        top_level_datarecord_id: \d+
 
 #-----------------------------------------
 
@@ -1239,11 +1255,6 @@ odr_csv_export_render:
 odr_csv_export_start:
     path: /admin/csvexport/start
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
-    methods: [ POST ]
-
-odr_csv_export_construct:
-    path: /beanstalk/csvexport/construct
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportConstruct }
     methods: [ POST ]
 
 odr_csv_export_worker:

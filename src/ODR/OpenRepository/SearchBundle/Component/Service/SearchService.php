@@ -19,7 +19,6 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -91,76 +90,6 @@ class SearchService
         $this->th_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
-    }
-
-
-    /**
-     * Returns true when the given value has already been saved to an instance of the given
-     * datafield, and false otherwise.  If a datarecord is specified, this function will still return
-     * true even if that one datarecord has the given value.
-     *
-     * For example...let datarecord 1 has value "123" in df, datarecord 2 has value "456" in df
-     * * valueAlreadyExists(df, "123") => true
-     * * valueAlreadyExists(df, "789") => false
-     * * valueAlreadyExists(df, "456", dr_1) => true, because dr_2 already has "456"
-     * * valueAlreadyExists(df, "456", dr_2) => false, because dr_2 is allowed to have "456"
-     *
-     * @param DataFields $datafield
-     * @param string $value
-     * @param DataRecord|null $datarecord
-     *
-     * @return bool
-     */
-    public function valueAlreadyExists($datafield, $value, $datarecord = null)
-    {
-        // ----------------------------------------
-        // Don't continue if called on a datafield that can't be unique
-        if ( !$datafield->getFieldType()->getCanBeUnique() )
-            throw new ODRBadRequestException('valueAlreadyExists() called with '.$datafield->getFieldType()->getTypeName().' datafield', 0xdd175c30);
-
-        // Also don't continue if the datafield and the datarecord don't belong to the same datatype
-        if ( !is_null($datarecord) && $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
-            throw new ODRBadRequestException("Datafield and Datarecord don't belong to the same Datatype", 0xdd175c30);
-
-
-        // ----------------------------------------
-        // Want to perform an exact search for this value...this only works because it's a text/number
-        //  datafield...other fieldtypes with more complicated searches can't be unique
-        $value = strval($value);
-        if ( $value[0] !== '"' && $value[-1] !== '"' ) {
-            // Only put quotes around the given value if it's not already quoted
-            $value = '"'.$value.'"';
-        }
-        $search_results = self::searchTextOrNumberDatafield($datafield, $value);
-
-
-        // ----------------------------------------
-        // If the search didn't return anything, then no datarecord has this value
-        if ( count($search_results['records']) === 0 ) {
-            return false;
-        }
-        else {
-            // Otherwise, behavior depends on whether a datarecord was specified...
-            if ( is_null($datarecord) ) {
-                // ...no datarecord specified, so this is likely a request from a fake record...since
-                //  there's at least one record in the search result, the value already exists
-                return true;
-            }
-            else {
-                // ...datarecord was specified, so this is likely a request from a regular record...
-                if ( count($search_results['records']) === 1
-                    && isset($search_results['records'][$datarecord->getId()])
-                ) {
-                    //  ...exactly one search result that has this datarecord is still acceptable
-                    return false;
-                }
-                else {
-                    // ...but more than one record in the search result isn't allowed regardless
-                    //  of whether the specified datarecord is in there or not
-                    return true;
-                }
-            }
-        }
     }
 
 
@@ -1137,8 +1066,10 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        if ( isset($cached_searches[$value]) )
-            return $cached_searches[$value];
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $cache_key = mb_strtolower($value);
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
 
 
         // ----------------------------------------
@@ -1156,7 +1087,7 @@ class SearchService
         );
 
         // ...then recache the search result
-        $cached_searches[$value] = $end_result;
+        $cached_searches[$cache_key] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
@@ -1198,8 +1129,10 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        if ( isset($cached_searches[$value]) )
-            return $cached_searches[$value];
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $cache_key = mb_strtolower($value);
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
 
 
         // ----------------------------------------
@@ -1212,7 +1145,7 @@ class SearchService
 
 
         // ...then recache the search result
-        $cached_searches[$value] = $result;
+        $cached_searches[$cache_key] = $result;
         $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
 
         // ...then return it

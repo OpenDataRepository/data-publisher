@@ -1,0 +1,32 @@
+{% spaceless %}
+
+{% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
+
+{# Still need to render the template even if there are no child datarecords...otherwise the "Add new Child" button won't be displayed #}
+{% set datarecord_array = {} %}
+{% if parent_datarecord['children'][ target_datatype_id ] is defined %}
+    {% set datarecord_array = parent_datarecord['children'][ target_datatype_id ] %}
+{% endif %}
+
+{% include 'ODRAdminBundle:FakeEdit:fake_edit_fieldarea_childtype.html.twig' with {
+    'datatype_array': datatype_array,
+    'datarecord_array': datarecord_array,
+    'theme_array': theme_array,
+
+    'target_datatype_id': target_datatype_id,
+    'parent_datarecord': parent_datarecord,
+    'target_theme_id': target_theme_id,
+
+    'datatype_permissions': datatype_permissions,
+    'datafield_permissions': datafield_permissions,
+
+    'is_top_level': is_top_level,
+    'is_link': is_link,
+    'display_type': display_type,
+    'multiple_allowed': multiple_allowed,
+
+    'token_list': token_list,
+    'insert_fake_datarecord': insert_fake_datarecord,
+} %}
+
+{% endspaceless %}

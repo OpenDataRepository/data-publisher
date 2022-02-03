@@ -25,7 +25,7 @@
     <div class="pure-u-1">
         <button class="pure-button pure-button-primary" type="button" onclick="submitForm();">Save Changes</button>
         <button class="pure-button" type="button" onclick="returnToDatarecord();">Return to Record</button>
-    {% if not allow_multiple_links and local_datarecord_is_ancestor %}
+    {% if not allow_multiple_links and local_datarecord_is_ancestor and linked_datarecords|length > 0 %}
         <button class="pure-button" type="button" onclick="unlinkCurrentDatarecord();">Unlink current Datarecord</button>
     {% endif %}
     </div>
@@ -102,7 +102,7 @@
 
 {% if count > 0 %}
         // Prepend a header for the checkbox column
-        $("#TextResults_current").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Linked?</th>');
+        $("#TextResults_current").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Link to this record</th>');
 {% endif %}
 
         // Initial checking of linked checkboxes

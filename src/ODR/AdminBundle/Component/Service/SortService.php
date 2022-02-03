@@ -16,8 +16,9 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -388,6 +389,9 @@ class SortService
                             $value = '';
                     }
 
+                    // NOTE - if it turns out that uniqueness checks need to be case-insensitive,
+                    //  then the easiest implementation would be to convert $value to lowercase here
+                    // NOTE - CSVImportController's lookup of external id values is currently case sensitive
                     $datarecord_list[$dr_id] = $value;
                 }
             }
@@ -953,5 +957,76 @@ class SortService
 
         // Return whether any changes were made
         return $changes_made;
+    }
+
+
+    /**
+     * Returns true when the given value has already been saved to an instance of the given
+     * datafield, and false otherwise.  If a datarecord is specified, this function will return
+     * false when that datarecord has the given value.
+     *
+     * For example...let datarecord 1 has value "123" in df, datarecord 2 has value "456" in df
+     * * valueAlreadyExists(df, "123") => true
+     * * valueAlreadyExists(df, "789") => false
+     * * valueAlreadyExists(df, "456", dr_1) => true, because dr_2 already has "456"
+     * * valueAlreadyExists(df, "456", dr_2) => false, because dr_2 is allowed to have "456"
+     *
+     *
+     * Additionally, due to the selected collation, a MYSQL search for the string "zyk" will match
+     * the string "Zýk".  This PHP function, on the other hand, is both case sensitive and does not
+     * perform any UTF-8 collation.  This difference is (currently) intended.
+     *
+     * @param DataFields $datafield
+     * @param string $value
+     * @param DataRecord|null $datarecord
+     *
+     * @return bool
+     */
+    public function valueAlreadyExists($datafield, $value, $datarecord = null)
+    {
+        // ----------------------------------------
+        // Don't continue if called on a datafield that can't be unique
+        if ( !$datafield->getFieldType()->getCanBeUnique() )
+            throw new ODRBadRequestException('valueAlreadyExists() called with '.$datafield->getFieldType()->getTypeName().' datafield', 0xdd175c30);
+
+        // Also don't continue if the datafield and the datarecord don't belong to the same datatype
+        if ( !is_null($datarecord) && $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
+            throw new ODRBadRequestException("Datafield and Datarecord don't belong to the same Datatype", 0xdd175c30);
+
+
+        // ----------------------------------------
+        // MYSQL's collation treats certain "special" characters as equivalent to certain ASCII characters
+        //  e.g.  "Zýk" == "Zyk"   (note that this doesn't apply to all characters..."Sør" != "Sor", for instance)
+        // This is extremely useful for searching purposes, but incorrect for uniqueness purposes
+
+        // Therefore, need to get a list of the existing values in this datafield...
+        $dr_list = self::sortDatarecordsByDatafield($datafield->getId());
+        // ...then check to see if the requested value already exists in this list
+        // NOTE - array_search() is faster than array_flip()+isset() when looking up a single string
+        $dr_id = array_search($value, $dr_list);
+
+        // NOTE - array_search() is case sensitive...this is acceptable for ODR's purposes, at the moment
+
+
+        // ----------------------------------------
+        if ( $dr_id === false ) {
+            // The search didn't find anything, so the value isn't already in use
+            return false;
+        }
+        else if ( is_null($datarecord) ) {
+            // No datarecord specified, so this is likely a request from a fake record...since the
+            //  search found something, the value already exists
+            return true;
+        }
+        else if ( $dr_id === $datarecord->getId() ) {
+            // The specified datarecord already contains the specified value...uniquness constraints
+            //  will not be violated if the specified datarecord is saved
+            return false;
+        }
+        else {
+            // A different datarecord contains the specified value...uniqueness constraints will be
+            //  violated if the specified datarecord is allowed to save this value
+            return true;
+        }
     }
 }

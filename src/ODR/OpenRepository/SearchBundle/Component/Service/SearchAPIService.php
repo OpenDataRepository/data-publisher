@@ -1148,7 +1148,6 @@ class SearchAPIService
                 // The sort datafield belongs to the datatype being searched on
                 $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
             }
-
             else {
                 // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
                 $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
@@ -1179,7 +1178,7 @@ class SearchAPIService
      *
      * @return array
      */
-    private function hydrateCriteria($criteria)
+    public function hydrateCriteria($criteria)
     {
         // ----------------------------------------
         // Searching is *just* different enough between datatypes and templates to be a pain...
@@ -1359,7 +1358,7 @@ class SearchAPIService
      *
      * @return array
      */
-    private function getSearchPermissionsArray($hydrated_datatypes, $affected_datatypes, $user_permissions, $search_as_super_admin = false)
+    public function getSearchPermissionsArray($hydrated_datatypes, $affected_datatypes, $user_permissions, $search_as_super_admin = false)
     {
         // Going to need to filter based on the user's permissions
         $datatype_permissions = array();
@@ -1445,7 +1444,7 @@ class SearchAPIService
      *
      * @return array
      */
-    private function getSearchArrays($top_level_datatype_ids, $permissions_array)
+    public function getSearchArrays($top_level_datatype_ids, $permissions_array)
     {
         // ----------------------------------------
         // Intentionally not caching the results of this function for two reasons

@@ -944,10 +944,11 @@ class DatarecordInfoService
      *
      * @param array $datatype_array @see DatabaseInfoService::getDatatypeArray()
      * @param int $target_datatype_id
+     * @param array $datafield_values An optional array of df_id => value pairs, if the "fake" record isn't supposed to be completely blank
      *
      * @return array
      */
-    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id)
+    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id, $datafield_values = array())
     {
         if ( !isset($datatype_array[$target_datatype_id]) )
             throw new ODRBadRequestException('Unable to generate a fake record of datatype '.$target_datatype_id, 0x00ba0e84);
@@ -958,7 +959,6 @@ class DatarecordInfoService
         unset( $dt_entry[$target_datatype_id]['dataFields'] );
         unset( $dt_entry[$target_datatype_id]['createdBy'] );
         unset( $dt_entry[$target_datatype_id]['updatedBy'] );
-
 
         // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
         // self::generateCSRFTokens() doesn't require numeric ids, and the length doesn't matter
@@ -1006,6 +1006,101 @@ class DatarecordInfoService
             'dataRecordFields' => array()
         );
 
+        // If this was a request to create a "fake" record with some non-blank values...
+        if ( !empty($datafield_values) ) {
+            foreach ($datafield_values as $df_id => $value) {
+                // ...then create a "fake" drf entry...
+                $fake_drf_entry = self::createFakeDatarecordFieldEntry($datatype_array, $df_id, $value);
+                // ...and save it into the "fake" record entry if it was valid
+                if ( !empty($fake_drf_entry) )
+                    $entry['dataRecordFields'][$df_id] = $fake_drf_entry;
+            }
+        }
+
         return $entry;
+    }
+
+
+    /**
+     * If the user wants to create a new record via InlineLink, and the data they've entered failed
+     * to save properly, then a FakeEdit record needs to be created with the data they've already
+     * entered.
+     *
+     * @param array $datatype_array
+     * @param integer $df_id
+     * @param mixed $value
+     *
+     * @return array
+     */
+    private function createFakeDatarecordFieldEntry($datatype_array, $df_id, $value)
+    {
+        $fake_drf = array();
+
+        // Need to determine the fieldtype of the requested datafield, but there could be multiple
+        //  datatypes in the cached datatype array...
+        foreach ($datatype_array as $dt_id => $dt) {
+            if ( isset($dt['dataFields'][$df_id]) ) {
+                $df = $dt['dataFields'][$df_id];
+                $typeclass = lcfirst( $df['dataFieldMeta']['fieldType']['typeClass'] );
+
+                switch ($typeclass) {
+                    // FakeEdit doesn't allow uploads of files/images...
+                    case 'file':
+                    case 'image':
+                    // ...and InlineLink currently ignores radio/tag fields...
+                    case 'radio':
+                    case 'tags':
+                    // ...so any value in these fieldtypes should get ignored
+                    case 'markdown':
+                        // TODO - modify to fill out non-markdown fields?
+                        return array();
+                }
+
+                // Need to check whether the datafield has the "no_user_edits" or "is_derived"
+                //  properties from a render plugin
+                if ( !empty($df['renderPluginInstances']) ) {
+                    foreach ($df['renderPluginInstances'] as $num => $rpi) {
+                        // Datafield plugins are guaranteed to have a single renderPluginMap entry,
+                        //  but don't know what the renderPluginField name is
+                        foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                            if ( isset($rpf['properties']['no_user_edits'])
+                                || isset($rpf['properties']['is_derived'])
+                            ) {
+                                // ...the user isn't supposed to be able to change this datafield's
+                                //  value
+                                return array();
+                            }
+                        }
+                    }
+                }
+
+                // ...and also check from a datatype plugin
+                if ( !empty($dt['renderPluginInstances']) ) {
+                    foreach ($dt['renderPluginInstances'] as $num => $rpi) {
+                        foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                            if ( $rpf['id'] === $df_id ) {
+                                // This datafield is being used by a datatype plugin...
+                                if ( isset($rpf['properties']['no_user_edits'])
+                                    || isset($rpf['properties']['is_derived'])
+                                ) {
+                                    // ...and the user isn't supposed to be able to change its value
+                                    return array();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Otherwise, there's nothing preventing FakeEdit from displaying this value
+                $fake_drf[$typeclass] = array(
+                    0 => array(
+                        'value' => $value
+                    )
+                );
+                break;
+            }
+        }
+
+        return $fake_drf;
     }
 }

@@ -37,6 +37,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
+use Pheanstalk\Pheanstalk;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
@@ -144,15 +145,11 @@ class CSVExportController extends ODRCustomController
             }
 
             // Get the list of grandparent datarecords specified by this search key
-            // Don't care about sorting here
             $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
-            // Get the list of top-level datarecords that matched the search...
             $grandparent_datarecord_list = $search_results['grandparent_datarecord_list'];
-            // Get the list of all datarecords that matched the search...
-            $complete_datarecord_list = $search_results['complete_datarecord_list'];
 
             // If the user is attempting to view a datarecord from a search that returned no results...
-            if ( $filtered_search_key !== '' && empty($grandparent_datarecord_list) ) {
+            if ( empty($grandparent_datarecord_list) ) {
                 // ...redirect to the "no results found" page
                 return $search_redirect_service->redirectToSearchResult($filtered_search_key, $search_theme_id);
             }
@@ -165,9 +162,7 @@ class CSVExportController extends ODRCustomController
                 $list = array();
 
             $list[$odr_tab_id] = array(
-                'encoded_search_key' => $filtered_search_key,
-                'grandparent_datarecord_list' => $grandparent_datarecord_list,
-                'complete_datarecord_list' => $complete_datarecord_list,
+                'filtered_search_key' => $filtered_search_key,
             );
             $session->set('csv_export_datarecord_lists', $list);
 
@@ -260,8 +255,10 @@ class CSVExportController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
 
 
             /** @var DataType $datatype */
@@ -273,9 +270,10 @@ class CSVExportController extends ODRCustomController
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
+            /** @var Pheanstalk $pheanstalk */
             $pheanstalk = $this->get('pheanstalk');
 
-            $url = $this->generateUrl('odr_csv_export_construct', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_csv_export_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
 
             // --------------------
@@ -407,30 +405,68 @@ class CSVExportController extends ODRCustomController
             $list = $session->get('csv_export_datarecord_lists');
             if ( !isset($list[$odr_tab_id]) )
                 throw new ODRBadRequestException('Missing CSVExport session variable');
-
-            // All of these values need to exist...
-            if ( !isset($list[$odr_tab_id]['encoded_search_key'])
-                || !isset($list[$odr_tab_id]['grandparent_datarecord_list'])
-                || !isset($list[$odr_tab_id]['complete_datarecord_list'])
-            ) {
+            if ( !isset($list[$odr_tab_id]['filtered_search_key']) )
                 throw new ODRBadRequestException('Malformed CSVExport session variable');
-            }
 
             // ...and need to not be blank
-            $search_key = $list[$odr_tab_id]['encoded_search_key'];
+            $search_key = $list[$odr_tab_id]['filtered_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
-            $grandparent_datarecord_list = $list[$odr_tab_id]['grandparent_datarecord_list'];
-            if ( empty($grandparent_datarecord_list) )
-                throw new ODRBadRequestException('Grandparent datarecord list is empty');
-            $complete_datarecord_list = $list[$odr_tab_id]['complete_datarecord_list'];
-            if ( empty($complete_datarecord_list) )
-                throw new ODRBadRequestException('Complete datarecord list is empty');
-
 
             // Shouldn't be an issue, but delete the datarecord list out of the user's session
             unset( $list[$odr_tab_id] );
             $session->set('csv_export_datarecord_lists', $list);
+
+
+            // ----------------------------------------
+            // CSVExport needs both of the lists of datarecords from a search result...
+            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
+            // ...the grandparent datarecord list so that the export knows how many beanstalk jobs
+            //  to create in the csv_export_worker queue...
+            $grandparent_datarecord_list = $search_results['grandparent_datarecord_list'];
+            // ...and the complete datarecord list so that the csv_export_worker process can export
+            //  the correct child/linked records
+            $complete_datarecord_list = $search_results['complete_datarecord_list'];
+
+            // However, the complete datarecord list can't be passed directly to the csv_export_worker
+            //  queue because the list can easily exceed the maximum allowed job length...
+            // Therefore, the list needs to be filtered for each csv_export_worker job so it only
+            //  contains the child/linked records that are relevant to the grandparent datarecord
+            $complete_datarecord_list = array_flip($complete_datarecord_list);
+
+
+            // The most...reusable...method of performing this filtering is to copy the initial logic
+            //  from SearchAPIService::performSearch().  This is duplication of work, but it should
+            //  be fast enough to not make a noticable difference...
+
+
+            // Convert the search key into a format suitable for searching
+            $searchable_datafields = $search_api_service->getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions);
+            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
+
+            // Need to grab hydrated versions of the datafields/datatypes being searched on
+            $hydrated_entities = $search_api_service->hydrateCriteria($criteria);
+
+            // Each datatype being searched on (or the datatype of a datafield being search on) needs
+            //  to be initialized to "-1" (does not match) before the results of each facet search
+            //  are merged together into the final array
+            $affected_datatypes = $criteria['affected_datatypes'];
+            unset( $criteria['affected_datatypes'] );
+            // Also don't want the list of all datatypes anymore either
+            unset( $criteria['all_datatypes'] );
+            // ...or what type of search this is
+            unset( $criteria['search_type'] );
+
+            // Get the base information needed so getSearchArrays() can properly setup the search arrays
+            $search_permissions = $search_api_service->getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions);
+
+            // Going to need these two arrays to be able to accurately determine which datarecords
+            //  end up matching the query
+            $search_arrays = $search_api_service->getSearchArrays(array($datatype->getId()), $search_permissions);
+//            $flattened_list = $search_arrays['flattened'];
+            $inflated_list = $search_arrays['inflated'];
+            // The top-level of $inflated_list is wrapped in the top-level datatype id...get rid of it
+            $inflated_list = $inflated_list[ $datatype->getId() ];
 
 
             // ----------------------------------------
@@ -459,6 +495,10 @@ class CSVExportController extends ODRCustomController
             // Create a beanstalk job for each of these datarecords
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
             foreach ($grandparent_datarecord_list as $num => $datarecord_id) {
+                // Need to use $complete_datarecord_list and $inflated_list to locate the child/linked
+                //  datarecords related to this top-level datarecord
+                $tmp_list = array($datarecord_id => $inflated_list[$datarecord_id]);
+                $filtered_datarecord_list = self::getFilteredDatarecordList($tmp_list, $complete_datarecord_list);
 
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
@@ -474,7 +514,7 @@ class CSVExportController extends ODRCustomController
 
                         'datatype_id' => $datatype_id,
                         'datarecord_id' => $datarecord_id,    // top-level datarecord id
-                        'complete_datarecord_list' => $complete_datarecord_list,    // list of all datarecords matching the search
+                        'complete_datarecord_list' => $filtered_datarecord_list,    // list of all datarecords related to $datarecord_id that matched the search
                         'datafields' => $datafields,
 
                         'redis_prefix' => $redis_prefix,    // debug purposes only
@@ -486,7 +526,7 @@ class CSVExportController extends ODRCustomController
 //print '<pre>'.print_r($payload, true).'</pre>';    exit();
 
                 $delay = 1; // one second
-                $pheanstalk->useTube('csv_export_start')->put($payload, $priority, $delay);
+                $pheanstalk->useTube('csv_export_worker')->put($payload, $priority, $delay);
             }
         }
         catch (\Exception $e) {
@@ -504,14 +544,51 @@ class CSVExportController extends ODRCustomController
 
 
     /**
-     * Given a datarecord id and a list of datafield ids, builds a line of csv data used by
-     * Ddeboer\DataImport\Writer\CsvWriter later
+     * Recursively digs through a single top-level datarecord from $inflated list to find all of its
+     * child/linked datarecords that exist in $complete_datarecord_list.
+     *
+     * @param array $inflated_list @see SearchAPIService::buildDatarecordTree()
+     * @param array $complete_datarecord_list The list of all datarecords matching the original search
+     *                                        that this CSVExport is being run on...datarecord ids
+     *                                        are the array keys
+     *
+     * @return array
+     */
+    private function getFilteredDatarecordList($inflated_list, $complete_datarecord_list)
+    {
+        $filtered_list = array();
+
+        foreach ($inflated_list as $dr_id => $child_dt_list) {
+            if ( isset($complete_datarecord_list[$dr_id]) ) {
+                $filtered_list[] = $dr_id;
+                if ( is_array($child_dt_list) ) {
+                    // This datarecord has child/linked records, so those should get checked too
+                    foreach ($child_dt_list as $child_dt_id => $dr_list) {
+                        $tmp = self::getFilteredDatarecordList($dr_list, $complete_datarecord_list);
+                        // Any matching child/linked records found should get added to the full list
+                        foreach ($tmp as $num => $dr)
+                            $filtered_list[] = $dr;
+                    }
+                }
+            }
+
+            // Otherwise, this datarecord is not in the search results list...it and any children
+            //  should get ignored
+        }
+
+        return $filtered_list;
+    }
+
+
+    /**
+     * Given a datarecord id and a list of datafield ids, builds a line of csv data to be written
+     * to a csv file by Ddeboer\DataImport\Writer\CsvWriter
      *
      * @param Request $request
      *
      * @return Response
      */
-    public function csvExportConstructAction(Request $request)
+    public function csvExportWorkerAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -535,6 +612,7 @@ class CSVExportController extends ODRCustomController
                 || !isset($post['datafields'])
 
                 || !isset($post['api_key'])
+                || !isset($post['random_key'])
             ) {
                 throw new ODRBadRequestException();
             }
@@ -549,6 +627,7 @@ class CSVExportController extends ODRCustomController
             $datafields = $post['datafields'];
 
             $api_key = $post['api_key'];
+            $random_key = $post['random_key'];
 
             // Don't need to do any additional verification on these...that was handled back in
             //  csvExportStartAction()
@@ -577,8 +656,8 @@ class CSVExportController extends ODRCustomController
 
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            /** @var Pheanstalk $pheanstalk */
             $pheanstalk = $this->get('pheanstalk');
-//            $logger = $this->get('logger');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -727,8 +806,6 @@ class CSVExportController extends ODRCustomController
             //  need to get recursively merged together
             $datarecord_data = self::mergeMultipleChildtypes($combined_dr_array);
 
-
-            // ----------------------------------------
             // Need to ensure all fields are always in the output and that the output is always in
             //  the same order
             $lines = array();
@@ -744,40 +821,192 @@ class CSVExportController extends ODRCustomController
                         $line[$df_id] = '';
                 }
 
-
+                // Store the line so it can be written to a csv file
                 $lines[] = $line;
             }
 
 
-//            exit( '<html><body><pre>'.print_r($lines, true).'</pre></body></html>' );
+            // ----------------------------------------
+            // Ensure the random key is stored in the database for later retrieval by the finalization process
+            $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->findOneBy( array('random_key' => $random_key) );
+            if ($tracked_csv_export == null) {
+                $query =
+                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
+                    SELECT * FROM (SELECT :random_key AS random_key, :tj_id AS tracked_job_id, :finalize AS finalize) AS tmp
+                    WHERE NOT EXISTS (
+                        SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
+                    ) LIMIT 1;';
+                $params = array('random_key' => $random_key, 'tj_id' => $tracked_job_id, 'finalize' => 0);
+                $conn = $em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query, $params);
+
+//print 'rows affected: '.$rowsAffected."\n";
+            }
+
+            // Ensure directories exists
+            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/';
+            if ( !file_exists($csv_export_path) )
+                mkdir( $csv_export_path );
+            $csv_export_path .= 'csv_export/';
+            if ( !file_exists($csv_export_path) )
+                mkdir( $csv_export_path );
+
+            // Open the indicated file
+            $filename = 'f_'.$random_key.'.csv';
+            $handle = fopen($csv_export_path.$filename, 'a');
+            if ($handle !== false) {
+                // Write the line given to the file
+                // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
+//                $delimiter = "\t";
+                $enclosure = "\"";
+                $writer = new CsvWriter($delimiters['base'], $enclosure);
+
+                $writer->setStream($handle);
+
+                foreach ($lines as $line)
+                    $writer->writeItem($line);
+
+                // Close the file
+                fclose($handle);
+            }
+            else {
+                // Unable to open file
+                throw new ODRException('Could not open csv worker export file.');
+            }
+
 
             // ----------------------------------------
-            // Create a beanstalk job for this datarecord
-            $url = $this->generateUrl('odr_csv_export_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    'tracked_job_id' => $tracked_job_id,
-                    'user_id' => $user_id,
+            // Update the job tracker if necessary
+            $completed = false;
+            if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
-                    'delimiter' => $delimiters['base'],
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
 
-                    'datarecord_id' => $datarecord_id,
-                    'datatype_id' => $datatype_id,
-                    'datafields' => $datafields,
-                    'lines' => $lines,
+                if ($count >= $total) {
+                    $tracked_job->setCompleted( new \DateTime() );
+                    $completed = true;
+                }
 
-                    'redis_prefix' => $redis_prefix,    // debug purposes only
-                    'url' => $url,
-                    'api_key' => $api_key,
-                )
-            );
+                $em->persist($tracked_job);
+                $em->flush();
+//print '  Set current to '.$count."\n";
+            }
 
-//print_r($payload);
 
-            $delay = 1; // one second
-            $pheanstalk->useTube('csv_export_worker')->put($payload, $priority, $delay);
+            // ----------------------------------------
+            // If this was the last line to write to be written to a file for this particular export...
+            // NOTE - incrementCurrent()'s current implementation can't guarantee that only a single process will enter this block...so have to ensure that only one process starts the finalize step
+            $random_keys = array();
+            if ($completed) {
+                // Make a hash from all the random keys used
+                $query = $em->createQuery(
+                   'SELECT tce.id AS id, tce.random_key AS random_key
+                    FROM ODRAdminBundle:TrackedCSVExport AS tce
+                    WHERE tce.trackedJob = :tracked_job AND tce.finalize = 0
+                    ORDER BY tce.id'
+                )->setParameters( array('tracked_job' => $tracked_job_id) );
+                $results = $query->getArrayResult();
+
+                // Due to ORDER BY, every process entering this section should compute the same $random_key_hash
+                $random_key_hash = '';
+                foreach ($results as $num => $result) {
+                    $random_keys[ $result['id'] ] = $result['random_key'];
+                    $random_key_hash .= $result['random_key'];
+                }
+                $random_key_hash = md5($random_key_hash);
+
+                // Attempt to insert this hash back into the database...
+                // NOTE: this uses the same random_key field as the previous INSERT WHERE NOT EXISTS query...the first time it had an 8 character string inserted into it, this time it's taking a 32 character string
+                $query =
+                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
+                    SELECT * FROM (SELECT :random_key_hash AS random_key, :tj_id AS tracked_job_id, :finalize AS finalize) AS tmp
+                    WHERE NOT EXISTS (
+                        SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key_hash AND tracked_job_id = :tj_id AND finalize = :finalize
+                    ) LIMIT 1;';
+                $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => 1);
+                $conn = $em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query, $params);
+
+                if ($rowsAffected == 1) {
+                    // This is the first process to attempt to insert this key...it will be in charge of creating the information used to concatenate the temporary files together
+                    $completed = true;
+                }
+                else {
+                    // This is not the first process to attempt to insert this key, do nothing so multiple finalize jobs aren't created
+                    $completed = false;
+                }
+            }
+
+
+            // ----------------------------------------
+            if ($completed) {
+                // Determine the contents of the header line
+                $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
+
+                // Need to locate fieldnames of all datafields that were exported...recreate the
+                //  $flipped_datafields array
+                $flipped_datafields = array_flip($datafields);
+
+                $header_line = array();
+                foreach ($dt_array as $dt_id => $dt) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        if ( isset($flipped_datafields[$df_id]) ) {
+                            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                            $fieldname = $df['dataFieldMeta']['fieldName'];
+
+                            // All fieldtypes except for Markdown can be exported
+                            if ($typename !== 'Markdown')
+                                $header_line[$df_id] = $fieldname;
+                        }
+                    }
+                }
+
+                // Make a "final" file for the export, and insert the header line
+                $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
+                $final_file = fopen($csv_export_path.$final_filename, 'w');
+
+                if ($final_file !== false) {
+//                    $delimiter = "\t";
+                    $enclosure = "\"";
+                    $writer = new CsvWriter($delimiters['base'], $enclosure);
+
+                    $writer->setStream($final_file);
+                    $writer->writeItem($header_line);
+                }
+                else {
+                    throw new ODRException('Could not open csv finalize export file.');
+                }
+
+                fclose($final_file);
+
+
+                // ----------------------------------------
+                // Now that the "final" file exists, need to splice the temporary files together into it
+                $url = $this->generateUrl('odr_csv_export_finalize', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+                //
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'final_filename' => $final_filename,
+                        'random_keys' => $random_keys,
+
+                        'user_id' => $user_id,
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
+                        'url' => $url,
+                        'api_key' => $api_key,
+                    )
+                );
+
+
+                $delay = 1; // one second
+                $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
+            }
 
             $return['d'] = '';
         }
@@ -1209,262 +1438,6 @@ class CSVExportController extends ODRCustomController
 
 
     /**
-     * Writes a line of csv data to a file
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function csvExportWorkerAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // This should only be called by a beanstalk worker process, so force exceptions to be in json
-            $request->setRequestFormat('json');
-
-            $post = $request->request->all();
-//print_r($post);  exit();
-
-            if ( !isset($post['tracked_job_id'])
-                || !isset($post['user_id'])
-                || !isset($post['lines'])
-                || !isset($post['datafields'])
-                || !isset($post['datatype_id'])
-                || !isset($post['random_key'])
-                || !isset($post['api_key'])
-                || !isset($post['delimiter'])
-            ) {
-                throw new ODRBadRequestException();
-            }
-
-            // Pull data from the post
-            $tracked_job_id = intval($post['tracked_job_id']);
-            $user_id = $post['user_id'];
-            $lines = $post['lines'];
-            $datafields = $post['datafields'];
-            $datatype_id = $post['datatype_id'];
-            $random_key = $post['random_key'];  // is generated by CSVExportWorkerCommand.php
-            $api_key = $post['api_key'];
-            $delimiter = $post['delimiter'];
-
-            // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-//            $logger = $this->get('logger');
-
-            if ($api_key !== $beanstalk_api_key)
-                throw new ODRBadRequestException();
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-
-
-            // ----------------------------------------
-            // Ensure the random key is stored in the database for later retrieval by the finalization process
-            $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->findOneBy( array('random_key' => $random_key) );
-            if ($tracked_csv_export == null) {
-                $query =
-                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
-                    SELECT * FROM (SELECT :random_key AS random_key, :tj_id AS tracked_job_id, :finalize AS finalize) AS tmp
-                    WHERE NOT EXISTS (
-                        SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
-                    ) LIMIT 1;';
-                $params = array('random_key' => $random_key, 'tj_id' => $tracked_job_id, 'finalize' => 0);
-                $conn = $em->getConnection();
-                $rowsAffected = $conn->executeUpdate($query, $params);
-
-//print 'rows affected: '.$rowsAffected."\n";
-            }
-
-
-            // Ensure directories exists
-            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/';
-            if ( !file_exists($csv_export_path) )
-                mkdir( $csv_export_path );
-            $csv_export_path .= 'csv_export/';
-            if ( !file_exists($csv_export_path) )
-                mkdir( $csv_export_path );
-
-
-            // Open the indicated file
-            $filename = 'f_'.$random_key.'.csv';
-            $handle = fopen($csv_export_path.$filename, 'a');
-            if ($handle !== false) {
-                // Write the line given to the file
-                // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
-//                $delimiter = "\t";
-                $enclosure = "\"";
-                $writer = new CsvWriter($delimiter, $enclosure);
-
-                $writer->setStream($handle);
-
-                foreach ($lines as $line)
-                    $writer->writeItem($line);
-
-                // Close the file
-                fclose($handle);
-            }
-            else {
-                // Unable to open file
-                throw new ODRException('Could not open csv worker export file.');
-            }
-
-
-            // ----------------------------------------
-            // Update the job tracker if necessary
-            $completed = false;
-            if ($tracked_job_id !== -1) {
-                /** @var TrackedJob $tracked_job */
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
-
-                $total = $tracked_job->getTotal();
-                $count = $tracked_job->incrementCurrent($em);
-
-                if ($count >= $total) {
-                    $tracked_job->setCompleted( new \DateTime() );
-                    $completed = true;
-                }
-
-                $em->persist($tracked_job);
-                $em->flush();
-//print '  Set current to '.$count."\n";
-            }
-
-
-            // ----------------------------------------
-            // If this was the last line to write to be written to a file for this particular export...
-            // NOTE - incrementCurrent()'s current implementation can't guarantee that only a single process will enter this block...so have to ensure that only one process starts the finalize step
-            $random_keys = array();
-            if ($completed) {
-                // Make a hash from all the random keys used
-                $query = $em->createQuery(
-                   'SELECT tce.id AS id, tce.random_key AS random_key
-                    FROM ODRAdminBundle:TrackedCSVExport AS tce
-                    WHERE tce.trackedJob = :tracked_job AND tce.finalize = 0
-                    ORDER BY tce.id'
-                )->setParameters( array('tracked_job' => $tracked_job_id) );
-                $results = $query->getArrayResult();
-
-                // Due to ORDER BY, every process entering this section should compute the same $random_key_hash
-                $random_key_hash = '';
-                foreach ($results as $num => $result) {
-                    $random_keys[ $result['id'] ] = $result['random_key'];
-                    $random_key_hash .= $result['random_key'];
-                }
-                $random_key_hash = md5($random_key_hash);
-
-                // Attempt to insert this hash back into the database...
-                // NOTE: this uses the same random_key field as the previous INSERT WHERE NOT EXISTS query...the first time it had an 8 character string inserted into it, this time it's taking a 32 character string
-                $query =
-                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
-                    SELECT * FROM (SELECT :random_key_hash AS random_key, :tj_id AS tracked_job_id, :finalize AS finalize) AS tmp
-                    WHERE NOT EXISTS (
-                        SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key_hash AND tracked_job_id = :tj_id AND finalize = :finalize
-                    ) LIMIT 1;';
-                $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => 1);
-                $conn = $em->getConnection();
-                $rowsAffected = $conn->executeUpdate($query, $params);
-
-                if ($rowsAffected == 1) {
-                    // This is the first process to attempt to insert this key...it will be in charge of creating the information used to concatenate the temporary files together
-                    $completed = true;
-                }
-                else {
-                    // This is not the first process to attempt to insert this key, do nothing so multiple finalize jobs aren't created
-                    $completed = false;
-                }
-            }
-
-
-            // ----------------------------------------
-            if ($completed) {
-                // Determine the contents of the header line
-                $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
-
-                // Need to locate fieldnames of all datafields that were exported
-                $flipped_datafields = array_flip($datafields);
-
-                $header_line = array();
-                foreach ($dt_array as $dt_id => $dt) {
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        if ( isset($flipped_datafields[$df_id]) ) {
-                            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                            $fieldname = $df['dataFieldMeta']['fieldName'];
-
-                            // All fieldtypes except for Markdown can be exported
-                            if ($typename !== 'Markdown')
-                                $header_line[$df_id] = $fieldname;
-                        }
-                    }
-                }
-
-                // Make a "final" file for the export, and insert the header line
-                $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
-                $final_file = fopen($csv_export_path.$final_filename, 'w');
-
-                if ($final_file !== false) {
-//                    $delimiter = "\t";
-                    $enclosure = "\"";
-                    $writer = new CsvWriter($delimiter, $enclosure);
-
-                    $writer->setStream($final_file);
-                    $writer->writeItem($header_line);
-                }
-                else {
-                    throw new ODRException('Could not open csv finalize export file.');
-                }
-
-                fclose($final_file);
-
-                // ----------------------------------------
-                // Now that the "final" file exists, need to splice the temporary files together into it
-                $url = $this->generateUrl('odr_csv_export_finalize', array(), UrlGeneratorInterface::ABSOLUTE_URL);
-
-                //
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        'tracked_job_id' => $tracked_job_id,
-                        'final_filename' => $final_filename,
-                        'random_keys' => $random_keys,
-
-                        'user_id' => $user_id,
-                        'redis_prefix' => $redis_prefix,    // debug purposes only
-                        'url' => $url,
-                        'api_key' => $api_key,
-                    )
-                );
-
-
-                $delay = 1; // one second
-                $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
-            }
-
-            $return['d'] = '';
-        }
-        catch (\Exception $e) {
-            $source = 0xc0abdfce;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Takes a list of temporary files used for csv exporting, and appends each of their contents
      * to a "final" export file
      *
@@ -1505,8 +1478,8 @@ class CSVExportController extends ODRCustomController
 
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            /** @var Pheanstalk $pheanstalk */
             $pheanstalk = $this->get('pheanstalk');
-//            $logger = $this->get('logger');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();

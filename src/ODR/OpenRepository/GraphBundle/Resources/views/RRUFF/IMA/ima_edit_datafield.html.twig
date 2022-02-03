@@ -64,22 +64,10 @@
 {% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
 {% set input_name = field_typeclass ~ 'Form[value]' %}
 
-{% set datarecord_is_fake = false %}
-{% if datarecord.is_fake is defined and datarecord.is_fake == true %}
-    {% set datarecord_is_fake = true %}
-{% endif %}
-
-{% set inline_search_link = false %}
-{% if datarecord_is_fake and is_link %}
-    {% set inline_search_link = true %}
-{% endif %}
-
     <form
-        {% if is_link %} autocomplete="off"{% endif %}
-        {% if not datarecord_is_fake %}
-            action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
-        {% endif %}
-        class="pure-u-1{% if is_link %} ODRLinkLookupForm{% endif %} {% if datarecord_is_fake and datafield_meta.is_unique %}ODRUniqueField{% endif %}"
+        autocomplete="off"
+        action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+        class="pure-u-1"
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
@@ -89,7 +77,7 @@
     {% if field_typename == "Paragraph Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin and not datarecord_is_fake %}
+                {% if is_datatype_admin %}
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
@@ -97,7 +85,7 @@
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
                     id="{{ input_id }}"
-                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
+                    class="pure-u-1"
                     name="{{ input_name }}"
                     {% if datafield_meta.required == 1 %}required="required"{% endif %}
                     data-error-type="inline"
@@ -109,7 +97,7 @@
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin and not datarecord_is_fake %}
+                {% if is_datatype_admin %}
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
@@ -119,16 +107,12 @@
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                     type="text"
                     id="{{ input_id }}"
-                    class="pure-u-1{% if is_link %} ODRLinkLookupInput{% endif %}"
+                    class="pure-u-1"
                     name="{{ input_name }}"
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
                 />
-                {% if datarecord_is_fake %}
-                <i class="fa fa-hourglass-2 ODRSaveIndicator"></i>
-                {% else %}
                 <i class="fa fa-save ODRSaveIndicator"></i>
-                {% endif %}
             </div>
         </fieldset>
     {% endif %}
@@ -146,21 +130,6 @@
         $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
             clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
             {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
-
-        {% if datarecord_is_fake and derived_datafield_id is not null %}
-            {% set derived_field_unique_id = datarecord.id ~ '_' ~ derived_datafield_id %}
-            console.log( $(this), $(this).val() );
-            var derived_input = $("#Input_{{ derived_field_unique_id }}").children('input').first();
-            if ( $(this).val() !== '' ) {
-                // In order to appease the FakeEdit saving process, the derived datafield needs
-                //  to have some sort of value
-                $(derived_input).val('<will be derived>');
-            }
-            else {
-                // If the source field is empty, the derived field should be empty too
-                $(derived_input).val('');
-            }
-        {% endif %}
         });
 
         $("#EditForm_{{ unique_id }}").validate({
@@ -174,18 +143,14 @@
                     maxlength: {{ max_length }},
                 {% endif %}
 
-                {% if datafield_meta.is_unique and not is_link %}
+                {% if datafield_meta.is_unique %}
                     required: true,
                 {% endif %}
 
-                {% if datafield_meta.is_unique and (not is_link or not datarecord_is_fake) %}
-                    {# field needs to be unique, and record needs to not be simultaneously a link and a "fake" for this rule to play nice with the rest of ODR #}
+                {% if datafield_meta.is_unique %}
+                    {# need to query ODR to see whether the contents of this field are unique or not #}
                     remote: {
-                        {% if not datarecord_is_fake %}
                         url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id, 'datarecord_id': datarecord.id }) }}",
-                        {% else %}
-                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}",
-                        {% endif %}
                         type: "post",
                         data: {
                             {# The form's value is automatically inserted by jQuery validate #}
@@ -198,27 +163,20 @@
                 {% endif %}
                 }
             },
+
+            {% if datafield_meta.is_unique %}
+            onkeyup: false,    // If the datafield fires off a remote event to check uniqueness, then don't trigger validation on every keyup event
+            {% endif %}
+
             submitHandler: function(form) {
-            {% if not datarecord_is_fake %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }},
                     [{{ derived_datafield_id }}]
                 );    // TODO - should SaveRecordData() take a callback instead of an array for the 3rd param?
-            {% else %}
-                // "Fake" records don't have an equivalent to SaveRecordData(), so probably should
-                //   clear the timeout here
-                clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
-            {% endif %}
             }
             // focusInvalid: false
         });
-
-        {% if datarecord_is_fake and not is_link %}
-        // Ensure required fields are immediately highlighted when a user is trying to create a new
-        //  top-level record
-        $("#EditForm_{{ unique_id }}").valid();
-        {% endif %}
     </script>
     {% endif %}
 

@@ -38,20 +38,23 @@
 
     {% if field_typename == "Boolean" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
-            <input type="checkbox" name="">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em;">
+            <input type="checkbox" name="">&nbsp;
             {{ datafield_meta.fieldName }}
-            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+
+            <span style="margin-left: 5px;">
+                <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+            </span>
         </label>
     </fieldset>
 
     {% elseif field_typename == "File" %}
         <div class="ODRFileDatafield">
             <div class="ODRFileDatafield_header pure-u-1">
-                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
-                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i class="Pointer fa fa-download fa-lg" title="Download all Files in this Datafield"></i>&nbsp;
+                <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
 
-                <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield_meta.description }}">
+                <span id="ODRDataField_{{ datafield.id }}">
                     <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield_meta.fieldName }}</span>
                 </span>
             </div>
@@ -83,8 +86,10 @@
     {% elseif field_typename == "Image" %}
     <fieldset>
         <span class="pure-u-1">
-            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
-                {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+                <span>
+                    <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+                </span>
                 {{ datafield_meta.fieldName }}
             </h3>
         </span>
@@ -95,18 +100,23 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
-        </span>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">
+            <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+            {{ datafield_meta.fieldName }}
+        </label>
+
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
     </fieldset>
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                <span>
+                    <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+                </span>
+                {{ datafield_meta.fieldName }}
+            </label>
         </span>
 
         {% if datafield.radioOptions is defined %}
@@ -128,8 +138,12 @@
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
-            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                <span>
+                    <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+                </span>
+                {{ datafield_meta.fieldName }}
+            </label>
         </span>
 
         <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
@@ -148,7 +162,11 @@
 
     {% elseif field_typename == "Tags" %}
     <fieldset>
-        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label class="ODRFieldLabel pure-u-1">
+            <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+            {{ datafield_meta.fieldName }}
+        </label>
+
         {% if datafield.tags is defined %}
             {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
                 'stacked_tags': datafield.tags,
@@ -159,8 +177,10 @@
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">
+                <i class="Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+                {{ datafield_meta.fieldName }}
+            </label>
         </span>
 
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
@@ -171,12 +191,11 @@
 
     {% elseif field_typename == "Markdown" %}
         <fieldset>
-            <span class="pure-u-1">
-                {#<label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>#}
-                {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
-            </span>
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">
+                <i class="ODRFieldLabel Cursor fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield"></i>
+            </label>
 
-            <div class="ODRMarkdownContent" title="{{ datafield_meta.description }}">
+            <div class="ODRMarkdownContent">
                 {% if datafield_meta.markdownText != null %}{{ datafield_meta.markdownText|markdown }}{% endif %}
             </div>
         </fieldset>

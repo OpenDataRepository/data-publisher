@@ -71,16 +71,25 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
                 $parameters = array(
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
+
                     'delimiter' => $data->delimiter,
-                    'lines' => $data->lines,
+                    'file_image_delimiter' => $data->file_image_delimiter,
+                    'radio_delimiter' => $data->radio_delimiter,
+                    'tag_delimiter' => $data->tag_delimiter,
+                    'tag_hierarchy_delimiter' => $data->tag_hierarchy_delimiter,
+
                     'datatype_id' => $data->datatype_id,
+                    'datarecord_id' => $data->datarecord_id,
+                    'complete_datarecord_list' => $data->complete_datarecord_list,
                     'datafields' => $data->datafields,
-                    'random_key' => $random_key,
+
                     'api_key' => $data->api_key,
+                    'random_key' => $random_key,
                 );
 
                 // Set the options for the POST request
-                curl_setopt_array($ch, array(
+                curl_setopt_array($ch,
+                    array(
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $data->url,
@@ -118,7 +127,7 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
                     // Should always be a json return...
                     throw new \Exception( print_r($ret, true) );
                 }
-//$logger->debug('CSVExportExportCommand.php: curl results...'.print_r($result, true));
+//$logger->debug('CSVExportWorkerCommand.php: curl results...'.print_r($result, true));
 
                 // Done with this cURL object
                 curl_close($ch);
@@ -129,7 +138,7 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('CSVExportExportCommand.php: '.$e->getMessage());
+                    $logger->err('CSVExportWorkerCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -140,7 +149,7 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('CSVExportExportCommand.php: '.$e->getMessage());
+                    $logger->err('CSVExportWorkerCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

@@ -115,8 +115,8 @@ class UtilityController extends Controller
             $datatype_id = $search_params['dt_id'];
 
             // However, there's no way to know which user is going to log in, so the fragment needs
-            //  to be modified so that it doesn't tell the render action which theme to use.  However,
-            //  this should only happen when the search results theme that the user was using was
+            //  to be modified so that it doesn't tell the render action which theme to use.
+            // This should only happen when the search results theme that the user was using is
             //  the datatype's default theme...don't want to override a previous selection.
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');

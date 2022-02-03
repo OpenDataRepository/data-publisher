@@ -453,10 +453,9 @@ class CSVImportController extends ODRCustomController
             if ( strlen($delimiter) > 1 )
                 throw new ODRBadRequestException('Invalid column delimiter');
 
-
             // Remove any completely blank columns and rows from the csv file
-            $column_lengths = array();
-            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_lengths);
+            $column_metadata = array();
+            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_metadata);
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -516,7 +515,7 @@ class CSVImportController extends ODRCustomController
                             'datatree_array' => $datatree_array,
 
                             'csv_delimiter' => $delimiter,
-                            'column_lengths' => $column_lengths,
+                            'column_metadata' => $column_metadata,
                             'columns' => $file_headers,
                             'datafields' => $datafields,
                             'fieldtypes' => $fieldtypes,
@@ -589,11 +588,11 @@ class CSVImportController extends ODRCustomController
      * @param string $csv_import_path
      * @param string $csv_filename
      * @param string $delimiter
-     * @param array $column_lengths Stores the length of the longest value in each column
+     * @param array $column_metadata Stores data about each column...length, guesses, etc
      *
      * @return boolean true if the function attempted to force UTF-8 encoding in the file, false otherwise
      */
-    private function trimCSVFile($csv_import_path, $csv_filename, $delimiter, &$column_lengths)
+    private function trimCSVFile($csv_import_path, $csv_filename, $delimiter, &$column_metadata)
     {
         // Apparently SplFileObject doesn't do this before opening the file...
         ini_set('auto_detect_line_endings', TRUE);
@@ -680,13 +679,33 @@ class CSVImportController extends ODRCustomController
                     }
                 }
 
-                // Keep track of maximum column length...this is outside the previous if statement
-                //  so that lengths get created for columns that are otherwise entirely blank
-                if ( !isset($column_lengths[$column_id]) )
-                    $column_lengths[$column_id] = 0;
-                // TODO - need to use mb_strlen() instead?
-                if ( strlen($value) > $column_lengths[$column_id] )
-                    $column_lengths[$column_id] = strlen($value);
+
+                // Going to keep track of various properties of each column in the CSV file...
+                if ( !isset($column_metadata[$column_id]) ) {
+                    $column_metadata[$column_id] = array(
+                        'length' => 0,
+                        'empty_column' => true,
+                        'could_be_integer' => true,
+                        'could_be_decimal' => true,
+                    );
+                }
+
+                if ( $value !== '' ) {
+                    // TODO - use mb_strlen() instead?
+                    if ( strlen($value) > $column_metadata[$column_id]['length'] )
+                        $column_metadata[$column_id]['length'] = strlen($value);
+
+                    if ( $column_metadata[$column_id]['could_be_integer'] ) {
+                        $column_metadata[$column_id]['empty_column'] = false;
+                        if ( !ValidUtility::isValidInteger($value) )
+                            $column_metadata[$column_id]['could_be_integer'] = false;
+                    }
+                    if ( $column_metadata[$column_id]['could_be_decimal'] ) {
+                        $column_metadata[$column_id]['empty_column'] = false;
+                        if ( !ValidUtility::isValidDecimal($value) )
+                            $column_metadata[$column_id]['could_be_decimal'] = false;
+                    }
+                }
             }
 
             // If none of the columns in this row had a value, save the line number so this blank
@@ -2481,8 +2500,8 @@ class CSVImportController extends ODRCustomController
 
             // TODO - In theory, this shouldn't rewrite the file, since it was called back in layoutAction()...
             // TODO - ...figure out a clean way to get column lengths without doing this?
-            $column_lengths = array();
-            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_lengths);
+            $column_metadata = array();
+            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_metadata);
 
 
             // ----------------------------------------
@@ -2590,7 +2609,7 @@ class CSVImportController extends ODRCustomController
 
                         'csv_delimiter' => $delimiter,
                         'columns' => $file_headers,
-                        'column_lengths' => $column_lengths,
+                        'column_metadata' => $column_metadata,
                         'datafields' => $datafields,
                         'fieldtypes' => $fieldtypes,
 

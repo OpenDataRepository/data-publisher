@@ -3,6 +3,7 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
+{# The record created for Inline linking won't use a render plugin, but any other existing records in this childtype might #}
 {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
 
 {# Determine whether a render plugin needs to be run #}
@@ -18,6 +19,8 @@
 {% endfor %}
 
 {% set content = '' %}
+{# Don't allow plugins that override the entire childtype to run #}
+{#
 {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideChild %}
     {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
     {% if content|length > 0 %}
@@ -26,6 +29,7 @@
         <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
     {% endif %}
 {% endif %}
+#}
 
 {% if not can_execute_plugin or content|length == 0 %}
     <div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
@@ -56,11 +60,13 @@
                 'display_type': display_type
             } %}
 
-            <div class="ODRFieldArea accordion-content pure-u-1{% if dr_is_fake %} ODRFakeRecord{% endif %}" id="FieldArea_{{ datarecord.id }}">
-
+            {% if dr_is_fake %}
+            <div class="ODRFieldArea accordion-content pure-u-1 ODRInlineLinkRecord" id="FieldArea_{{ datarecord.id }}">
+                {# The fake record in this case is for the inline link functionality...it (currently) does not use a render plugin #}
+{#
                 {% set content = '' %}
                 {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
-                    {# [datarecord] converts datarecord into a single-element array #}
+                    #}{# [datarecord] converts datarecord into a single-element array #}{#
                     {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
                     {% if content|length > 0 %}
                         <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
@@ -69,9 +75,10 @@
                 {% endif %}
 
                 {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
-                    {# If using render plugin and it overrides datafield display, do nothing here #}
+                    #}{# If using render plugin and it overrides datafield display, do nothing here #}{#
                 {% else %}
-                    {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
+#}
+                    {% include 'ODRAdminBundle:Link:inline_link_fieldarea.html.twig' with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
                         'theme_array': theme_array,
@@ -90,9 +97,50 @@
 
                         'token_list': token_list,
                     } %}
-                {% endif %}
+{#                {% endif %}#}
 
             </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+            {% else %}
+
+            <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+                {# Any record in here that is not fake should instead be rendered as a regular record #}
+                    {% set content = '' %}
+                    {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
+                        {# [datarecord] converts datarecord into a single-element array #}
+                        {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+                        {% if content|length > 0 %}
+                            <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
+                            {{ content|raw }}
+                        {% endif %}
+                    {% endif %}
+
+                    {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
+                        {# If using render plugin and it overrides datafield display, do nothing here #}
+                    {% else %}
+                        {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
+                            'datatype_array': datatype_array,
+                            'datarecord': datarecord,
+                            'theme_array': theme_array,
+
+                            'parent_datarecord': parent_datarecord,
+                            'target_datatype_id': target_datatype_id,
+                            'target_datarecord_id': datarecord.id,
+                            'target_theme_id': target_theme_id,
+
+                            'datatype_permissions': datatype_permissions,
+                            'datafield_permissions': datafield_permissions,
+
+                            'is_top_level': is_top_level,
+                            'is_link': is_link,
+                            'display_type': display_type,
+
+                            'token_list': token_list,
+                        } %}
+                    {% endif %}
+
+                </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+            {% endif %}
+
         {% endfor %}
 
         {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}

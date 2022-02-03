@@ -419,7 +419,7 @@ function initPage() {
 
             // Store true parent record so we can reload parent
             var parent_data = $(this).closest(".ODRChildDatatype").attr('id').split(/_/);
-            console.log('Parent data: ', parent_data);
+            // console.log('Parent data: ', parent_data);
 
             var datatype_id = parent_data[1];
             var parent_id = parent_data[2];
@@ -437,7 +437,7 @@ function initPage() {
                 record_id
             ];
 
-            console.log("Unlink post data: ", post_data);
+            // console.log("Unlink post data: ", post_data);
 
             $.ajax({
                 cache: false,
@@ -447,7 +447,7 @@ function initPage() {
                 data: post_data,
                 success: function(data, textStatus, jqXHR) {
                     // Refresh child wrapper area
-                    console.log('Unlink Record: ', data);
+                    // console.log('Unlink Record: ', data);
                     ReloadEditChild(datatype_id, parent_id);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -470,9 +470,9 @@ function initPage() {
         }
     });
 
-    $(".ODRFakeRecord.ODRFieldArea").each(function() {
+    $(".ODRInlineLinkRecord.ODRFieldArea").each(function() {
         // Going to attach an jQuery UI autocomplete handler to every text/number datafield in this
-        //  fieldarea belonging to a "fake" record...
+        //  fieldarea belonging to an "InlineLink" record...
         $(this).find('.ODRLinkLookupInput').effect("highlight", {}, 3000).each(function() {
             if ( !$(this).hasClass('.ui-autocomplete-input') ) {
                 // Create search parameters
@@ -568,99 +568,7 @@ function initPage() {
                         }
                         else if (ui.item.record_id === -1) {
                             // User wants to create a new record in this linked datatype
-
-                            // User may have entered data in multiple fields, save them all at once
-                            var form_data = {};
-                            form_data.inline_link = 1;
-                            form_data.datatype_id = descendant_datatype_id;
-                            form_data.datarecord_id = null;
-                            form_data.datafields = {};
-                            form_data.tokens = {};
-
-                            var submit_form = true;
-                            $("#FieldArea_" + current_linked_record).find('.ODRLinkLookupInput').each(function() {
-                                var form = $(this).closest("form");
-                                var form_id = $(form).attr('id');
-                                var token = $(form).children('input[type=hidden]').val();
-                                var val = $(this).val().trim();
-
-                                // console.log('form: ', form_id);
-                                // console.log('form value: ', val);
-
-                                if ( $(form).hasClass("ODRUniqueField") && val === '' ) {
-                                    // Create and display a jQuery Validate error when a required
-                                    //  field in this fake record doesn't have a value...
-                                    submit_form = false;
-
-                                    var error_obj = {};
-                                    var input_name = $(this).attr('name');
-                                    error_obj[input_name] = "This field is required.";
-
-                                    $(form).validate().showErrors(error_obj);
-                                }
-                                else if (val !== '' ) {    // TODO - modify so radio options and tags get submitted?
-                                    // Otherwise, don't submit empty values...
-                                    var id_data = form_id.split(/_/);
-                                    form_data.datarecord_id = id_data[1];
-                                    form_data.datafields[ id_data[2] ] = val;
-                                    form_data.tokens[ id_data[2] ] = token;
-                                }
-                            });
-                            // console.log('form_data: ', form_data);    return false;
-
-                            // If a required field is empty, then return false so the fake record
-                            //  doesn't delete what the user has already entered
-                            if ( !submit_form )
-                                return false;
-
-                            var url  = '{{ path('odr_save_fake_record') }}';
-                            $.ajax({
-                                cache: false,
-                                type: 'POST',
-                                data: form_data,
-                                url: url,
-                                dataType: "json",
-                                success: function(data, textStatus, jqXHR) {
-                                    // Create a link to the newly created datarecord
-                                    var new_record_id = data.d.new_datarecord_id;
-
-                                    LinkRecordOnly(
-                                        ancestor_datatype_id,
-                                        descendant_datatype_id,
-                                        local_record_id,
-                                        new_record_id,
-                                        function() {
-                                            // Select the newly created datarecord after
-                                            //  ReloadEditChild() gets called
-                                            selectRecordFieldArea(new_record_id);
-                                        }
-                                    );
-                                },
-                                error: function(jqXHR, textStatus, errorThrown) {
-                                    // Handling exceptions in the current context is difficult...users
-                                    //  are using what looks like an Edit interface, but it's behaving
-                                    //  like a search interface, except it also has the ability to
-                                    //  create a new linked datarecord
-
-                                    // Doing nothing isn't great, but can't really think of anything
-                                    //  useful to do here...might as well flash the highlight?  TODO
-                                    $("#FieldArea_" + current_linked_record).find('.ODRLinkLookupInput')
-                                        .effect("highlight", {}, 2000).effect("highlight", {}, 2000);
-                                },
-                                complete: function(jqXHR, textStatus) {
-                                    // Get the xdebugToken from response headers
-                                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                                    // If the Sfjs object exists
-                                    if (typeof Sfjs !== "undefined") {
-                                        // Grab the toolbar element
-                                        var currentElement = $('.sf-toolbar')[0];
-
-                                        // Load the data of the given xdebug token into the current toolbar wrapper
-                                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                                    }
-                                }
-                            });
+                            saveFakeRecordData(current_linked_record, true);
                         }
                         else {    // ui.item.record_id is greater than 0
                             // User selected an existing datarecord to link to
@@ -989,7 +897,7 @@ function initPage() {
 //        placeholder: "ui-state-highlight",
         connectWith: ".ODRSortableImage",
     });
-    $( ".ODRSortableImage" ).disableSelection();
+    $(".ODRSortableImage").disableSelection();
 
 
     $(".ODRDatePicker").datepicker({
@@ -1027,9 +935,8 @@ function initPage() {
  * @param {function} [callback]
  */
 function DeleteFile(file_id, callback) {
-    if (callback === undefined) {
+    if (callback === undefined)
         callback = function() {}
-    }
 
     if ( confirm("Are you certain that you want to delete this File?") ) {
         var url  = '{{ path('odr_record_delete_file', {'file_id': 0} ) }}';
@@ -1092,7 +999,6 @@ function DeleteFile(file_id, callback) {
     }
 }
 
-
 /**
  * Saves the current order of all images inside the given container element
  *
@@ -1150,7 +1056,7 @@ function AddChildRecord(child_datatype_id, parent_datarecord_id) {
     url = url.substring(0, (url.length - 3));
     url += child_datatype_id + '/' + parent_datarecord_id;
 
-    // ReloadEditChild(child_datatype_id, parent_datarecord_id, true); return;
+    // ReloadEditChild(child_datatype_id, parent_datarecord_id); return;
 
     $.ajax({
         cache: false,
@@ -1163,8 +1069,7 @@ function AddChildRecord(child_datatype_id, parent_datarecord_id) {
             var parent_datarecord_id = data.d.parent_id;
             var new_datarecord_id = data.d.new_datarecord_id;
 
-            var insert_fake_record = false;
-            ReloadEditChild(child_datatype_id, parent_datarecord_id, insert_fake_record, function() {
+            ReloadEditChild(child_datatype_id, parent_datarecord_id, function() {
                 selectRecordFieldArea(new_datarecord_id);
             });
         },
@@ -1217,9 +1122,8 @@ function OpenLinkSearchPage(ancestor_datatype_id, descendant_datatype_id, local_
  * @param {function} [callback]
  */
 function LinkRecordOnly(ancestor_datatype_id, descendant_datatype_id, local_datarecord_id, remote_datarecord_id, callback) {
-    if (callback === undefined) {
+    if (callback === undefined)
         callback = function() {}
-    }
 
     var post_data = {};
     post_data.ancestor_datatype_id = ancestor_datatype_id;
@@ -1240,13 +1144,10 @@ function LinkRecordOnly(ancestor_datatype_id, descendant_datatype_id, local_data
         data: post_data,
         success: function(data, textStatus, xhr) {
             // Don't need to do anything special on success
-            // console.log('LINK Response: ', data);
-
-            ReloadEditChild(data.d.datatype_id, data.d.datarecord_id, false, callback);    // don't insert a fake record
+            ReloadEditChild(data.d.datatype_id, data.d.datarecord_id, callback);
         },
         error: function(jqXHR, textStatus, errorThrown) {
-            // Just reload the datafield on error, since can't restore the old value
-            // console.log('LinkRecordOnly: Error:', errorThrown)
+            // Don't need to do anything specific on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
@@ -1272,20 +1173,63 @@ function LinkRecordOnly(ancestor_datatype_id, descendant_datatype_id, local_data
  * @param {number} parent_datarecord_id
  */
 function AddLinkedRecord(remote_datatype_id, parent_datarecord_id) {
-    // console.log("Descendant datatype: ", remote_datatype_id);
-    // console.log('Parent record: ', parent_datarecord_id);
 
-    // Have ODRRenderService reload the theme_element with the linked datatype, and also have it
-    //  insert a "fake" datarecord for the purposes of inline linking
-    ReloadEditChild(remote_datatype_id, parent_datarecord_id, true, function() {
-        var wrapper_div = $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id);
-        if ( $(wrapper_div).children().first().children().first().hasClass("ODRAccordionWrapper") ) {
-            // Accordion/Tabbed/Dropdown display...want the fake record selected
-            $(wrapper_div).find("h3.ui-accordion-header").first().click();
-        }
-        else {
-            // List display...fake record will be at the top of the list
-            ScrollHighlight( $(wrapper_div).find(".ODRListDisplayHeader") );
+    var wrapper_div = $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id);
+    insertLoadingDiv( $(wrapper_div).attr('id') );
+
+    var theme_element_id = $(wrapper_div).parent().parent().attr('rel');
+    var top_level_datarecord_id = $("#ODRTopLevelDatarecordId").val();
+
+    var url = '{{ path('odr_record_inline_link', { 'theme_element_id': 0, 'parent_datarecord_id': 0, 'top_level_datarecord_id': 0 }) }}';
+    url = url.substring(0, (url.length-5));
+    url += theme_element_id + '/' + parent_datarecord_id + '/' + top_level_datarecord_id;
+
+    // Need top-level datatype/datarecord/theme to be able to load the correct cached arrays in the
+    //  case the user is reloading a child/linked datatype of a datatype that is itself a child/link.
+    // The top-level datatype/theme can be determined from the theme_element.
+    // The parent/child datatype/theme (required to stack the cached arrays at the right spot) can
+    //  also be determined from the theme_element.
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
+            $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(data.d.html);
+            // NOTE - can't store a reference to wrapper_div before the overwrite, it'll be invalid afterwards
+            var wrapper_div = $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id);
+
+            onWindowResize();
+            setupImageGalleries();
+            setupAccordions();
+            initPage();
+
+            if ( $(wrapper_div).children().first().children().first().hasClass("ODRAccordionWrapper") ) {
+                // Accordion/Tabbed/Dropdown display...want the fake record selected
+                $(wrapper_div).find("h3.ui-accordion-header").first().click();
+            }
+            else {
+                // List display...fake record will be at the top of the list
+                ScrollHighlight( $(wrapper_div).find(".ODRListDisplayHeader") );
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
         }
     });
 }
@@ -1316,7 +1260,6 @@ function DeleteLinkedRecord(datarecord_id) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             // Refresh child wrapper area
-            // console.log('Delete Unlink Record: ', data);
             ReloadEditChild(datatype_id, parent_id);
         },
         error: function(jqXHR, textStatus, errorThrown) {
@@ -1359,7 +1302,7 @@ function SaveRecordData(form_id, interval, datafields_to_reload = []) {
     var autocomplete = $(form_id).find('.ui-autocomplete-input');
 
     if (autocomplete.length > 0) {
-        console.log('autocomplete active.');
+        // console.log('autocomplete active.');
         return;
     }
 
@@ -1367,7 +1310,7 @@ function SaveRecordData(form_id, interval, datafields_to_reload = []) {
     var post_data = $(form_id).serialize();
     var url = $(form_id).attr('action');
 
-    console.log('Save Form: ', form_id);
+    // console.log('Save Form: ', form_id);
     $(form_id).find('.ODRSaveIndicator').fadeIn('50');
 
     // May need these in case of errors
@@ -1421,12 +1364,211 @@ function SaveRecordData(form_id, interval, datafields_to_reload = []) {
 }
 
 /**
+ * Parses an InlineLink or a FakeEdit childtype for the values in the associated datafields.
+ *
+ * @param {number} descendant_datatype_id
+ * @param {number} fake_record_id
+ * @param {boolean} is_inline_link If true, then don't submit radio/tag fields
+ *
+ * @returns {object}
+ */
+function getFakeRecordData(descendant_datatype_id, fake_record_id, is_inline_link) {
+    // User may have entered data in multiple fields, save them all at once
+    var form_data = {};
+    form_data.inline_link = 1;
+    form_data.datatype_id = descendant_datatype_id;
+    form_data.datarecord_id = fake_record_id;
+    form_data.datafields = {};
+    form_data.tokens = {};
+    form_data.special_tokens = {};
+
+    $("#FieldArea_" + fake_record_id).find('.ODRDataField').each(function() {
+        var id_data = $(this).attr('id').split(/_/);
+        var df_id = id_data[2];
+
+        var form = $(this).children("form").first();
+        var token = $(form).children('input[type=hidden]').val();
+
+        var fieldset = $(form).children('fieldset').first();    // should only be one
+
+        // ...determine what kind of field this is...
+        if ( $(fieldset).find("div.ODRRadioOptionsEdit").length > 0 ) {
+            // This is a Single/Multiple Radio or a Multiple Select field...ignore when called for an inline link submission
+            if ( !is_inline_link ) {
+                $(fieldset).find("input:checked").each(function(index, ro) {
+                    var ro_id_data = $(ro).attr('id').split(/_/);
+                    var ro_id = ro_id_data[3];
+
+                    if ( ro_id !== '0') {
+                        if (form_data.datafields[df_id] === undefined)
+                            form_data.datafields[df_id] = {};
+
+                        form_data.datafields[df_id][ro_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                });
+            }
+        }
+        else if ( $(fieldset).children("div.ODRTagWrapper").length > 0 ) {
+            // This is a tag field...ignore when called for an inline link submission
+            if ( !is_inline_link ) {
+                $(fieldset).find("input:checked").each(function(index, tag) {
+                    var tag_id_data = $(tag).attr('id').split(/_/);
+                    var tag_id = tag_id_data[3];
+
+                    if ( tag_id !== '0') {
+                        if (form_data.datafields[df_id] === undefined)
+                            form_data.datafields[df_id] = {};
+
+                        form_data.datafields[df_id][tag_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                });
+            }
+        }
+        else if ( $(fieldset).find("select").length > 0 ) {
+            // This is a Single Select field...ignore when called for an inline link submission
+            if ( !is_inline_link ) {
+                var selected = $(fieldset).find("select").children("option:selected");
+                if ( $(selected).length > 0 ) {
+                    var ro_id_data = $(selected).attr('id').split(/_/);
+                    var ro_id = ro_id_data[1];
+
+                    if ( ro_id !== '0' ) {
+                        form_data.datafields[df_id] = {};
+                        form_data.datafields[df_id][ro_id] = 1;
+                        form_data.tokens[df_id] = token;
+                    }
+                }
+            }
+        }
+        else if ( $(fieldset).find("textarea").length > 0 ) {
+            // Paragraph text
+            var textarea = $(fieldset).find("textarea");
+
+            var val = $(textarea).val().trim();
+            if (val !== '') {
+                form_data.datafields[df_id] = val;
+                form_data.tokens[df_id] = token;
+            }
+        }
+        else if ( $(fieldset).find("input").length > 0 ) {
+            var input = $(fieldset).find("input");
+
+            if ( $(input).is(":checkbox") ) {
+                // Boolean field
+                if ( $(input).is(":checked") ) {
+                    form_data.datafields[df_id] = 1;
+                    form_data.tokens[df_id] = token;
+                }
+            }
+            else {
+                // Text/number/datetime fields
+                var val = $(input).val().trim();
+                if (val !== '') {
+                    form_data.datafields[df_id] = val;
+                    form_data.tokens[df_id] = token;
+                }
+            }
+        }
+        else {
+            // Image or File field, ignore
+        }
+    });
+
+    // For each special datafield on the page...
+    $(".ODRFakeEdit_autogenerate").each(function(index, df) {
+        var df_id = $(df).attr('rel');
+        var token = $(df).val();
+
+        form_data.special_tokens[df_id] = token;
+    });
+
+    return form_data;
+}
+
+/**
+ * Attempts to save the current contents of an InlineLink or resultant FakeEdit child as a new
+ * record.
+ *
+ * @param {string} fake_record_id
+ * @param {boolean} is_inline_link
+ */
+function saveFakeRecordData(fake_record_id, is_inline_link) {
+    // Need to locate these for later
+    var fieldarea = $("#FieldArea_" + fake_record_id);
+    var descendant_datatype_id = $(fieldarea).closest(".ODRDataType").attr('id').split(/_/)[1];
+
+    var wrapper =  $(fieldarea).closest(".ODRChildDatatype");
+    var local_record_id = $(wrapper).attr('id').split(/_/)[2];
+
+    var ancestor_datatype_id = $(wrapper).closest(".ODRDataType").attr('id').split(/_/)[1];
+
+    // Get the data out of the InlineLink or FakeEdit form
+    var form_data = getFakeRecordData(descendant_datatype_id, fake_record_id, is_inline_link);
+
+    var url  = '{{ path('odr_save_fake_record') }}';
+    $.ajax({
+        cache: false,
+        type: 'POST',
+        data: form_data,
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            // Create a link to the newly created datarecord
+            var new_record_id = data.d.new_datarecord_id;
+
+            LinkRecordOnly(
+                ancestor_datatype_id,
+                descendant_datatype_id,
+                local_record_id,
+                new_record_id,
+                function() {
+                    // Select the newly created datarecord after
+                    //  ReloadEditChild() gets called
+                    selectRecordFieldArea(new_record_id);
+                }
+            );
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            if ( is_inline_link ) {
+                // Handling exceptions in the current context is difficult...users are using what
+                //  looks like an Edit interface, but it's behaving like a search interface, except
+                //  it also needs to have the ability to create a new linked datarecord
+
+                // The Inline Link interface intentionally didn't display FakeEdit restrictions
+                //  because they would've likely interfered with the search interface aspect...but
+                //  if an error is thrown while attempting to save a new record, then the user no
+                //  longer wants the search interface, so the FakeEdit interface can be loaded
+                //  instead
+                ReloadFakeEditChild(descendant_datatype_id, local_record_id, form_data);
+            }
+            else {
+                // Otherwise, do nothing
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+/**
  * Covers the requested HTML element with an overlay div so click events don't work on it.
  *
  * @param {HTMLElement} parent_div_id
  */
 function insertLoadingDiv(parent_div_id) {
-
     // Need dimensions of parent div...
     var element = $("#" + parent_div_id);
     var height = $(element).css('height');
@@ -1482,7 +1624,7 @@ function ScrollHighlight(element, container) {
         // Only Scroll to element if it is not visible
         if ( !obj.isInViewport() ) {
             container.animate({
-                scrollTop: obj.offset().top + obj.height()
+                scrollTop: obj.offset().top + obj.height() - 50
             }, 1000)
         }
     }
@@ -1491,8 +1633,7 @@ function ScrollHighlight(element, container) {
             scrollTop: obj.prop('offsetTop')
         }, 1000)
     }
-    // Highlight
-    // console.log('highlighting.....');
+    // Highlight after scrolling
     obj.effect("highlight", {}, 3000);
 }
 
@@ -1503,27 +1644,20 @@ $.fn.isInViewport = function() {
     var viewportTop = $(window).scrollTop();
     var viewportBottom = viewportTop + $(window).height();
 
-    return elementBottom > viewportTop && elementTop < viewportBottom;
+    return (elementBottom > viewportTop) && (elementTop < viewportBottom);
 };
 
 /**
  * Triggers a reload of the child/linked datatype descended from the given parent_datarecord_id.
  *
- * Optionally inserts a "fake" record either for creating a new linked record, or for locating an
- * existing linked record.
- *
  * @param {number} child_datatype_id
  * @param {number} parent_datarecord_id
- * @param {boolean} [insert_fake_record]
  * @param {function} [callback]
  */
-function ReloadEditChild(child_datatype_id, parent_datarecord_id, insert_fake_record, callback) {
-    if (insert_fake_record === undefined)
-        insert_fake_record = false;
-
-    if (callback === undefined) {
+function ReloadEditChild(child_datatype_id, parent_datarecord_id, callback) {
+    // Callback is optional
+    if (callback === undefined)
         callback = function() {}
-    }
 
     var wrapper_div = $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id);
     insertLoadingDiv( $(wrapper_div).attr('id') );
@@ -1534,9 +1668,6 @@ function ReloadEditChild(child_datatype_id, parent_datarecord_id, insert_fake_re
     var url = '{{ path('odr_record_reload_child', { 'theme_element_id': 0, 'parent_datarecord_id': 0, 'top_level_datarecord_id': 0 }) }}';
     url = url.substring(0, (url.length-5));
     url += theme_element_id + '/' + parent_datarecord_id + '/' + top_level_datarecord_id;
-
-    if ( insert_fake_record )
-        url += '/1';
 
     // Need top-level datatype/datarecord/theme to be able to load the correct cached arrays in the
     //  case the user is reloading a child/linked datatype of a datatype that is itself a child/link.
@@ -1553,16 +1684,75 @@ function ReloadEditChild(child_datatype_id, parent_datarecord_id, insert_fake_re
             // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
             $(wrapper_div).parent(".ODRInnerBox").html(data.d.html);
 
-            // console.log('onwindowresize');
             onWindowResize();
-            // console.log('setupimage galleries');
             setupImageGalleries();
-            // console.log('setup accordion');
             setupAccordions();
-            // console.log('init page');
             initPage();
-            // console.log('callback');
             callback();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+/**
+ * When the InlineLink system fails to save a new record, it's most likely due to not filling out
+ * certain datafields in the datatype...the user can't be notified of these constraints in the
+ * InlineLink interface because they would completely interfere with searching.
+ *
+ * However, once the user decides they want to add a new record, then searching no longer matters,
+ * so any existing values in the InlineLink interface can get transferred over to a FakeEdit
+ * interface so the user can set it up properly.
+ *
+ * @param {number} child_datatype_id
+ * @param {number} parent_datarecord_id
+ * @param {object} form_data
+ */
+function ReloadFakeEditChild(child_datatype_id, parent_datarecord_id, form_data) {
+
+    var wrapper_div = $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id);
+    insertLoadingDiv( $(wrapper_div).attr('id') );
+
+    var theme_element_id = $(wrapper_div).parent().parent().attr('rel');
+    var top_level_datarecord_id = $("#ODRTopLevelDatarecordId").val();
+
+    var url = '{{ path('odr_fake_record_reload_child', { 'theme_element_id': 0, 'parent_datarecord_id': 0, 'top_level_datarecord_id': 0 }) }}';
+    url = url.substring(0, (url.length-5));
+    url += theme_element_id + '/' + parent_datarecord_id + '/' + top_level_datarecord_id;
+
+    // Need top-level datatype/datarecord/theme to be able to load the correct cached arrays in the
+    //  case the user is reloading a child/linked datatype of a datatype that is itself a child/link.
+    // The top-level datatype/theme can be determined from the theme_element.
+    // The parent/child datatype/theme (required to stack the cached arrays at the right spot) can
+    //  also be determined from the theme_element.
+
+    $.ajax({
+        type: 'POST',
+        url: url,
+        dataType: "json",
+        data: form_data,
+        success: function(data, textStatus, jqXHR) {
+            // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
+            $(wrapper_div).parent(".ODRInnerBox").html(data.d.html);
+
+            onWindowResize();
+            setupImageGalleries();
+            setupAccordions();
+            initPage();
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error

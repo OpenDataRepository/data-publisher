@@ -22,14 +22,13 @@
         'parent_datarecord': parent_datarecord,
 
         'datatype_permissions': datatype_permissions,
-        'datarecord_is_fake': false,
+        'datarecord_is_fake': true,
 
         'is_top_level': is_top_level,
         'is_link': is_link,
         'display_type': display_type,
     } %}
 {% endif %}
-
 
 {% for theme_element in theme.themeElements %}
     <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
@@ -51,25 +50,29 @@
 
                     <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
                          id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}"
+{#
                     {% if datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
                          title="You are not allowed to make changes to this datafield."
                          style="cursor:help;"
                     {% endif %}
+#}
                     >
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                             {# markdown fields are their own thing #}
                             {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
                                 'datafield': datafield
                             } %}
+                        {# Don't want to check for whether the user can edit the datafield or not, since this is more of a search interfact #}
+{#
                         {% elseif datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
-                            {# user isn't allowed to edit datafield #}
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
                             } %}
+#}
                         {% else %}
                             {# user is allowed to edit datafield #}
-                            {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
+                            {% include 'ODRAdminBundle:Link:inline_link_datafield.html.twig' with {
                                 'datatype': datatype,
                                 'datarecord': datarecord,
                                 'datafield': datafield,
@@ -85,16 +88,18 @@
 
         {% elseif theme_element.themeDataType is defined %}
             {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+            {# Inline Link shouldn't render child/linked datatypes #}
+{#
             {% for theme_datatype in theme_element.themeDataType %}
                 {% set child_datatype_id = theme_datatype.dataType.id %}
                 {% set child_theme_id = theme_datatype.childTheme.id %}
 
-                {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                #}{# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}{#
                 {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                     {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                     {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
-                    {# pass all child datarecords of this child datatype at once... #}
+                    #}{# pass all child datarecords of this child datatype at once... #}{#
                     {% set datarecord_array = {} %}
                     {% if datarecord['children'][ child_datatype_id ] is defined %}
                         {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
@@ -121,6 +126,7 @@
                     } %}
                 {% endif %}
             {% endfor %}
+#}
         {% endif %}
 
         </div><!-- End of .ODRInnerBox -->
