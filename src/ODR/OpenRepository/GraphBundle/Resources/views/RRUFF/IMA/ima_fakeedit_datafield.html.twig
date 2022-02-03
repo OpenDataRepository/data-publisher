@@ -66,8 +66,7 @@
 
     <form
         autocomplete="off"
-        action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
-        class="pure-u-1"
+        class="pure-u-1{% if is_link %} ODRLinkLookupForm{% endif %} {% if datafield_meta.is_unique %}ODRUniqueField{% endif %}"
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
@@ -77,9 +76,6 @@
     {% if field_typename == "Paragraph Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin %}
-                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
-                {% endif %}
                 {{ datafield_meta.fieldName }}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
@@ -97,9 +93,6 @@
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
-                {% if is_datatype_admin %}
-                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
-                {% endif %}
                 {{ datafield_meta.fieldName }}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
@@ -112,7 +105,7 @@
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
                 />
-                <i class="fa fa-save ODRSaveIndicator"></i>
+                <i class="fa fa-hourglass-2 ODRSaveIndicator"></i>
             </div>
         </fieldset>
     {% endif %}
@@ -126,18 +119,74 @@
         or field_typename == "Short Text"
     %}
     <script>
-        $(function() {
-            var input = $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('input').first();
-            var input_id = $(input).attr('id');
-            $(input).addClass('ODRInputError').attr('style', "border: 1px solid red;");
-            $('<label>', {
-                id: input_id + '-error',
-                class: 'ODRInputError',
-                for: input_id,
-            })
-                .html("{{ problem_fields[datafield.id] }}")
-                .appendTo("#Input_{{ datarecord.id }}_{{ datafield.id }}");
+        var {{ field_typeclass }}Interval_{{ unique_id }} = null;
+        $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+
+        {% if derived_datafield_id is not null %}
+            {% set derived_field_unique_id = datarecord.id ~ '_' ~ derived_datafield_id %}
+            // console.log( $(this), $(this).val() );
+            var derived_input = $("#Input_{{ derived_field_unique_id }}").children('input').first();
+            if ( $(this).val() !== '' ) {
+                // In order to appease the FakeEdit saving process, the derived datafield needs
+                //  to have some sort of value
+                $(derived_input).val('<will be derived>');
+            }
+            else {
+                // If the source field is empty, the derived field should be empty too
+                $(derived_input).val('');
+            }
+        {% endif %}
         });
+
+        $("#EditForm_{{ unique_id }}").validate({
+            rules: {
+                "{{ input_name }}": {
+                {% if field_typename == "Integer" %}
+                    ODRInteger: {},  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                {% elseif field_typename == "Decimal" %}
+                    ODRDecimal: {},  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
+                {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+                    maxlength: {{ max_length }},
+                {% endif %}
+
+                {% if datafield_meta.is_unique %}
+                    required: true,
+                {% endif %}
+
+                {% if datafield_meta.is_unique %}
+                    {# need to query ODR to see whether the contents of this field are unique or not #}
+                    remote: {
+                        url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id }) }}",
+                        type: "post",
+                        data: {
+                            {# The form's value is automatically inserted by jQuery validate #}
+                            "{{ field_typeclass }}Form[_token]": function () {
+                                return $("#EditForm_{{ unique_id }}").find("input[type=hidden]").val();
+                            },
+                            "{{ field_typeclass }}Form[error_type]": "json",
+                        }
+                    }
+                {% endif %}
+                }
+            },
+
+            {% if datafield_meta.is_unique %}
+            onkeyup: false,    // If the datafield fires off a remote event to check uniqueness, then don't trigger validation on every keyup event
+            {% endif %}
+
+            submitHandler: function(form) {
+                // "Fake" records don't have an equivalent to SaveRecordData(), so probably should
+                //   clear the timeout here
+                clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            }
+            // focusInvalid: false
+        });
+
+        // Ensure required fields are immediately highlighted when a user is trying to create a new
+        //  top-level record
+        $("#EditForm_{{ unique_id }}").valid();
     </script>
     {% endif %}
 

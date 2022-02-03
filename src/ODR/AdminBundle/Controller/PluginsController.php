@@ -46,7 +46,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symphony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -350,16 +350,17 @@ class PluginsController extends ODRCustomController
             }
         }
 
-        // Datafield plugins can't implement DatafieldReloadOverrideInterface
-        if ( !$is_datatype_plugin && ($plugin_service instanceof DatafieldReloadOverrideInterface))
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
 
-        // A plugin must implement DatafieldReloadOverrideInterface if and only if it has at least
+        // Datafield plugins can't implement DatafieldDerivationInterface
+        if ( !$is_datatype_plugin && ($plugin_service instanceof DatafieldDerivationInterface))
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
+
+        // A plugin must implement DatafieldDerivationInterface if and only if it has at least
         //  one derived field
-        if ( $has_derived_field && !($plugin_service instanceof DatafieldReloadOverrideInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement DatafieldReloadOverrideInterface since it has at least one derived field');
-        if ( !$has_derived_field && ($plugin_service instanceof DatafieldReloadOverrideInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldReloadOverrideInterface since it has no derived fields');
+        if ( $has_derived_field && !($plugin_service instanceof DatafieldDerivationInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement DatafieldDerivationInterface since it has at least one derived field');
+        if ( !$has_derived_field && ($plugin_service instanceof DatafieldDerivationInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldDerivationInterface since it has no derived fields');
 
 
         // ----------------------------------------

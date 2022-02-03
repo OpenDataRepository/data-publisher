@@ -1,0 +1,197 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+{% if insert_fake_datarecord is not defined %}
+    {% set insert_fake_datarecord = false %}
+{% endif %}
+
+{% if insert_fake_datarecord is not defined %}
+    {% set insert_fake_datarecord = false %}
+{% endif %}
+
+{# If coming from an InlineLink context, then likely need to check whether the render plugin should execute in the "edit" context... #}
+{% set can_execute_plugin__edit = null %}
+{% set render_plugin_instance__edit = null %}
+
+{# ...but always need to determine whether a render plugin needs to be run in the "fake_edit" context #}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'fake_edit'} %}
+
+{% set render_plugin_instance = null %}
+{% set can_execute_plugin = false %}
+{% for rpi_num,rpi in datatype.renderPluginInstances %}
+    {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+        {% set can_execute_plugin = rpi|can_execute_plugin(datatype, rendering_options) %}
+
+        {# Only want to save the render_plugin_instance if it's render-able #}
+        {% set render_plugin_instance = rpi %}
+    {% endif %}
+{% endfor %}
+
+{% set content = '' %}
+{# Render Plugins shouldn't override the entire childtype in the FakeEdit context...for now... #}
+{#
+{% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideChild %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+    {% if content|length > 0 %}
+        <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
+        {{ content|raw }}
+        <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
+    {% endif %}
+{% endif %}
+#}
+
+{% if not can_execute_plugin or content|length == 0 %}
+    <div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
+
+        {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
+            'datatype': datatype,
+            'datarecord_list': datarecord_array,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+            'display_type': display_type
+        } %}
+
+        {% for dr_id, datarecord in datarecord_array %}
+
+            {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
+                'datarecord': datarecord,
+                'datatype': datatype,
+
+                'datatype_permissions': datatype_permissions,
+
+                'is_top_level': is_top_level,
+                'display_type': display_type
+            } %}
+
+            {# If coming from an InlineLink context, then datarecord_array likely has both "real" and "fake" datarecords #}
+            {% set is_fake_datarecord = false %}
+            {% if datarecord.is_fake is defined and datarecord.is_fake %}
+                {% set is_fake_datarecord = true %}
+            {% endif %}
+
+            {% if is_fake_datarecord %}
+                <div class="ODRFieldArea accordion-content pure-u-1 ODRFakeRecord" id="FieldArea_{{ datarecord.id }}">
+
+                {% if insert_fake_datarecord %}
+                    {# This is getting called from the InlineLink context...need a header block for saving #}
+                    <div class="ODRContentWrapper">
+                        <div class="ODRThemeElement pure-u-1 pure-u-md-1-1 pure-u-xl-1-1">
+                            <div class="ODRInnerBox">
+                                <div class="ODRBodyContent">
+                                    The "{{ datatype.dataTypeMeta.shortName }}" datatype has requirements that were not satisifed by the previous interface, and must be fixed before saving.
+                                    <br>
+                                    When you are finished entering data, you will need to click the button below to ensure your changes are saved.
+                                    <br>
+                                    <button type="button" class="pure-button pure-button-primary"
+                                            onclick="saveFakeRecordData('{{ dr_id }}', false);">Save as New Record</button>    {# defined in Edit:edit_ajax.html.twig #}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% set content = '' %}
+                {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
+                    {# [datarecord] converts datarecord into a single-element array #}
+                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+                    {% if content|length > 0 %}
+                        <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
+                        {{ content|raw }}
+                    {% endif %}
+                {% endif %}
+
+                {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields and content|length > 0 %}
+                    {# If using render plugin and it overrides datafield display, do nothing here #}
+                {% else %}
+                    {# If using render plugin and it overrides datafield display, do nothing here #}
+                    {% include 'ODRAdminBundle:FakeEdit:fake_edit_fieldarea.html.twig' with {
+                        'datatype_array': datatype_array,
+                        'datarecord': datarecord,
+                        'theme_array': theme_array,
+
+                        'parent_datarecord': parent_datarecord,
+                        'target_datatype_id': target_datatype_id,
+                        'target_datarecord_id': datarecord.id,
+                        'target_theme_id': target_theme_id,
+
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
+
+                        'is_top_level': is_top_level,
+                        'is_link': is_link,
+                        'display_type': display_type,
+
+                        'token_list': token_list,
+                        'insert_fake_datarecord': insert_fake_datarecord,
+                    } %}
+                    {% endif %}
+                </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+
+            {% else %}
+                {# The only way (currently) to have both "fake" and "real" records in the same datarecord array is when InlineLink fails to save #}
+                {# The "real" records may need to execute render plugins in the Edit context however, so need to set that up... #}
+                {% set rendering_options__edit = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'edit'} %}
+
+                {% if can_execute_plugin__edit is null %}
+                    {% for rpi_num,rpi in datatype.renderPluginInstances %}
+                        {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+                            {% set can_execute_plugin__edit = rpi|can_execute_plugin(datatype, rendering_options__edit) %}
+
+                            {# Only want to save the render_plugin_instance if it's render-able #}
+                            {% set render_plugin_instance__edit = rpi %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {# Render Plugins shouldn't override the entire childtype in the FakeEdit context...for now... #}
+
+                <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+
+                    {% set content = '' %}
+                    {% if can_execute_plugin__edit and (render_plugin_instance__edit.renderPlugin.overrideChild or render_plugin_instance__edit.renderPlugin.overrideFields) %}
+                        {# [datarecord] converts datarecord into a single-element array #}
+                        {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance__edit, theme_array, rendering_options__edit, parent_datarecord, datatype_permissions, datafield_permissions, token_list) %}
+                        {% if content|length > 0 %}
+                            <!-- html for {{ render_plugin_instance__edit.renderPlugin.pluginName }} -->
+                            {{ content|raw }}
+                        {% endif %}
+                    {% endif %}
+
+                    {% if can_execute_plugin__edit and render_plugin_instance__edit.renderPlugin.overrideFields and content|length > 0 %}
+                        {# If using render plugin and it overrides datafield display, do nothing here #}
+                    {% else %}
+                        {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
+                            'datatype_array': datatype_array,
+                            'datarecord': datarecord,
+                            'theme_array': theme_array,
+
+                            'parent_datarecord': parent_datarecord,
+                            'target_datatype_id': target_datatype_id,
+                            'target_datarecord_id': datarecord.id,
+                            'target_theme_id': target_theme_id,
+
+                            'datatype_permissions': datatype_permissions,
+                            'datafield_permissions': datafield_permissions,
+
+                            'is_top_level': is_top_level,
+                            'is_link': is_link,
+                            'display_type': display_type,
+
+                            'token_list': token_list,
+                        } %}
+                    {% endif %}
+                </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+
+            {% endif %}
+
+        {% endfor %}
+
+        {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
+
+    </div><!-- End of #DataType_{{ datatype.id }} -->
+{% endif %}
+
+{% endspaceless %}

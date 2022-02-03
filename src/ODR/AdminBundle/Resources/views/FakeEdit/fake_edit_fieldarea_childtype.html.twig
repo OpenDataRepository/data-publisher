@@ -6,7 +6,7 @@
 
 {% set child_datarecord_count = 0 %}
 {% for dr_id, dr in datarecord_array %}
-     {% set child_datarecord_count = child_datarecord_count + 1 %}
+    {% set child_datarecord_count = child_datarecord_count + 1 %}
 {% endfor %}
 
 {% set can_edit_parent_record = false %}
@@ -25,9 +25,13 @@
     and datatype_permissions[ childtype.id ][ 'dr_edit' ] is defined %}
     {% set can_edit_child_record = true %}
 {% endif %}
+
+{% if insert_fake_datarecord is not defined %}
+    {% set insert_fake_datarecord = false %}
+{% endif %}
 {#
 --------------------<br>
-edit_fieldarea_childtype.html.twig<br>
+fake_edit_fieldarea_childtype.html.twig<br>
 target_datatype_id: {{ target_datatype_id }}<br>
 parent_datarecord.datatype: {{ parent_datatype_id }}<br>
 multiple_allowed: {{ multiple_allowed }}<br>
@@ -53,7 +57,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'display_type': theme_datatype.display_type
     } %}
 {% else %}  {# is_link == 1 or can_edit_child_record #}
-    {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
+    {% include 'ODRAdminBundle:FakeEdit:fake_edit_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
         'theme_array': theme_array,
@@ -70,11 +74,16 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'display_type': display_type,
 
         'token_list': token_list,
+        'insert_fake_datarecord': insert_fake_datarecord,
     } %}
 {% endif %}
 
     <div class="pure-u-1">
     {% if is_link == 1 %}
+        {# The InlineLink interface needs to only work when the parent datarecord is not fake #}
+        {% if not insert_fake_datarecord %}
+        <div class="pure-u-1 Info" title="Record must be saved before it can be linked to other records">
+        {% endif %}
 
         {% if can_edit_parent_record %}
             {# User guaranteed to have can_view_datatype for the remote datatype, and they can edit the parent datarecord #}
@@ -84,6 +93,9 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
                 class="pure-button pure-button-primary"
                 type="button"
                 onclick="AddLinkedRecord({{ childtype.id }},{{ parent_datarecord.id }});"
+                {% if not insert_fake_datarecord %}
+                disabled
+                {% endif %}
             >Add {{ childtype_name }}</button>
             {% endif %}
 
@@ -91,18 +103,31 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
                 type="button"
                 class="pure-button"
                 onclick="OpenLinkSearchPage({{ parent_datatype_id }},{{ childtype.id }},{{ parent_datarecord.id }});"
+                {% if not insert_fake_datarecord %}
+                disabled
+                {% endif %}
             >Link to {{ childtype_name }}</button>
         {% endif %}
 
-    {% else %}
+        {% if not insert_fake_datarecord %}
+        </div>
+        {% endif %}
 
-        {% if can_add_child_record and (multiple_allowed == 1 or child_datarecord_count == 0) %}
+    {% else %}
+        {# Getting ODR to render fake child records when the top-level is also fake is painful #}
+        {# Disable this feature, for now #}
+        <div class="pure-u-1 Info" title="Record must be saved before child records can be created">
+
+        {% if can_add_child_record and (multiple_allowed == 1 or child_datarecord_count < 1) %}
             <button
                 class="pure-button pure-button-primary"
                 type="button"
                 onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});"
+                disabled
             >Add {{ childtype_name }} record</button>
         {% endif %}
+
+        </div>
 
     {% endif %}
     </div>

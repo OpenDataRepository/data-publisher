@@ -2,12 +2,13 @@
 
 /**
  * Open Data Repository Data Publisher
- * Datafield Reload Override Interface
+ * Datafield Derivation Interface
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Datatype plugins that need to override reloading of datafields must implement this interface.
+ * All render plugins that have at least one datafield with a value derived from other datafields
+ * via the onPostUpdate event must implement this interface.
  *
  */
 
@@ -18,12 +19,21 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 
-interface DatafieldReloadOverrideInterface
+interface DatafieldDerivationInterface
 {
+    /**
+     * Returns an array of which datafields are derived from which source datafields, with everything
+     * identified by datafield id.
+     *
+     * @param array $render_plugin_instance
+     *
+     * @return array
+     */
+    public function getDerivationMap($render_plugin_instance);
 
     /**
      * Gathers parameters so that a datatype plugin can provide an alternate template for reloading
-     * one of its required datafields.
+     * a derived datafield.
      *
      * @param string $rendering_context
      * @param RenderPluginInstance $render_plugin_instance

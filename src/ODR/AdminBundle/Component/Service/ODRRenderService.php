@@ -384,7 +384,7 @@ class ODRRenderService
      */
     public function getFakeEditHTML($user, $datatype)
     {
-        $template_name = 'ODRAdminBundle:Edit:fake_edit_ajax.html.twig';
+        $template_name = 'ODRAdminBundle:FakeEdit:fake_edit_ajax.html.twig';
         $extra_parameters = array(
             'is_top_level' => 1,    // TODO - get rid of this requirement
 
@@ -830,11 +830,10 @@ class ODRRenderService
      * @param ThemeElement $theme_element
      * @param DataRecord $parent_datarecord
      * @param DataRecord $top_level_datarecord
-     * @param bool $insert_fake_datarecord
      *
      * @return string
      */
-    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $insert_fake_datarecord = false)
+    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord)
     {
         $template_name = 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig';
 
@@ -842,9 +841,67 @@ class ODRRenderService
             'token_list' => array(),
         );
 
-        if ($insert_fake_datarecord)
-            $extra_parameters['insert_fake_datarecord'] = true;
+        // TODO - is this needed?
+        // Ensure all relevant themes are in sync before rendering the end result
+//        $parent_theme = $theme_element->getTheme()->getParentTheme();
+//        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
 
+        return self::reloadChildtype($user, $template_name, $extra_parameters, $theme_element, $parent_datarecord, $top_level_datarecord);
+    }
+
+
+    /**
+     * Renders and returns the HTML for a child/linked datatype in the fake_edit context.
+     *
+     * @param ODRUser $user
+     * @param ThemeElement $theme_element
+     * @param DataRecord $parent_datarecord
+     * @param DataRecord $top_level_datarecord
+     * @param array $datafield_values
+     *
+     * @return string
+     */
+    public function reloadFakeEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $datafield_values)
+    {
+        $template_name = 'ODRAdminBundle:FakeEdit:fake_edit_childtype_reload.html.twig';
+
+        $extra_parameters = array(
+            'token_list' => array(),
+            'insert_fake_datarecord' => true,
+
+            'datafield_values' => $datafield_values,
+        );
+
+
+        // TODO - is this needed?
+        // Ensure all relevant themes are in sync before rendering the end result
+//        $parent_theme = $theme_element->getTheme()->getParentTheme();
+//        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
+
+        return self::reloadChildtype($user, $template_name, $extra_parameters, $theme_element, $parent_datarecord, $top_level_datarecord);
+    }
+
+
+    /**
+     * Renders and returns the HTML for the InlineLink version of a child/linked datatype on the
+     * edit page.
+     *
+     * @param ODRUser $user
+     * @param ThemeElement $theme_element
+     * @param DataRecord $parent_datarecord
+     * @param DataRecord $top_level_datarecord
+     * @param bool $insert_fake_datarecord
+     *
+     * @return string
+     */
+    public function loadInlineLinkChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord)
+    {
+        $template_name = 'ODRAdminBundle:Link:inline_link_childtype_reload.html.twig';
+
+        $extra_parameters = array(
+            'token_list' => array(),
+            'inline_link' => true,
+        );
 
         // TODO - is this needed?
         // Ensure all relevant themes are in sync before rendering the end result
@@ -901,9 +958,14 @@ class ODRRenderService
 
         // Inline linking requires the insertion of a "fake" datarecord into the child/linked datatype
         //  during the reload process
-        if ( isset($extra_parameters['insert_fake_datarecord']) ) {
+        if ( isset($extra_parameters['insert_fake_datarecord']) || isset($extra_parameters['inline_link']) ) {
+            // Extract values to fill in the "fake" datarecord if they exist
+            $datafield_values = array();
+            if ( isset($extra_parameters['datafield_values']) )
+                $datafield_values = $extra_parameters['datafield_values'];
+
             // Create the "fake" datarecord...
-            $fake_dr_entry = $this->dri_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId());
+            $fake_dr_entry = $this->dri_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId(), $datafield_values);
 
             // Splice it into the existing $datarecord_array
             $fake_dr_id = $fake_dr_entry['id'];

@@ -15,12 +15,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% set datarecord_is_fake = false %}
-{% if datarecord.is_fake is defined and datarecord.is_fake == true %}
-    {% set datarecord_is_fake = true %}
-{% endif %}
-
-
 {% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
     {% include 'ODRAdminBundle:Edit:edit_datatypetools.html.twig' with {
         'datatype': datatype,
@@ -28,7 +22,7 @@
         'parent_datarecord': parent_datarecord,
 
         'datatype_permissions': datatype_permissions,
-        'datarecord_is_fake': datarecord_is_fake,
+        'datarecord_is_fake': false,
 
         'is_top_level': is_top_level,
         'is_link': is_link,

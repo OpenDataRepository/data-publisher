@@ -69,7 +69,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -1880,13 +1880,11 @@ class EditController extends ODRCustomController
      * @param int $top_level_datarecord_id The datarecord currently being viewed in edit mode,
      *                                       required incase the user tries to reload B or C in the
      *                                       structure A => B => C => ...
-     * @param int $insert_fake_datarecord
-     *
      * @param Request $request
      *
      * @return Response
      */
-    public function reloadchildAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, $insert_fake_datarecord, Request $request)
+    public function reloadchildAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1952,18 +1950,12 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            $insert_fake = false;
-            if ( $insert_fake_datarecord == 1 )
-                $insert_fake = true;
-
-
             $return['d'] = array(
                 'html' => $odr_render_service->reloadEditChildtype(
                     $user,
                     $theme_element,
                     $parent_datarecord,
-                    $top_level_datarecord,
-                    $insert_fake
+                    $top_level_datarecord
                 )
             );
         }
@@ -2091,7 +2083,7 @@ class EditController extends ODRCustomController
 
                 // Load the render plugin as a service
                 $render_plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
-                /** @var DatafieldReloadOverrideInterface $render_plugin */
+                /** @var DatafieldDerivationInterface $render_plugin */
                 $render_plugin = $this->container->get($render_plugin_classname);
 
                 // Request a set of parameters from the render plugin for ODRRenderService to use

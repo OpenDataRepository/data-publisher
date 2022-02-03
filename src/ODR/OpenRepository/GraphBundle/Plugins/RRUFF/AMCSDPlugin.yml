@@ -22,6 +22,7 @@ odr_plugins.rruff.amcsd:
     #  plugin overrides the "AMC File" rendering to force a reload of the entire edit page when that
     #  datafield triggers the FileDeleted and FilePreEncrypt events...this page reload accomplishes
     #  the same thing
+    # NOTE: this also means that AMCSDPlugin.php does NOT need to implement DatafieldDerivationInterface
 
     required_fields:
         fileno:

@@ -40,7 +40,7 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
@@ -50,7 +50,7 @@ use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 {
 
     /**
@@ -1102,5 +1102,47 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldReloadOverrideInter
 
         // Otherwise, this field doesn't have any problems...don't override the default reloading
         return array();
+    }
+
+
+    /**
+     * Returns an array of which datafields are derived from which source datafields, with everything
+     * identified by datafield id.
+     *
+     * @param array $render_plugin_instance
+     *
+     * @return array
+     */
+    public function getDerivationMap($render_plugin_instance)
+    {
+        // Don't execute on instances of other render plugins
+        if ( $render_plugin_instance['renderPlugin']['pluginClassName'] !== 'odr_plugins.rruff.ima' )
+            return array();
+
+        // The IMA plugin has four derived fields...
+        //  - "Mineral Name" is derived from "Mineral Display Name"
+        $mineral_name_df_id = $render_plugin_instance['renderPluginMap']['Mineral Name']['id'];
+        $mineral_display_name_df_id = $render_plugin_instance['renderPluginMap']['Mineral Display Name']['id'];
+
+        //  - "Mineral Abbrev" is derived from "Mineral Display Abbrev"
+        $mineral_abbrev_df_id = $render_plugin_instance['renderPluginMap']['Mineral Abbreviation']['id'];
+        $mineral_display_abbrev_df_id = $render_plugin_instance['renderPluginMap']['Mineral Display Abbreviation']['id'];
+
+        //  - "Chemistry Elements" is derived from "IMA Formula"
+        $chemistry_elements_df_id = $render_plugin_instance['renderPluginMap']['Chemistry Elements']['id'];
+        $ima_formula_df_id = $render_plugin_instance['renderPluginMap']['IMA Formula']['id'];
+
+        //  - "Valence Elements" is derived from "RRUFF Formula"
+        $valence_elements_df_id = $render_plugin_instance['renderPluginMap']['Valence Elements']['id'];
+        $rruff_formula_df_id = $render_plugin_instance['renderPluginMap']['RRUFF Formula']['id'];
+
+        // Since a datafield could be derived from multiple datafields, the source datafields need
+        //  to be in an array (even though that's not the case for the IMA Plugin)
+        return array(
+            $mineral_name_df_id => array($mineral_display_name_df_id),
+            $mineral_abbrev_df_id => array($mineral_display_abbrev_df_id),
+            $chemistry_elements_df_id => array($ima_formula_df_id),
+            $valence_elements_df_id => array($rruff_formula_df_id),
+        );
     }
 }
