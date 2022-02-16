@@ -876,15 +876,17 @@ class ThemeController extends ODRCustomController
 
             // If a destination theme type wasn't given...
             if ( $new_theme_type === '' ) {
-                // ...then directly clone the theme.  Master' themes get cloned to 'custom_view'
+                // ...then just copy the source's theme_type
                 $dest_theme_type = $theme->getThemeType();
-                if ($dest_theme_type == 'master')
-                    $dest_theme_type = 'custom_view';
             }
             else {
-                // ...otherwise, use the requested theme type
+                // ...otherwise, use the requested theme_type
                 $dest_theme_type = $new_theme_type;
             }
+
+            // Should never clone a new "master" theme...those have special meaning
+            if ($dest_theme_type == 'master')
+                $dest_theme_type = 'custom_view';
 
 
             // This actually seems to be fast enough that it doesn't need the TrackedJobService...
