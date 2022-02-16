@@ -4356,3 +4356,33 @@ i {
     font-weight: bold;
     padding: 10px 18px;
 }
+
+.ODRChemistryPlugin_button {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRChemistryPlugin_popup {
+    position: absolute;
+    z-index: 100;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    display: none;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODRChemistryPlugin_popup > .ODRPseudoField {
+    margin-top: 5px;
+}
+.ODRChemistryPlugin_input {
+    /*margin: 5px !important;*/
+    font-size: 100% !important;
+}
+.ODRChemistryPlugin_textarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+}
+.ODRChemistryPlugin_SaveIndicator {
+    top: 8px !important;
+}

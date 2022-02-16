@@ -74,7 +74,30 @@
 
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
 
-    {% if field_typename == "Boolean" %}
+    {# Determine whether a render plugin needs to be run #}
+    {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': is_datatype_admin, 'context': 'edit'} %}
+    {% set render_plugin_instance = null %}
+    {% set can_execute_plugin = false %}
+
+    {% for rpi_num,rpi in datafield.renderPluginInstances %}
+        {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+            {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
+
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% set render_plugin_instance = rpi %}
+        {% endif %}
+    {% endfor %}
+
+    {% set content = '' %}
+    {% if can_execute_plugin %}
+        {% set content = datafield|datafield_plugin(datarecord, render_plugin_instance, rendering_options) %}
+    {% endif %}
+
+    {% if can_execute_plugin and content|length > 0 %}
+        {# TODO - ...require the render plugin to also handle the <form> element? #}
+        {{ content|raw }}
+
+    {% elseif field_typename == "Boolean" %}
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield_meta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
@@ -127,7 +150,7 @@
                 'target': target,
                 'single_file': single_file,
                 'upload_type': 'file',
-                'datatype_id': datatype.id,
+                'datatype_id': datarecord.dataType.id,
                 'datarecord_id': datarecord.id,
                 'datafield_id': datafield.id,
                 'callback': callback
@@ -179,7 +202,7 @@
                 {% endif %}
                 {% set callback = 'ReloadEditDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datarecord.dataType.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
             {% endif %}
             </div>
         {#</fieldset>#}
@@ -376,7 +399,8 @@
     {% endif %}
     </form>
 
-
+{# Only output save javascript when a plugin was not run #}
+{% if not can_execute_plugin or content|length == 0 %}
     {% if field_typename == "Boolean" %}
     <script>
         var {{ field_typeclass }}Interval_{{ unique_id }} = null;
@@ -484,5 +508,6 @@
         });
     </script>
     {% endif %}
+{% endif %}
 
 {% endspaceless %}

@@ -1,0 +1,28 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+{% if field_typename == "Paragraph Text" %}
+    <fieldset>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+{#            <textarea id="{{ input_id }}" class="pure-u-1 Cursor" readonly="readonly">{{ value|raw }}</textarea>#}
+            <div class="ODRRenderPluginField">{{ value|raw }}</div>
+        </div>
+    </fieldset>
+{% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+    <fieldset>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+{#            <input id="{{ input_id }}" class="pure-u-1 Cursor" type="text" value="{{ value|raw }}" readonly="readonly"/>#}
+            <div class="ODRRenderPluginField">{{ value|raw }}</div>
+        </div>
+    </fieldset>
+{% endif %}
+
+{% endspaceless %}

@@ -380,18 +380,31 @@ class TableThemeHelperService
                 }
             }
 
-            // If the field has a render plugin that should be run...
+            // If the field has a render plugin...
+            $using_render_plugin = false;
             if ( !is_null($render_plugin_instance) ) {
-                // ...then run said render plugin to get the converted text string
+                // ...then load the render plugin...
                 $render_plugin = $render_plugin_instance['renderPlugin'];
                 try {
                     /** @var DatafieldPluginInterface $plugin */
                     $plugin = $this->container->get($render_plugin['pluginClassName']);
-                    $df_value = $plugin->execute($df, $dr, $render_plugin_instance, 'table');
+                    // ...to test whether it should be executed
+                    $rendering_options = array('context' => 'text');
+                    if ( $plugin->canExecutePlugin($render_plugin_instance, $df, $dr, $rendering_options) ) {
+                        // If so, then get the value from the plugin
+                        $df_value = $plugin->execute($df, $dr, $render_plugin_instance, $rendering_options);
+                        $using_render_plugin = true;
+                    }
+                    // If the plugin declines to execute here, then the rest of this function will
+                    //  just use the raw value
                 }
                 catch (\Exception $e) {
                     throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
                 }
+            }
+
+            if ( $using_render_plugin ) {
+                /* The render plugin has already returned a string to use, do nothing */
             }
             else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
                 /* A drf entry hasn't been created for this storage entity...just use the empty string */

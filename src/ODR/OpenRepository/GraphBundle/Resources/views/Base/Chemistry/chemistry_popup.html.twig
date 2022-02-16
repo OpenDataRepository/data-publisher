@@ -1,0 +1,104 @@
+{% spaceless %}
+
+{% if subscript_delimiter is not defined %}
+    {% set subscript_delimiter = '_' %}
+{% endif %}
+{% if superscript_delimiter is not defined %}
+    {% set superscript_delimiter = '^' %}
+{% endif %}
+
+<div id="{{ input_id }}_control" style="float:right">
+    <button id="{{ input_id }}_chemistry_trigger" class="ODRChemistryPlugin_button pure-button" title="Open the Chemistry Plugin parsing tool"><i class="fa fa-subscript"></i></button>
+</div>
+<div id="{{ input_id }}_popup" class="ODRChemistryPlugin_popup">
+    {% if field_typename == "Paragraph Text" %}
+        <textarea id="{{ input_id }}_parsed" class="ODRChemistryPlugin_input pure-u-20-24" title="The chemical formula with the suggested changes applied.  You can make more changes to the formula if needed."></textarea>
+    {% else %}
+        <input id="{{ input_id }}_parsed" class="ODRChemistryPlugin_input pure-u-20-24" type="text" title="The chemical formula with the suggested changes applied.  You can make more changes to the formula if needed." />
+    {% endif %}
+
+     <button id="{{ input_id }}_manual_save" class="ODRChemistryPlugin_button pure-button pure-u-3-24">
+         <i id="{{ input_id }}_warning" class="fa fa-exclamation-triangle" style="display: none;"></i>
+         <i class="fa fa-save"></i>
+     </button>
+    <div id="{{ input_id }}_prettified" class="ODRPseudoField ODRChemistryPlugin_textarea pure-u-20-24" title="A preview of the formatted formula"></div>
+    <button id="{{ input_id }}_cancel_save" class="ODRChemistryPlugin_button pure-button pure-u-3-24" title="Close the dialog without saving changes"><i class="fa fa-ban"></i></button>
+</div>
+
+<script>
+    $(function() {
+        $("#{{ input_id }}_chemistry_trigger").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+
+            if ( $("#{{ input_id }}_popup").is(':visible') ) {
+                // Popup already visible, close it
+                $("#{{ input_id }}_cancel_save").trigger('click');
+            }
+            else {
+                // Popup not visible...parse the chemistry...
+                if ( ODR_isFormulaFormatted( $("#{{ input_id }}"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' ) ) {
+                    // Formula appears to be formatted already
+                    $("#{{ input_id }}_manual_save").prop('title', 'The formula already appears to be formatted, but clicking here will still save the suggested changes');
+                    $("#{{ input_id }}_warning").show();
+                }
+                else {
+                    // Formula does not appear to be formatted
+                    $("#{{ input_id }}_manual_save").prop('title', 'Save the suggested changes');
+                    $("#{{ input_id }}_warning").hide();
+                }
+                // Regardless of whether it appears to be formatted, parse the formula
+                var output = ODR_parseChemicalFormula( $("#{{ input_id }}").val(), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+
+                // Display the parsed formula
+                $("#{{ input_id }}_parsed").val(output);
+                {% if field_typename == "Paragraph Text" %}
+                $("#{{ input_id }}_prettified").html( ODR_prettifyChemicalFormula(output, true, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' ) );
+                {% else %}
+                $("#{{ input_id }}_prettified").html( ODR_prettifyChemicalFormula(output, false, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' ) );
+                {% endif %}
+
+                // ...and show the popup
+                $("#{{ input_id }}_popup").show()
+                    .offset( $("#{{ input_id }}").offset() )
+                    .width( $("#{{ input_id }}").width() + 15 );
+                let prettified_div_width = $("#{{ input_id }}_prettified").width();
+                $("#{{ input_id }}_parsed")
+                    .height( $("#{{ input_id }}").height() )
+                    .width( prettified_div_width - 5 );
+                $("#{{ input_id }}_prettified")
+                    .width( prettified_div_width - 7 );
+            }
+        });
+
+        $("#{{ input_id }}_manual_save").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+            $("#{{ input_id }}_popup").hide();
+
+            // Copy the parsed value back into the datafield's form and trigger a save
+            $("#{{ input_id }}")
+                .val( $("#{{ input_id }}_parsed").val() )
+                .trigger('keyup');
+        });
+
+        $("#{{ input_id }}_cancel_save").unbind('click').click(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+            $("#{{ input_id }}_popup").hide();
+            // Delete this element's style attribute so it is guaranteed to resize
+            $("#{{ input_id }}_prettified").removeAttr('style');
+        });
+
+        var Interval_{{ unique_id }}_parsed = null;
+        $("#{{ input_id }}_parsed").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( Interval_{{ unique_id }}_parsed );
+            {% if field_typename == "Paragraph Text" %}
+            Interval_{{ unique_id }}_parsed = setTimeout( "ODR_updatePrettifiedFormula('{{ input_id }}', true, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}')", 1000 );
+            {% else %}
+            Interval_{{ unique_id }}_parsed = setTimeout( "ODR_updatePrettifiedFormula('{{ input_id }}', false, '{{ subscript_delimiter }}', '{{ superscript_delimiter }}')", 1000 );
+            {% endif %}
+        });
+    });
+</script>
+{% endspaceless %}

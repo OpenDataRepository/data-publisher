@@ -305,6 +305,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // Otherwise, output depends on which context the plugin is being executed from
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
+                // TODO - should this also try to take over display mode of Chemistry Plugin?
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_fieldarea.html.twig',
                     array(

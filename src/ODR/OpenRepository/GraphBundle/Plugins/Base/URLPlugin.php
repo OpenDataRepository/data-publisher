@@ -55,17 +55,37 @@ class URLPlugin implements DatafieldPluginInterface
 
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array $datarecord
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
+    {
+        // The URL Plugin should work in the 'text' and 'display' contexts
+        if ( $rendering_options['context'] === 'text' || $rendering_options['context'] === 'display' )
+            return true;
+
+        return false;
+    }
+
+
+    /**
      * Executes the URL Plugin on the provided datafield
      *
      * @param array $datafield
      * @param array $datarecord
      * @param array $render_plugin_instance
-     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
+     * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master')
+    public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
 
         try {
@@ -146,21 +166,19 @@ class URLPlugin implements DatafieldPluginInterface
 
 
             $output = "";
-            switch ($themeType) {
-                case 'text':
-                case 'table':
-                    $output = $str;
-                    break;
+            if ( $rendering_options['context'] === 'text' ) {
+                $output = $str;
+            }
+            else if ( $rendering_options['context'] === 'display' ) {
+                $output = $this->templating->render(
+                    'ODROpenRepositoryGraphBundle:Base:URL/url_display_datafield.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'datarecord' => $datarecord,
 
-                default:
-                    $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:Base:URL/url_default.html.twig',
-                        array(
-                            'datafield' => $datafield,
-                            'value' => $str,
-                        )
-                    );
-                break;
+                        'value' => $str,
+                    )
+                );
             }
 
             return $output;

@@ -77,7 +77,6 @@ class ODRCustomController extends Controller
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
         /** @var CloneThemeService $clone_theme_service */
         $clone_theme_service = $this->container->get('odr.clone_theme_service');

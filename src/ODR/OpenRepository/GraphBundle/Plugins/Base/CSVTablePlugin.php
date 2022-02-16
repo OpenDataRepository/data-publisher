@@ -59,17 +59,38 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array $datarecord
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
+    {
+        // The CSVTable Plugin can't work in the 'text' context, since it's based off a file field
+        // The CSVTable Plugin should work in the 'display' context
+        if ( $rendering_options['context'] === 'display' )
+            return true;
+
+        return false;
+    }
+
+
+    /**
      * Executes the CSVTable Plugin on the provided datafield
      *
      * @param array $datafield
      * @param array $datarecord
      * @param array $render_plugin_instance
-     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
+     * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master')
+    public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
         try {
             // ----------------------------------------
@@ -138,14 +159,18 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
 
             // ----------------------------------------
-            $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Base:CSVTable/csv_table.html.twig',
-                array(
-                    'datafield' => $datafield,
-                    'datarecord' => $datarecord,
-                    'data_array' => $data_array,
-                )
-            );
+            $output = '';
+            if ( $rendering_options['context'] === 'display' ) {
+                $output = $this->templating->render(
+                    'ODROpenRepositoryGraphBundle:Base:CSVTable/csvtable_display_datafield.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'datarecord' => $datarecord,
+
+                        'data_array' => $data_array,
+                    )
+                );
+            }
 
             return $output;
         }

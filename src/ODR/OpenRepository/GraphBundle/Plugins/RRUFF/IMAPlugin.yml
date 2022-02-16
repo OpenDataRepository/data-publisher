@@ -6,7 +6,7 @@ odr_plugins.rruff.ima:
     version: 1.0.0
     override_fields: true
     override_child: false
-    description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.
+    description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.  The various chemistry fields required by the IMA Plugin should also be using the Chemistry Plugin.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
         PostUpdateEvent: onPostUpdate
@@ -14,7 +14,7 @@ odr_plugins.rruff.ima:
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
     # IMAPlugin.php and twig files for this plugin use them to match renderplugin fields to actual datafields
-    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE FILES AS WELL
     #####################
 
     required_fields:
@@ -87,10 +87,19 @@ odr_plugins.rruff.ima:
 #            properties:
 #                - no_user_edits
 #                - is_derived
+        # The IMA plugin doesn't technically need to require this field, since nothing is derived
+        #  from it
 #        end_member_formula:
 #            name: End Member Formula
 #            description:
 #            type: LongVarchar
+
+        # The IMA plugin doesn't technically need to require this field, since nothing is derived
+        #  from it
+#        status_notes:
+#            name: Status Notes
+#            description:
+#            type: LongText
 
         # TODO - alternate display and search for first/second reference
 

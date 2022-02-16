@@ -10,14 +10,7 @@
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
     {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
-    {% if field_typename == "Boolean" and datarecordfield.boolean[0] is defined %}
-        {% set valuefield = datarecordfield.boolean[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "File" %}
-        {% set valuefield = datarecordfield.file %}
-    {% elseif field_typename == "Image" %}
-        {% set valuefield = datarecordfield.image %}
-    {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
+    {% if field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
         {% set valuefield_value = valuefield.original_value %}
     {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
@@ -32,18 +25,9 @@
     {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
         {% set valuefield = datarecordfield.mediumVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typeclass == "Radio" %}
-        {% set valuefield = datarecordfield.radioSelection %}
-    {% elseif field_typeclass == "Tag" %}
-        {% set valuefield = datarecordfield.tagSelection %}
     {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
-        {% set valuefield = datarecordfield.datetimeValue[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Markdown" %}
-        {% set valuefield = '' %}
     {% endif %}
 {% endif %}
 
@@ -81,6 +65,14 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+            {% if is_chemistry_field %}
+                {% include 'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_popup.html.twig' with {
+                    'field_typename': field_typename,
+                    'unique_id': unique_id,
+                    'input_id': input_id,
+                } %}
+            {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
@@ -101,6 +93,14 @@
                 <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
                 {% endif %}
                 {{ datafield_meta.fieldName }}
+
+            {% if is_chemistry_field %}
+                {% include 'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_popup.html.twig' with {
+                    'field_typename': field_typename,
+                    'unique_id': unique_id,
+                    'input_id': input_id,
+                } %}
+            {% endif %}
             </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
@@ -112,7 +112,7 @@
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
                 />
-                <i class="fa fa-save ODRSaveIndicator"></i>
+                <i class="fa fa-save ODRSaveIndicator{% if is_chemistry_field %} ODRChemistryPlugin_SaveIndicator {% endif %}"></i>
             </div>
         </fieldset>
     {% endif %}
@@ -169,11 +169,18 @@
             {% endif %}
 
             submitHandler: function(form) {
+            {% if derived_datafield_id is not null %}
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
                     {{ field_typeclass }}Interval_{{ unique_id }},
                     [{{ derived_datafield_id }}]
-                );    // TODO - should SaveRecordData() take a callback instead of an array for the 3rd param?
+                );  {# TODO - should SaveRecordData() take a callback instead of an array for the 3rd param? #}
+            {% else %}
+                SaveRecordData(
+                    '#EditForm_{{ unique_id }}',
+                    {{ field_typeclass }}Interval_{{ unique_id }}
+                );
+            {% endif %}
             }
             // focusInvalid: false
         });
