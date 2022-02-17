@@ -497,7 +497,7 @@
                 }
 
                 tools.pub_stat.unbind('click').click(function () {
-                    toggleHiddenThemeElement(theme_element_id);
+                    toggleThemeElementVisibility(theme_element_id);
                 });
 
                 // ----------------------------------------
@@ -547,7 +547,7 @@
                 }
 
                 tools.pub_stat.unbind('click').click(function () {
-                    toggleHiddenThemeDatafield(theme_element_id, datafield_id);
+                    toggleThemeDatafieldVisibility(theme_element_id, datafield_id);
                 });
 
                 // ----------------------------------------
@@ -1013,14 +1013,14 @@
      *
      * @param {number} theme_element_id
      */
-    function toggleHiddenThemeElement(theme_element_id) {
+    function toggleThemeElementVisibility(theme_element_id) {
         var show_hidden_elements = false;
         if ($("#ODRThemeShowHidden").is(":checked"))
             show_hidden_elements = true;
 
         var element = $("#ThemeElement_" + theme_element_id);
 
-        var url = '{{ path('odr_design_hidden_theme_element', {'theme_element_id': 0} ) }}';
+        var url = '{{ path('odr_design_theme_element_visibility', {'theme_element_id': 0} ) }}';
         url = url.substring(0, (url.length - 1));
         url += theme_element_id;
 
@@ -1071,14 +1071,14 @@
      * @param {number} theme_element_id
      * @param {number} datafield_id
      */
-    function toggleHiddenThemeDatafield(theme_element_id, datafield_id) {
+    function toggleThemeDatafieldVisibility(theme_element_id, datafield_id) {
         var show_hidden_elements = false;
         if ($("#ODRThemeShowHidden").is(":checked"))
             show_hidden_elements = true;
 
         var element = $("#ThemeElement_" + theme_element_id).find("#Field_" + datafield_id).first();
 
-        var url  = '{{ path('odr_design_hidden_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0} ) }}';
+        var url  = '{{ path('odr_design_theme_datafield_visibility', {'theme_element_id': 0, 'datafield_id': 0} ) }}';
         url = url.substring(0,(url.length-3));
         url += theme_element_id + '/' + datafield_id;
 
@@ -1151,6 +1151,7 @@
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
+                // TODO - reload childtype/page on error?
             },
             complete: function(jqXHR) {
                 // Get the xdebugToken from response headers

@@ -338,15 +338,15 @@ odr_save_theme_properties:
     requirements:
         theme_id: \d+
 
-odr_design_hidden_theme_element:
-    path:  /design/hiddenthemeelement/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:hiddenthemeelement }
+odr_design_theme_element_visibility:
+    path:  /design/themeelementvisibility/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementvisibility }
     requirements:
         theme_element_id:  \d+
 
-odr_design_hidden_theme_datafield:
-    path:  /design/hiddenthemedatafield/{theme_element_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Theme:hiddenthemedatafield }
+odr_design_theme_datafield_visibility:
+    path:  /design/themedatafieldvisibility/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themedatafieldvisibility }
     requirements:
         theme_element_id:  \d+
         datafield_id: \d+
