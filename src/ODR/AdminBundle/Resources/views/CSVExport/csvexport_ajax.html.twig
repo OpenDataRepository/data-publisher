@@ -628,6 +628,9 @@
                     getJobProgress('csv_export', data.d.tracked_job_id);
                 }
             },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');

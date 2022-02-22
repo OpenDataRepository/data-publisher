@@ -18,6 +18,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
@@ -321,8 +322,8 @@ class TagsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ODRTabHelperService $tab_helper_service */
             $tab_helper_service = $this->container->get('odr.tab_helper_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
 
 
             /** @var DataFields $datafield */
@@ -419,15 +420,15 @@ class TagsController extends ODRCustomController
                 $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 // Convert any existing tags into a slightly different format
-                $stacked_tag_array = $th_service->convertTagsForListImport($df_array['tags']);
+                $stacked_tag_array = $tag_helper_service->convertTagsForListImport($df_array['tags']);
 
                 // Splice this tag into the stacked array of existing tags
                 $would_create_new_tag = false;
                 foreach ($posted_tags as $num => $new_tags)
-                    $stacked_tag_array = $th_service->insertTagsForListImport($stacked_tag_array, $new_tags, $would_create_new_tag);
+                    $stacked_tag_array = $tag_helper_service->insertTagsForListImport($stacked_tag_array, $new_tags, $would_create_new_tag);
 
                 // Ensure the tags are sorted by name
-                $th_service->orderStackedTagArray($stacked_tag_array, true);
+                $tag_helper_service->orderStackedTagArray($stacked_tag_array, true);
 
 
                 // Going to store the potential import data in the user's session...
@@ -523,8 +524,8 @@ class TagsController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
 
@@ -609,7 +610,7 @@ class TagsController extends ODRCustomController
             // Going to need a stacked array version of the tags to combine with the posted data
             $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
-            $stacked_tag_array = $th_service->convertTagsForListImport($df_array['tags']);
+            $stacked_tag_array = $tag_helper_service->convertTagsForListImport($df_array['tags']);
 
             // Splice each of the posted tag trees into the existing stacked tag structure
             // Flushing is delayed until the updateDatafieldMeta() call
@@ -792,10 +793,10 @@ class TagsController extends ODRCustomController
             $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var Tags $tag */
@@ -844,10 +845,16 @@ class TagsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to delete tags from a derived field');
 
-            // Also prevent a tag from being deleted if certain jobs are in progress by throwing
-            //  an error
-            $restricted_jobs = array('mass_edit', /*'migrate',*/ 'csv_export', 'csv_import_validate', 'csv_import');
-            $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to delete this tag");
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this tag
+            $job_data = array(
+                'job_type' => 'delete_tag',
+                'target_entity' => $datafield,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this Tag, as it would interfere with an already running '.$conflicting_job.' job');
 
             // As nice as it would be to delete any/all tags derived from a template tag here, the
             //  template synchronization needs to tell the user what will be changed, or changes
@@ -856,7 +863,7 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // May need to traverse the tag tree hierarchy to properly delete this tag...
-            $tag_hierarchy = $th_service->getTagHierarchy($grandparent_datatype->getId());
+            $tag_hierarchy = $tag_helper_service->getTagHierarchy($grandparent_datatype->getId());
             if ( isset($tag_hierarchy[$datatype->getId()])
                 && isset($tag_hierarchy[$datatype->getId()][$datafield->getId()])
             ) {
@@ -1373,8 +1380,8 @@ class TagsController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var Tags $tag */
@@ -1417,9 +1424,16 @@ class TagsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to rename a tag for a derived field');
 
-            // Also prevent a tag from being renamed if certain jobs are in progress
-            $restricted_jobs = array(/*'mass_edit',*/ /*'migrate',*/ 'csv_export', 'csv_import_validate', 'csv_import');
-            $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to rename this tag");
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datarecord
+            $job_data = array(
+                'job_type' => 'rename_tag',
+                'target_entity' => $datafield,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to rename this Tag, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------

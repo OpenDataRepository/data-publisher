@@ -506,7 +506,8 @@ function doMassUpdate() {
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            alert('Error encountered, no changes made');
+            // Don't need to do anything specific on an error
+            // alert('Error encountered, no changes made');
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers

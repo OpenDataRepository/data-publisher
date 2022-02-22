@@ -43,6 +43,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -59,6 +60,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -104,6 +106,8 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var DataType $datatype */
@@ -132,18 +136,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -300,6 +302,9 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+
 
             /** @var DataType $source_datatype */
             $source_datatype = $repo_datatype->find($source_datatype_id);
@@ -336,18 +341,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$target_datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -1140,6 +1143,8 @@ class CSVImportController extends ODRCustomController
             $csv_helper_service = $this->container->get('odr.csv_import_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // Need to store fieldtype ids and fieldtype typenames
@@ -1195,18 +1200,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -2323,8 +2326,10 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // ----------------------------------------
@@ -2370,18 +2375,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -2528,7 +2531,7 @@ class CSVImportController extends ODRCustomController
                         foreach ($tag_names as $num => $tag_name)
                             $tag_names[$num] = trim($tag_name);
 
-                        $existing_tag_array = $th_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
+                        $existing_tag_array = $tag_helper_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
                     }
 
                     // The only point of this entire if statement is to render stuff for user
@@ -2541,7 +2544,7 @@ class CSVImportController extends ODRCustomController
 
                     // Locate the tags already in the datafield
                     $existing_tag_array = $datafields[$df_id]['tags'];
-                    $existing_tag_array = $th_service->convertTagsForListImport($existing_tag_array);
+                    $existing_tag_array = $tag_helper_service->convertTagsForListImport($existing_tag_array);
 
                     // Determine whether the tags to be selected will require any new tags
                     $would_create_new_tags = false;
@@ -2553,7 +2556,7 @@ class CSVImportController extends ODRCustomController
                         foreach ($tag_names as $num => $tag_name)
                             $tag_names[$num] = trim($tag_name);
 
-                        $existing_tag_array = $th_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
+                        $existing_tag_array = $tag_helper_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
                     }
 
                     // Only care when some new tag is created
@@ -2564,7 +2567,7 @@ class CSVImportController extends ODRCustomController
 
             // Need to render the end result of tag creation, so sort those fields by tag name
             foreach ($new_tag_arrays as $col_num => $tags) {
-                $th_service->orderStackedTagArray($tags, true);
+                $tag_helper_service->orderStackedTagArray($tags, true);
                 $new_tag_arrays[$col_num] = $tags;
             }
 
@@ -2672,10 +2675,12 @@ class CSVImportController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
 
@@ -2726,19 +2731,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -2965,7 +2967,7 @@ print_r($new_mapping);
                 $df_id = $new_mapping[$column_id];
                 $df = $hydrated_datafields[$df_id];
                 $stacked_tag_array = $df_array[$df_id]['tags'];
-                $stacked_tag_array = $th_service->convertTagsForListImport($stacked_tag_array);
+                $stacked_tag_array = $tag_helper_service->convertTagsForListImport($stacked_tag_array);
 
                 // Going to need the hydrated versions of all tags for this datafield in order to
                 //  properly create TagTree entries...

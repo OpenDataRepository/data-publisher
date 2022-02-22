@@ -36,6 +36,7 @@ use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -2082,8 +2083,8 @@ class DisplaytemplateController extends ODRCustomController
             $sort_service = $this->container->get('odr.sort_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // TODO - what should you be allowed to modify on a derived datafield?
@@ -2214,9 +2215,15 @@ class DisplaytemplateController extends ODRCustomController
                 else if ($old_fieldtype_id !== $new_fieldtype_id) {
                     // ...otherwise, only need to do stuff if the fieldtype got changed
 
-                    // Prevent a datafield's fieldtype from being changed if a background job is in progress
-                    $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
-                    $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to change fieldtype of this datafield");
+                    // Determine whether an in-progress background job would interfere with a
+                    //  potential change of fieldtype
+                    $job_data = array(
+                        'job_type' => 'migrate',
+                        'target_entity' => $datafield,
+                    );
+                    $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+                    if ( !is_null($conflicting_job) )
+                        throw new ODRConflictException('Unable to change the fieldtype of this Datafield');
 
                     // Check whether the fieldtype got changed from something that could be migrated...
                     $migrate_data = true;
@@ -2642,7 +2649,6 @@ class DisplaytemplateController extends ODRCustomController
             // Need to determine the top-level datatype this datafield belongs to, so other
             //  background processes won't attempt to render any part of it and disrupt the migration
             $top_level_datatype_id = $datatype->getGrandparent()->getId();
-
 
             // Get/create an entity to track the progress of this datafield migration
             $job_type = 'migrate';

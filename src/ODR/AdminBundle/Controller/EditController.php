@@ -392,8 +392,8 @@ class EditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // Grab the necessary entities
@@ -422,9 +422,17 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Also prevent a datarecord from being deleted if certain jobs are in progress
-            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
-            $tj_service->checkActiveJobs($datarecord, $restricted_jobs, "Unable to delete this datarecord");
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datarecord
+            $job_data = array(
+                'job_type' => 'delete_datarecord',
+                'target_entity' => $datarecord,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this Datarecord, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------

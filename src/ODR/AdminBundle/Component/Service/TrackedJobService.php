@@ -21,9 +21,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -515,24 +513,6 @@ class TrackedJobService
         }
     }
 
-    /**
-     * Sets the additional data for a tracked job.
-     *
-     * @param $tracked_job_id
-     * @param $additional_data
-     */
-    public function setAdditionalData($tracked_job_id, $additional_data) {
-        /** @var TrackedJob $tracked_job */
-        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
-        if ($tracked_job == null)
-            throw new ODRNotFoundException('TrackedJob');
-
-        $tracked_job->setAdditionalData($additional_data);
-
-        $this->em->persist($tracked_job);
-        $this->em->flush();
-        $this->em->refresh($tracked_job);
-    }
 
     /**
      * Gets an array of TrackedError entities for a specified TrackedJob
@@ -582,97 +562,223 @@ class TrackedJobService
 
 
     /**
-     * Checks the database for any in-progress jobs, throwing an error if the given entity is
-     * related to an in-progress job.
+     * Returns the job_type of an in-progress background job if would conflict with a new job
+     * created from the given data...returns null if there's no conflict
      *
-     * @param DataType|DataFields|DataRecord $entity
-     * @param string[] $restricted_jobs
-     * @param string $prefix
-     *
-     * @throws ODRException
+     * @param array $job_data
+     * @return string|null
      */
-    public function checkActiveJobs($entity, $restricted_jobs, $prefix)
+    public function getConflictingBackgroundJob($job_data)
     {
-        $query = $this->em->createQuery(
-           'SELECT tj.job_type, tj.target_entity, tj.restrictions
-            FROM ODRAdminBundle:TrackedJob tj
-            WHERE tj.completed IS NULL
-            AND tj.deletedAt IS NULL'
+        // ----------------------------------------
+        if ( !isset($job_data['job_type']) || !isset($job_data['target_entity']) )
+            throw new ODRBadRequestException('getConflictingBackgroundJob() called with invalid array', 0x93308777);
+
+        $new_job_type = $job_data['job_type'];
+        $target_entity = $job_data['target_entity'];
+
+        // Most jobs run on datatypes, but a few run on datafields or datarecords instead...
+        $datafield_jobs = array(
+            'migrate' => 1,
+
+            // The rest of these aren't "real" job, but have the potential for breaking in-progress jobs
+            'delete_datafield' => 1,
+            'delete_radio_option' => 1,
+            'delete_tag' => 1,
+            'rename_radio_option' => 1,
+            'rename_tag' => 1,
         );
-        $results = $query->getArrayResult();
+        $datarecord_jobs = array(
+            'delete_datarecord' => 1,    // not a "real" job, but can break running jobs if it executes
+        );
 
-        $active_jobs = array();
-        foreach ($results as $result) {
-            $job_type = $result['job_type'];
-            if ( !isset($active_jobs[$job_type]) )
-                $active_jobs[$job_type] = array();
-
-            switch ($job_type) {
-                case 'csv_export':
-                case 'csv_import_validate':
-                case 'csv_import':
-                case 'mass_edit':
-                    // These jobs affect the entire datatype
-                    $datatype_data = explode("_", $result['target_entity']);
-                    $datatype_id = $datatype_data[1];
-                    $active_jobs[$job_type][$datatype_id] = 1;
-                    break;
-
-                case 'migrate':
-                    // These jobs only affect a single datafield out of a datatype
-                    $datatype_data = explode("_", $result['restrictions']);
-                    $datatype_id = $datatype_data[1];
-                    $active_jobs[$job_type][$datatype_id] = array();
-
-                    $datafield_data = explode("_", $result['target_entity']);
-                    $datafield_id = $datafield_data[1];
-                    $active_jobs[$job_type][$datatype_id][$datafield_id] = 1;
-                    break;
-
-                default:
-                    /* Ignore other job types */
-                    break;
-            }
+        $datatype = null;
+        if ( $target_entity instanceof DataType
+            && !isset($datafield_jobs[$new_job_type]) && !isset($datarecord_jobs[$new_job_type])
+        ) {
+            $datatype = $target_entity;
         }
+        else if ( $target_entity instanceof DataFields && isset($datafield_jobs[$new_job_type]) ) {
+            $datafield = $target_entity;
+            $datatype = $datafield->getDataType();
+        }
+        else if ( $target_entity instanceof DataRecord && isset($datarecord_jobs[$new_job_type]) ) {
+            $datarecord = $target_entity;
+            $datatype = $datarecord->getDataType();
+        }
+        else {
+            // Either a datafield job didn't have an associated datafield entity
+            // or a datatype job didn't have an associated datatype entity
+            throw new ODRBadRequestException('getConflictingBackgroundJob() called with invalid target_entity', 0x93308777);
+        }
+
+        // Ensure the checks are being done with the top-level datatype
+        $grandparent_datatype = $datatype->getGrandparent();
 
 
         // ----------------------------------------
-        // Determine if the provided entity conflicts with an in-progress job
-        $grandparent_datatype = null;
-        $datafield = null;
-        if ( $entity instanceof DataType ) {
-            $grandparent_datatype = $entity->getGrandparent();
-        }
-        else if ( $entity instanceof DataFields ) {
-            $datafield = $entity;
-            $grandparent_datatype = $datafield->getDataType()->getGrandparent();
-        }
-        else if ( $entity instanceof DataRecord ) {
-            $grandparent_datatype = $entity->getDataType()->getGrandparent();
-        }
-        else {
-            throw new ODRNotImplementedException("Unrecognized entity");
-        }
+        // These jobs can't interfere with any other background job
+        $always_allowed_jobs = array(
+            'clone_theme' => 1,
+            'clone_and_link' => 1,
+        );
+        if ( isset($always_allowed_jobs[$new_job_type]) )
+            return null;
 
-        foreach ($restricted_jobs as $num => $job) {
-            if ( isset($active_jobs[$job]) ) {
-                if ( isset($active_jobs[$job][$grandparent_datatype->getId()]) ) {
-                    // There's a job active for this datatype...check whether it only affects
-                    //  a single datafield
-                    $current_jobs = $active_jobs[$job][$grandparent_datatype->getId()];
-                    if ( is_array($current_jobs) && isset($current_jobs[$datafield->getId()]) ) {
-                        // This job affects the current datafield...block it
-                        throw new ODRBadRequestException($prefix.': a "'.$job.'" job is in progress');
-                    }
-                    else {
-                        // The job affects the entire datatype...block to be safe
-                        throw new ODRBadRequestException($prefix.': a "'.$job.'" job is in progress');
-                    }
+
+        // These jobs might be allowed, but require some additional checks to be sure
+        // All function names referenced in this array need to return boolean
+
+        // The top-level key in this array indicates whether any job could be created if a job that
+        //  matches the top-level key is already in progress...e.g.
+        // Since $allowed_jobs['csv_import'] does not exist, that means no new job can be created
+        //  when a 'csv_import' job is currently in progress for the datatype
+        // Since $allowed_jobs['migrate']['migrate'] exists, this means that a new 'migrate'
+        //  job could potentially be allowed even if a 'migrate' job is already in progress...and ODR
+        //  should call the given function name "self::requireDifferentDatafield()" to verify
+
+        // If $allowed_jobs['migrate']['mass_edit'] existed, then that would indicate a new
+        //  'mass_edit' job could be created even if a 'migrate' job was in progress...etc
+        // The above is a fictional example...most of the jobs shouldn't be started when another
+        //  job is already running, because they can modify the same datarecord/datafield pairs, or
+        //  otherwise rely on values not changing
+
+        $allowed_jobs = array(
+            'migrate' => array(
+                // New migrations are allowed, but only when the datafield isn't already being migrated
+                'migrate' => 'self::requireDifferentDatafield',
+
+                // Renaming is allowed, but only when the datafield isn't already being migrated
+                'rename_radio_option' => 'self::requireDifferentDatafield',
+                'rename_tag' => 'self::requireDifferentDatafield',
+                // Deleting is allowed, but only when the datafield isn't already being migrated
+                'delete_radio_option' => 'self::requireDifferentDatafield',
+                'delete_tag' => 'self::requireDifferentDatafield',
+            ),
+
+//            'csv_export' => array(
+//                'csv_export' => '',    // TODO - technically, could run if the background jobs got changed so the "random" filename includes a tracked job id
+
+                // Unable to start new CSVExport jobs if any of the others job types are running
+//            ),
+
+
+            'mass_edit' => array(
+                // Renaming these has no effect on mass edit doing any selecting/deselecting
+                'rename_radio_option' => 'self::alwaysAllowed',
+                'rename_tag' => 'self::alwaysAllowed',
+            ),
+//            'csv_import' => array(),
+//            'csv_import_validate' => array(),
+        );
+
+
+        // ----------------------------------------
+        // Need a list of any job that's currently in progress
+        $current_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy(
+            array('completed' => null)
+        );
+        /** @var TrackedJob[] $current_jobs */
+
+        // If no jobs are currently running, then always able to create a new job
+        if ( empty($current_jobs) )
+            return null;
+
+        foreach ($current_jobs as $tj) {
+            // Everything depends on which type of job is currently running...
+            $current_job_type = $tj->getJobType();
+
+            // If this is one of the jobs which are always allowed, skip to the next job
+            if ( isset($always_allowed_jobs[$current_job_type]) )
+                continue;
+
+            // ...and which datatype it's currently modifying
+            $affected_datatype_id = null;
+            if ( $current_job_type === 'migrate' ) {
+                $pieces = explode('_', $tj->getRestrictions());
+                $affected_datatype_id = intval($pieces[1]);
+            }
+            else {
+                $pieces = explode('_', $tj->getTargetEntity());
+                $affected_datatype_id = intval($pieces[1]);
+            }
+
+            // Determine whether this in-progress job is affecting the same datatype as the new job...
+            if ( $grandparent_datatype->getId() !== $affected_datatype_id ) {
+                // ...it's not, so the new job can't interfere with this in-progress job. Still need
+                //  to check the rest of the in-progress jobs though...
+            }
+            else {
+                // ...the new job will be affecting the same datatype as this in-progress job.
+
+                if ( !isset($allowed_jobs[$current_job_type]) ) {
+                    // The current job_type doesn't allow the creation of any other jobs while it's
+                    //  running
+                    return $current_job_type;
+                }
+                else if ( !isset($allowed_jobs[$current_job_type][$new_job_type]) ) {
+                    // The current job_type doesn't allow a job of the given job_type to be started
+                    //  while it's running...a different new job_type could be allowed though
+                    return $current_job_type;
+                }
+                else {
+                    // The current job_type might allow the creation of the new job_type.  Call the
+                    //  function defined in $allowed_jobs to determine though...
+                    $can_start_job = call_user_func($allowed_jobs[$current_job_type][$new_job_type], $job_data, $tj);
+
+                    // ...if it returned a string, then the current job will interfere with the new
+                    //  job...should stop looking through the list of current jobs
+                    if ( !is_null($can_start_job) )
+                        return $current_job_type;
+
+                    // ...otherwise, this current job doesn't have an issue with the new job...need
+                    //  to check all the other current jobs though, to be sure they agree
                 }
             }
         }
 
-        // ----------------------------------------
-        // If this point is reached, no conflict was found
+        // If this point is reached, then no conflicting job was found
+        return null;
+    }
+
+
+    /**
+     * Called by self::canStartJob() to determine whether the job described by $job_data is being
+     * run on the same datafield as $tracked_job
+     *
+     * @param array $job_data
+     * @param TrackedJob $tracked_job
+     * @return string|null
+     */
+    private function requireDifferentDatafield($job_data, $tracked_job)
+    {
+        // Determine which datafield the currently running TrackedJob is migrating...
+        $pieces = explode('_', $tracked_job->getTargetEntity());
+        $affected_datafield_id = intval($pieces[1]);
+
+        // Determine which datafield the user wants to migrate...
+        /** @var DataFields $new_migrate_df */
+        $new_migrate_df = $job_data['target_entity'];
+
+        // Prevent the user from starting another migrate job on the same datafield
+        if ( $new_migrate_df->getId() === $affected_datafield_id )
+            return $tracked_job->getJobType();
+        else
+            return null;
+    }
+
+
+    /**
+     * Called by self::canStartJob(), but returns null so the job described by $job_data is always
+     * allowed to run.
+     *
+     * @param array $job_data
+     * @param TrackedJob $tracked_job
+     * @return null
+     */
+    private function alwaysAllowed($job_data, $tracked_job)
+    {
+        // By returning null, the job described by $job_data will always be permitted
+        return null;
     }
 }

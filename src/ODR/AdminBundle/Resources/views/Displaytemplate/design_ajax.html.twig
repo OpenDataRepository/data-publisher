@@ -1884,7 +1884,7 @@
             SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
 
         // Load the saved form data for this field
-        if ( SaveDatafieldProperty_Data[datafield_id] === undefined)
+        if ( SaveDatafieldProperty_Data[datafield_id] === undefined || SaveDatafieldProperty_Data[datafield_id] === null )
             return;
         var post_data = SaveDatafieldProperty_Data[datafield_id];
         SaveDatafieldProperty_Data[datafield_id] = null;
@@ -2384,7 +2384,7 @@
         $('#UpdateDataTypeForm_short_name').val($('#UpdateDataTypeForm_long_name').val());
 
         // Load the saved form data for this datatype
-        if ( SaveDatatypeProperty_Data[datatype_id] === undefined)
+        if ( SaveDatatypeProperty_Data[datatype_id] === undefined || SaveDatatypeProperty_Data[datatype_id] === null )
             return;
         var post_data = SaveDatatypeProperty_Data[datatype_id];
         SaveDatatypeProperty_Data[datatype_id] = null;
@@ -2550,6 +2550,7 @@
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
+                // TODO - reload childtype/page on error?
             },
             complete: function(jqXHR) {
                 // Get the xdebugToken from response headers

@@ -39,6 +39,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -53,6 +54,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -110,7 +112,7 @@ class MassEditController extends ODRCustomController
 
             // Require this MassEdit request to be for a top-level datatype
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Unable to run MassEdit from a child datatype');
 
             // A search key is required, otherwise there's no way to identify which datarecords
             //  should be mass edited
@@ -157,22 +159,8 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Only allow one mass edit job per datatype at a time
-            $job_type = 'mass_edit';
-            $target_entity = 'datatype_'.$datatype_id;
-
-            $query = $em->createQuery(
-               'SELECT tj
-                FROM ODRAdminBundle:TrackedJob AS tj
-                WHERE tj.job_type = :job_type AND tj.target_entity = :target_entity
-                AND tj.deletedAt IS NULL AND tj.completed IS NULL'
-            )->setParameters( array('job_type' => $job_type, 'target_entity' => $target_entity) );
-            $results = $query->getArrayResult();
-//print '<pre>'.print_r($results, true).'</pre>';  exit();
-
-            if ( count($results) > 0 )
-                throw new \Exception('A mass edit job is already in progress for this Datatype');
-
+            // Don't want to prevent access to the mass_edit page if a background job is running
+            // If a background job is running, then massUpdateAction() will refuse to start
 
             // ----------------------------------------
             // Verify the search key, and ensure the user can view the results
@@ -291,6 +279,8 @@ class MassEditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var DataType $datatype */
@@ -300,7 +290,7 @@ class MassEditController extends ODRCustomController
 
             // Require this MassEdit request to be for a top-level datatype
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Unable to run MassEdit from a child datatype');
 
             $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
 
@@ -325,21 +315,16 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Only allow one mass edit job per datatype at a time
-            $job_type = 'mass_edit';
-            $target_entity = 'datatype_'.$datatype_id;
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'mass_edit' job for this datatype
+            $job_data = array(
+                'job_type' => 'mass_edit',
+                'target_entity' => $datatype,
+            );
 
-            $query = $em->createQuery(
-               'SELECT tj
-                FROM ODRAdminBundle:TrackedJob AS tj
-                WHERE tj.job_type = :job_type AND tj.target_entity = :target_entity
-                AND tj.deletedAt IS NULL AND tj.completed IS NULL'
-            )->setParameters( array('job_type' => $job_type, 'target_entity' => $target_entity) );
-            $results = $query->getArrayResult();
-//print '<pre>'.print_r($results, true).'</pre>';  exit();
-
-            if ( count($results) > 0 )
-                throw new ODRException('A mass edit job is already in progress for this Datatype');
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new MassEdit job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -759,49 +744,33 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // See if there are migrations jobs in progress for this datatype
-            $block = false;
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null) {
-                $target_entity = $tracked_job->getTargetEntity();
-                $tmp = explode('_', $target_entity);
-                $datafield_id = $tmp[1];
+            // Change the public status of the given datarecord
+            $updated = false;
 
-                $ret = 'MassEditCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
-                $return['r'] = 2;
-                $block = true;
+            if ( $public_status == -1 && $datarecord->isPublic() ) {
+                // Make the datarecord non-public
+                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
+
+                $updated = true;
+                $ret .= 'set datarecord '.$datarecord_id.' to non-public'."\n";
+            }
+            else if ( $public_status == 1 && !$datarecord->isPublic() ) {
+                // Make the datarecord public
+                $properties = array('publicDate' => new \DateTime());
+                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
+
+                $updated = true;
+                $ret .= 'set datarecord '.$datarecord_id.' to public'."\n";
             }
 
+            if ($updated) {
+                // ----------------------------------------
+                // Mark this datarecord as updated
+                $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // ----------------------------------------
-            if (!$block) {
-                $updated = false;
-
-                if ( $public_status == -1 && $datarecord->isPublic() ) {
-                    // Make the datarecord non-public
-                    $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                    $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
-
-                    $updated = true;
-                    $ret .= 'set datarecord '.$datarecord_id.' to non-public'."\n";
-                }
-                else if ( $public_status == 1 && !$datarecord->isPublic() ) {
-                    // Make the datarecord public
-                    $properties = array('publicDate' => new \DateTime());
-                    $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
-
-                    $updated = true;
-                    $ret .= 'set datarecord '.$datarecord_id.' to public'."\n";
-                }
-
-                if ($updated) {
-                    // ----------------------------------------
-                    // Mark this datarecord as updated
-                    $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-                    // ...and delete the cached entry that stores public status for this datatype
-                    $search_cache_service->onDatarecordPublicStatusChange($datarecord);
-                }
+                // ...and delete the cached entry that stores public status for this datatype
+                $search_cache_service->onDatarecordPublicStatusChange($datarecord);
             }
 
 
@@ -944,275 +913,258 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // See if there are migrations jobs in progress for this datatype
-            $block = false;
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null) {
-                $target_entity = $tracked_job->getTargetEntity();
-                $tmp = explode('_', $target_entity);
-                $datafield_id = $tmp[1];
+            // Update the value stored in this datafield
+            $field_typeclass = $datafield->getFieldType()->getTypeClass();
+            $field_typename = $datafield->getFieldType()->getTypeName();
 
-                $ret = 'MassEditCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
-                $return['r'] = 2;
-                $block = true;
+            if ($field_typeclass == 'Radio') {
+                // Ensure a datarecordfield entity exists...
+                $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+
+                // Load all selection objects attached to this radio object
+                $radio_selections = array();
+                /** @var RadioSelection[] $tmp */
+                $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
+                foreach ($tmp as $rs)
+                    $radio_selections[ $rs->getRadioOption()->getId() ] = $rs;
+                /** @var RadioSelection[] $radio_selections */
+
+                // Set radio_selection objects to the desired state
+                foreach ($value as $radio_option_id => $selected) {
+                    // Single Select/Radio can have an id of "none", indicating that nothing
+                    //  should be selected
+                    if ($radio_option_id !== 'none') {
+                        // Ensure a RadioSelection entity exists
+                        /** @var RadioOptions $radio_option */
+                        $radio_option = $repo_radio_option->find($radio_option_id);
+                        $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+
+                        // Ensure it has the correct selected value
+                        $properties = array('selected' => $selected);
+                        $emm_service->updateRadioSelection($user, $radio_selection, $properties);
+
+                        $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
+
+                        // If this datafield is a Single Radio/Select datafield, then the correct
+                        //  radio option just got selected...remove it from the $radio_selections
+                        //  array so the subsequent block can't modify it
+                        unset( $radio_selections[$radio_option_id] );
+                    }
+                }
+
+                // If only a single selection is allowed, deselect the other existing radio_selection objects
+                if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
+                    // All radio options remaining in this array need to be marked as unselected
+                    // The radio option id of "none" won't affect anything here
+                    $changes_made = false;
+                    foreach ($radio_selections as $radio_option_id => $rs) {
+                        if ( $rs->getSelected() == 1 ) {
+                            // Ensure this RadioSelection is deselected
+                            $properties = array('selected' => 0);
+                            $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
+                            $changes_made = true;
+
+                            $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
+                        }
+                    }
+
+                    if ($changes_made)
+                        $em->flush();
+                }
+
+            }
+            else if ($field_typeclass == 'Tag') {
+                // Ensure a datarecordfield entity exists...
+                $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+
+                // Load all selection objects attached to this tag object
+                $tag_selections = array();
+                /** @var TagSelection[] $tmp */
+                $tmp = $repo_tag_selection->findBy( array('dataRecordFields' => $drf->getId()) );
+                foreach ($tmp as $ts)
+                    $tag_selections[ $ts->getTag()->getId() ] = $ts;
+                /** @var TagSelection[] $tag_selections */
+
+                // Ensure that the given array only contains leaf-level tags
+                $leaf_selections = $th_service->expandTagSelections($datafield, $value);
+
+                // Set tag_selection objects to the desired state
+                foreach ($leaf_selections as $tag_id => $selected) {
+                    // Ensure a TagSelection entity exists
+                    /** @var Tags $tag */
+                    $tag = $repo_tag->find($tag_id);
+                    $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+
+                    // Ensure it has the correct selected value
+                    $properties = array('selected' => $selected);
+                    $emm_service->updateTagSelection($user, $tag_selection, $properties);
+
+                    $ret .= 'setting tag_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', tag_id '.$tag_id.' to '.$selected."\n";
+                }
+            }
+            else if ($field_typeclass == 'File') {
+                // Load all files associated with this entity
+                if ($value !== 0) {
+                    $query = $em->createQuery(
+                       'SELECT file
+                        FROM ODRAdminBundle:File AS file
+                        WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
+                        AND file.deletedAt IS NULL'
+                    )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
+                    $results = $query->getResult();
+
+                    if ( count($results) > 0 ) {
+                        foreach ($results as $num => $file) {
+                            /** @var File $file */
+                            if ( $file->isPublic() && $value == -1 ) {
+                                // File is public, but needs to be non-public
+                                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                                $emm_service->updateFileMeta($user, $file, $properties);
+
+                                // Delete the decrypted version of the file, if it exists
+                                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+                                $filename = 'File_'.$file->getId().'.'.$file->getExt();
+                                $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+                                if ( file_exists($absolute_path) )
+                                    unlink($absolute_path);
+
+                                $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                            }
+                            else if ( !$file->isPublic() && $value == 1 ) {
+                                // File is non-public, but needs to be public
+                                $properties = array('publicDate' => new \DateTime());
+                                $emm_service->updateFileMeta($user, $file, $properties);
+
+                                // Immediately decrypt the file...don't need to specify a
+                                //  filename because the file is guaranteed to be public
+                                $crypto_service->decryptFile($file->getId());
+
+                                $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                            }
+                        }
+
+                        $em->flush();
+                    }
+                }
+            }
+            else if ($field_typeclass == 'Image') {
+                // Load all images associated with this entity
+                if ($value !== 0) {
+                    $query = $em->createQuery(
+                       'SELECT image
+                        FROM ODRAdminBundle:Image AS image
+                        WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
+                        AND image.original = 1 AND image.deletedAt IS NULL'
+                    )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
+                    $results = $query->getResult();
+
+                    if ( count($results) > 0 ) {
+                        foreach ($results as $num => $image) {
+                            /** @var Image $image */
+                            if ( $image->isPublic() && $value == -1 ) {
+                                // Image is public, but needs to be non-public
+                                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                                $emm_service->updateImageMeta($user, $image, $properties);
+
+                                // Delete the decrypted version of the file, if it exists
+                                $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
+                                $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+                                $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+                                if ( file_exists($absolute_path) )
+                                    unlink($absolute_path);
+
+                                $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                            }
+                            else if ( !$image->isPublic() && $value == 1 ) {
+                                // Image is non-public, but needs to be public
+                                $properties = array('publicDate' => new \DateTime());
+                                $emm_service->updateImageMeta($user, $image, $properties);
+
+                                // Immediately decrypt the image...don't need to specify a
+                                //  filename because the image is guaranteed to be public
+                                $crypto_service->decryptImage($image->getId());
+
+                                $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                            }
+                        }
+
+                        $em->flush();
+                    }
+                }
+            }
+            else if ($field_typeclass == 'DatetimeValue') {
+                // For the DateTime fieldtype...
+                /** @var DatetimeValue $storage_entity */
+                $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                $old_value = $storage_entity->getStringValue();
+
+                if ($old_value !== $value) {
+                    // Make the change to the value stored in the storage entity
+                    $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
+
+                    $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                }
+                else {
+                    /* do nothing, current value in entity already matches desired value */
+                    $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
+                }
+            }
+            else {
+                // For every other fieldtype...ensure the storage entity exists
+                /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+                $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                $old_value = $storage_entity->getValue();
+
+                if ($old_value !== $value) {
+                    // Make the change to the value stored in the storage entity
+                    $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
+
+                    $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                }
+                else {
+                    /* do nothing, current value in entity already matches desired value */
+                    $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
+                }
             }
 
 
             // ----------------------------------------
-            if (!$block) {
-                //
-                $field_typeclass = $datafield->getFieldType()->getTypeClass();
-                $field_typename = $datafield->getFieldType()->getTypeName();
+            // Update the job tracker if necessary
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
-                if ($field_typeclass == 'Radio') {
-                    // Ensure a datarecordfield entity exists...
-                    $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
 
-                    // Load all selection objects attached to this radio object
-                    $radio_selections = array();
-                    /** @var RadioSelection[] $tmp */
-                    $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
-                    foreach ($tmp as $rs)
-                        $radio_selections[ $rs->getRadioOption()->getId() ] = $rs;
-                    /** @var RadioSelection[] $radio_selections */
+                if ($count >= $total && $total != -1) {
+                    $tracked_job->setCompleted( new \DateTime() );
 
-                    // Set radio_selection objects to the desired state
-                    foreach ($value as $radio_option_id => $selected) {
-                        // Single Select/Radio can have an id of "none", indicating that nothing
-                        //  should be selected
-                        if ($radio_option_id !== 'none') {
-                            // Ensure a RadioSelection entity exists
-                            /** @var RadioOptions $radio_option */
-                            $radio_option = $repo_radio_option->find($radio_option_id);
-                            $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
-
-                            // Ensure it has the correct selected value
-                            $properties = array('selected' => $selected);
-                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);
-
-                            $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
-
-                            // If this datafield is a Single Radio/Select datafield, then the correct
-                            //  radio option just got selected...remove it from the $radio_selections
-                            //  array so the subsequent block can't modify it
-                            unset( $radio_selections[$radio_option_id] );
-                        }
-                    }
-
-                    // If only a single selection is allowed, deselect the other existing radio_selection objects
-                    if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
-                        // All radio options remaining in this array need to be marked as unselected
-                        // The radio option id of "none" won't affect anything here
-                        $changes_made = false;
-                        foreach ($radio_selections as $radio_option_id => $rs) {
-                            if ( $rs->getSelected() == 1 ) {
-                                // Ensure this RadioSelection is deselected
-                                $properties = array('selected' => 0);
-                                $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
-                                $changes_made = true;
-
-                                $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
-                            }
-                        }
-
-                        if ($changes_made)
-                            $em->flush();
-                    }
-
-                }
-                else if ($field_typeclass == 'Tag') {
-                    // Ensure a datarecordfield entity exists...
-                    $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
-
-                    // Load all selection objects attached to this tag object
-                    $tag_selections = array();
-                    /** @var TagSelection[] $tmp */
-                    $tmp = $repo_tag_selection->findBy( array('dataRecordFields' => $drf->getId()) );
-                    foreach ($tmp as $ts)
-                        $tag_selections[ $ts->getTag()->getId() ] = $ts;
-                    /** @var TagSelection[] $tag_selections */
-
-                    // Ensure that the given array only contains leaf-level tags
-                    $leaf_selections = $th_service->expandTagSelections($datafield, $value);
-
-                    // Set tag_selection objects to the desired state
-                    foreach ($leaf_selections as $tag_id => $selected) {
-                        // Ensure a TagSelection entity exists
-                        /** @var Tags $tag */
-                        $tag = $repo_tag->find($tag_id);
-                        $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
-
-                        // Ensure it has the correct selected value
-                        $properties = array('selected' => $selected);
-                        $emm_service->updateTagSelection($user, $tag_selection, $properties);
-
-                        $ret .= 'setting tag_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', tag_id '.$tag_id.' to '.$selected."\n";
-                    }
-                }
-                else if ($field_typeclass == 'File') {
-                    // Load all files associated with this entity
-                    if ($value !== 0) {
-                        $query = $em->createQuery(
-                           'SELECT file
-                            FROM ODRAdminBundle:File AS file
-                            WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
-                            AND file.deletedAt IS NULL'
-                        )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
-                        $results = $query->getResult();
-
-                        if ( count($results) > 0 ) {
-                            foreach ($results as $num => $file) {
-                                /** @var File $file */
-                                if ( $file->isPublic() && $value == -1 ) {
-                                    // File is public, but needs to be non-public
-                                    $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                                    $emm_service->updateFileMeta($user, $file, $properties);
-
-                                    // Delete the decrypted version of the file, if it exists
-                                    $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
-                                    $filename = 'File_'.$file->getId().'.'.$file->getExt();
-                                    $absolute_path = realpath($file_upload_path).'/'.$filename;
-
-                                    if ( file_exists($absolute_path) )
-                                        unlink($absolute_path);
-
-                                    $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
-                                }
-                                else if ( !$file->isPublic() && $value == 1 ) {
-                                    // File is non-public, but needs to be public
-                                    $properties = array('publicDate' => new \DateTime());
-                                    $emm_service->updateFileMeta($user, $file, $properties);
-
-                                    // Immediately decrypt the file...don't need to specify a
-                                    //  filename because the file is guaranteed to be public
-                                    $crypto_service->decryptFile($file->getId());
-
-                                    $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
-                                }
-                            }
-
-                            $em->flush();
-                        }
-                    }
-                }
-                else if ($field_typeclass == 'Image') {
-                    // Load all images associated with this entity
-                    if ($value !== 0) {
-                        $query = $em->createQuery(
-                           'SELECT image
-                            FROM ODRAdminBundle:Image AS image
-                            WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
-                            AND image.original = 1 AND image.deletedAt IS NULL'
-                        )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
-                        $results = $query->getResult();
-
-                        if ( count($results) > 0 ) {
-                            foreach ($results as $num => $image) {
-                                /** @var Image $image */
-                                if ( $image->isPublic() && $value == -1 ) {
-                                    // Image is public, but needs to be non-public
-                                    $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                                    $emm_service->updateImageMeta($user, $image, $properties);
-
-                                    // Delete the decrypted version of the file, if it exists
-                                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
-                                    $filename = 'Image_'.$image->getId().'.'.$image->getExt();
-                                    $absolute_path = realpath($image_upload_path).'/'.$filename;
-
-                                    if ( file_exists($absolute_path) )
-                                        unlink($absolute_path);
-
-                                    $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
-                                }
-                                else if ( !$image->isPublic() && $value == 1 ) {
-                                    // Image is non-public, but needs to be public
-                                    $properties = array('publicDate' => new \DateTime());
-                                    $emm_service->updateImageMeta($user, $image, $properties);
-
-                                    // Immediately decrypt the image...don't need to specify a
-                                    //  filename because the image is guaranteed to be public
-                                    $crypto_service->decryptImage($image->getId());
-
-                                    $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
-                                }
-                            }
-
-                            $em->flush();
-                        }
-                    }
-                }
-                else if ($field_typeclass == 'DatetimeValue') {
-                    // For the DateTime fieldtype...
-                    /** @var DatetimeValue $storage_entity */
-                    $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-                    $old_value = $storage_entity->getStringValue();
-
-                    if ($old_value !== $value) {
-                        // Make the change to the value stored in the storage entity
-                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
-
-                        $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
-                    }
-                    else {
-                        /* do nothing, current value in entity already matches desired value */
-                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
-                    }
-                }
-                else {
-                    // For every other fieldtype...ensure the storage entity exists
-                    /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-                    $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-                    $old_value = $storage_entity->getValue();
-
-                    if ($old_value !== $value) {
-                        // Make the change to the value stored in the storage entity
-                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
-
-                        $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
-                    }
-                    else {
-                        /* do nothing, current value in entity already matches desired value */
-                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
-                    }
+                    // TODO - really want a better system than this...
+                    // In theory, this means the job is done, so delete all search cache entries
+                    //  relevant to this datatype
+                    $search_cache_service->onDatatypeImport($datatype);
                 }
 
-
-                // ----------------------------------------
-                // Update the job tracker if necessary
-                if ($tracked_job_id !== -1) {
-                    $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
-
-                    $total = $tracked_job->getTotal();
-                    $count = $tracked_job->incrementCurrent($em);
-
-                    if ($count >= $total && $total != -1) {
-                        $tracked_job->setCompleted( new \DateTime() );
-
-                        // TODO - really want a better system than this...
-                        // In theory, this means the job is done, so delete all search cache entries
-                        //  relevant to this datatype
-                        $search_cache_service->onDatatypeImport($datatype);
-                    }
-
-                    $em->persist($tracked_job);
+                $em->persist($tracked_job);
 //                    $em->flush();
-$ret .= '  Set current to '.$count."\n";
-                }
-
-                // Save all the changes that were made
-                $em->flush();
-
-
-                // ----------------------------------------
-                // Mark this datarecord as updated
-                $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-                // Delete the search cache entries that relate to datarecord modification
-                $search_cache_service->onDatarecordModify($datarecord);
-
-$ret .=  "---------------\n";
-                $return['d'] = $ret;
+                $ret .= '  Set current to '.$count."\n";
             }
+
+            // Save all the changes that were made
+            $em->flush();
+
+
+            // ----------------------------------------
+            // Mark this datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
+            // Delete the search cache entries that relate to datarecord modification
+            $search_cache_service->onDatarecordModify($datarecord);
+
+            $ret .=  "---------------\n";
+            $return['d'] = $ret;
         }
         catch (\Exception $e) {
             $source = 0x99001e8b;
@@ -1244,6 +1196,8 @@ $ret .=  "---------------\n";
         $return['t'] = '';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1261,8 +1215,10 @@ $ret .=  "---------------\n";
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var DataType $datatype */
@@ -1331,6 +1287,19 @@ $ret .=  "---------------\n";
             unset( $list[$odr_tab_id] );
             $session->set('mass_edit_datarecord_lists', $list);
 
+
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datarecord
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecords[0] );
+            $job_data = array(
+                'job_type' => 'delete_datarecord',
+                'target_entity' => $datarecord,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete these Datarecords, as it would interfere with an already running '.$conflicting_job.' job');
 
             // TODO - replace with EntityDeletionService::deleteDatarecord()
 
@@ -1479,7 +1448,7 @@ $ret .=  "---------------\n";
                 );
 
                 // If at least one datarecord remains, redirect to the search results list
-                $preferred_theme_id = $ti_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $preferred_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
                 $url = $this->generateUrl(
                     'odr_search_render',
                     array(
