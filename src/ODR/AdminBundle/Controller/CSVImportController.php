@@ -2033,7 +2033,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper integer value, and will be converted to "'.intval($value).'"'
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid integer value, and will not be imported'
                                 )
                             );
                         }
@@ -2044,7 +2044,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper decimal value, and will be converted to "'.floatval($value).'"'
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid decimal value, and will not be imported'
                                 ),
                             );
                         }
@@ -3741,11 +3741,12 @@ exit();
                         /** @var IntegerValue $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using intval() here...self::csvvalidateAction()
-                        //  would've already warned if column data wasn't an integer
-                        // In addition, updateStorageEntity() has to have values passed as strings,
-                        //  and will convert back to integer before saving
-                        $value = $column_data;
+                        // NOTE - intentionally not using intval() here...updateStorageEntity() has
+                        //  to have values passed as strings, and will convert back to integer before
+                        //  saving
+                        $value = '';
+                        if ( ValidUtility::isValidInteger($column_data) )
+                            $value = $column_data;
 
                         // Ensure the value stored in the entity matches the value in the import file
                         $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
@@ -3758,11 +3759,12 @@ exit();
                         /** @var DecimalValue $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction()
-                        //  would've already warned if column data wasn't a float
-                        // In addition, updateStorageEntity() has to have values passed as strings,
-                        //  and DecimalValue::setValue() will deal with any string received
-                        $value = $column_data;
+                        // NOTE - intentionally not using floatval() here...updateStorageEntity() has
+                        //  to have values passed as strings, and DecimalValue::setValue() will deal
+                        //  with any string received
+                        $value = '';
+                        if ( ValidUtility::isValidDecimal($column_data) )
+                            $value = $column_data;
 
                         // Ensure the value stored in the entity matches the value in the import file
                         $emm_service->updateStorageEntity($user, $entity, array('value' => $value));

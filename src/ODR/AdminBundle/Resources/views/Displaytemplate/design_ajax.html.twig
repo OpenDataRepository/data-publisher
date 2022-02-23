@@ -2319,7 +2319,7 @@
                     str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield...some data may be truncated...are you sure?';
                 }
                 else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: All non-numerical characters will be deleted from the textfield, and the remaining characters converted into a number...If the textfield is not mostly numerical already, the resulting values may be nonsensical...are you sure?';
+                    str = 'WARNING: All data that is not already numerical will be converted into a blank value...are you sure?';
                 }
                 else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
                     str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';

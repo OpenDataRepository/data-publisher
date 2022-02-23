@@ -79,18 +79,38 @@ class ValidUtility
         if ( is_null($value) || $value === '' )
             return true;
 
-        // The main goal is to prevent leading zeros, and values like "-0.00" from being saved
+        // The main goal is to match whatever filter_var() says is a valid float
 
-        // Regex matches zero, optionally followed by a decimal point then any sequence of digits
+        // Note that php's definition at https://www.php.net/manual/en/language.types.float.php
+        //  does not match the output of floatval() and filter_var(), even on PHP 7.4.x
+        // e.g. floatval("1e") -> 1  but filter_var("1e", FILTER_VALIDATE_FLOAT) -> false
+
+        // This regex matches...
+        // an optional '+' or '-' sign, followed by either...
+        //  - a sequence of digits followed by an optional period and more optional digits
         // OR
-        // an optional minus sign followed by a non-zero integer, optionally followed by a decimal point and any sequence of digits
-        // OR
-        // a minus sign followed by a zero and a decimal point, followed by any sequence of digits that has at least one non-zero digit
-        if ( preg_match('/^0(\.[0-9]+)?$|^-?[1-9][0-9]*(\.[0-9]+)?$|^-0\.[0-9]*[1-9]+[0-9]*$/', $value) !== 1 )
+        //  - an optional sequence of digits followed by a mandatory period and at least one digit
+        // ...which can then be followed by another optional sequence...
+        // - 'e' or 'E', followed by an optional '-' or '+', followed by at least one digit
+
+        // If the given string does not match this regex, then it can't be a valid decimal
+        if ( preg_match('/^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/', $value) !== 1 )
             return false;
 
         // Otherwise, no problems
         return true;
+
+        /*
+         * As a quick reference, there was an earlier regex...
+         * /^0(\.[0-9]+)?$|^-?[1-9][0-9]*(\.[0-9]+)?$|^-0\.[0-9]*[1-9]+[0-9]*$/
+         *
+         * which matched...
+         *  - zero, optionally followed by a decimal point and at least one digit
+         * OR
+         *  - an optional minus sign followed by a non-zero integer, optionally followed by a decimal point and any sequence of digits
+         * OR
+         *  - a minus sign followed by a zero and a decimal point, followed by any sequence of digits that has at least one non-zero digit
+         */
     }
 
 

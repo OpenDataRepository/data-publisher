@@ -1640,6 +1640,7 @@ class EntityMetaModifyService
             else
                 $properties['value'] = intval($properties['value']);
         }
+        // Don't need to do the same for DecimalValue here, setValue() will deal with it
 
 
         // Determine whether to create a new entry or modify the previous one

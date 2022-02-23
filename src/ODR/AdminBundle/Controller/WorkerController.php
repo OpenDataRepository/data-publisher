@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -227,7 +228,7 @@ class WorkerController extends ODRCustomController
                         $replacement = '';
                         $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
 
-                        if ( is_numeric($new_value) )
+                        if ( ValidUtility::isValidInteger($new_value) )
                             $value = intval($new_value);
                         else
                             $value = '';        // will get turned into NULL
@@ -238,7 +239,7 @@ class WorkerController extends ODRCustomController
                         $replacement = '';
                         $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
 
-                        if ( is_numeric($new_value) )
+                        if ( ValidUtility::isValidDecimal($new_value) )
                             $value = floatval($new_value);
                         else
                             $value = '';        // will get turned into NULL
