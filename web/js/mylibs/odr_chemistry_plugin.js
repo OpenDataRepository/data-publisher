@@ -13,6 +13,11 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
     let chars = [];
     let num_spaces = 0;
 
+    // If the input has '<sub>' or '<sup>' HTML tags already, then suggest replacing them with the
+    //  provided sub/superscript delimiters
+    input = input.replaceAll('<sub>', subscript_delimiter).replaceAll('</sub>', subscript_delimiter)
+        .replaceAll('<sup>', superscript_delimiter).replaceAll('</sup>', superscript_delimiter);
+
     let len = input.length;
     for (let i = 0; i < len; i++) {
         chars[i] = input.charAt(i);
@@ -21,8 +26,10 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
     }
     // console.log(chars);  return;
 
+    // Should disable the ' ' for '[box]' substitutions if there are too many spaces in the formula
+    // e.g. when the plugin is called on a Journal Title or Notes field
     let too_many_spaces = false;
-    if ( num_spaces > 3 )
+    if ( num_spaces > 4 )
         too_many_spaces = true;
 
     for (let i = 0; i < len; i++) {
@@ -49,6 +56,8 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                 let sequence = char;
                 do {
                     // Want to find the closing parenthesis or bracket
+                    // Note that it's not trying to match a '(' with a ')'...a properly formatted
+                    //  formula shouldn't have an unclosed '(' or '[' sequence
                     if ( next_char !== ')' && next_char !== ']' ) {
                         sequence += next_char;
                         i++;
@@ -65,14 +74,25 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                 }
                 while (i < len);
 
-                // Done with this sequence, continue looking
+                // Done with this sequence, append to the output
                 output += sequence;
             }
-            else if ( (next_char === '+' || next_char === '-') && next_next_char !== 'x' ) {
+            else if ( !(too_many_spaces && prev_char === ' ') && (next_char === '+' || next_char === '-') && next_next_char !== 'x' ) {
                 // ...due to a '+' or '-' character that's not followed by an 'x', it's most
                 //  likely a valence state  e.g.  Abelsonite: "Ni2+C31H32N4" => "Ni^2+^..."
-                output += superscript_delimiter + char + next_char + superscript_delimiter;
-                i++;
+                // The condition  !(too_many_spaces && prev_char === ' ')  is an attempt to prevent
+                //  this block from triggering on stuff like page numbers in a reference
+                if ( prev_char === superscript_delimiter && next_next_char === superscript_delimiter ) {
+                    // It looks like this sequence is already wrapped with delimiters...don't
+                    //  duplicate them
+                    output += char + next_char + superscript_delimiter;
+                    i += 2;    // skip ahead to the character after the closing superscript
+                }
+                else {
+                    // Wrap the sequence in delimiters
+                    output += superscript_delimiter + char + next_char + superscript_delimiter;
+                    i++;
+                }
             }
             else {
                 // ...otherwise, it's likely a numerical sequence of some sort
@@ -101,8 +121,29 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                 }
                 while (i < len);
 
-                // Done with this sequence, continue looking
-                output += subscript_delimiter + sequence + subscript_delimiter;
+                // Done with this sequence, append to the output
+                if ( prev_char === subscript_delimiter && next_char === subscript_delimiter ) {
+                    // It looks like this sequence is already wrapped with delimiters...don't
+                    //  dulicate them
+                    output += sequence + subscript_delimiter;
+                    i++;    // skip over the closing subscript delimiter
+                }
+                else if ( char === 'x' && i >= 3 && chars[i-3] === '[' && chars[i-2] === 'b' && chars[i-1] === 'o' && next_char === ']' ) {
+                    // This triggered on the 'x' inside an existing '[box]' sequence...don't
+                    //  interrupt with delimiters
+                    output += sequence + ']';
+                    i++;
+                }
+                else if ( too_many_spaces && prev_char === ' ' ) {
+                    // If the string to parse looks more like a reference than a chemical formula,
+                    //  then attempt to ignore numbers that don't appear to be "attached" to
+                    //  anything, like page numbers
+                    output += sequence;
+                }
+                else {
+                    // Wrap the sequence in delimiters
+                    output += subscript_delimiter + sequence + subscript_delimiter;
+                }
             }
         }
         else if ( char === '·' ) {
@@ -136,7 +177,7 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
             }
             while (i < len);
 
-            // Done with this sequence, continue looking
+            // Done with this sequence, append to the output
             output += sequence;
         }
         else if ( char === ' ' ) {
@@ -235,19 +276,6 @@ function ODR_prettifyChemicalFormula(input, is_textarea, subscript_delimiter = '
 }
 
 /**
- * Updates the "prettified" chemical formula
- *
- * @param {string} input_id
- * @param {boolean} is_textarea
- * @param {string} [subscript_delimiter]
- * @param {string} [superscript_delimiter]
- */
-function ODR_updatePrettifiedFormula(input_id, is_textarea, subscript_delimiter = '_', superscript_delimiter = '^') {
-    var output = ODR_prettifyChemicalFormula( $("#" + input_id + "_parsed").val(), is_textarea, subscript_delimiter, superscript_delimiter );
-    $("#" + input_id + "_prettified").html( output );
-}
-
-/**
  * Returns false if the value in the given element does not appears to be a "formatted" chemical
  * formula...i.e. it has a number, but no format characters.
  *
@@ -278,3 +306,22 @@ function ODR_isFormulaFormatted(input, subscript_delimiter = '_', superscript_de
     return true;
 }
 
+/**
+ * Updates the warnings about duplicate delimiter characters in the Chemistry Popup.
+ *
+ * @param {string} input_id
+ * @param {string} [subscript_delimiter]
+ * @param {string} [superscript_delimiter]
+ */
+function ODR_hasDuplicatedDelimiters(input_id, subscript_delimiter = '_', superscript_delimiter = '^') {
+    let val = $("#" + input_id + "_parsed").val();
+    if ( val.indexOf(subscript_delimiter + subscript_delimiter) !== -1 )
+        $("#" + input_id + "_subscript_warning").show();
+    else
+        $("#" + input_id + "_subscript_warning").hide();
+
+    if ( val.indexOf(superscript_delimiter + superscript_delimiter) !== -1 )
+        $("#" + input_id + "_superscript_warning").show();
+    else
+        $("#" + input_id + "_superscript_warning").hide();
+}
