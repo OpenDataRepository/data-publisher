@@ -1,233 +1,251 @@
 {% spaceless %}
 
-    <div class="tabletools">
-        <div>
-            <a id="ODRDatatypeList_createDatatype"
-               class="pure-button pure-button-primary ODRCreateDatatype"
-               href="#{{ path('odr_create_type', {'create_master': 0}) }}"
-            >
-                <i class="fa fa-lg fa-plus"></i> New Database
-            </a>
-        {% if is_granted("ROLE_SUPER_ADMIN") %}
-            <a id="ODRDatatypeList_copyDatatype"
-               class="pure-button pure-button-primary ODRCopyDatatype"
-               href="#{{ path('odr_list_copy_databases') }}"
-            >
-                <i class="fa fa-lg fa-clone"></i> Copy Database
-            </a>
-        {% endif %}
-        </div>
+<div class="tabletools">
+    <div>
+        <a id="ODRDatatypeList_createDatatype"
+           class="pure-button pure-button-primary ODRCreateDatatype"
+           href="#{{ path('odr_create_type', {'create_master': 0}) }}"
+        >
+            <i class="fa fa-lg fa-plus"></i> New Database
+        </a>
+{% if is_granted("ROLE_SUPER_ADMIN") %}
+    <a id="ODRDatatypeList_copyDatatype"
+       class="pure-button pure-button-primary ODRCopyDatatype"
+       href="#{{ path('odr_list_copy_databases') }}"
+    >
+        <i class="fa fa-lg fa-clone"></i> Copy Database
+    </a>
+{% endif %}
     </div>
+</div>
 
-    <div id="ODRDatatypeToggleDiv">
-        <label for="all_datatypes_toggle" class="pure-button">
-            <input type="checkbox" id="all_datatypes_toggle" style="margin-right: 5px;"/>
-            Show all public Databases
-        </label>
-    </div>
+<div id="ODRDatatypeToggleDiv">
+    <label for="all_datatypes_toggle" class="pure-button">
+        <input type="checkbox" id="all_datatypes_toggle" style="margin-right: 5px;"/>
+        Show all public Databases
+    </label>
+</div>
 
-    <div id="ODRDataTypeListWrapper">
-        <table id="ODRDatatypeList" class="display dataTable">
-            <thead>
-            <tr>
-                <th></th>
-                <th></th>
-                <th>Database Name</th>
-                <th>Records</th>
+<div id="ODRDataTypeListWrapper">
+    <table id="ODRDatatypeList" class="display dataTable">
+        <thead><tr>
+            <th></th>
+            <th></th>
+            <th>Database Name</th>
+            <th>Records</th>
 
-                <th>Search</th>
-                <th>Dashboard</th>
-                <th>Created By</th>
-                <th>Created On</th>
-                <th>Description</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% set hidden_datatype_count = 0 %}
-            {% for datatype in datatypes %}
-                {#
-                    Only show databases that are not "properties" databases.  Hide databases
-                    that were created as part of a template group.
-                #}
-                {#
-                {% if (datatype.metadata_for is defined and datatype.metadata_for is null)
-                    and (datatype.unique_id is null or datatype.unique_id == datatype.template_group)
-                %}
-                #}
-                {% if datatype.metadata_for is defined and datatype.metadata_for is not null %}
-                    {# don't display metadata datatypes #}
-                {% elseif datatype.unique_id != datatype.template_group %}
-                    {# don't display child datatypes, or datatypes that were created as part of a template group #}
-                {% else %}
+            <th>Search</th>
+            <th>Dashboard</th>
+            <th>Created By</th>
+            <th>Created On</th>
+            <th>Description</th>
+        </tr></thead>
+        <tbody>
+        {% set hidden_datatype_count = 0 %}
+        {% for datatype in datatypes %}
+            {# Only show databases that are not "properties" databases.  Hide databases that were created as part of a template group. #}
+            {#
+            {% if (datatype.metadata_for is defined and datatype.metadata_for is null)
+                and (datatype.unique_id is null or datatype.unique_id == datatype.template_group)
+            %}
+            #}
+            {% if datatype.metadata_for is defined and datatype.metadata_for is not null %}
+                {# don't display metadata datatypes #}
+            {% elseif datatype.unique_id != datatype.template_group %}
+                {# don't display child datatypes, or datatypes that were created as part of a template group #}
+            {% else %}
 
-                    {% set datatype_meta = datatype.dataTypeMeta %}
+                {% set datatype_meta = datatype.dataTypeMeta %}
 
-                    {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
-                    {% if datatype_meta.searchSlug == '' %}
-                        {# this shouldn't be an issue anymore, but keep around just in case #}
-                        {% set datatype_baseurl = path('odr_admin_homepage') %}
+                {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+                {% if datatype_meta.searchSlug == '' %}
+                    {# this shouldn't be an issue anymore, but keep around just in case #}
+                    {% set datatype_baseurl = path('odr_admin_homepage') %}
+                {% endif %}
+
+                {# Pre-determine which permissions user has for this datatype... #}
+                {% set can_view_datatype = false %}
+                {% set can_view_datarecord = false %}
+                {% set can_edit_datarecord = false %}
+                {% set can_add_datarecord = false %}
+                {% set can_delete_datarecord = false %}
+                {% set is_datatype_admin = false %}
+
+                {% if datatype_permissions[ datatype.id ] is defined %}
+
+                    {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
+                        {% set can_view_datatype = true %}
                     {% endif %}
-
-                    {# Pre-determine which permissions user has for this datatype... #}
-                    {% set can_view_datatype = false %}
-                    {% set can_view_datarecord = false %}
-                    {% set can_edit_datarecord = false %}
-                    {% set can_add_datarecord = false %}
-                    {% set can_delete_datarecord = false %}
-                    {% set is_datatype_admin = false %}
-
-                    {% if datatype_permissions[ datatype.id ] is defined %}
-
-                        {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
-                            {% set can_view_datatype = true %}
-                        {% endif %}
-                        {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
-                            {% set can_view_datarecord = true %}
-                        {% endif %}
-                        {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-                            {% set can_edit_datarecord = true %}
-                        {% endif %}
-                        {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-                            {% set can_add_datarecord = true %}
-                        {% endif %}
-                        {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-                            {% set can_delete_datarecord = true %}
-                        {% endif %}
-                        {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-                            {% set is_datatype_admin = true %}
-                        {% endif %}
+                    {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
+                        {% set can_view_datarecord = true %}
                     {% endif %}
-
-                    {% set hidden_datatype = false %}
-                    {% if not (can_view_datatype or can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
-                        {% set hidden_datatype = true %}
-                        {% set hidden_datatype_count = hidden_datatype_count + 1 %}
+                    {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+                        {% set can_edit_datarecord = true %}
                     {% endif %}
-
-                    {% set datatype_is_public = datatype_meta.publicDate|is_public %}
-
-                    {% if can_view_datatype or datatype_is_public %}
-                        <tr id="RowDataType_{{ datatype.id }}" {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
-
-                            <td>{{ datatype.id }}</td>
-                            <td><i class="fa fa-lg fa-globe {% if datatype_is_public %}ODRActiveIcon{% endif %}" title="Database is{% if not datatype_is_public %} not{% endif %} public"></i></td>
-                            <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
-
-                            {# number of datarecords for this datatype #}
-                            {% set datarecord_count = 0 %}
-                            {% if metadata[ datatype.id ] is defined %}
-                                {% set datarecord_count = metadata[ datatype.id ] %}
-                            {% endif %}
-                            <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
-
-                            {# link to search this datatype #}
-                            <td>
-                                {% if datarecord_count == 0 %}
-                                    {# don't display link, nothing to view #}
-                                {% else %}
-                                    <a id="ODRDatarecordList_{{ datatype.id }}_search"
-                                       href="{{ datatype_baseurl }}"
-                                       title="Search {{ datatype_meta.longName }} DataRecords"
-                                    >
-                                        <i class="fa fa-lg fa-search"></i>
-                                        <span class="pure-visible-xl">&nbsp;Search</span>
-                                    </a>
-                                {% endif %}
-                            </td>
-
-                            {# Link to database landing page #}
-                            <td>
-                                <a id="ODRDatarecordList_{{ datatype.id }}_landing"
-                                   class="address"
-                                   href="{{ datatype_baseurl }}#{{ path('odr_datatype_landing', { 'datatype_id': datatype.id }) }}"
-                                   title="{{ datatype_meta.longName }} Info Page"
-                                >
-                                    <i class="fa fa-lg fa-tachometer"></i>
-                                    <span class="pure-visible-xl">&nbsp;Dashboard</span>
-                                </a>
-                            </td>
-
-                            <td>{{ datatype.createdBy|user_string }}</td>
-                            <td>{{ datatype.created|date('Y-m-d') }}</td>
-                            <td>{{ datatype_meta.description }}</td>
-                        </tr>
+                    {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+                        {% set can_add_datarecord = true %}
+                    {% endif %}
+                    {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+                        {% set can_delete_datarecord = true %}
+                    {% endif %}
+                    {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+                        {% set is_datatype_admin = true %}
                     {% endif %}
                 {% endif %}
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
 
-    <script>
-        $(function () {
-            disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                {% set hidden_datatype = false %}
+                {% if not (can_view_datatype or can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
+                    {% set hidden_datatype = true %}
+                    {% set hidden_datatype_count = hidden_datatype_count + 1 %}
+                {% endif %}
 
-            $("#ODRDatatypeList").dataTable({
-                "columnDefs": [
-                    {
-                        "targets": [0],
-                        "visible": false
-                    },
-                    {
-                        "targets": [4, 5],
-                        "orderable": false,
-                        "searchable": false
-                    },
-                    {
-                        "width": "30%",
-                        "targets": [8]
-                    }
-                ],
-                "order": [[2, "asc"]],
-                "autoWidth": true,
-                "paging": false,
-                "fixedHeader": {
-                    /* headerOffset: 42 */
-                },
-                "info": false,
-                "language": {
-                    "emptyTable": "No Databases found"
-                }
-            });
+                {% set datatype_is_public = datatype_meta.publicDate|is_public %}
 
-            $("#ODRDatatypeList").removeAttr('style');
+                {% if can_view_datatype or datatype_is_public %}
+                    <tr id="RowDataType_{{ datatype.id }}" {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
 
-            {% if hidden_datatype_count == 0 %}
-            $("#ODRDatatypeToggleDiv").remove();
-            {% else %}
-            $("#all_datatypes_toggle").unbind('change').change(function () {
-                if ($(this).is(":checked")) {
-                    $(".ODRPublicDatatype").each(function () {
-                        $(this).removeClass('ODRHidden');
-                    });
-                }
-                else {
-                    $(".ODRPublicDatatype").each(function () {
-                        $(this).addClass('ODRHidden');
-                    });
-                }
+                        <td>{{ datatype.id }}</td>
+                        <td><i class="fa fa-lg fa-globe {% if datatype_is_public %}ODRActiveIcon{% endif %}" title="Database is{% if not datatype_is_public %} not{% endif %} public"></i></td>
+                        <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
 
-                redoRowClasses();
-            });
+                        {# number of datarecords for this datatype #}
+                        {% set datarecord_count = 0 %}
+                        {% if metadata[ datatype.id ] is defined %}
+                            {% set datarecord_count = metadata[ datatype.id ] %}
+                        {% endif %}
+                        <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
 
-            // Due to rows already being hidden, redo the row classes
-            redoRowClasses();
+                        {# link to search this datatype #}
+                        <td>
+                            {% if datarecord_count == 0 %}
+                                {# don't display link, nothing to view #}
+                            {% else %}
+                                <a id="ODRDatarecordList_{{ datatype.id }}_search"
+                                   href="{{ datatype_baseurl }}"
+                                   title="Search {{ datatype_meta.longName }} DataRecords"
+                                >
+                                    <i class="fa fa-lg fa-search"></i>
+                                    <span class="pure-visible-xl">&nbsp;Search</span>
+                                </a>
+                            {% endif %}
+                        </td>
+
+                        {# Link to database landing page #}
+                        <td>
+                            <a id="ODRDatarecordList_{{ datatype.id }}_landing"
+                               class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_datatype_landing', { 'datatype_id': datatype.id }) }}"
+                               title="{{ datatype_meta.longName }} Info Page"
+                            >
+                                <i class="fa fa-lg fa-tachometer"></i>
+                                <span class="pure-visible-xl">&nbsp;Dashboard</span>
+                            </a>
+                        </td>
+
+                        <td>{{ datatype.createdBy|user_string }}</td>
+                        <td>{{ datatype.created|date('Y-m-d') }}</td>
+                        <td>{{ datatype_meta.description }}</td>
+                    </tr>
+                {% endif %}
             {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(function () {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        $("#ODRDatatypeList").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "visible": false
+                },
+                {
+                    "targets": [4, 5],
+                    "orderable": false,
+                    "searchable": false
+                },
+                {
+                    "width": "30%",
+                    "targets": [8]
+                }
+            ],
+            "order": [[2, "asc"]],
+            "autoWidth": true,
+            "paging": false,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+            "info": false,
+            "language": {
+                "emptyTable": "No Databases found"
+            }
         });
 
-        {% if hidden_datatype_count != 0 %}
-        function redoRowClasses() {
-            var count = 0;
-            $("#ODRDatatypeList tr").each(function () {
-                if (!$(this).hasClass('ODRHidden')) {
-                    count++;
-                    if (count % 2 == 0)
-                        $(this).removeClass('odd').addClass('even');
-                    else
-                        $(this).removeClass('even').addClass('odd');
-                }
-            });
-        }
+        $("#ODRDatatypeList").removeAttr('style');
+
+        {% if hidden_datatype_count == 0 %}
+        $("#ODRDatatypeToggleDiv").remove();
+        {% else %}
+        $("#all_datatypes_toggle").unbind('change').change(function () {
+            if ($(this).is(":checked")) {
+                $(".ODRPublicDatatype").each(function () {
+                    $(this).removeClass('ODRHidden');
+                });
+            }
+            else {
+                $(".ODRPublicDatatype").each(function () {
+                    $(this).addClass('ODRHidden');
+                });
+            }
+
+            redoRowClasses();
+        });
+
+        // Due to rows already being hidden, redo the row classes
+        redoRowClasses();
         {% endif %}
-    </script>
+
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        $('#ODRDatatypeList_createDatatype')
+            .attr('data-step', '2')
+            .attr('data-intro', 'Clicking here will begin the guided process to create a new database in ODR.');
+        $('#ODRDatatypeList_filter')
+            .attr('data-step', '3')
+            .attr('data-intro', "The list of databases can be filtered by typing into this field.");
+        $('#ODRDatatypeList').find('.fa-search').first().closest('td')
+            .attr('data-step', '4')
+            .attr('data-intro', 'Clicking one of these links brings up the search results page for the associated database.');
+        $('#ODRDatatypeList').find('.fa-tachometer').first().closest('td')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Clicking one of these links brings up the database management page for the associated database.');
+
+        // Initialize the help button
+        $('#ODRHelpButton').unbind('click').click(function() {
+            introJs().setOption("disableInteraction", true)
+                .start();
+        });
+    });
+
+    {% if hidden_datatype_count != 0 %}
+    function redoRowClasses() {
+        var count = 0;
+        $("#ODRDatatypeList tr").each(function () {
+            if (!$(this).hasClass('ODRHidden')) {
+                count++;
+                if (count % 2 == 0)
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
+    {% endif %}
+</script>
 {% endspaceless %}

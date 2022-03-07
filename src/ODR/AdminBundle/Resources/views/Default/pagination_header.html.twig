@@ -149,8 +149,6 @@
             $("#ODRPagePopup").offset( new_offset );
         });
 
-
-
         $("#ODRPageSelectButton").unbind('click').click(function() {
             goToPage();
         });
@@ -195,54 +193,17 @@
                     }
                 }
             });
-
-        });
-
-
-        // Setup IntroJS Walkthrough
-        jQuery('#ODRHelpButton')
-            .attr('data-step', '1')
-            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        jQuery('#ODRPageSelectSettings')
-            .attr('data-step', '2')
-            .attr('data-intro', 'The settings gear contains customizable settings for this page (search results).');
-        jQuery('#ChooseView')
-            .attr('data-step', '3')
-            .attr('data-intro', 'Clicking "Choose View" brings up a menu of options for selecting alternate search views or creating your own.');
-        jQuery('#ODRMassEdit')
-            .attr('data-step', '4')
-            .attr('data-intro', 'Mass edit allows users with appropriate permissions to edit all records in the result list at once.');
-        jQuery('#ODRCSVExport')
-            .attr('data-step', '5')
-            .attr('data-intro', 'CSV Export lets users create CSV downloads of the data in the result list.');
-        jQuery('#ODRPageSelect')
-            .attr('data-step', '6')
-            .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
-        jQuery('.ODRShortResultsHeader:first')
-            .attr('data-step', '7')
-            .attr('data-intro', 'Click the left side of a result header to view the record.');
-        jQuery('.ODRShortResultsHeader_edit:first')
-            .attr('data-step', '8')
-            .attr('data-intro', 'Click this right side of a result header to enter the edit page for that record.');
-        jQuery('#ODRRunApp')
-            .attr('data-step', '9')
-            .attr('data-intro', 'If this button is visible, one or more JupyterHub apps will be available in the select box to the left.   ');
-
-
-        // Initialize the help button
-        jQuery('#ODRHelpButton').unbind('click').click(function() {
-            introJs()
-                .onbeforechange(introJsStepBeforeChangeHandler)
-                .onbeforeexit(introJsExitHandler)
-                .start();
         });
     });
 
+    /**
+     * Changes the displayed page for a search result.
+     * @param {integer} [page]
+     */
     function goToPage(page) {
-
         if ( page === undefined ) {
-            page = parseInt($("#odr_page_input").val());
-            if (isNaN(page)) {
+            page = parseInt( $("#odr_page_input").val() );
+            if ( isNaN(page) ) {
                 $("#odr_page_input").val('');
                 return;
             }
@@ -257,34 +218,6 @@
 
         var url = "{{ path_str }}" + '/' + page;
         UpdateURL(url);
-    }
-
-    function introJsStepBeforeChangeHandler(elem) {
-        if (jQuery(elem).attr("id") === "ODRPageSelectSettings") {
-            if (!jQuery("#page_settings_menu").is(":visible")) {
-                // Click the gear icon so the "Choose View", "Mass Edit", and "CSV Export" buttons
-                //  are visible
-                jQuery(elem).click();
-            }
-        }
-        if (jQuery(elem).attr("id") === "ODRPageSelect") {
-            if (jQuery("#ChooseView").is(":visible")) {
-                // Click the gear icon again so the "Choose View", "Mass Edit", and "CSV Export"
-                //  buttons are no longer visible
-                jQuery("#ODRPageSelectSettings").click();
-            }
-            if (!jQuery("#ODRPagePopup").is(":visible")) {
-                jQuery(elem).click();
-            }
-        }
-        if (jQuery(elem).hasClass("ODRShortResultsHeader")) {
-            if (jQuery("#ODRPagePopup").is(":visible")) {
-                jQuery("#ODRPageSelect").click()
-            }
-        }
-    }
-
-    function introJsExitHandler() {
     }
 </script>
 {% endspaceless %}

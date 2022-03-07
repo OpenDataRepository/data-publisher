@@ -130,37 +130,13 @@
 </style>
 
 <script>
-    function notifySaved() {
-        $.jGrowl('SAVED');
-    }
-
     var SaveTimeout = 1500;
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-        // Setup IntroJS Walkthrough
-        jQuery("#ExampleInput")
-            .attr('data-step', "1")
-            .attr('data-intro', "Hover over the lower right-hand corner of a field to start resizing a field.  A drag arrow will appear and you can drag left or right to resize.");
-        jQuery("#FieldHeading")
-            .attr('data-step', "2")
-            .attr('data-intro', "Click any field or heading to display user-configurable options in the Theme Styling panel.");
-        jQuery("#ThemeDesignForm")
-            .attr('data-step', "3")
-            .attr('data-intro', "User-configurable options for fields and headers will appear in this area.");
-        jQuery("#ExampleElement")
-            .attr('data-step', "4")
-            .attr('data-intro', "Drag any field in front or behind any other field to re-order the fields.");
-        jQuery("#ThemeDesignKey")
-            .attr('data-step', "5")
-            .attr('data-intro', "Hidden fields or headings are highlighted to show their visibility state.");
-        jQuery("#ODRThemeShowHidden")
-            .attr('data-step', "6")
-            .attr('data-intro', "Visiblity of hidden elements can be changed using this toggle.");
-
         // Initialize the help button
-        jQuery("#ODRHelpButton").unbind('click').click(function() {
-            introJs().start();
+        $("#ODRHelpButton").unbind('click').click(function() {
+            ODRTheme_startIntroJS();
         });
 
         // Initialize the "show hidden" toggle
@@ -280,7 +256,7 @@
         // Fade out all elements other than this one....
         var actual_parent = null;
         var top_level_teds = $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea > .ODRThemeElement").not(".ODRThemeHiddenElement").not(".ODRHidden");
-        if(
+        if (
             $(elem).hasClass('ODRDataField')  // Data fields
             || $(elem).parent().hasClass('ODRDataType')  // Child or linked data types
         ) {
@@ -682,6 +658,11 @@
 
         // Don't want to be able to highlight everything...
         $("#content").find(".ODRInnerBox").disableSelection();
+
+
+        // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
+        //  setup for introJS is run...
+        ODRTheme_setupIntroJS();
     }
 
     /**
@@ -764,7 +745,9 @@
      * can be loaded.
      */
     function SetupDataFields() {
-        $(".ODRDataField").unbind('click').click(function() {
+        // There are several elements on the page that aren't datafields but have the "ODRDataField"
+        //  class...so ensure the event only fires on the ones in the layout designer
+        $("#ODRDatatypeDesign").find(".ODRDataField").unbind('click').click(function() {
             // Grab datafield id
             var id_data = $(this).attr('id').split(/_/);
             var datafield_id = id_data[1];
@@ -1613,6 +1596,105 @@
 
         if ( $(loading_div).length > 0 )
             $(loading_div).remove();
+    }
+
+    /**
+     * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+     */
+    function ODRTheme_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('#ThemePropertiesForm')
+            .attr('data-step', '2')
+            .attr('data-intro', 'You can change the name and description of a layout here, to make it easier to find later on.');
+        $('#UpdateThemeForm_isTableTheme').parent()
+            .attr('data-step', '3')
+            .attr('data-intro', 'This checkbox controls whether the layout is rendered "normally", or as a "table".');
+        $(".ODRReturn")
+            .attr('data-step', '4')
+            .attr('data-intro', "When you're finished making changes, click here to return to the previous search results page.<br><br>Changes made here will not affect the database's master layout.");
+
+        // Find the first visible theme element
+        var theme_element_handle = $(".ODRThemeElementHandle:visible").first();
+        $(theme_element_handle)
+            .attr('data-step', '5')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking on this icon selects a group box, allowing you to move it to a different location on the page.<br><br>The green bars to the middle right of the selection allow you to resize the group box, by clicking there and dragging left or right.');
+{# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_element_handle).parent().find('.ODRDragHandle').first()
+            .attr('data-step', '6')
+            .attr('data-intro', 'You can resize the group box by clicking here and dragging to the left or right.');
+#}
+
+        // Find the first visible datafield in the first visible theme element
+        var theme_datafield = $(theme_element_handle).parent().find('.ODRDataField').first();
+        $(theme_datafield)
+            .attr('data-step', '7')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking anywhere inside a field selects it, allowing you to resize it in the same manner as if you had selected a group box.<br><br>You can move the field by clicking and dragging the green bars in the center of the field.');
+{# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_datafield).find('.ODRDragHandle').first()
+            .attr('data-step', '8')
+            .attr('data-intro', 'Fields are resized the same way as group boxes....click here and drag to the left or right.');
+#}
+
+        $('#ODRDatatype_publicStatus')
+            .attr('data-step', '9')
+            .attr('data-intro', 'The currently selected group box or field can be hidden by clicking this label.');
+        $("#ODRThemeShowHidden")
+            .attr('data-step', '10')
+            .attr('data-intro', 'Checking this box will toggle showing any previously hidden group boxes or fields on the page.<br><br>When active, group boxes and fields that are normally hidden are instead displayed with a bright red outline.');
+
+        $('.ODRDatatypeProperties:visible').first()
+            .attr('data-step', '11')
+            .attr('data-intro', "Clicking on the header for a database will bring up several options to change how its contents are displayed.");
+        $('#ODRDatatype_addTE')
+            .attr('data-step', '12')
+            .attr('data-intro', 'You can click here to add another group box to the currently selected database, if you want to organize the fields differently.');
+        $("#ThemeDesignForm")
+            .attr('data-step', '13')
+            .attr('data-intro', "Clicking on a header for a child or linked database will also show an option to change how they're displayed in the search results list.");
+    }
+
+    /**
+     * Begins the introJS tour for ODR's derivative theme designer page.
+     */
+    function ODRTheme_startIntroJS() {
+        introJs().setOption("disableInteraction", true)
+            .onbeforechange(function(elem) {
+                if ( $(elem).hasClass('ODRDatatypeProperties')
+                    || $(elem).hasClass('ODRThemeElementHandle')
+                    || $(elem).hasClass('ODRDataField')
+                ) {
+                    // Since introJS was set up after these elements were initialized, we can click
+                    //  them when reaching those points
+                    $(elem).trigger('click');
+                }
+
+                if ( $(elem).attr('id') === 'ODRThemeShowHidden' && !$('#ODRThemeShowHidden').is(':checked') ) {
+                    // Want to show any hidden themeElements/fields when reaching the point where
+                    //  introJS mentions it
+                    $(elem).trigger('click');
+                }
+                else if ( $(elem).attr('id') === 'ThemeDesignForm' ) {
+                    // Attempt to trigger a load of a child/linked datatype so something shows up
+                    //  in this element, if possible
+                    $(".ODRDataType.ODRChildDatatype").first().children('.ODRDatatypeProperties').first().trigger('click');
+                }
+            })
+            .onbeforeexit(function() {
+                // If the checkbox to show hidden theme elements and fields is checked, then uncheck
+                //  it when introJS exits
+                if ( $('#ODRThemeShowHidden').is(':checked') )
+                    $("#ODRThemeShowHidden").trigger('click');
+
+                // Also ensure #ThemeDesignForm is empty by selecting the top-level datatype again
+                $(".ODRDataType").not('.ODRChildDataType').first().children('.ODRDatatypeProperties').first().trigger('click');
+            })
+            .start();
     }
 </script>
 

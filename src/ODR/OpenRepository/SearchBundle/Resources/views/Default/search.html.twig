@@ -311,72 +311,7 @@
             $("#odr_bg").attr('src', url);
         }
         {% endif %}
-
-        {% if intent == 'searching' %}
-        // Setup IntroJS Walkthrough
-        jQuery('#ODRHelpButton')
-            .attr('data-step', '1')
-            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        jQuery('#textbox_general')
-            .attr('data-step', '2')
-            .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
-        jQuery('.ODRGeneralSearchList')
-            .attr('data-step', '3')
-            .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
-        jQuery('.ODRSearchHelp')
-            .attr('data-step', '4')
-            .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
-        jQuery('.ODRSearchHelper:first')
-            .attr('data-step', '5')
-            .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
-
-        // Initialize the help button
-        jQuery('#ODRHelpButton').unbind('click').click(function () {
-            introJs()
-                .onbeforechange(introJsStepBeforeChangeHandler)
-                .onbeforeexit(introJsExitHandler)
-                .start();
-        });
-        {% endif %}
     }
-
-    {% if intent == 'searching' %}
-    var introjs_starting_search_type = "basic";
-
-    function introJsExitHandler() {
-        if (introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic') {
-            changeSearch()
-        }
-    }
-
-    function introJsStepBeforeChangeHandler(elem) {
-        if (jQuery(elem).hasClass("ODRGeneralSearchList")) {
-            if (!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-                jQuery(elem).click();
-            }
-        }
-        if (jQuery(elem).hasClass("ODRSearchHelp")) {
-            if (!jQuery("#ODRSearchHelp_div").is(":visible")) {
-                jQuery(elem).click();
-            }
-            if (jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-                jQuery(".ODRGeneralSearchList").click();
-            }
-        }
-        if (jQuery(elem).hasClass("ODRSearchHelper")) {
-            if (jQuery("#ODRSearchHelp_div").is(":visible")) {
-                jQuery(".ODRSearchHelp").click();
-            }
-            if ($("#search_type").val() === 'basic') {
-                introjs_starting_search_type = "basic";
-                changeSearch();
-            }
-            else {
-                introjs_starting_search_type = "advanced";
-            }
-        }
-    }
-    {% endif %}
 </script>
 
 {% endspaceless %}

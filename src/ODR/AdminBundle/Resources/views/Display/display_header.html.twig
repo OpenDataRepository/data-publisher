@@ -13,17 +13,14 @@
 
     <div class="pure-u-1 pure-u-md-1-2">
     {% if can_edit_datarecord %}
-        <button id="ODREditButton" type="button" class="pure-button pure-button-primary"
-                onclick="loadDataRecord({{ datarecord.id }}, 'edit', '{{ offset }}');">Edit DataRecord</button>
+        <button id="ODREditRecord" type="button" class="pure-button pure-button-primary">Edit DataRecord</button>
     {% endif %}
 
-    {% if can_add_datarecord %}
-        <button id="ODRAddButton" type="button" class="pure-button pure-button-primary"
-                onclick="addDataRecord({{ datatype.id }});">Add New Record</button>
+    {% if can_add_datarecord and datatype.isMasterType == 0 %}
+        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">Add New Record</button>
     {% endif %}
 
-        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary"
-                onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
+        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>
     </div>
 
     {% if search_key != '' %}
@@ -38,7 +35,9 @@
                 'next_datarecord': next_datarecord,
                 'redirect_path': redirect_path,
                 'search_result_current': search_result_current,
-                'search_result_count': search_result_count
+                'search_result_count': search_result_count,
+
+                'page_type': 'display'
             } %}
         </div>
     {% endif %}
@@ -49,18 +48,27 @@
         // Need a tab id in html5 sessionStorage if one doesn't exist
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
-    });
 
-{% if can_add_datarecord == 1 and datatype.isMasterType == 0 %}
-    function addDataRecord(datatype_id) {
-        var url = '{{ path('odr_edit_fake_record', { 'datatype_id': 0 }) }}';
-        url = url.substring(0, (url.length - 1));
-        url += datatype_id;
-
-        UpdateURL(url);
-    }
+{% if can_edit_datarecord %}
+        $("#ODREditRecord").unbind('click').click(function() {
+            loadDataRecord({{ datarecord.id }}, 'edit', '{{ offset }}');
+        });
 {% endif %}
 
+{% if can_add_datarecord and datatype.isMasterType == 0 %}
+        $("#ODRAddRecord").unbind('click').click(function() {
+            var url = '{{ path('odr_edit_fake_record', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += {{ datarecord.datatype.id }};
+
+            UpdateURL(url);
+        });
+{% endif %}
+
+        $("#ODRDownloadAllFilesButton").unbind('click').click(function() {
+            openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );
+        });
+    });
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

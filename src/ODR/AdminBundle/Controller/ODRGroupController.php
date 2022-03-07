@@ -40,12 +40,13 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-// Utility
-use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class ODRGroupController extends ODRCustomController
@@ -73,6 +74,9 @@ class ODRGroupController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -100,7 +104,6 @@ class ODRGroupController extends ODRCustomController
 
 
             // Render and return the wrapper HTML
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRGroup:permissions_wrapper.html.twig',
@@ -146,6 +149,9 @@ class ODRGroupController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -190,7 +196,6 @@ class ODRGroupController extends ODRCustomController
 //print_r($group_list);  exit();
 
             // Render and return the wrapper HTML
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRGroup:group_list.html.twig',
@@ -449,6 +454,9 @@ class ODRGroupController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
@@ -520,7 +528,6 @@ class ODRGroupController extends ODRCustomController
                 $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
 
                 // Return the slideout html
-                $templating = $this->get('templating');
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
                     array(
@@ -537,102 +544,6 @@ class ODRGroupController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x1f79b99c;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Renders and returns a list of all users who are members of the specified group.
-     *
-     * @param integer $group_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function groupmembersAction($group_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-            /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
-            if ($group == null)
-                throw new ODRNotFoundException('Group');
-
-            $datatype = $group->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
-            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
-            // if ($datatype->getIsMasterType())
-                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-            // This shouldn't happen since $group->getDatatype() should always return a top-level
-            //  datatype...but be thorough
-            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
-                throw new ODRBadRequestException('Invalid Group configuration');
-
-
-            // Get all users who are members of this group...twig will print a blurb about super-admins
-            //  being in the datatype's admin group
-            $query = $em->createQuery(
-               'SELECT u
-                FROM ODROpenRepositoryUserBundle:User AS u
-                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
-                WHERE ug.group = :group_id
-                AND u.enabled = 1 AND ug.deletedAt IS NULL'
-            )->setParameters( array('group_id' => $group_id) );
-            $results = $query->getArrayResult();
-
-            $user_list = array();
-            foreach ($results as $result) {
-                $user_id = $result['id'];
-
-                $user_data = UserUtility::cleanUserData($result);
-                $user_list[$user_id] = $user_data;
-            }
-
-
-            // Render and return the list of all users that belong to this group
-            $templating = $this->get('templating');
-            $return['d'] = $templating->render(
-                'ODRAdminBundle:ODRGroup:user_list.html.twig',
-                array(
-                    'group' => $group,
-                    'user_list' => $user_list,
-                )
-            );
-        }
-        catch (\Exception $e) {
-            $source = 0xb66e0e95;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -666,6 +577,9 @@ class ODRGroupController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -735,7 +649,6 @@ class ODRGroupController extends ODRCustomController
 
 
             // Render and return the user list
-            $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:ODRGroup:user_list_datatype.html.twig',
                 array(
@@ -782,6 +695,8 @@ class ODRGroupController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // --------------------
@@ -885,7 +800,6 @@ class ODRGroupController extends ODRCustomController
 
             // ----------------------------------------
             // Render and return the interface
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRGroup:manage_user_groups.html.twig',
@@ -1113,8 +1027,13 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
@@ -1150,15 +1069,64 @@ class ODRGroupController extends ODRCustomController
             if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
                 throw new ODRBadRequestException('Invalid Group configuration');
 
+            // Prevent users from changing this group if it's one of the default groups for the datatype
+            $prevent_all_changes = true;
+            if ($group->getPurpose() == '')
+                $prevent_all_changes = false;
 
-            // Get the html for assigning datafield permissions
-            /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->get('odr.render_service');
+
+            // ----------------------------------------
+            // Need three blocks of HTML for group administration...
+            $return['d'] = array();
+
+
+            // ...first is the html for assigning datafield permissions
             $page_html = $odr_render_service->getGroupHTML($user, $group);
+            $return['d']['group_content_html'] = $page_html;
 
-            $return['d'] = array(
-                'html' => $page_html
+
+            // ...second is the list of users assigned to this group
+            $query = $em->createQuery(
+               'SELECT u
+                FROM ODROpenRepositoryUserBundle:User AS u
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                WHERE ug.group = :group_id
+                AND u.enabled = 1 AND ug.deletedAt IS NULL'
+            )->setParameters( array('group_id' => $group_id) );
+            $results = $query->getArrayResult();
+
+            $user_list = array();
+            foreach ($results as $result) {
+                $user_id = $result['id'];
+
+                $user_data = UserUtility::cleanUserData($result);
+                $user_list[$user_id] = $user_data;
+            }
+
+            $return['d']['user_list_html'] = $templating->render(
+                'ODRAdminBundle:ODRGroup:user_list.html.twig',
+                array(
+                    'group' => $group,
+                    'user_list' => $user_list,
+                )
             );
+
+
+            // ...and third is the properties form for this group
+            $group_meta = $group->getGroupMeta();
+            $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
+
+            $return['d']['group_properties_html'] = $templating->render(
+                'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
+                array(
+                    'datatype' => $datatype,
+                    'group' => $group,
+                    'group_form' => $group_form->createView(),
+
+                    'prevent_all_changes' => $prevent_all_changes,
+                )
+            );
+            $return['d']['prevent_all_changes'] = $prevent_all_changes;
         }
         catch (\Exception $e) {
             $source = 0xf41ca927;

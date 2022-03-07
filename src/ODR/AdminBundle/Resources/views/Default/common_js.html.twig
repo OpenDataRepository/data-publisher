@@ -201,6 +201,13 @@
     }
 
     /**
+     * Creates a popup for notifying of saved changes.
+     */
+    function notifySaved() {
+        $.jGrowl('SAVED');
+    }
+
+    /**
      * Redirects an anonymous user to ODR's login page.
      */
     function ODRLogin() {

@@ -9,7 +9,7 @@
             <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
         </span>
     {% if prevent_all_changes %}
-        <span style="cursor: default; margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>
+        <span class="ODRGroup_unchangeable" style="cursor: default; margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>
     {% endif %}
 
         {% include 'ODRAdminBundle:ODRGroup:datatype_permissions_icons.html.twig' with {
@@ -88,8 +88,7 @@ function initPage() {
 
         var element = $(this);
 
-//alert(url);
-//return;
+        //alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -144,8 +143,7 @@ function initPage() {
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_view';
 
-//alert(url);
-//return;
+        //alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -196,8 +194,7 @@ function initPage() {
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_add';
 
-//alert(url);
-//return;
+        //alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -248,8 +245,7 @@ function initPage() {
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_delete';
 
-//alert(url);
-//return;
+        //alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -300,8 +296,7 @@ function initPage() {
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_public';
 
-//alert(url);
-//return;
+        //alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -350,8 +345,7 @@ function initPage() {
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dt_admin';
 
-//alert(url);
-//return;
+        //alert(url);  return;
 
         $.ajax({
             cache: false,
@@ -434,9 +428,13 @@ function initPage() {
         }
     });
 {% endif %}  {# {% if not prevent_all_changes %} #}
-
 }
 
+/**
+ * Saves changes made to the datafield permissions overlay.
+ * @param {string} datafield_overlay_id
+ * @param {string} desired_state
+ */
 function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
 
     // Grab datafield_id
@@ -463,8 +461,7 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
     url = url.substring(0,(url.length - 5));
     url += {{ group.id }} + '/' + datafield_id + '/' + value;
 
-//alert( url );
-//return;
+    //alert( url );  return;
 
     $.ajax({
         cache: false,
@@ -496,6 +493,11 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
     });
 }
 
+/**
+ * Changes the datafield's overlay so it matches the given state from the backend.
+ * @param {string} datafield_overlay_id
+ * @param {string} desired_state
+ */
 function updateOverlayProperties(datafield_overlay_id, desired_state) {
 
     var datafield_overlay = $("#" + datafield_overlay_id);

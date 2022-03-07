@@ -48,6 +48,7 @@ use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class ODRUserController extends ODRCustomController
@@ -71,6 +72,8 @@ class ODRUserController extends ODRCustomController
             // Grab necessary objects
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // --------------------
@@ -97,7 +100,6 @@ class ODRUserController extends ODRCustomController
             $form = $this->createForm(ODRUserProfileForm::class, $new_user);
 
             // Render and return the form
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:create_user.html.twig',
@@ -339,6 +341,9 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
             // ----------------------------------------
             // Grab the specified user
             /** @var ODRUser $user */
@@ -394,7 +399,6 @@ class ODRUserController extends ODRCustomController
             $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
 
             // Render them in a list
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:user_profile.html.twig',
@@ -448,6 +452,10 @@ class ODRUserController extends ODRCustomController
             // Grab the specified user
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -526,7 +534,6 @@ class ODRUserController extends ODRCustomController
             );
 
             // Render them in a list
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:user_profile.html.twig',
@@ -771,6 +778,10 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
@@ -802,7 +813,6 @@ class ODRUserController extends ODRCustomController
             );
 
             // Render them in a list
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:change_password.html.twig',
@@ -945,6 +955,8 @@ class ODRUserController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // --------------------
@@ -982,7 +994,6 @@ class ODRUserController extends ODRCustomController
             $user_list = $user_manager->findUsers();    // twig will filter out deleted users, if needed
 
             // Render the list of users
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:user_list.html.twig',
@@ -1027,6 +1038,8 @@ class ODRUserController extends ODRCustomController
 
         try {
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -1052,7 +1065,6 @@ class ODRUserController extends ODRCustomController
             }
 
             // Render them in a list
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:manage_roles.html.twig',
@@ -1386,6 +1398,11 @@ class ODRUserController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1416,12 +1433,24 @@ class ODRUserController extends ODRCustomController
             $datatype_permissions = $pm_service->getDatatypePermissions($target_user);
 //print '<pre>'.print_r($datatype_permissions, true).'</pre>'; exit();
 
+            /*
             // Also want all themes for this datatype
-            $theme_list = $datatype->getThemes();
+            $master_themes = $theme_info_service->getAvailableThemes($admin_user, $datatype);
+            $search_result_themes = $theme_info_service->getAvailableThemes($admin_user, $datatype, 'search_results');
+
+            $theme_list = array();
+            foreach ($master_themes as $t)
+                $theme_list[] = $t;
+            foreach ($search_result_themes as $t)
+                $theme_list[] = $t;
+            */
+
+            // ...though since displaying all themes seems excessive and/or pointless for the moment,
+            //  only do the master theme right now
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // Render and return the required HTML
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:view_wrapper.html.twig',
@@ -1430,7 +1459,7 @@ class ODRUserController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
 
                         'datatype' => $datatype,
-                        'theme_list' => $theme_list,
+                        'master_theme' => $master_theme,
                     )
                 )
             );
@@ -1509,6 +1538,8 @@ class ODRUserController extends ODRCustomController
 
             if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($target_user, $datatype) )
+                throw new ODRForbiddenException('The requested user is unable to view this datatype.');
             // --------------------
 
 

@@ -84,7 +84,16 @@ function initPage() {
         event.preventDefault();
     });
 
-    // console.log('Init page done.');
+    $("#ODRFakeEdit_save").unbind('click').click(function(event) {
+        event.preventDefault();
+
+        SaveAsNew();
+    })
+
+    $('#ODRHelpButton').unbind('click').click(function() {
+        ODRFakeEdit_startIntroJS();
+    });
+    ODRFakeEdit_setupIntroJS();
 }
 
 {# None of these should be accessible, but just incase... #}
@@ -277,6 +286,56 @@ function SaveAsNew() {
             }
         }
     });
+}
+
+/**
+ * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+ */
+function ODRFakeEdit_setupIntroJS() {
+    // Setup IntroJS Walkthrough
+    $('#ODRHelpButton')
+        .attr('data-step', '1')
+        .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+    $('#ODRFakeEdit_save').parent()
+        .attr('data-step', '2')
+        .attr('data-intro', 'The main purpose of the "Add New Record" page is to prevent users from accidentally creating blank records.<br><br>It might look similar to a regular "Edit" page, but there are several important differences.');
+
+    // Want to find sevarl types of fields to attach steps to
+    var regular_field = null;
+    var unique_field = null;
+    var file_image_field = null;
+    $('.ODRDataField').each(function(index,elem) {
+        if ( unique_field === null && $(elem).find('input[type=text]').length > 0 && $(elem).find('label.ODRInputError').length > 0 )
+            unique_field = $(elem);
+        if ( regular_field === null && $(elem).find('input[type=text]').length > 0 && $(elem).find('label.ODRInputError').length === 0 )
+            regular_field = $(elem);
+
+        if ( file_image_field === null && ($(elem).find('input#FileForm__token').length > 0 || $(elem).find('input#ImageForm__token').length > 0) )
+            file_image_field = $(elem);
+    });
+
+    $(regular_field)
+        .attr('data-step', '3')
+        .attr('data-intro', "You don't necessarily have to fill in all the fields at this point, although you can if you want to and have the data available.<br><br>However, you will need to fill out at least one field on the page before you can save the new record.");
+    $(unique_field)
+        .attr('data-step', '4')
+        .attr('data-intro', "Certain fields in the database may require a value before you can save the new record.");
+    $(file_image_field)
+        .attr('data-step', '5')
+        .attr('data-intro', "As mentioned in the header, Files or Images can't be uploaded at this point.  The record doesn't actually \"exist\" yet, so ODR can't properly save files or images.");
+
+    $('#ODRFakeEdit_save')
+        .attr('data-step', '6')
+        .attr('data-intro', 'After entering data in at least one field and ensuring no warnings are displayed on the page, click here to save the new record.');
+}
+
+/**
+ * Begins the introJS tour for ODR's FakeEdit page.
+ */
+function ODRFakeEdit_startIntroJS() {
+    introJs().setOption("disableInteraction", true)
+        .start();
 }
 
 </script>

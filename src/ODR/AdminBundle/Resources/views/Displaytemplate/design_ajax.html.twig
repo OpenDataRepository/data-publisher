@@ -197,6 +197,11 @@
 
         initPage();
 
+        // Initialize the help button
+        $("#ODRHelpButton").unbind('click').click(function() {
+            ODRDesign_startIntroJS();
+        });
+
 {# TODO - enable this once a better non-master theme designer gets worked out...
         {% if notify_of_sync is defined and notify_of_sync == true %}
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
@@ -207,10 +212,6 @@
         {% endif %}
 #}
     });
-
-    function notifySaved() {
-        $.jGrowl('SAVED');
-    }
 
     /**
      * Loads the properties form for the given theme_element.
@@ -1786,7 +1787,6 @@
             ResetToolSet();
         });
 
-
         $("#ThemeDesignWrapper").click(function(e) {
             if (e.target !== this)
                 return;
@@ -1811,7 +1811,6 @@
             ResetToolSet();
         });
 
-
         $("#right-spacer").click(function(e) {
             if (e.target !== this)
                 return;
@@ -1819,7 +1818,6 @@
             clearAllFields();
             ResetToolSet();
         });
-
 
         $(".ODRUndeleteFields").unbind('click').click(function() {
             /* Un-delete disabled due to redesign */
@@ -1863,9 +1861,13 @@
 #}
         });
 
-
         // Don't want to be able to highlight everything...
         $("#content").find(".ODRInnerBox").disableSelection();
+
+
+        // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
+        //  setup for introJS is run...
+        ODRDesign_setupIntroJS();
     }
 
     // Need to be able to delay saving changes to the datafield properties form for a couple seconds
@@ -3073,5 +3075,94 @@
 
         if ( $(loading_div).length > 0 )
             $(loading_div).remove();
+    }
+
+    /**
+     * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+     */
+    function ODRDesign_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        // $()
+        //     .attr('data-step', '2')
+        //     .attr('data-intro', 'TODO');
+
+        $('.ODRDatatypeProperties:visible').first()
+            .attr('data-step', '3')
+            .attr('data-intro', "Clicking on the header for a database will bring up relevant actions and properties down the left side of the page.<br><br>Not all of the options are guaranteed to be available at all times.");
+        $('#ODRDatatype_addTE')
+            .attr('data-step', '4')
+            .attr('data-intro', 'You can click here to add another group box to the currently selected database.  These are used for organizing groups of datafields, or child databases.');
+        $('#ODRThemeElement_addDF')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Clicking here will create a new field for the currently selected database.  For more precise control, you may want to select a group box first.');
+        $('#ODRThemeElement_addCDT')
+            .attr('data-step', '6')
+            .attr('data-intro', "Clicking here will create a new child database in the currently selected database. This is primarily used for data that \"can't exist\" without a record the top-level database.<br><br>For example, until you have a record in a \"Sample\" database, you can't really take any \"Measurements\" on the \"Sample\".");
+        $('#ODRThemeElement_linkDT')
+            .attr('data-step', '7')
+            .attr('data-intro', 'Clicking here will bring up a dialog that will display any existing databases that you can link to. This is primarily used for data that \"exists independently\" of the top-level database.<br><br>For example, data that already exists elsewhere on ODR such as References, or data that somebody else manages.');
+        // $('#ODRThemeElement_linkFT')
+        //     .attr('data-step', '8')
+        //     .attr('data-intro', 'TODO');
+        $('#ODRDatatype_renderPlugin')
+            .attr('data-step', '9')
+            .attr('data-intro', "Clicking here will open a dialog that will allow you to attach, modify, or detach a Render Plugin from the currently selected database or field.<br><br>Render Plugins use the data on the page to render additional features, such as Graphs, Maps, or Currency, to name a few.");
+        $('#ODRDatatype_publicStatus')
+            .attr('data-step', '10')
+            .attr('data-intro', 'Clicking here will toggle the public status of the currently selected database or field.  Public fields or databases do not require permissions to view');
+        $('#ODRDatatype_delete')
+            .attr('data-step', '11')
+            .attr('data-intro', "Clicking here will attempt to delete the currently selected entity, if it's permitted.");
+
+        $("#ThemeDesignForm")
+            .attr('data-step', '12')
+            .attr('data-position', 'right')
+            .attr('data-intro', "Properties of the selected database or field are displayed in this area.  In certain cases, the icons can be clicked on to open additional dialogs or pages of reports.");
+
+        // Find the first visible theme element
+        var theme_element_handle = $(".ODRThemeElementHandle:visible").first();
+        $(theme_element_handle)
+            .attr('data-step', '13')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking on this icon selects a group box, allowing you to move it to a different location on the page.<br><br>The green bars to the middle right of the selection allow you to resize the group box, by clicking there and dragging left or right.');
+        {# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_element_handle).parent().find('.ODRDragHandle').first()
+            .attr('data-step', '14')
+            .attr('data-intro', 'You can resize the group box by clicking here and dragging to the left or right.');
+        #}
+
+        // Find the first visible datafield in the first visible theme element
+        var theme_datafield = $(theme_element_handle).parent().find('.ODRDataField').first();
+        $(theme_datafield)
+            .attr('data-step', '15')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking anywhere inside a field selects it, allowing you to resize it in the same manner as if you had selected a group box.<br><br>You can move the field by clicking and dragging the green bars in the center of the field.');
+        {# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_datafield).find('.ODRDragHandle').first()
+            .attr('data-step', '16')
+            .attr('data-intro', 'Fields are resized the same way as group boxes....click here and drag to the left or right.');
+        #}
+    }
+
+    /**
+     * Begins the introJS tour for ODR's master theme designer page.
+     */
+    function ODRDesign_startIntroJS() {
+        introJs().setOption("disableInteraction", true)
+            .onbeforechange(function(elem) {
+                if ( $(elem).hasClass('ODRDatatypeProperties')
+                    || $(elem).hasClass('ODRThemeElementHandle')
+                    || $(elem).hasClass('ODRDataField')
+                ) {
+                    // Since introJS was set up after these elements were initialized, we can click
+                    //  them when reaching those points
+                    $(elem).trigger('click');
+                }
+            })
+            .start();
     }
 </script>

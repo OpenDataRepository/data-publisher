@@ -114,9 +114,7 @@
 
         // Initialize the help button
         $('#ODRHelpButton').unbind('click').click(function () {
-            introJs()
-                // .onbeforechange(introJsStepBeforeChangeHandler)
-                // .onbeforeexit(introJsExitHandler)
+            introJs().setOption("disableInteraction", true)
                 .start();
         });
     });

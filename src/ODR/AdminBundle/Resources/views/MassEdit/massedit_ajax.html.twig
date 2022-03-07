@@ -25,17 +25,17 @@
     </form>
 
     <div>
-        <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">
+        <button id="ODRMassEdit_start" class="pure-button pure-button-primary" type="button">
             Save Changes
         </button>&nbsp;
     {% if can_delete_datarecord %}
-        <button class="pure-button" type="button" onclick="doMassDelete();">
+        <button id="ODRMassEdit_delete" class="pure-button" type="button">
             <i class="fa fa-warning"></i>&nbsp;Mass Delete
         </button>
     {% endif %}
     </div>
 
-    </br></br>
+    <br><br>
 
     {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
         'datatype_array': datatype_array,
@@ -82,6 +82,98 @@ $(function() {
     // Need a tab id in html5 sessionStorage if one doesn't exist
     if ( !window.sessionStorage.getItem('odr_tab_id') )
         window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
+    $("#ODRMassEdit_start").unbind('click').click(function() {
+        doMassUpdate();
+    });
+    $("#ODRMassEdit_delete").unbind('click').click(function() {
+        doMassDelete();
+    });
+
+    $('#ODRHelpButton').unbind('click').click(function() {
+        ODRMassEdit_startIntroJS();
+    });
+    ODRMassEdit_setupIntroJS();
+});
+
+/**
+ * Attaches event handlers to all relevant elements on the page.
+ */
+function initPage() {
+
+    // Hide all theme elements without input fields
+    $(".ODRThemeElement").each(function() {
+        var found = false;
+        $(this).find("input,select,textarea").each(function() {
+            found = true;
+            return false;
+        });
+
+        if (!found)
+            $(this).hide();
+    });
+
+    // Attach an overlay div of sorts over each datafield
+    $(".ODROverlayDiv").each(function() {
+        // Need dimensions of parent div...
+        var height = $(this).parent().css('height');
+        var width = $(this).parent().css('width');
+
+        // Apply dimensions of parent div to loading div
+        $(this).css({"height": height, "line-height": height, "width": width});
+
+        if ( $(this).hasClass('ODRUniqueField') )
+            $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
+        else if ( $(this).hasClass('ODRBlockedField') )
+            $(this).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+    });
+
+    $(".ODRDatePicker").datepicker({
+        dateFormat: 'yy-mm-dd',
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "1800:+10",
+        onClose: function() {
+            $(this).blur();
+
+            // If a date was selected, ensure the 'clear all dates' checkbox is unchecked
+            if ( $(this).val() !== '' )
+                $(this).parent().parent().find('input').prop('checked', false);
+        }
+    });
+
+    $(".ODRDatePicker_clear").unbind('click').click(function() {
+        var input = $(this).closest('fieldset').find(".ODRDatePicker");
+        $(input).datepicker('setDate', null);
+
+        // Disable the input if the checkbox says to clear all values
+        if ( $(this).children('input').first().is(':checked') )
+            $(input).prop("disabled", true);
+        else
+            $(input).prop("disabled", false);
+    });
+
+    $(".ODRParagraphField_clear").unbind('click').click(function() {
+        var input = $(this).closest('fieldset').find(".ODRParagraphField");
+        $(input).val('');
+
+        // Disable the input if the checkbox says to clear all values
+        if ( $(this).children('input').first().is(':checked') )
+            $(input).prop("disabled", true);
+        else
+            $(input).prop("disabled", false);
+    });
+
+    $(".ODRField_clear").unbind('click').click(function() {
+        var input = $(this).closest('fieldset').find(".ODRField");
+        $(input).val('');
+
+        // Disable the input if the checkbox says to clear all values
+        if ( $(this).children('input').first().is(':checked') )
+            $(input).prop("disabled", true);
+        else
+            $(input).prop("disabled", false);
+    });
 
     // Tristate checkbox
     $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
@@ -162,8 +254,12 @@ $(function() {
 
         applyToTagParents( $(tag_item) );
     });
-});
+}
 
+/**
+ * Selections made to a tag element need to also trigger visual updates for parents of the tag.
+ * @param {HTMLElement} source_element
+ */
 function applyToTagParents(source_element) {
     var parent_tag = $(source_element).parent().parent().not('div');
     if ( $(parent_tag).length === 0)
@@ -201,84 +297,9 @@ function applyToTagParents(source_element) {
     applyToTagParents( $(parent_tag) );
 }
 
-
-function initPage() {
-
-    // Hide all theme elements without input fields
-    $(".ODRThemeElement").each(function() {
-        var found = false;
-        $(this).find("input,select,textarea").each(function() {
-            found = true;
-            return false;
-        });
-
-        if (!found)
-            $(this).hide();
-    });
-
-    // Attach an overlay div of sorts over each datafield 
-    $(".ODROverlayDiv").each(function() {
-        // Need dimensions of parent div...
-        var height = $(this).parent().css('height');
-        var width = $(this).parent().css('width');
-
-        // Apply dimensions of parent div to loading div
-        $(this).css({"height": height, "line-height": height, "width": width});
-
-        if ( $(this).hasClass('ODRUniqueField') )
-            $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
-        else if ( $(this).hasClass('ODRBlockedField') )
-            $(this).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
-    });
-
-    $(".ODRDatePicker").datepicker({
-        dateFormat: 'yy-mm-dd',
-        changeMonth: true,
-        changeYear: true,
-        yearRange: "1800:+10",
-        onClose: function() {
-            $(this).blur();
-
-            // If a date was selected, ensure the 'clear all dates' checkbox is unchecked
-            if ( $(this).val() !== '' )
-                $(this).parent().parent().find('input').prop('checked', false);
-        }
-    });
-
-    $(".ODRDatePicker_clear").unbind('click').click(function() {
-        var input = $(this).closest('fieldset').find(".ODRDatePicker");
-        $(input).datepicker('setDate', null);
-
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
-    });
-
-    $(".ODRParagraphField_clear").unbind('click').click(function() {
-        var input = $(this).closest('fieldset').find(".ODRParagraphField");
-        $(input).val('');
-
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
-    });
-
-    $(".ODRField_clear").unbind('click').click(function() {
-        var input = $(this).closest('fieldset').find(".ODRField");
-        $(input).val('');
-
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
-    });
-}
-
+/**
+ * Triggers a mass update of all datarecords in the search results.
+ */
 function doMassUpdate() {
 
     // Remove any already-existing input elements added by this function
@@ -523,10 +544,11 @@ function doMassUpdate() {
             }
         }
     });
-
 }
 
-
+/**
+ * Triggers a mass delete of all datarecords in the search result.
+ */
 function doMassDelete() {
     var str = 'This will delete ALL records listed in the search result.  Are you absolutely sure you want to do this?';
     if ( confirm(str) ) {
@@ -557,6 +579,91 @@ function doMassDelete() {
             }
         });
     }
+}
+
+/**
+ * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+ */
+function ODRMassEdit_setupIntroJS() {
+    // Setup IntroJS Walkthrough
+    $('#ODRHelpButton')
+        .attr('data-step', '1')
+        .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+    $('#massedit_form').prev()
+        .attr('data-step', '2')
+        .attr('data-intro', "This page allows you to perform a \"MassEdit\"...making the same set of changes to multiple records at once...to all records in the search result.<br><br>Be careful when saving changes here, because it's easy to accidentally overwrite data.");
+
+    // Want to find sevarl types of fields to attach steps to
+    var varchar_field = null;
+    var unique_varchar_field = null;
+    var file_image_field = null;
+    var single_select_field = null;
+    var single_radio_field = null;
+    var multiple_radio_field = null;
+    $('.ODRDataField').each(function(index,elem) {
+        if ( unique_varchar_field === null && $(elem).find('div.ODRUniqueField').length > 0 )
+            unique_varchar_field = $(elem);
+        if ( varchar_field === null && $(elem).find('div.ODRUniqueField').length === 0 && $(elem).find('input.ODRField').length > 0 )
+            varchar_field = $(elem);
+
+        if ( file_image_field === null && $(elem).find('select.ODRFile').length > 0 )
+            file_image_field = $(elem);
+
+        if ( single_select_field === null && $(elem).find('select.ODRSingleSelect').length > 0 )
+            single_select_field = $(elem);
+        if ( single_radio_field === null && $(elem).find('select.ODRSingleRadio').length > 0 )
+            single_radio_field = $(elem);
+        if ( multiple_radio_field === null && $(elem).find('label.ODRRadioLabel').length > 0 )
+            multiple_radio_field = $(elem);
+    });
+
+    $(varchar_field)
+        .attr('data-step', '3')
+        .attr('data-intro', 'Entering a value in a text/number/date field will update the values for that field across all records in the search result. If the input is left blank, then no changes will be made.');
+    $(varchar_field).find('.ODRMassEdit_clear')
+        .attr('data-step', '4')
+        .attr('data-intro', 'Alternately, if you need to delete all values in a text/number/date field, then you can select the checkbox assocated with the field.');
+    $(unique_varchar_field)
+        .attr('data-step', '5')
+        .attr('data-intro', 'Text/number fields marked as "unique" cannot be modified in MassEdit...multiple fields would have the same value afterwards, and therefore the values in the field would no longer be unique.');
+    $(single_select_field)
+        .attr('data-step', '6')
+        .attr('data-intro', 'Single Select fields can be changed to any of their defined options, and also have two additional available actions.<br><br>"&lt;&lt;No change&gt;&gt;" does not change the selected options, while "&lt;&lt;Deselect everything&gt;&gt;" deselects any previously selected option in the field.');
+    $(single_radio_field)
+        .attr('data-step', '7')
+        .attr('data-intro', 'Single Radio fields can be changed to any of their defined options, and also have two additional available actions.<br><br>"&lt;&lt;No change&gt;&gt;" does not change the selected options, while "&lt;&lt;Deselect everything&gt;&gt;" deselects any previously selected option in the field.');
+    $(multiple_radio_field)
+        .attr('data-step', '8')
+        .attr('data-intro', 'Multiple Radio/Select fields allow you to select one of three states per option.<br><br>A blank box means "no changes", a green checkmark icon means "select this option", and a red no-access icon means "deselect this option".');
+    $(file_image_field)
+        .attr('data-step', '9')
+        .attr('data-intro', "File and Image fields don't allow you to upload new files/images or delete existing files/images from here, but you have the option to change whether all files/images uploaded to this field are public or not.");
+
+    $('.ODRPublicSelect').first()
+        .attr('data-step', '10')
+        .attr('data-intro', "This dropdown gives you the option to change the public status of all top-level records in this database.");
+    if ( $('.ODRPublicSelect').length > 1 ) {
+        var childtype_publicstatus = $('.ODRPublicSelect')[1];
+        $(childtype_publicstatus)
+            .attr('data-step', '11')
+            .attr('data-intro', "If you instead want to change the public status of all records in a child database, then you can do that with the dropdown next to the child database's header.");
+    }
+
+    $('#ODRMassEdit_start').first()
+        .attr('data-step', '12')
+        .attr('data-intro', 'Clicking this button will begin making the requested changes to all records in the search result.');
+    $('#ODRMassEdit_delete').first()
+        .attr('data-step', '13')
+        .attr('data-intro', 'Clicking this button will delete all records in the search result.<br><br>This action can not be aborted or reversed, so USE WITH CAUTION.');
+}
+
+/**
+ * Begins the introJS tour for ODR's MassEdit page.
+ */
+function ODRMassEdit_startIntroJS() {
+    introJs().setOption("disableInteraction", true)
+        .start();
 }
 </script>
 

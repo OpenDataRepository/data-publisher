@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set datatype = datatype_array[initial_datatype_id] %}
+
 {% set theme = theme_array[initial_theme_id] %}
 {% set theme_name = theme.themeMeta.templateName %}
 {% if theme_name == '' %}
@@ -8,7 +10,7 @@
 
 <div id="ODRRenderContent_{{ theme.id }}" class="ODRAccordionWrapper ODRFormAccordion ODRRenderContentHeader pure-u-1" style="margin-top: 20px;">
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-        <a>{{ theme_name }}</a>
+        <a>{{ datatype.dataTypeMeta.shortName }}</a>
     </h3>
 </div>
 
@@ -30,20 +32,7 @@
 <script>
     $(function() {
         // Hide all TEDs without input fields
-        $(".ODRThemeElement").each(function() {
-            var found = false;
-/*
-            $(this).find(".ODRFieldArea").each(function() {
-                found = true;
-            });
-*/
-            $(this).find(".ODRDataField").each(function() {
-                found = true;
-            });
-
-            if (!found)
-                $(this).hide();
-        });
+        setupAccordions();
     });
 </script>
 {% endspaceless %}
