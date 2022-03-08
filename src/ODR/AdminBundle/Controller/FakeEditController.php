@@ -49,6 +49,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class FakeEditController extends ODRCustomController
@@ -83,6 +84,9 @@ class FakeEditController extends ODRCustomController
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -112,7 +116,6 @@ class FakeEditController extends ODRCustomController
             $page_html = $odr_render_service->getFakeEditHTML($user, $datatype);
 
             // The "fake" datarecord still needs a header
-            $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:FakeEdit:fake_edit_header.html.twig',
                 array(

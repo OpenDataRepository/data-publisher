@@ -592,6 +592,7 @@ class ODRUserController extends ODRCustomController
 
             $user_id = intval( $post['ODRUserProfileForm']['user_id'] );
 
+            // --------------------
             // Grab the current user
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -599,6 +600,8 @@ class ODRUserController extends ODRCustomController
             // Only allow this if the user is modifying their own profile
             if ($user->getId() !== $user_id)
                 throw new ODRBadRequestException();
+            // --------------------
+
 
             // Save any changes to the profile
             $username = self::saveProfile($user_id, $request);

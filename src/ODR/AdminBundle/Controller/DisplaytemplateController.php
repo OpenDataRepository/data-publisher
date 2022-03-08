@@ -68,6 +68,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class DisplaytemplateController extends ODRCustomController
@@ -224,6 +225,9 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -232,7 +236,6 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
-            $templating = $this->get('templating');
             $return['t'] = "html";
 
             if ($datatype->getSetupStep() == DataType::STATE_CLONE_FAIL) {
@@ -318,6 +321,9 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -339,7 +345,6 @@ class DisplaytemplateController extends ODRCustomController
             }
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
-                $templating = $this->get('templating');
                 $return['t'] = "html";
                 $return['d'] = array(
                     'html' => $templating->render(
@@ -1492,6 +1497,8 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchService $search_service */
             $search_service = $this->container->get('odr.search_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Either both $parent_datatype_id and $theme_element_id have to be the empty string, or
@@ -1967,7 +1974,6 @@ class DisplaytemplateController extends ODRCustomController
                 }
 
                 // Return the slideout html
-                $templating = $this->get('templating');
                 $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
                     array(
@@ -2085,6 +2091,8 @@ class DisplaytemplateController extends ODRCustomController
             $theme_service = $this->container->get('odr.theme_info_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // TODO - what should you be allowed to modify on a derived datafield?
@@ -2578,7 +2586,6 @@ class DisplaytemplateController extends ODRCustomController
 
                 // ----------------------------------------
                 // Render the html for the form
-                $templating = $this->get('templating');
                 $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
                     array(
@@ -2706,7 +2713,7 @@ class DisplaytemplateController extends ODRCustomController
     {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = '';
+        $return['t'] = 'html';
         $return['d'] = '';
 
         $em = null;
@@ -2719,6 +2726,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -2761,8 +2770,6 @@ class DisplaytemplateController extends ODRCustomController
             krsort($datafields);
 
             // Get Templating Object
-            $templating = $this->get('templating');
-            $return['t'] = 'html';
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:undelete_fields_dialog_form.html.twig',
@@ -3244,8 +3251,11 @@ if ($debug)
         $return['d'] = '';
 
         try {
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
             $return['d'] = array(
-                'html' => $this->get('templating')->render(
+                'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:markdown_help_dialog_form.html.twig'
                 )
             );
@@ -3462,10 +3472,11 @@ if ($debug)
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $templating = $this->get('templating');
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -3575,6 +3586,8 @@ if ($debug)
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -3608,7 +3621,6 @@ if ($debug)
                 return strcmp($a['dataFieldMeta']['fieldName'], $b['dataFieldMeta']['fieldName']);
             });
 
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:multi_datafield_properties_dialog_form.html.twig',

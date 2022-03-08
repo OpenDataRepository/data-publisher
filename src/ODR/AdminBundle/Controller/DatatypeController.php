@@ -54,6 +54,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class DatatypeController extends ODRCustomController
@@ -84,6 +85,8 @@ class DatatypeController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $user */
@@ -155,7 +158,6 @@ class DatatypeController extends ODRCustomController
                     );
                     $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_meta, $params);
 
-                    $templating = $this->get('templating');
                     $html = $templating->render(
                         'ODRAdminBundle:Datatype:update_datatype_properties_form.html.twig',
                         array(
@@ -212,6 +214,8 @@ class DatatypeController extends ODRCustomController
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -229,7 +233,6 @@ class DatatypeController extends ODRCustomController
             }
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
-                $templating = $this->get('templating');
                 $return['t'] = "html";
                 $return['d'] = array(
                     'html' => $templating->render(
@@ -325,7 +328,6 @@ class DatatypeController extends ODRCustomController
                 $redirect_path = '';
                 $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-                $templating = $this->get('templating');
                 $record_header_html = $templating->render(
                     'ODRAdminBundle:Edit:properties_edit_header.html.twig',
                     array(
@@ -484,6 +486,8 @@ class DatatypeController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -503,7 +507,6 @@ class DatatypeController extends ODRCustomController
             }
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
-                $templating = $this->get('templating');
                 $return['t'] = "html";
                 $return['d'] = array(
                     'html' => $templating->render(
@@ -598,8 +601,6 @@ class DatatypeController extends ODRCustomController
 
                 // ----------------------------------------
                 // Render the required version of the page
-                $templating = $this->get('templating');
-
                 $html = $templating->render(
                     'ODRAdminBundle:Datatype:landing.html.twig',
                     array(
@@ -646,6 +647,7 @@ class DatatypeController extends ODRCustomController
     {
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
+        /** @var EngineInterface $templating */
         $templating = $this->get('templating');
 
         $conn = $em->getConnection();
@@ -780,7 +782,6 @@ class DatatypeController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $templating = $this->get('templating');
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -788,6 +789,8 @@ class DatatypeController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // --------------------
@@ -990,6 +993,9 @@ class DatatypeController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             // --------------------
             // Grab user privileges to determine what they can do
@@ -1026,7 +1032,6 @@ class DatatypeController extends ODRCustomController
             });
 
             // Render and return the html
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
@@ -1078,6 +1083,8 @@ class DatatypeController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -1126,7 +1133,6 @@ class DatatypeController extends ODRCustomController
             // TODO - modify this so that you can create a metadata entry that isn't based on a template
 
             // Render and return the html
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
@@ -1176,10 +1182,11 @@ class DatatypeController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $templating = $this->get('templating');
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Grab user privileges to determine what they can do
@@ -1407,6 +1414,8 @@ class DatatypeController extends ODRCustomController
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
@@ -1737,7 +1746,6 @@ class DatatypeController extends ODRCustomController
             }
             else {
                 // Otherwise, this was a GET request
-                $templating = $this->get('templating');
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig',
                     array(
@@ -1889,7 +1897,6 @@ class DatatypeController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $templating = $this->get('templating');
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
@@ -1897,6 +1904,8 @@ class DatatypeController extends ODRCustomController
             $token_generator = $this->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // ----------------------------------------

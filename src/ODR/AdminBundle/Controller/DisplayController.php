@@ -53,6 +53,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\Router;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class DisplayController extends ODRCustomController
@@ -155,9 +157,10 @@ class DisplayController extends ODRCustomController
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
 
-
-            $router = $this->get('router');
+            /** @var EngineInterface $templating */
             $templating = $this->get('templating');
+            /** @var Router $router */
+            $router = $this->get('router');
 
 
             // ----------------------------------------
@@ -841,6 +844,8 @@ class DisplayController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -902,7 +907,6 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Render and return a tree structure of data
-            $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
                 array(
@@ -1403,6 +1407,8 @@ class DisplayController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Need to locate the datatype from the search key
@@ -1470,7 +1476,6 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Render the dialog
-            $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:mass_download_dialog_form.html.twig',
                 array(

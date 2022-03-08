@@ -47,6 +47,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class ThemeController extends ODRCustomController
@@ -78,6 +79,8 @@ class ThemeController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -114,7 +117,6 @@ class ThemeController extends ODRCustomController
 
 
             // Render and return the theme chooser dialog
-            $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:choose_view.html.twig',
                 array(
@@ -1075,6 +1077,8 @@ class ThemeController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var ThemeElement $theme_element */
@@ -1153,7 +1157,6 @@ class ThemeController extends ODRCustomController
                 );
 
                 // Return the slideout html
-                $templating = $this->get('templating');
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Theme:theme_element_properties_form.html.twig',
                     array(
@@ -1456,6 +1459,8 @@ class ThemeController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var ThemeElement $theme_element */
@@ -1520,7 +1525,6 @@ class ThemeController extends ODRCustomController
 
 
             // Return the slideout html
-            $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig',
                 array(
@@ -1693,6 +1697,9 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1752,7 +1759,6 @@ class ThemeController extends ODRCustomController
             )->createView();
 
             // Return the slideout html
-            $templating = $this->get('templating');
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig',
                 array(

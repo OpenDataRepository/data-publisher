@@ -65,6 +65,7 @@ use FOS\UserBundle\Doctrine\UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class MassEditController extends ODRCustomController
@@ -103,6 +104,8 @@ class MassEditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -206,7 +209,6 @@ class MassEditController extends ODRCustomController
 
             // ----------------------------------------
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
                 array(

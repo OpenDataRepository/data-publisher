@@ -43,6 +43,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class TagsController extends ODRCustomController
@@ -72,6 +73,8 @@ class TagsController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataFields $datafield */
@@ -140,7 +143,6 @@ class TagsController extends ODRCustomController
             }
 
             // Render and return the html for the list
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tags:tag_design_wrapper.html.twig',
@@ -324,6 +326,8 @@ class TagsController extends ODRCustomController
             $tab_helper_service = $this->container->get('odr.tab_helper_service');
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataFields $datafield */
@@ -413,7 +417,6 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Only proceed with rendering the new tag list if there were no errors...
-            $templating = $this->get('templating');
             if ( count($errors) === 0 ) {
                 // ...going to need the datafield array entry for later
                 $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);

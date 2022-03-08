@@ -80,6 +80,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\Router;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class EditController extends ODRCustomController
@@ -2169,6 +2171,8 @@ class EditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataFields $datafield */
@@ -2222,7 +2226,6 @@ class EditController extends ODRCustomController
 
 
             // Render and return the HTML for the list of files
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:edit_file_datafield.html.twig',
@@ -2287,9 +2290,10 @@ class EditController extends ODRCustomController
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
             /** @var ThemeInfoService $ti_service */
             $ti_service = $this->container->get('odr.theme_info_service');
-
-            $router = $this->get('router');
+            /** @var EngineInterface $templating */
             $templating = $this->get('templating');
+            /** @var Router $router */
+            $router = $this->get('router');
 
 
             // ----------------------------------------
@@ -2558,6 +2562,9 @@ class EditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -2704,7 +2711,6 @@ class EditController extends ODRCustomController
 
 
             // Render the dialog box for this request
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',

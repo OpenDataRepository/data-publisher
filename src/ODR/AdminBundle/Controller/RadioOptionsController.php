@@ -40,6 +40,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class RadioOptionsController extends ODRCustomController
@@ -69,6 +70,8 @@ class RadioOptionsController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataFields $datafield */
@@ -112,7 +115,6 @@ class RadioOptionsController extends ODRCustomController
             $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
             // Render the template
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:radio_option_dialog_form.html.twig',

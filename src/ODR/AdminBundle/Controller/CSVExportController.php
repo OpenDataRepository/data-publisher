@@ -46,6 +46,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 // CSV Reader
 use Ddeboer\DataImport\Writer\CsvWriter;
 
@@ -86,6 +87,8 @@ class CSVExportController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -176,7 +179,6 @@ class CSVExportController extends ODRCustomController
 
             // ----------------------------------------
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
                 array(

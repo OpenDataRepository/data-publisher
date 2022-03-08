@@ -170,10 +170,10 @@ class DatatypeExportService
         for ($i = 0; $i < strlen($data); $i++) {
             if (!$in_quotes) {
                 // If not in quotes...
-                switch ($data{$i} ) {
+                switch ($data[$i] ) {
                     case "\"":
                         // ...and a quote was encountered, transcribe it and switch modes
-                        $trimmed_str .= $data{$i};
+                        $trimmed_str .= $data[$i];
                         $in_quotes = true;
 
                         // Last character transcribed was not a comma
@@ -194,7 +194,7 @@ class DatatypeExportService
                         }
                         else {
                             // Otherwise, closing brace after some non-comma, just transcribe it
-                            $trimmed_str .= $data{$i};
+                            $trimmed_str .= $data[$i];
                         }
                         break;
 
@@ -212,7 +212,7 @@ class DatatypeExportService
                         }
                         else {
                             // Otherwise, closing bracket after some non-comma, just transcribe it
-                            $trimmed_str .= $data{$i};
+                            $trimmed_str .= $data[$i];
                         }
                         break;
 
@@ -221,7 +221,7 @@ class DatatypeExportService
                         if ( !$just_wrote_comma ) {
                             // ...then only transcribe a comma when the previous character transcribed
                             //  was not a comma.  Don't want duplicated commas.
-                            $trimmed_str .= $data{$i};
+                            $trimmed_str .= $data[$i];
                             $just_wrote_comma = true;
                         }
                         break;
@@ -233,7 +233,7 @@ class DatatypeExportService
 
                     default:
                         // If not in quotes and found a non-space character, transcribe it
-                        $trimmed_str .= $data{$i};
+                        $trimmed_str .= $data[$i];
 
                         // Commas are handled earlier in the switch statement, so the character
                         //  transcribed here can't be a comma
@@ -242,11 +242,11 @@ class DatatypeExportService
                 }
             }
             else {
-                if ($data{$i} === "\"" && $data{$i-1} !== "\\")
+                if ($data[$i] === "\"" && $data[$i-1] !== "\\")
                     $in_quotes = false;
 
                 // If in quotes, always transcribe every character
-                $trimmed_str .= $data{$i};
+                $trimmed_str .= $data[$i];
             }
         }
 

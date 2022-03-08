@@ -47,6 +47,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class LinkController extends ODRCustomController
@@ -76,6 +77,8 @@ class LinkController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $local_datatype */
@@ -183,7 +186,6 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:clone_link_template_dialog_form.html.twig',
@@ -422,6 +424,8 @@ class LinkController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $local_datatype */
@@ -625,7 +629,6 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:link_type_dialog_form.html.twig',
@@ -1507,6 +1510,8 @@ class LinkController extends ODRCustomController
             $theme_service = $this->container->get('odr.theme_info_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Grab the datatypes from the database
@@ -1725,7 +1730,6 @@ class LinkController extends ODRCustomController
             $num_columns = $column_data['num_columns'];
 
             // Render the dialog box for this request
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:link_datarecord_form.html.twig',

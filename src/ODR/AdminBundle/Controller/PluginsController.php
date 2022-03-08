@@ -52,6 +52,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 // YAML Parsing
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -430,6 +431,10 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -467,7 +472,6 @@ class PluginsController extends ODRCustomController
             $plugin_update_problems = self::getPluginUpdateProblems($em, $plugins_with_updates);
 
             // Render and return a page displaying the installed/available plugins
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:list_plugins.html.twig',
@@ -1277,6 +1281,10 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -1336,7 +1344,6 @@ class PluginsController extends ODRCustomController
 
             $plugin_update_problems = $plugin_update_problems[$plugin_classname];
 
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_problems.html.twig',
@@ -1860,6 +1867,9 @@ class PluginsController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             // Grab necessary objects
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -2033,7 +2043,6 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form.html.twig',
@@ -2094,6 +2103,8 @@ class PluginsController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Ensure the relevant entities exist
@@ -2350,7 +2361,6 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form_data.html.twig',

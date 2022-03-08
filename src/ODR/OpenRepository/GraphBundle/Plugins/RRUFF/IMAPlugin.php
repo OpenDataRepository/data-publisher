@@ -663,6 +663,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         //  of an error
         $datarecord = null;
         $datafield = null;
+        $datatype = null;
         $destination_entity = null;
         $user = null;
 

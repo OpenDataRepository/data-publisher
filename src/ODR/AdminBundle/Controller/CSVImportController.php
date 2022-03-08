@@ -72,6 +72,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 // CSV Reader
 use Ddeboer\DataImport\Reader\CsvReader;
 // ForceUTF8
@@ -108,6 +109,8 @@ class CSVImportController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -189,7 +192,6 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Render the basic csv import page
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:CSVImport:import.html.twig',
@@ -304,6 +306,8 @@ class CSVImportController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $source_datatype */
@@ -345,7 +349,7 @@ class CSVImportController extends ODRCustomController
             //  created 'csv_import' job for this datatype
             $job_data = array(
                 'job_type' => 'csv_import',
-                'target_entity' => $datatype,
+                'target_entity' => $source_datatype,
             );
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
@@ -504,7 +508,6 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Render the page
-            $templating = $this->get('templating');
             if ( count($error_messages) == 0 ) {
                 // If no errors, render the column/datafield/fieldtype selection page
                 $return['d'] = array(
@@ -2318,7 +2321,6 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $templating = $this->get('templating');
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -2330,6 +2332,8 @@ class CSVImportController extends ODRCustomController
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // ----------------------------------------
