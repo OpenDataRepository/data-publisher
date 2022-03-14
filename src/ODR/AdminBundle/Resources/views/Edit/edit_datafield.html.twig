@@ -63,6 +63,12 @@
 {% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
 {% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
 {% set input_name = field_typeclass ~ 'Form[value]' %}
+{# TODO - can't change a decimal from like "532" to "532.0" because of Symfony's automatic conversion on the "value" property
+   TODO - ...but the form complains of "extra fields" when using "original_value" instead of "value"
+{% if field_typeclass == 'Decimal' %}
+    {% set input_name = field_typeclass ~ 'Form[original_value]' %}
+{% endif %}
+#}
 
     <form
         autocomplete="off"

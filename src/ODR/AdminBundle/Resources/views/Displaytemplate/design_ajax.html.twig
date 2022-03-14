@@ -2277,7 +2277,8 @@
                     'Long Text': ['Paragraph Text'],
                     'Medium Text': ['Paragraph Text','Long Text'],
                     'Short Text': ['Paragraph Text','Long Text','Medium Text'],
-                    'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text']
+                    'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text'],
+                    'DateTime': ['Paragraph Text','Long Text','Medium Text','Short Text'],
                 };
 
                 // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
@@ -2306,7 +2307,7 @@
                     'Decimal': ['Integer']
                 };
 
-                // TODO - conversions to boolean?
+                // TODO - conversions to boolean?  conversions to datetime?
 
                 // All other changes necessarily result in loss of ALL data
 
@@ -2318,16 +2319,16 @@
                     str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
                 }
                 else if ( length_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, length_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield...some data may be truncated...are you sure?';
+                    str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield. Some data may be lost...are you sure?';
                 }
                 else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: All data that is not already numerical will be converted into a blank value...are you sure?';
+                    str = 'WARNING: All data that is not already numerical will be lost...are you sure?';
                 }
                 else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
                     str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';
                 }
                 else if ( precision_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, precision_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: Any fractional parts of the decimal values will be dropped during this migration of data...are you sure?';
+                    str = 'WARNING: Any fractional parts of the decimal values will be lost...are you sure?';
                 }
 
 

@@ -2231,7 +2231,7 @@ class DisplaytemplateController extends ODRCustomController
                     );
                     $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
                     if ( !is_null($conflicting_job) )
-                        throw new ODRConflictException('Unable to change the fieldtype of this Datafield');
+                        throw new ODRConflictException('Unable to change the fieldtype of this Datafield since a background job is already in progress');
 
                     // Check whether the fieldtype got changed from something that could be migrated...
                     $migrate_data = true;
@@ -2242,7 +2242,7 @@ class DisplaytemplateController extends ODRCustomController
                         case 'MediumVarchar':
                         case 'ShortVarchar':
                         case 'DecimalValue':
-                        case 'DatetimeValue':
+                        case 'DatetimeValue':    // ...can convert datetime to a text field
                             break;
 
                         default:
@@ -2257,7 +2257,7 @@ class DisplaytemplateController extends ODRCustomController
                         case 'MediumVarchar':
                         case 'ShortVarchar':
                         case 'DecimalValue':
-                        case 'DatetimeValue':
+//                        case 'DatetimeValue':    // ...can't really convert anything to a date though
                             break;
 
                         case 'Image':
@@ -2268,6 +2268,17 @@ class DisplaytemplateController extends ODRCustomController
                         default:
                             $migrate_data = false;
                             break;
+                    }
+
+                    // Not allowed to convert DatetimeValues into anything other than text
+                    if ( $old_fieldtype_typeclass === 'DatetimeValue'
+                        && !($new_fieldtype_typeclass === 'ShortVarchar'
+                            || $new_fieldtype_typeclass === 'MediumVarchar'
+                            || $new_fieldtype_typeclass === 'LongVarchar'
+                            || $new_fieldtype_typeclass === 'LongText'
+                        )
+                    ) {
+                        $migrate_data = false;
                     }
 
                     // If going from Multiple radio/select to Single radio/select...then need to run
@@ -2643,59 +2654,93 @@ class DisplaytemplateController extends ODRCustomController
 
 
         // ----------------------------------------
-        // Locate all datarecords of this datatype for purposes of this fieldtype migration
-        $datatype = $datafield->getDataType();
-        $query = $em->createQuery(
-           'SELECT dr.id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-        )->setParameters( array('dataType' => $datatype) );
-        $results = $query->getResult();
+        if ( ($old_fieldtype->getTypeName() == 'Multiple Radio' || $old_fieldtype->getTypeName() == 'Multiple Select')
+            && ($new_fieldtype->getTypeName() == 'Single Radio' || $new_fieldtype->getTypeName() == 'Single Select')
+        ) {
+            // Converting from a multiple radio/select to a single radio/select requires php to
+            //  go through all datarecords and ensure at most one option is selected
+            $datatype = $datafield->getDataType();
+            $query = $em->createQuery(
+               'SELECT dr.id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+            )->setParameters( array('dataType' => $datatype) );
+            $results = $query->getResult();
 
-        if ( count($results) > 0 ) {
-            // Need to determine the top-level datatype this datafield belongs to, so other
-            //  background processes won't attempt to render any part of it and disrupt the migration
-            $top_level_datatype_id = $datatype->getGrandparent()->getId();
+            if ( count($results) > 0 ) {
+                // Need to determine the top-level datatype this datafield belongs to, so other
+                //  background processes won't attempt to render any part of it and disrupt the migration
+                $top_level_datatype_id = $datatype->getGrandparent()->getId();
+
+                // Get/create an entity to track the progress of this datafield migration
+                $job_type = 'migrate';
+                $target_entity = 'datafield_'.$datafield->getId();
+                $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
+                $restrictions = 'datatype_'.$top_level_datatype_id;
+                $total = count($results);
+                $reuse_existing = false;
+
+                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+                $tracked_job_id = $tracked_job->getId();
+
+
+                // ----------------------------------------
+                // Create one beanstalk job per datarecord
+                foreach ($results as $num => $result) {
+                    $datarecord_id = $result['id'];
+
+                    // Insert the new job into the queue
+//                $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "tracked_job_id" => $tracked_job_id,
+                            "user_id" => $user->getId(),
+                            "datarecord_id" => $datarecord_id,
+                            "datafield_id" => $datafield->getId(),
+                            "old_fieldtype_id" => $old_fieldtype->getId(),
+                            "new_fieldtype_id" => $new_fieldtype->getId(),
+//                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $pheanstalk->useTube('migrate_datafields')->put($payload);
+                }
+            }
+        }
+        else {
+            // All other conversions are performed with a single background job
+            $top_level_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
 
             // Get/create an entity to track the progress of this datafield migration
             $job_type = 'migrate';
             $target_entity = 'datafield_'.$datafield->getId();
             $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
             $restrictions = 'datatype_'.$top_level_datatype_id;
-            $total = count($results);
+            $total = 1;
             $reuse_existing = false;
 
             $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
-
-            // ----------------------------------------
-            // Create jobs for beanstalk to asynchronously migrate data
-            foreach ($results as $num => $result) {
-                $datarecord_id = $result['id'];
-
-                // Insert the new job into the queue
-//                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        "tracked_job_id" => $tracked_job_id,
-                        "user_id" => $user->getId(),
-                        "datarecord_id" => $datarecord_id,
-                        "datafield_id" => $datafield->getId(),
-                        "old_fieldtype_id" => $old_fieldtype->getId(),
-                        "new_fieldtype_id" => $new_fieldtype->getId(),
+            $payload = json_encode(
+                array(
+                    "tracked_job_id" => $tracked_job_id,
+                    "user_id" => $user->getId(),
+                    "datarecord_id" => 0,
+                    "datafield_id" => $datafield->getId(),
+                    "old_fieldtype_id" => $old_fieldtype->getId(),
+                    "new_fieldtype_id" => $new_fieldtype->getId(),
 //                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                        "redis_prefix" => $redis_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    )
-                );
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $api_key,
+                )
+            );
 
-                $pheanstalk->useTube('migrate_datafields')->put($payload);
-            }
-
-            // TODO - Lock the datatype so no more edits?
-            // TODO - Lock other stuff?
+            $pheanstalk->useTube('migrate_datafields')->put($payload);
         }
     }
 
