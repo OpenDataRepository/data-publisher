@@ -192,6 +192,12 @@
     var isMasterType = 0;
     {% endif %}
     var SaveTimeout = 1500;
+
+    var fieldtype_array = {};
+    {% for ft_id,ft_typename in fieldtype_array %}
+    fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
+    {% endfor %}
+
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
@@ -2234,11 +2240,6 @@
             }
         });
 
-        var fieldtype_array = {};
-        {% for ft_id,ft_typename in fieldtype_array %}
-        fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
-        {% endfor %}
-
         // Override the handler for the fieldtype selector
         tdf_odpf.find("#DatafieldsForm_field_type").each(function() {
             // Grab Datafield id
@@ -2248,91 +2249,16 @@
             // ...
             $(this).unbind('change').change(function() {
 
-                // If datatype has datarecords, changing a fieldtype might cause loss of data
-                var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
-                var pf = $("#previous_fieldtype");
-                var previous_fieldtype_id = pf.val();
-                var current_fieldtype_id = $("#DatafieldsForm_field_type").val();
+                var previous_fieldtype_id = $("#previous_fieldtype").val();
+                var new_fieldtype_id = $("#DatafieldsForm_field_type").val();
 
-                var previous_fieldtype = fieldtype_array[previous_fieldtype_id];
-                var current_fieldtype = fieldtype_array[current_fieldtype_id];
+                // Determine if there's any problem converting from the current fieldtype to a new
+                //  one
+                var previous_typename = fieldtype_array[previous_fieldtype_id];
+                var new_typename = fieldtype_array[new_fieldtype_id];
+                var str = getFieldtypeMigrationWarning(previous_typename, new_typename);
 
-
-                // Changes that require no extra consideration or work
-                var no_warn = {
-                    // single radio and single select fields can be changed to any other radio fieldtype
-                    'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
-                    'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
-                    // multiple radio can be changed to multiple select, and vice versa
-                    'Multiple Radio': ['Multiple Select'],
-                    'Multiple Select': ['Multiple Radio'],
-                    // markdown fields have no data to lose
-                    'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
-                };
-
-                // Changes that require the server to migrate data between storage entities
-                // TODO - changing other fieldtypes to radio/select fields
-                var time_warn = {
-                    'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
-                    'Long Text': ['Paragraph Text'],
-                    'Medium Text': ['Paragraph Text','Long Text'],
-                    'Short Text': ['Paragraph Text','Long Text','Medium Text'],
-                    'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text'],
-                    'DateTime': ['Paragraph Text','Long Text','Medium Text','Short Text'],
-                };
-
-                // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
-                var length_warn = {
-                    'Paragraph Text': ['Long Text','Medium Text','Short Text'],
-                    'Long Text': ['Medium Text','Short Text'],
-                    'Medium Text': ['Short Text']
-                };
-
-                // Changes from text fields to integer/decimal...it can easily result in lost data
-                var number_warn = {
-                    'Paragraph Text': ['Integer','Decimal'],
-                    'Long Text': ['Integer','Decimal'],
-                    'Medium Text': ['Integer','Decimal'],
-                    'Short Text': ['Integer','Decimal']
-                };
-
-                // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
-                var radio_warn = {
-                    'Multiple Radio': ['Single Radio','Single Select'],
-                    'Multiple Select': ['Single Radio','Single Select']
-                };
-
-                // Converting from decimal to integer...going to lose fractional parts of data
-                var precision_warn = {
-                    'Decimal': ['Integer']
-                };
-
-                // TODO - conversions to boolean?  conversions to datetime?
-
-                // All other changes necessarily result in loss of ALL data
-
-                // Warn the user about potential issues when changing fieldtypes
-                if ( no_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, no_warn[previous_fieldtype]) !== -1 ) {
-                    str = '';
-                }
-                else if ( time_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, time_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
-                }
-                else if ( length_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, length_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield. Some data may be lost...are you sure?';
-                }
-                else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: All data that is not already numerical will be lost...are you sure?';
-                }
-                else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';
-                }
-                else if ( precision_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, precision_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: Any fractional parts of the decimal values will be lost...are you sure?';
-                }
-
-
-                if ( $("#has_datarecords").val() === '' || str === '' || confirm(str) ) {
+                if ( $("#has_datarecords").val() === '' || str === '' || confirm(str + '..are you sure?') ) {
                     // Datatype has no datarecords attached, or user doesn't care...save the change
                     // console.log('fieldtype changed, triggering instant save for datafield', datafield_id);
                     SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
@@ -2342,23 +2268,23 @@
                     SaveDatafieldProperties(datafield_id);
 
                     str = '';
-                    if (current_fieldtype === 'Paragraph Text')
+                    if (new_typename === 'Paragraph Text')
                         str = 'No Character Limit';
-                    else if (current_fieldtype === 'Long Text')
+                    else if (new_typename === 'Long Text')
                         str = '255 Character Limit';
-                    else if (current_fieldtype === 'Medium Text')
+                    else if (new_typename === 'Medium Text')
                         str = '64 Character Limit';
-                    else if (current_fieldtype === 'Short Text')
+                    else if (new_typename === 'Short Text')
                         str = '32 Character Limit';
 
                     if (str !== '')
                         $("#field_type_meta").attr('title', str);
 
-                    pf.val(current_fieldtype_id);
+                    $("#previous_fieldtype").val(new_fieldtype_id);
                 }
                 else {
                     // Revert back to old field type
-                    previous_fieldtype_id = pf.val();
+                    previous_fieldtype_id = $("#previous_fieldtype").val();
                     $(this).val( previous_fieldtype_id );
                 }
 
@@ -2367,6 +2293,100 @@
 
         $(form_div).fadeIn('fast');
     }
+
+
+    /**
+     * Returns a string with a warning about potential undesirable changes that will be caused by
+     * migrating from one fieldtype to another.
+     *
+     * @param {string} previous_typename
+     * @param {string} new_typename
+     *
+     * @returns {string}
+     */
+    function getFieldtypeMigrationWarning(previous_typename, new_typename) {
+        // No warnings if no fieldtype changes
+        if ( previous_typename == new_typename )
+            return '';
+
+        var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
+
+        // Changes that require no extra consideration or work
+        var no_warn = {
+            // single radio and single select fields can be changed to any other radio fieldtype
+            'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
+            'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
+            // multiple radio can be changed to multiple select, and vice versa
+            'Multiple Radio': ['Multiple Select'],
+            'Multiple Select': ['Multiple Radio'],
+            // markdown fields have no data to lose
+            'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
+        };
+
+        // Changes that require the server to migrate data between storage entities
+        // TODO - changing other fieldtypes to radio/select fields
+        var time_warn = {
+            'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
+            'Long Text': ['Paragraph Text'],
+            'Medium Text': ['Paragraph Text','Long Text'],
+            'Short Text': ['Paragraph Text','Long Text','Medium Text'],
+            'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text'],
+            'DateTime': ['Paragraph Text','Long Text','Medium Text','Short Text'],
+        };
+
+        // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
+        var length_warn = {
+            'Paragraph Text': ['Long Text','Medium Text','Short Text'],
+            'Long Text': ['Medium Text','Short Text'],
+            'Medium Text': ['Short Text']
+        };
+
+        // Changes from text fields to integer/decimal...it can easily result in lost data
+        var number_warn = {
+            'Paragraph Text': ['Integer','Decimal'],
+            'Long Text': ['Integer','Decimal'],
+            'Medium Text': ['Integer','Decimal'],
+            'Short Text': ['Integer','Decimal']
+        };
+
+        // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
+        var radio_warn = {
+            'Multiple Radio': ['Single Radio','Single Select'],
+            'Multiple Select': ['Single Radio','Single Select']
+        };
+
+        // Converting from decimal to integer...going to lose fractional parts of data
+        var precision_warn = {
+            'Decimal': ['Integer']
+        };
+
+        // TODO - conversions to boolean?  conversions to datetime?
+
+        // All other changes necessarily result in loss of ALL data
+
+        // Warn the user about potential issues when changing fieldtypes
+        if ( no_warn[previous_typename] !== undefined && $.inArray(new_typename, no_warn[previous_typename]) !== -1 ) {
+            str = '';
+        }
+        else if ( time_warn[previous_typename] !== undefined && $.inArray(new_typename, time_warn[previous_typename]) !== -1 ) {
+            str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
+        }
+        else if ( length_warn[previous_typename] !== undefined && $.inArray(new_typename, length_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield. Some data may be lost.';
+        }
+        else if ( number_warn[previous_typename] !== undefined && $.inArray(new_typename, number_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: All data that is not already numerical will be lost.';
+        }
+        else if ( radio_warn[previous_typename] !== undefined && $.inArray(new_typename, radio_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected.';
+        }
+        else if ( precision_warn[previous_typename] !== undefined && $.inArray(new_typename, precision_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: Any fractional parts of the decimal values will be lost.';
+        }
+
+        return str;
+    }
+
 
     // Need to be able to delay saving changes to the datatype properties form for a couple seconds
     //  so that users aren't getting constantly interrupted

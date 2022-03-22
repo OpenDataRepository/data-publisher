@@ -120,7 +120,7 @@
                     </td>
 
                     <td>
-                        <select id="column_{{ column_id }}_fieldtype"
+                        <select id="column_{{ column_id }}_fieldtype"    {# TODO - is it possible to permit changing of fieldtype inside CSVImport? #}
                                 class="fieldtype_mapping"
                                 name="fieldtype_mapping[{{ column_id }}]"
                                 rel="{{ column_id }}"

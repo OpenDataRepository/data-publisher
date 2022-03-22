@@ -319,12 +319,12 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'mass_edit' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'mass_edit',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new MassEdit job, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -1294,12 +1294,12 @@ class MassEditController extends ODRCustomController
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecords[0] );
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'delete_datarecord',
                 'target_entity' => $datarecord,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete these Datarecords, as it would interfere with an already running '.$conflicting_job.' job');
 

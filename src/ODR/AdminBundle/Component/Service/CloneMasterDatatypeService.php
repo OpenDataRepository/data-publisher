@@ -856,6 +856,11 @@ class CloneMasterDatatypeService
                     $new_ro->addRadioOptionMetum($new_ro_meta);
                     self::persistObject($new_ro_meta, true);    // don't flush immediately...
 
+                    // If the radio option is marked as default, then need to clear a relevant
+                    //  cached entry
+                    if ( $new_ro->getIsDefault() )
+                        $this->cache_service->delete('default_radio_options');
+
                     if ( $preserve_template_uuids )
                         $this->logger->debug('CloneDatatypeService: -- cloned radio option '.$parent_ro->getRadioOptionUuid().' "'.$new_ro->getOptionName().'" and its meta entry');
                     else

@@ -2911,7 +2911,7 @@ class PluginsController extends ODRCustomController
                 else {
                     // ...otherwise, update the existing entity
                     $props = array(
-                        'dataField' => $df_id
+                        'dataField' => $df
                     );
                     $changes_made = $emm_service->updateRenderPluginMap($user, $rpm, $props, true);    // don't need to flush...
 

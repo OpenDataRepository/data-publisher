@@ -2026,8 +2026,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             $post = $_POST;
-//print_r($post);
-//return;
+//print_r($post);  return;
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -2150,7 +2149,7 @@ class ThemeController extends ODRCustomController
                         //  in the ending theme_element
                         $properties = array(
                             'displayOrder' => $index,
-                            'themeElement' => $ending_theme_element->getId(),
+                            'themeElement' => $ending_theme_element,
                         );
                         $emm_service->updateThemeDatafield($user, $old_tdf_entry, $properties, true);    // don't flush immediately
 

@@ -306,12 +306,12 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_export' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'csv_export',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new CSVExport job, as it would interfere with an already running '.$conflicting_job.' job');
 

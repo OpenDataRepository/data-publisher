@@ -334,7 +334,7 @@ class WorkerController extends ODRCustomController
                     // Converting text into a decimal requires a cast for the value...
                     $select_query .= 'CAST(SUBSTR(e.value, 1, 255) AS DOUBLE)';
                     // ...but the original_value should just match the original text being converted
-                    $select_query .= ', SUBSTR(e.value, 1, 255)';    // TODO - guarantee a fit inside a varchar(255), but it probably shouldn't even be varchar(32) due to precision
+                    $select_query .= ', SUBSTR(e.value, 1, 255)';    // TODO - this guarantees a fit inside a varchar(255), but it probably shouldn't even be varchar(32) due to precision
                     // Only copy non-blank values
                     $remaining_query .= ' AND e.value != ""';
 

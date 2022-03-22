@@ -186,12 +186,12 @@ class EntityDeletionService
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datafield
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'delete_datafield',
                 'target_entity' => $datafield,
             );
 
-            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete this Datafield, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -718,12 +718,12 @@ class EntityDeletionService
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'delete_datatype',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete this Datatype, as it would interfere with an already running '.$conflicting_job.' job');
 

@@ -1762,13 +1762,13 @@ class DisplaytemplateController extends ODRCustomController
 
                     // These datafields are permitted to be null
                     if ( $submitted_data->getExternalIdField() !== null )
-                        $properties['externalIdField'] = $submitted_data->getExternalIdField()->getId();
+                        $properties['externalIdField'] = $submitted_data->getExternalIdField();
                     if ( $submitted_data->getNameField() !== null )
-                        $properties['nameField'] = $submitted_data->getNameField()->getId();
+                        $properties['nameField'] = $submitted_data->getNameField();
                     if ( $submitted_data->getSortField() !== null )
-                        $properties['sortField'] = $submitted_data->getSortField()->getId();
+                        $properties['sortField'] = $submitted_data->getSortField();
                     if ( $submitted_data->getBackgroundImageField() !== null )
-                        $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
+                        $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField();
 
                     // Commit all changes to the DatatypeMeta entry to the database
                     $emm_service->updateDatatypeMeta($user, $datatype, $properties);
@@ -2146,21 +2146,17 @@ class DisplaytemplateController extends ODRCustomController
 
             // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
 
-            // Keep track of conditions where parts of the datafield shouldn't be changed...
-            $ret = $dfi_service->canChangeFieldtype($datafield);
-            $prevent_fieldtype_change = $ret['prevent_change'];
-            $prevent_fieldtype_change_message = $ret['prevent_change_message'];
+            // Determine which changes, if any, can be made to this datafield's fieldtype
+            $fieldtype_info = $dfi_service->getFieldtypeInfo($datatype_array, $datafield->getDataType()->getId(), array($datafield->getId()));
+            $prevent_fieldtype_change = $fieldtype_info[$datafield->getId()]['prevent_change'];
+            $prevent_fieldtype_change_message = $fieldtype_info[$datafield->getId()]['prevent_change_message'];
+            $allowed_fieldtypes = $fieldtype_info[$datafield->getId()]['allowed_fieldtypes'];
 
 
             // Store whether the "allow multiple uploads" checkbox needs to be disabled for file/image fields
             $has_multiple_uploads = $dfi_service->hasMultipleUploads($datafield);
-
             // Store whether the "allow multiple levels" checkbox needs to be disabled for tag fields
             $has_tag_hierarchy = $datafield_properties['has_tag_hierarchy'];
-
-            // Determine which fieldtypes the datafield is allowed to have
-            $allowed_fieldtypes = $dfi_service->getAllowedFieldtypes($datafield, $datatype_array);
-
             // Render plugins can demand that a file/image datafield only allows a single upload...
             $single_uploads_only = $datafield_properties['single_uploads_only'];
             // ...or that the field must remain unique...
@@ -2225,74 +2221,20 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Determine whether an in-progress background job would interfere with a
                     //  potential change of fieldtype
-                    $job_data = array(
+                    $new_job_data = array(
                         'job_type' => 'migrate',
                         'target_entity' => $datafield,
                     );
-                    $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+                    $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
                     if ( !is_null($conflicting_job) )
                         throw new ODRConflictException('Unable to change the fieldtype of this Datafield since a background job is already in progress');
 
-                    // Check whether the fieldtype got changed from something that could be migrated...
-                    $migrate_data = true;
-                    switch ($old_fieldtype_typeclass) {
-                        case 'IntegerValue':
-                        case 'LongText':
-                        case 'LongVarchar':
-                        case 'MediumVarchar':
-                        case 'ShortVarchar':
-                        case 'DecimalValue':
-                        case 'DatetimeValue':    // ...can convert datetime to a text field
-                            break;
+                    // Check whether the change in fieldtype requires a data migration
+                    $migrate_data = self::mustMigrateDatafield($old_fieldtype, $new_fieldtype);
 
-                        default:
-                            $migrate_data = false;
-                            break;
-                    }
-                    // ...to something that needs the migration proccess
-                    switch ($new_fieldtype_typeclass) {
-                        case 'IntegerValue':
-                        case 'LongText':
-                        case 'LongVarchar':
-                        case 'MediumVarchar':
-                        case 'ShortVarchar':
-                        case 'DecimalValue':
-//                        case 'DatetimeValue':    // ...can't really convert anything to a date though
-                            break;
-
-                        case 'Image':
-                            $migrate_data = false;   // unable to migrate actual data to an image field...
-                            $check_image_sizes = true;  // ...but need to ensure that ImageSizes entities exist
-                            break;
-
-                        default:
-                            $migrate_data = false;
-                            break;
-                    }
-
-                    // Not allowed to convert DatetimeValues into anything other than text
-                    if ( $old_fieldtype_typeclass === 'DatetimeValue'
-                        && !($new_fieldtype_typeclass === 'ShortVarchar'
-                            || $new_fieldtype_typeclass === 'MediumVarchar'
-                            || $new_fieldtype_typeclass === 'LongVarchar'
-                            || $new_fieldtype_typeclass === 'LongText'
-                        )
-                    ) {
-                        $migrate_data = false;
-                    }
-
-                    // If going from Multiple radio/select to Single radio/select...then need to run
-                    //  the migration process to ensure that at most one RadioSelection is selected
-                    //  for each drf entry
-                    if ( ($old_fieldtype_typename == 'Multiple Select' || $old_fieldtype_typename == 'Multiple Radio')
-                        && ($new_fieldtype_typename == 'Single Select' || $new_fieldtype_typename == 'Single Radio')
-                    ) {
-                        $migrate_data = true;
-                    }
-
-                    // If fieldtype got changed to or from the Markdown, File, Image, Radio, or Tags
-                    //  fieldtypes, then force a reload of the right slideout, because the displayed
-                    //  options on that slideout are different for these fieldtypes
+                    // If the fieldtype got changed to/from Markdown, File, Image, Radio, or Tags...
+                    //  then force a reload of the right slideout, because the displayed options
+                    //  on that slideout are different for these fieldtypes
                     switch ($old_fieldtype_typeclass) {
                         case 'Radio':
                         case 'File':
@@ -2311,6 +2253,16 @@ class DisplaytemplateController extends ODRCustomController
                             $force_slideout_reload = true;
                             break;
                     }
+
+                    if ( $new_fieldtype_typeclass === 'Image' ) {
+                        // If the fieldtype got changed to an Image, then need to verify the
+                        //  image_sizes entries exist
+                        $check_image_sizes = true;
+                    }
+
+                    // While not technically needed 100% of the time, it's easier if the datafield
+                    //  always gets reloaded when the fieldtype gets changed
+                    $reload_datafield = true;
                 }
 
 
@@ -2334,114 +2286,6 @@ class DisplaytemplateController extends ODRCustomController
                 if ($datafield_form->isValid()) {
                     // No errors in form
 
-                    // ----------------------------------------
-                    // Easier to deal with change of fieldtype and how it relates to searchable here
-                    switch ($submitted_data->getFieldType()->getTypeClass()) {
-                        case 'DecimalValue':
-                        case 'IntegerValue':
-                        case 'LongText':
-                        case 'LongVarchar':
-                        case 'MediumVarchar':
-                        case 'ShortVarchar':
-                        case 'Radio':
-                        case 'Tag':
-                            // All of these fieldtypes can have any value for searchable
-                            break;
-
-                        case 'Image':
-                        case 'File':
-                        case 'Boolean':
-                        case 'DatetimeValue':
-                            // General search is meaningless for these fieldtypes, so they can only
-                            //  be searched via advanced search
-                            if ($submitted_data->getSearchable() == DataFields::GENERAL_SEARCH
-                                || $submitted_data->getSearchable() == DataFields::ADVANCED_SEARCH
-                            ) {
-                                $submitted_data->setSearchable(DataFields::ADVANCED_SEARCH_ONLY);
-                            }
-                            break;
-
-                        default:
-                            // No other fieldtypes can be searched
-                            $submitted_data->setSearchable(DataFields::NOT_SEARCHED);
-                            break;
-                    }
-
-                    // Ensure that specific fieldtypes can't have the property that "prevents user edits"
-                    switch ($submitted_data->getFieldType()->getTypeClass()) {
-                        case 'File':
-                        case 'Image':
-                        case 'Radio':
-                        case 'Tag':
-                        case 'Markdown':
-                            $submitted_data->setPreventUserEdits(false);
-                            break;
-                    }
-
-                    // If the fieldtype changed, then ensure several of the properties are cleared
-                    if ( $old_fieldtype_id !== $new_fieldtype_id ) {
-                        // While not technically needed 100% of the time, it's easier if the datafield
-                        //  always gets reloaded when the fieldtype gets changed
-                        $reload_datafield = true;
-
-                        // Reset a datafield's markdown text if it's not longer a markdown field
-                        if ($new_fieldtype_typeclass !== 'Markdown')
-                            $submitted_data->setMarkdownText('');
-
-                        // Clear properties related to radio options and tags if it's no longer
-                        //  one of those fieldtypes
-                        if ($new_fieldtype_typeclass !== 'Radio' && $new_fieldtype_typeclass !== 'Tag') {
-                            // These properties are shared by radio options and tags
-                            $submitted_data->setRadioOptionNameSort(false);
-                            $submitted_data->setRadioOptionDisplayUnselected(false);
-                        }
-                        if ($new_fieldtype_typeclass !== 'Tag') {
-                            // These properties are only used by tags
-                            $submitted_data->setTagsAllowMultipleLevels(false);
-                            $submitted_data->setTagsAllowNonAdminEdit(false);
-                        }
-
-                        if ($old_fieldtype_typeclass === 'Radio') {
-                            // If the field is no longer a radio field, then delete the cache entry
-                            //  that stores the default radio options...just in case
-                            $cache_service->delete('default_radio_options');
-                        }
-                    }
-
-                    // If the field got changed from Multiple Radio/Select to Single Radio/Select,
-                    //  then ensure the "isDefault" property is only selected for one radio option
-                    if ( ($old_fieldtype_typename == 'Multiple Radio' || $old_fieldtype_typename == 'Multiple Select')
-                        && ($new_fieldtype_typename == 'Single Radio' || $new_fieldtype_typename == 'Single Select')
-                    ) {
-                        $query = $em->createQuery(
-                           'SELECT ro
-                            FROM ODRAdminBundle:RadioOptionsMeta rom
-                            JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
-                            WHERE ro.dataField = :datafield_id AND rom.isDefault = 1
-                            AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
-                            ORDER BY rom.displayOrder'
-                        )->setParameters( array('datafield_id' => $datafield->getId()) );
-                        $results = $query->getResult();
-
-                        $count = 0;
-                        foreach ($results as $ro) {
-                            /** @var RadioOptions $ro */
-                            $count++;
-
-                            // Ignore the first default radio option
-                            if ($count == 1)
-                                continue;
-
-                            // Otherwise, mark the radio option as "not default
-                            $props = array(
-                                'isDefault' => false
-                            );
-                            $emm_service->updateRadioOptionsMeta($user, $ro, $props, true);    // don't flush immediately
-                        }
-                    }
-
-
-                    // ----------------------------------------
                     // Ensure the datafield only allows single uploads if it needs to
                     if ( $single_uploads_only )
                         $submitted_data->setAllowMultipleUploads(false);
@@ -2465,8 +2309,6 @@ class DisplaytemplateController extends ODRCustomController
                     if ( $datafield->getIsUnique() !== $submitted_data->getIsUnique() )
                         $force_slideout_reload = true;
 
-
-                    // ----------------------------------------
                     // If the radio options or tags are now supposed to be sorted by name, ensure
                     //  that happens
                     $sort_radio_options = false;
@@ -2482,7 +2324,7 @@ class DisplaytemplateController extends ODRCustomController
                     // ----------------------------------------
                     // Save all changes made via the submitted form
                     $properties = array(
-                        'fieldType' => $submitted_data->getFieldType()->getId(),
+                        'fieldType' => $submitted_data->getFieldType(),
 
                         'fieldName' => $submitted_data->getFieldName(),
                         'description' => $submitted_data->getDescription(),
@@ -2584,11 +2426,6 @@ class DisplaytemplateController extends ODRCustomController
                     )
                 );
 
-                // These values may have changed if $force_slideout_reload === true...
-                $ret = $dfi_service->canChangeFieldtype($datafield);
-                $prevent_fieldtype_change = $ret['prevent_change'];
-                $prevent_fieldtype_change_message = $ret['prevent_change_message'];
-
                 // The return array may already have some datafield properties in it, don't want to
                 //  completely overwrite...
                 $return['d']['force_slideout_reload'] = $force_slideout_reload;
@@ -2629,6 +2466,84 @@ class DisplaytemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Returns whether a background job needs to be created to migrate data from one fieldtype to
+     * another.
+     *
+     * @param FieldType $old_fieldtype
+     * @param FieldType $new_fieldtype
+     *
+     * @return boolean
+     */
+    private function mustMigrateDatafield($old_fieldtype, $new_fieldtype)
+    {
+        // Don't migrate if there's no change in fieldtype
+        if ( $old_fieldtype->getId() === $new_fieldtype->getId() )
+            return false;
+
+        // Easier to do comparisons with typeclasses and typenames
+        $old_fieldtype_typeclass = $old_fieldtype->getTypeClass();
+        $old_fieldtype_typename = $old_fieldtype->getTypeName();
+        $new_fieldtype_typeclass = $new_fieldtype->getTypeClass();
+        $new_fieldtype_typename = $new_fieldtype->getTypeName();
+
+        // Check whether the fieldtype got changed from something that could be migrated...
+        $migrate_data = true;
+        switch ($old_fieldtype_typeclass) {
+            case 'IntegerValue':
+            case 'LongText':
+            case 'LongVarchar':
+            case 'MediumVarchar':
+            case 'ShortVarchar':
+            case 'DecimalValue':
+            case 'DatetimeValue':    // ...can convert datetime to a text field
+                break;
+
+            default:
+                $migrate_data = false;
+                break;
+        }
+
+        // ...to something that needs the migration proccess
+        switch ($new_fieldtype_typeclass) {
+            case 'IntegerValue':
+            case 'LongText':
+            case 'LongVarchar':
+            case 'MediumVarchar':
+            case 'ShortVarchar':
+            case 'DecimalValue':
+//            case 'DatetimeValue':    // ...can't really convert anything to a date though
+                break;
+
+            default:
+                $migrate_data = false;
+                break;
+        }
+
+        // Not allowed to convert DatetimeValues into anything other than text
+        if ( $old_fieldtype_typeclass === 'DatetimeValue'
+            && !($new_fieldtype_typeclass === 'ShortVarchar'
+                || $new_fieldtype_typeclass === 'MediumVarchar'
+                || $new_fieldtype_typeclass === 'LongVarchar'
+                || $new_fieldtype_typeclass === 'LongText'
+            )
+        ) {
+            $migrate_data = false;
+        }
+
+        // If going from Multiple radio/select to Single radio/select...then need to run
+        //  the migration process to ensure that at most one RadioSelection is selected
+        //  for each drf entry
+        if ( ($old_fieldtype_typename == 'Multiple Select' || $old_fieldtype_typename == 'Multiple Radio')
+            && ($new_fieldtype_typename == 'Single Select' || $new_fieldtype_typename == 'Single Radio')
+        ) {
+            $migrate_data = true;
+        }
+
+        return $migrate_data;
     }
 
 
@@ -3629,6 +3544,8 @@ if ($debug)
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $dfi_service */
+            $dfi_service = $this->container->get('odr.datafield_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
@@ -3650,11 +3567,11 @@ if ($debug)
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Ensure that the searchable/public_status values have the correct number of datafields
+            // Most of the data can come from the cached datatype array
             $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
-            // Generate a csrf token
+            // Generate a csrf token for the form before the datafields are sorted by name
             $token_key = 'Form_';
             foreach ($df_array as $df_id => $df)
                 $token_key .= $df_id.'_';
@@ -3666,12 +3583,29 @@ if ($debug)
                 return strcmp($a['dataFieldMeta']['fieldName'], $b['dataFieldMeta']['fieldName']);
             });
 
+
+            // Going to also need a list of all fieldtypes, and which datafields can have their
+            //  fieldtypes changed
+            /** @var FieldType[] $all_fieldtypes */
+            $all_fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+            $fieldtype_map = array();
+            foreach ($all_fieldtypes as $ft)
+                $fieldtype_map[$ft->getId()] = $ft->getTypeName();
+
+            $fieldtype_info = $dfi_service->getFieldtypeInfo($datatype_array, $datatype->getId());
+
+
+            // ----------------------------------------
+            // Render and return the dialog
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:multi_datafield_properties_dialog_form.html.twig',
                     array(
                         'datafields' => $df_array,
                         'token' => $token,
+
+                        'fieldtype_info' => $fieldtype_info,
+                        'fieldtype_map' => $fieldtype_map,
                     )
                 )
             );
@@ -3710,9 +3644,11 @@ if ($debug)
         try {
             // Ensure required variables exist
             $post = $request->request->all();
-            if ( !isset($post['_token']) || !isset($post['searchable']) || !isset($post['public_status']) )
+            if ( !isset($post['_token']) || !isset($post['fieldtypes']) || !isset($post['searchable']) || !isset($post['public_status']) )
                 throw new ODRBadRequestException();
 
+            foreach ($post['fieldtypes'] as $df_id => $val)
+                $post['fieldtypes'][$df_id] = intval($val);
             foreach ($post['searchable'] as $df_id => $val)
                 $post['searchable'][$df_id] = intval($val);
             foreach ($post['public_status'] as $df_id => $val)
@@ -3724,14 +3660,20 @@ if ($debug)
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $dfi_service */
+            $dfi_service = $this->container->get('odr.datafield_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var DataType $datatype */
@@ -3751,66 +3693,28 @@ if ($debug)
 
 
             // ----------------------------------------
-            // Ensure that all datafields of this datatype are in the post
+            // Going to need hydrated arrays of datafields and fieldtypes to be able to correctly
+            //  migrate data between fieldtypes
+            /** @var FieldType[] $tmp */
+            $tmp = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+            $fieldtype_map = array();
+            foreach ($tmp as $ft)
+                $fieldtype_map[$ft->getId()] = $ft;
+            /** @var FieldType[] $fieldtype_map */
+
+            /** @var DataFields[] $tmp */
+            $tmp = $em->getRepository('ODRAdminBundle:DataFields')->findBy( array('dataType' => $datatype->getId()) );
+            $datafield_map = array();
+            foreach ($tmp as $df)
+                $datafield_map[$df->getId()] = $df;
+            /** @var DataFields[] $datafield_map */
+
+
+            // ----------------------------------------
+            // Get the cached datatype array to verify the form
             $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't include links
             $df_array = $datatype_array[$datatype_id]['dataFields'];
 
-            // Ensure that the provided datafields match the datatype
-            foreach ($df_array as $df_id => $df) {
-                // Verify that all datafields in the post have an entry for public_status...
-                if ( !isset($post['public_status'][$df_id]) )
-                    throw new ODRBadRequestException();
-
-                // ...while all fields other than markdown fields must have a searchable entry
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                if ( $typeclass === 'Markdown' && isset($post['searchable'][$df_id]) )
-                    throw new ODRBadRequestException();
-                else if ( $typeclass !== 'Markdown' && !isset($post['searchable'][$df_id]) )
-                    throw new ODRBadRequestException();
-
-                // Verify that the public status is a boolean
-                $public_status = $post['public_status'][$df_id];
-                if ( $public_status !== 0 && $public_status !== 1 )
-                    throw new ODRBadRequestException();
-
-                // Verify that the searchable status isn't something silly
-                if ($typeclass === 'Markdown') {
-                    $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
-                }
-                else {
-                    $searchable = $post['searchable'][$df_id];
-                    if ($searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY)
-                        throw new ODRBadRequestException();
-
-                    switch ($typeclass) {
-                        case 'DecimalValue':
-                        case 'IntegerValue':
-                        case 'LongText':
-                        case 'LongVarchar':
-                        case 'MediumVarchar':
-                        case 'ShortVarchar':
-                        case 'Radio':
-                        case 'Tag':
-                            // All of these fieldtypes can have any value for searchable
-                            break;
-
-                        case 'Image':
-                        case 'File':
-                        case 'Boolean':
-                        case 'DatetimeValue':
-                            // General search is meaningless for these fieldtypes, so they can only
-                            //  be searched via advanced search
-                            if ($searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH)
-                                $post['searchable'][$df_id] = DataFields::ADVANCED_SEARCH_ONLY;
-                            break;
-
-                        default:
-                            // No other fieldtypes can be searched
-                            $post['searchable'][$df_id] = DataFields::NOT_SEARCHED;
-                            break;
-                    }
-                }
-            }
 
             // Verify the csrf token
             $token_key = 'Form_';
@@ -3823,43 +3727,159 @@ if ($debug)
                 throw new ODRBadRequestException();
 
 
-            // ----------------------------------------
-            // Now that the form is valid, update all the datafields
+            // Also need to verify that the provided fieldtypes are valid
+            $fieldtype_info = $dfi_service->getFieldtypeInfo($datatype_array, $datatype->getId());
+
+
+            // Ensure that the provided datafields match the datatype
             foreach ($df_array as $df_id => $df) {
-                /** @var DataFields $datafield */
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
-                // Datafield already exists...otherwise it wouldn't be in the cached datatype array,
-                //  and therefore the earlier validation would've failed
+                // Verify that none of the datafields got changed to a fieldtype they're not allowed
+                //  to have
+                if ( isset($post['fieldtypes'][$df_id]) ) {
+                    // If a fieldtype entry for this datafield exists in the post, then it's supposed
+                    //  to allow its fieldtype to get changed
+                    if ( $fieldtype_info[$df_id]['prevent_change'] === true )
+                        throw new ODRBadRequestException('Datafield '.$df_id.' is not allowed to change its fieldtype');
 
-                $public_date = new \DateTime('2200-01-01 00:00:00');
-                if ( $post['public_status'][$df_id] === 1 )
-                    $public_date = new \DateTime();
+                    // Verify that the submitted fieldtype is on the list of allowed fieldtypes
+                    if ( !in_array($post['fieldtypes'][$df_id], $fieldtype_info[$df_id]['allowed_fieldtypes']) )
+                        throw new ODRBadRequestException('Datafield '.$df_id.' is not allowed to change to fieldtype '.$post['fieldtypes'][$df_id]);
+                }
+                else {
+                    // If a fieldtype entry for this datafield does not exist in the post, then it's
+                    //  not supposed to allow its fieldtype to get changed
+                    if ( $fieldtype_info[$df_id]['prevent_change'] === false )
+                        throw new ODRBadRequestException('Form submited without fieldtype for datafield '.$df_id);
 
-                $properties = array(
-                    'searchable' => $post['searchable'][$df_id],
-                    'publicDate' => $public_date,
-                );
-                $emm_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
+                    // Verifying the "searchable" entry is easier if a fieldtype entry exists though
+                    $post['fieldtypes'][$df_id] = $df['dataFieldMeta']['fieldType']['id'];
+                }
+
+
+                // Verify that all datafields in the post have an entry for public_status...
+                if ( !isset($post['public_status'][$df_id]) )
+                    throw new ODRBadRequestException('Form submitted without public_status for datafield '.$df_id);
+
+                // ...and that the public status is a boolean
+                $public_status = $post['public_status'][$df_id];
+                if ( $public_status !== 0 && $public_status !== 1 )
+                    throw new ODRBadRequestException('Form submitted with invalid public status for datafield '.$df_id);
+
+
+                // Verify that all fields other than markdown fields have a searchable entry
+                $submitted_fieldtype_id = $post['fieldtypes'][$df_id];
+                $submitted_typeclass = $fieldtype_map[$submitted_fieldtype_id]->getTypeClass();
+                if ( $submitted_typeclass === 'Markdown' && isset($post['searchable'][$df_id]) )
+                    throw new ODRBadRequestException('Form submited with search status for Markdown datafield '.$df_id);
+                else if ( $submitted_typeclass !== 'Markdown' && !isset($post['searchable'][$df_id]) )
+                    throw new ODRBadRequestException('Form submitted without search status for datafield '.$df_id);
+
+                if ( isset($post['searchable'][$df_id]) ) {
+                    $searchable = $post['searchable'][$df_id];
+                    if ($searchable < DataFields::NOT_SEARCHED || $searchable > DataFields::ADVANCED_SEARCH_ONLY)
+                        throw new ODRBadRequestException('Form submitted with illegal search status for datafield '.$df_id);
+                }
+
+                // Don't want to force a searchable value right this second, since it depends on
+                //  whether any fieldtype changes are allowed to proceed
             }
 
-            // Changes made, flush the database
-            $em->flush();
 
-            // Mark the datatype as updated
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // ----------------------------------------
+            // Avoid updating cache entries or reloading the page if no changes have been made
+            $change_made = false;
+
+            // Now that the form is valid, update all the datafields
+            foreach ($df_array as $df_id => $df) {
+                $datafield = $datafield_map[$df_id];
+
+                // public date is never affected by changing the fieldtype, but want to set it equal
+                //  to the datafield's current public date if it's not being changed
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+                if ( $post['public_status'][$df_id] === 1 ) {
+                    if ( $datafield->isPublic() )
+                        $public_date = $datafield->getPublicDate();
+                    else
+                        $public_date = new \DateTime();
+                }
+
+
+                // Don't change the fieldtype if it's not allowed
+                $old_fieldtype = $new_fieldtype = $datafield->getFieldType();
+                if ( $fieldtype_info[$df_id]['prevent_change'] !== true )
+                    $new_fieldtype = $fieldtype_map[ $post['fieldtypes'][$df_id] ];
+
+                // If the user wants to change the fieldtype...
+                $migrate_data = false;
+                if ( $old_fieldtype->getId() !== $new_fieldtype->getId() ) {
+                    // ...then need to verify that changing the fieldtype won't cause a conflict
+                    //  with any in-progress background jobs
+                    $new_job_data = array(
+                        'job_type' => 'migrate',
+                        'target_entity' => $datafield,
+                    );
+                    $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+                    if ( !is_null($conflicting_job) ) {
+                        // Changing the fieldtype here would interfere with a currently running
+                        //  background job...however, throwing an error would interfere with saving
+                        //  this form, so silently prevent the fieldtype from changing instead
+                        $new_fieldtype = $old_fieldtype;
+                    }
+                    else {
+                        // Otherwise, no problem changing the fieldtype...so save whether a migration
+                        //  of data is required
+                        $migrate_data = self::mustMigrateDatafield($old_fieldtype, $new_fieldtype);
+
+                        // Can't actually start the migration here...the fieldtype needs to be
+                        //  saved first
+                    }
+                }
+
+
+                // Only want to save if something got changed...
+                if ( $old_fieldtype->getId() !== $new_fieldtype->getId()
+                    || $datafield->getSearchable() !== $post['searchable'][$df_id]
+                    || $datafield->getPublicDate() !== $public_date
+                ) {
+                    $change_made = true;
+
+                    $properties = array(
+                        'fieldType' => $new_fieldtype,
+                        'searchable' => $post['searchable'][$df_id],
+                        'publicDate' => $public_date,
+                    );
+                    $emm_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
+
+                    // If the fieldtype changed...
+                    if ( $old_fieldtype->getId() !== $new_fieldtype->getId() ) {
+                        // ...then start a migration if it's required
+                        if ( $migrate_data )
+                            self::startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype);
+
+                        // If migrating to an image fieldtype, then ensure ImageSize entities exist
+                        //  for this datafield
+                        if ($new_fieldtype->getTypeClass() === 'Image')
+                            $ec_service->createImageSizes($user, $datafield, true);    // don't flush immediately
+                    }
+
+                    // Clear relevant cache entries for this datafield
+                    $search_cache_service->onDatafieldModify($datafield);
+                }
+            }
 
 
             // ----------------------------------------
-            // Clear relevant cache entries
-            $cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
-            $cache_service->delete('cached_search_template_dt_'.$datatype->getId().'_datafields');
+            // Avoid updating cache entries or reloading the page if no changes have been made
+            if ( $change_made ) {
+                // Changes made, flush the database
+                $em->flush();
 
-            // Due to the possibility of multiple datafields changing their public status, the
-            //  entire childtype may need to get reloaded
-            $reload_child = true;
+                // Mark the datatype as updated
+                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            }
 
             $return['d'] = array(
-                'reload_child' => $reload_child
+                'reload_child' => $change_made
             );
         }
         catch (\Exception $e) {

@@ -165,6 +165,48 @@
             }
         });
 
+        $(".ODRMultiDatafield_warning").hide();
+        $(".ODRMultiDatafield_fieldtype").unbind('change').change(function() {
+            var df_id = $(this).attr('rel');
+
+            var previous_fieldtype_id = $("#df_" + df_id + "_original_fieldtype").val();
+            var new_fieldtype_id = $("#df_" + df_id + "_new_fieldtype").val();
+
+            {# These are defined in design_ajax.html.twig #}
+            var previous_typename = fieldtype_array[previous_fieldtype_id];
+            var new_typename = fieldtype_array[new_fieldtype_id];
+            var str = getFieldtypeMigrationWarning(previous_typename, new_typename);
+
+            // If the requested fieldtype change isn't trivial, then display the warning message
+            if ( $("#has_datarecords").val() === '' || str === '' ) {
+                $("#df_" + df_id + "_warning_text").html('');
+                $("#df_" + df_id + "_warning").hide();
+            }
+            else {
+                $("#df_" + df_id + "_warning_text").html(str);
+                $("#df_" + df_id + "_warning").show();
+            }
+
+            // Enable/disable the searchable dropdown depending on the currently selected fieldtype
+            if ( new_typename == 'Markdown' ) {
+                $("#df_" + df_id + "_searchable").prop('disabled', true)
+                    .prop('title', "Markdown fields can't be searched");
+            }
+            else {
+                $("#df_" + df_id + "_searchable").prop('disabled', false)
+                    .prop('title', "");
+            }
+        });
+
+        $("#ODRMultiDatafield_reset_fieldtype").unbind('click').click(function() {
+            $(".ODRMultiDatafield_fieldtype").each(function(index,elem) {
+                var original_fieldtype_id = $(this).prev().val();
+                $(this).val(original_fieldtype_id);
+            });
+            // Might as well update all fieldtype dropdowns at once
+            $(".ODRMultiDatafield_fieldtype").trigger('change');
+        });
+
         $("#ODRMultiDatafield_all_public").unbind('click').click(function () {
             $(".ODRMultiDatafield_public").each(function() {
                 var is_public = false;

@@ -1654,6 +1654,11 @@ class CloneTemplateService
                         $new_ro->addRadioOptionMetum($new_ro_meta);
                         self::persistObject($new_ro_meta, $user, true);
 
+                        // If the radio option is marked as default, then need to clear a relevant
+                        //  cached entry
+                        if ( $new_ro->getIsDefault() )
+                            $this->cache_service->delete('default_radio_options');
+
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new radio option "'.$new_ro->getOptionName().'" (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().') from master radio option '.$master_ro->getId().' (master_df: '.$master_df->getId().') (master_dt: '.$master_dt->getId().')');
                     }
 
@@ -2088,19 +2093,19 @@ class CloneTemplateService
                     $child_properties = array();
                     if ( !is_null($master_datatype->getExternalIdField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getExternalIdField()->getId() ];
-                        $child_properties['externalIdField'] = $child_df->getId();
+                        $child_properties['externalIdField'] = $child_df;
                     }
                     if ( !is_null($master_datatype->getNameField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getNameField()->getId() ];
-                        $child_properties['nameField'] = $child_df->getId();
+                        $child_properties['nameField'] = $child_df;
                     }
                     if ( !is_null($master_datatype->getSortField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getSortField()->getId() ];
-                        $child_properties['sortField'] = $child_df->getId();
+                        $child_properties['sortField'] = $child_df;
                     }
                     if ( !is_null($master_datatype->getBackgroundImageField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getBackgroundImageField()->getId() ];
-                        $child_properties['backgroundImageField'] = $child_df->getId();
+                        $child_properties['backgroundImageField'] = $child_df;
                     }
 
                     $this->emm_service->updateDatatypeMeta($user, $derived_child_datatype, $child_properties, true);

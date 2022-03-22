@@ -427,12 +427,12 @@ class EditController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'delete_datarecord',
                 'target_entity' => $datarecord,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete this Datarecord, as it would interfere with an already running '.$conflicting_job.' job');
 

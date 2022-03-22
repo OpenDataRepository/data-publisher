@@ -334,12 +334,12 @@ class RadioOptionsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this radio option
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'delete_radio_option',
                 'target_entity' => $datafield,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete this RadioOption, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -531,12 +531,12 @@ class RadioOptionsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'rename_radio_option',
                 'target_entity' => $datafield,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to rename this RadioOption, as it would interfere with an already running '.$conflicting_job.' job');
 

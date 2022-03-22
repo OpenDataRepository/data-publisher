@@ -850,12 +850,12 @@ class TagsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this tag
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'delete_tag',
                 'target_entity' => $datafield,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to delete this Tag, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -1429,12 +1429,12 @@ class TagsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'rename_tag',
                 'target_entity' => $datafield,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to rename this Tag, as it would interfere with an already running '.$conflicting_job.' job');
 

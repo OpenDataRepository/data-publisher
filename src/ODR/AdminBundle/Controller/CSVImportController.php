@@ -141,12 +141,12 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -347,12 +347,12 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'csv_import',
                 'target_entity' => $source_datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -1205,12 +1205,12 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -1396,6 +1396,16 @@ class CSVImportController extends ODRCustomController
                     unset( $unique_columns[$column_id] );
                 }
             }
+
+
+            // TODO - if CSVImport gets the ability to change fieldtypes, then it needs to go here-ish
+            // TODO - fieldtype changes need to happen before validation so the validation runs on the correct fieldtype
+
+            // TODO - ...problem is that the asynchronous background job aspect of fieldtype migration isn't exactly negotiable
+            // TODO - it's mostly better than before, but each field could still take a noticeable amount of time to migrate
+
+            // TODO - juggling some arbitrary number of fieldtype migrations in the middle of a CSVImport is extremely unappealing
+            // TODO - ...additionally, not really liking that "changes are made" before the user gets a validation screen...if they decide to not import, changes have still been made
 
 
             // ----------------------------------------
@@ -2381,12 +2391,12 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -2737,12 +2747,12 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $job_data = array(
+            $new_job_data = array(
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
             );
 
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($job_data);
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
                 throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
@@ -2841,10 +2851,7 @@ class CSVImportController extends ODRCustomController
             /** @var DataFields[] $hydrated_datafields */
             $hydrated_datafields = array();
 
-            // Create any necessary datafields
-            $new_datafields = array();
-            $new_mapping = array();
-            $created = false;
+            // Verify some of the mapping prior to creating any new datafields
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
 
@@ -2855,35 +2862,55 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form');
 
+                    // Might as well store for later...
+                    $hydrated_datafields[$datafield->getId()] = $datafield;
+
+
+                    // Need to check whether this is the datatype's external id field...
                     $is_external_id_field = false;
                     if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield_id )
                         $is_external_id_field = true;
 
-                    // If the datafield is set to prevent user edits, and the user somehow managed
-                    //  to sneak a field into here to force CSVImport to make a change to it, throw
-                    //  an error
-                    // ...unless it's the datatype's external id field, since that one is critical
-                    //  for a CSV import to work properly
+                    // ...because CSVImport needs to ignore the "prevent_user_edits" property when
+                    //  it comes to an external id field.  The property should be enforced on all
+                    //  other fields, however
                     if ( $datafield->getPreventUserEdits() && !$is_external_id_field )
                         throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
-
-                    // Store for later...
-                    $hydrated_datafields[$datafield->getId()] = $datafield;
-
-//print 'loaded existing datafield '.$datafield_id."\n";
-                    $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
                 }
                 else {  // $datafield_id == 'new'
-                    // Grab desired fieldtype from post
-                    if ( $fieldtype_mapping == null )
+                    // Verify that the requested fieldtype for the new datafield exists
+                    if ( is_null($fieldtype_mapping) )
                         throw new ODRException('Invalid Form');
 
                     /** @var FieldType $fieldtype */
                     $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_id] );
-                    if ($fieldtype == null)
+                    if ( is_null($fieldtype) )
                         throw new ODRException('Invalid Form');
+                }
+            }
 
-                    // Create new datafield...not delaying flush on purpose, need datafield id...
+
+            // ----------------------------------------
+            // Create any necessary datafields
+            $new_datafields = array();
+            $new_mapping = array();
+            $created = false;
+            foreach ($datafield_mapping as $column_id => $datafield_id) {
+                $datafield = null;
+
+                if ( is_numeric($datafield_id) ) {
+                    // Datafield is already hydrated
+                    $datafield = $hydrated_datafields[$datafield_id];
+
+                    // Don't need to do anything else to the field at the moment
+//print 'loaded existing datafield '.$datafield_id."\n";
+                    $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
+                }
+                else {  // $datafield_id == 'new'
+                    /** @var FieldType $fieldtype */
+                    $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_id] );
+
+                    // Create new datafield...can't delay flush here, need the id of the new datafield
                     $created = true;
                     $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype);
 
@@ -2932,12 +2959,11 @@ class CSVImportController extends ODRCustomController
 
                     // Also need to delete some search cache entries here...
                     $search_cache_service->onDatafieldCreate($new_datafield);
-
+                    // ...and since the new datafield is already hydrated, store it for later
                     $hydrated_datafields[$new_datafield->getId()] = $new_datafield;
                 }
 
                 // Save all changes
-                // TODO Is this needed here?
                 $em->flush();
 
                 // Update cached versions of datatype and master theme since new datafields were added
