@@ -146,7 +146,12 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                 }
             }
         }
-        else if ( char === '·' ) {
+        else if ( char === '·' || char === '⋅' ) {
+            // First character is "Middle Dot" U+00B7...second character is "Dot Operator" U+22C5
+            // The first one is preferred, so convert the second one into the first
+            if ( char === '⋅' )
+                char = '·';
+
             // This character is typically used to denote a collection of water molecules at the
             //  end of the formula...e.g. Abernathyite: "K(UO2)(AsO4)·3H2O"
             let next_char = '';
