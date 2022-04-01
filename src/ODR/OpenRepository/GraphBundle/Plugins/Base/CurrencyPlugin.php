@@ -14,6 +14,12 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
 // ODR
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+// Events
+use ODR\AdminBundle\Component\Event\PluginAttachEvent;
+use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
+// Services
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
@@ -21,6 +27,11 @@ use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 class CurrencyPlugin implements DatafieldPluginInterface
 {
+
+    /**
+     * @var DatarecordInfoService
+     */
+    private $dri_service;
 
     /**
      * @var EngineInterface
@@ -31,9 +42,11 @@ class CurrencyPlugin implements DatafieldPluginInterface
     /**
      * CurrencyPlugin constructor.
      *
+     * @param DatarecordInfoService $dri_service
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
+    public function __construct(DatarecordInfoService $dri_service, EngineInterface $templating) {
+        $this->dri_service = $dri_service;
         $this->templating = $templating;
     }
 
@@ -136,5 +149,42 @@ class CurrencyPlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Called when a user attaches this render plugin to a datafield.
+     *
+     * @param PluginAttachEvent $event
+     */
+    public function onPluginAttach(PluginAttachEvent $event)
+    {
+        self::clearCacheEntries($event->getRenderPluginInstance());
+    }
+
+
+    /**
+     * Called when a user removes this render plugin from a datafield.
+     *
+     * @param PluginPreRemoveEvent $event
+     */
+    public function onPluginPreRemove(PluginPreRemoveEvent $event)
+    {
+        self::clearCacheEntries($event->getRenderPluginInstance());
+    }
+
+
+    /**
+     * The 'cached_table_data' entries store the values of datafields so the plugins don't have
+     * to be executed every single time a search results page is loaded...therefore, when this
+     * plugin is removed or a setting is changed, these cache entries need to get deleted
+     *
+     * @param RenderPluginInstance $rpi
+     */
+    private function clearCacheEntries($rpi)
+    {
+        // This is a datafield plugin, so getting the datatype via the datafield...
+        $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
+        $this->dri_service->deleteCachedTableData($datatype_id);
     }
 }

@@ -54,7 +54,7 @@ odr_plugins.rruff.ima:
             description:
             type: ShortVarchar
             properties:
-                - must_be_unique    # NOTE - comment this out if abbreviations are added after the rest of the mineral's data
+                - must_be_unique
 
         chemistry_elements:
             name: Chemistry Elements
@@ -80,27 +80,8 @@ odr_plugins.rruff.ima:
             description:
             type: LongVarchar
 
-#        end_member_elements:    # TODO - rruff.info derives end member elements from the RRUFF formula
-#            name: End Member Elements
-#            description:
-#            type: LongVarchar
-#            properties:
-#                - no_user_edits
-#                - is_derived
-        # The IMA plugin doesn't technically need to require this field, since nothing is derived
-        #  from it
-#        end_member_formula:
-#            name: End Member Formula
-#            description:
-#            type: LongVarchar
+        # NOTE - rruff.info has End Member Chemistry/Elements, but not importing or doing anything with them
 
-        # The IMA plugin doesn't technically need to require this field, since nothing is derived
-        #  from it
-#        status_notes:
-#            name: Status Notes
-#            description:
-#            type: LongText
-
-        # TODO - alternate display and search for first/second reference
+        # TODO - alternate display and search for first/second reference?
 
     config_options:

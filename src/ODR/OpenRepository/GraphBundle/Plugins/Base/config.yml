@@ -48,6 +48,7 @@ services:
     odr_plugins.base.currency:
         class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:
+            $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
 
     odr_plugins.base.csvtable:

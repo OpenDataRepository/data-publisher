@@ -47,6 +47,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class WorkerController extends ODRCustomController
@@ -414,24 +415,24 @@ class WorkerController extends ODRCustomController
 
 
                 // ----------------------------------------
-                // Need to delete all cache entries for all affected datarecords
+                // Need to delete all cache entries for all datarecords of the datatype...can't just
+                //  delete them for the datarecords that got migrated
                 $query =
                    'SELECT dr.id AS dr_id, dr.unique_id AS unique_id
-                    FROM '.$table_map[$new_typeclass].' e
-                    LEFT JOIN odr_data_record dr ON e.data_record_id = dr.id
-                    WHERE e.data_field_id = '.$datafield->getId().'
-                    AND e.deletedAt IS NULL AND dr.deletedAt IS NULL';
+                    FROM odr_data_record dr
+                    WHERE dr.data_type_id = '.$datafield->getDataType()->getGrandparent()->getId().'
+                    AND dr.deletedAt IS NULL';
                 $results = $conn->fetchAll($query);
 
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
                     $unique_id = $result['unique_id'];
 
-                    if ( $cache_service->exists('cached_datarecord_'.$dr_id) ) {
+//                    if ( $cache_service->exists('cached_datarecord_'.$dr_id) ) {
                         $cache_service->delete('cached_datarecord_'.$dr_id);
                         $cache_service->delete('cached_table_data_'.$dr_id);
                         $cache_service->delete('json_record_'.$unique_id);
-                    }
+//                    }
                 }
                 $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted cache entries for '.count($results).' datarecords from top-level datatype '.$top_level_datatype->getId());
 
@@ -904,6 +905,216 @@ $ret .= '  Set current to '.$count."\n";
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = $error_prefix.$e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Creates a pile of background jobs with the intent of locating useless storage entities in
+     * the backend database, so they can get deleted.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function startcleanupAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // TODO - this works, but chewing through ~23 million useless rows takes a rather long time
+            throw new ODRException('Do not continue');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $url = $this->generateUrl('odr_storage_entity_cleanup_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Want to find pointless blank values in these tables...
+            $tables = array(
+                'odr_short_varchar',
+
+                // The other ones aren't as important...
+                'odr_medium_varchar',
+                'odr_long_varchar',
+                'odr_long_text',
+                'odr_integer_value',
+                'odr_decimal_value',
+            );
+
+            // Need a list of all datafields...including the "deleted" ones
+            $query = 'SELECT df.id AS df_id FROM odr_data_fields df';
+            $conn = $em->getConnection();
+            $results = $conn->executeQuery($query);
+
+            foreach ($results as $result) {
+                $df_id = intval($result['df_id']);
+
+//                if ( $df_id > 10 )
+//                    break;
+
+                foreach ($tables as $table) {
+                    // Create a job for each datafield/table combo
+                    $payload = json_encode(
+                        array(
+                            'datafield_id' => $df_id,
+                            'table' => $table,
+
+                            'api_key' => $beanstalk_api_key,
+                            'url' => $url,
+                            'redis_prefix' => $redis_prefix,    // debug purposes only
+                        )
+                    );
+
+                    $pheanstalk->useTube('storage_entity_cleanup')->put($payload);
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xfe66de84;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Called by a background process to determine which storage entities from a specific table for
+     * the given datafield can be deleted without losing any historical data.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function storageentitycleanupAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $ret = '';
+
+        $conn = null;
+
+        try {
+
+            throw new ODRException('Do not continue');
+
+            $post = $_POST;
+//print_r($post);
+            if (!isset($post['datafield_id']) || !isset($post['table']) || !isset($post['api_key']))
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $datafield_id = intval($post['datafield_id']);
+            $table = $post['table'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            if ($api_key !== $beanstalk_api_key)
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            $query =
+               'SELECT e.id, e.data_record_fields_id AS drf_id, e.value, e.created, e.updated
+                FROM '.$table.' e
+                WHERE e.data_field_id = '.$datafield_id.'
+                ORDER BY e.data_record_fields_id, e.id';
+            $results = $conn->executeQuery($query);
+
+            $prev_id = $prev_drf = $prev_value = null;
+            $blank_ids = array();
+
+            foreach ($results as $result) {
+                $id = $result['id'];
+                $drf_id = $result['drf_id'];
+                $value = $result['value'];
+                $created = $result['created'];//->format('Y-m-d H:i:s');
+                $updated = $result['updated'];//->format('Y-m-d H:i:s');
+
+                // This drf is different than the previous, so it should be the first storage entity
+                //  for this datarecord/datafield pair
+                if ( $drf_id !== $prev_drf ) {
+                    // If the value is the empty string, and the created date is equal to the
+                    //  updated date...
+                    if ( ($value === '' || is_null($value) ) && $created === $updated) {
+                        // ...then this is most likely an unnecessary entry created by CSVImport,
+                        //  and can get deleted without losing either data or history
+                        $blank_ids[] = $id;
+                    }
+                }
+
+                // Need to keep track of the drf id...
+                $prev_drf = $drf_id;
+            }
+
+            // Be sure the check the last entry in the list
+            if ( $prev_value === '' || is_null($prev_value) )
+                $blank_ids[] = $prev_id;
+
+            if ( !empty($blank_ids) ) {
+                $offset = 0;
+                $length = 5000;
+
+                while (true) {
+                    $slice = array_slice($blank_ids, $offset, $length);
+                    if ( !empty($slice) ) {
+                        $delete_query = 'DELETE FROM '.$table.' WHERE id IN ('.implode(',', $slice).');';
+                        $offset += $length;
+
+                        $rows = $conn->executeUpdate($delete_query);
+                        $logger->debug('WorkerController::storageentitycleanupAction(): deleted '.$rows.' rows from "'.$table.'" for datafield '.$datafield_id);
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+
+        }
+        catch (\Exception $e) {
+            // This is only ever called from command-line...
+            $request->setRequestFormat('json');
+
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0x5e17488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

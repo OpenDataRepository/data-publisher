@@ -80,6 +80,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             DatarecordCreatedEvent::NAME => 'onDatarecordCreated',
             FileDeletedEvent::NAME => 'onFileDeleted',
             FilePreEncryptEvent::NAME => 'onFilePreEncrypt',
+            PluginAttachEvent::NAME => 'onPluginAttach',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
             PluginPreRemoveEvent::NAME => 'onPluginPreRemove',
             PostUpdateEvent::NAME => 'onPostUpdate',
@@ -301,6 +302,46 @@ class ODREventSubscriber implements EventSubscriberInterface
             $relevant_plugins = self::isEventRelevant(get_class($event), $datafield->getDataType(), $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
+                self::relayEvent($relevant_plugins, $event);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched PluginAttach events
+     *
+     * @param PluginAttachEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onPluginAttach(PluginAttachEvent $event)
+    {
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $rpi = $event->getRenderPluginInstance();
+            $rp = $rpi->getRenderPlugin();
+            $datafield = $rpi->getDataField();
+            $datatype = $rpi->getDataType();
+
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
+            if ( !empty($relevant_plugins) ) {
+                // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
             }
         }

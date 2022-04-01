@@ -3517,6 +3517,9 @@ exit();
             $em->flush($datarecord);
             $em->refresh($datarecord);
 
+            // Would prefer to not create storage entities if they're just going to store blank
+            //  values, but need to know which entities already exist in order to pull that off...
+            $existing_storage_entities = null;
 
             // If a datarecord got created, fire off the DatarecordCreated event
             if ($datarecord_created) {
@@ -3537,6 +3540,71 @@ exit();
                     //  the datarecord in a state that the user can't view/edit
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
+                }
+            }
+            else {
+                // The only way for a datarecord to already have storage entities is if it wasn't
+                //  just created.  While the cached datarecord array (inadvertently) stores whether
+                //  a drf entry has an associated storage entity, it's not guaranteed to exist at
+                //  this point in time...the chance of having to rebuild it just to delete it at the
+                //  end of this function, combined with $datarecord possibly being not top-level,
+                //  means that using an SQL query is the better option.
+                $prefixes = array(
+                    'Boolean' => 'bv',
+                    'IntegerValue' => 'iv',
+                    'DecimalValue' => 'dv',
+                    'ShortVarchar' => 'sv',
+                    'MediumVarchar' => 'mv',
+                    'LongVarchar' => 'lv',
+                    'LongText' => 'lt',
+                    'DatetimeValue' => 'dtv',
+
+                    // There will be other tables in the results, but don't care about them
+                );
+
+                $query =
+                   'SELECT drf.id, ft.type_class,
+                        bv.id AS bv_id, bv.data_field_id AS bv_df_id,
+                        iv.id AS iv_id, iv.data_field_id AS iv_df_id,
+                        dv.id AS dv_id, dv.data_field_id AS dv_df_id,
+                        sv.id AS sv_id, sv.data_field_id AS sv_df_id,
+                        mv.id AS mv_id, mv.data_field_id AS mv_df_id,
+                        lv.id AS lv_id, lv.data_field_id AS lv_df_id,
+                        lt.id AS lt_id, lt.data_field_id AS lt_df_id,
+                        dtv.id AS dtv_id, dtv.data_field_id AS dtv_df_id
+                    FROM odr_data_record dr
+                    LEFT JOIN odr_data_record_fields drf ON drf.data_record_id = dr.id
+                    LEFT JOIN odr_data_fields df ON drf.data_field_id = df.id
+                    LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                    LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
+                    LEFT JOIN odr_boolean bv ON drf.id = bv.data_record_fields_id
+                    LEFT JOIN odr_integer_value iv ON drf.id = iv.data_record_fields_id
+                    LEFT JOIN odr_decimal_value dv ON drf.id = dv.data_record_fields_id
+                    LEFT JOIN odr_short_varchar sv ON drf.id = sv.data_record_fields_id
+                    LEFT JOIN odr_medium_varchar mv ON drf.id = mv.data_record_fields_id
+                    LEFT JOIN odr_long_varchar lv ON drf.id = lv.data_record_fields_id
+                    LEFT JOIN odr_long_text lt ON drf.id = lt.data_record_fields_id
+                    LEFT JOIN odr_datetime_value dtv ON drf.id = dtv.data_record_fields_id
+                    WHERE dr.id = '.$datarecord->getId().'
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+                    AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+                $conn = $em->getConnection();
+                $results = $conn->executeQuery($query);
+
+                foreach ($results as $result) {
+                    $typeclass = $result['type_class'];
+                    if ( isset($prefixes[$typeclass]) ) {
+                        // If this is a relevant fieldtype...
+                        $prefix = $prefixes[$typeclass];
+
+                        if ( !is_null($result[$prefix.'_id']) && !is_null($result[$prefix.'_df_id']) ) {
+                            // ...and there's an active storage entity for this drf entry...
+                            $df_id = $result[$prefix.'_df_id'];
+                            $e_id = $result[$prefix.'_id'];
+                            // ...then store the id for later reference
+                            $existing_storage_entities[$df_id] = $e_id;
+                        }
+                    }
                 }
             }
 
@@ -3561,11 +3629,6 @@ exit();
                     $column_data = trim($column_data);
 
                     if ($typeclass == 'Boolean') {
-                        // Get the existing entity for this datarecord/datafield, or create a new
-                        //  one if it doesn't exist
-                        /** @var ODRBoolean $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-
                         // Assume the field is checked initially...
                         $checked = true;
                         switch ($column_data) {
@@ -3578,9 +3641,25 @@ exit();
                                 break;
                         }
 
-                        // Ensure the value in the datafield matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $checked));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && !$checked ) {
+                            // There's no existing storage entity, and the CSV file doesn't have
+                            //  a 'checked' value...do nothing, rather than create a storage entity
+                            //  just to store nothing
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store an unchecked value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
+
+                            // Get the existing entity for this datarecord/datafield, or create a new
+                            //  one if it doesn't exist
+                            /** @var ODRBoolean $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+
+                            // Ensure the value in the datafield matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $checked));
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
                         $csv_filenames = array();
@@ -3766,89 +3845,131 @@ exit();
                             $em->flush();
                     }
                     else if ($typeclass == 'IntegerValue') {
-                        // Get the existing entity for this datarecord/datafield, or create a new
-                        //  one if it doesn't exist
-                        /** @var IntegerValue $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
 
-                        // NOTE - intentionally not using intval() here...updateStorageEntity() has
-                        //  to have values passed as strings, and will convert back to integer before
-                        //  saving
-                        $value = '';
-                        if ( ValidUtility::isValidInteger($column_data) )
-                            $value = $column_data;
+                            // Get the existing entity for this datarecord/datafield, or create a new
+                            //  one if it doesn't exist
+                            /** @var IntegerValue $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                            // NOTE - intentionally not using intval() here...updateStorageEntity() has
+                            //  to have values passed as strings, and will convert back to integer before
+                            //  saving
+                            $value = '';
+                            if ( ValidUtility::isValidInteger($column_data) )
+                                $value = $column_data;
 
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'DecimalValue') {
-                        // Get the existing entity for this datarecord/datafield, or create a new
-                        //  one if it doesn't exist
-                        /** @var DecimalValue $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
 
-                        // NOTE - intentionally not using floatval() here...updateStorageEntity() has
-                        //  to have values passed as strings, and DecimalValue::setValue() will deal
-                        //  with any string received
-                        $value = '';
-                        if ( ValidUtility::isValidDecimal($column_data) )
-                            $value = $column_data;
+                            // Get the existing entity for this datarecord/datafield, or create a new
+                            //  one if it doesn't exist
+                            /** @var DecimalValue $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                            // NOTE - intentionally not using floatval() here...updateStorageEntity() has
+                            //  to have values passed as strings, and DecimalValue::setValue() will deal
+                            //  with any string received
+                            $value = '';
+                            if ( ValidUtility::isValidDecimal($column_data) )
+                                $value = $column_data;
 
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'LongText' || $typeclass == 'LongVarchar' || $typeclass == 'MediumVarchar' || $typeclass == 'ShortVarchar') {
-                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
-                        /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-
-                        // Need to truncate overly-long strings here...otherwise doctrine will throw
-                        //  an error and the import of this record will fail
-                        $truncated = false;
-                        if ( $typeclass == 'ShortVarchar' && strlen($column_data) > 32 ) {
-                            $truncated = true;
-                            $column_data = substr($column_data, 0, 32);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
                         }
-                        else if ( $typeclass == 'MediumVarchar' && strlen($column_data) > 64 ) {
-                            $truncated = true;
-                            $column_data = substr($column_data, 0, 64);
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
+
+                            // Get the existing entity for this datarecord/datafield, or create a
+                            //  new one if it doesn't exist
+                            /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+
+                            // Need to truncate overly-long strings here...otherwise doctrine will throw
+                            //  an error and the import of this record will fail
+                            $truncated = false;
+                            if ( $typeclass == 'ShortVarchar' && strlen($column_data) > 32 ) {
+                                $truncated = true;
+                                $column_data = substr($column_data, 0, 32);
+                            }
+                            else if ( $typeclass == 'MediumVarchar' && strlen($column_data) > 64 ) {
+                                $truncated = true;
+                                $column_data = substr($column_data, 0, 64);
+                            }
+                            else if ( $typeclass == 'LongVarchar' && strlen($column_data) > 255 ) {
+                                $truncated = true;
+                                $column_data = substr($column_data, 0, 255);
+                            }
+
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
+
+                            if ( $truncated )
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
+                            else
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
                         }
-                        else if ( $typeclass == 'LongVarchar' && strlen($column_data) > 255 ) {
-                            $truncated = true;
-                            $column_data = substr($column_data, 0, 255);
-                        }
-
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
-
-                        if ( $truncated )
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
-                        else
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
-
                     }
                     else if ($typeclass == 'DatetimeValue') {
-                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
-                        /** @var DatetimeValue $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
 
-                        // Turn the data into a DateTime object...csvvalidateAction() already
-                        //  would've warned if column data isn't actually a date
-                        $value = null;
-                        if ( $column_data !== '' )
-                            $value = new \DateTime($column_data);
+                            // Get the existing entity for this datarecord/datafield, or create a
+                            //  new one if it doesn't exist
+                            /** @var DatetimeValue $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
-                        if ($value == null)
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
-                        else
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
+                            // Turn the data into a DateTime object...csvvalidateAction() already
+                            //  would've warned if column data isn't actually a date
+                            $value = null;
+                            if ( $column_data !== '' )
+                                $value = new \DateTime($column_data);
 
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            if ($value == null)
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
+                            else
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'Radio') {
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";

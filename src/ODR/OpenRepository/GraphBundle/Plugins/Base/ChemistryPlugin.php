@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 // Entities
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 // Events
+use ODR\AdminBundle\Component\Event\PluginAttachEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
 // Services
@@ -201,6 +202,17 @@ class ChemistryPlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Called when a user attaches this render plugin to a datafield.
+     *
+     * @param PluginAttachEvent $event
+     */
+    public function onPluginAttach(PluginAttachEvent $event)
+    {
+        self::clearCacheEntries($event->getRenderPluginInstance());
     }
 
 

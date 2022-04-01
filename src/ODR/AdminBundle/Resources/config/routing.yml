@@ -1110,6 +1110,15 @@ odr_sync_with_template_worker:
     defaults: { _controller: ODRAdminBundle:Worker:syncwithtemplate }
     methods: [ POST ]
 
+odr_storage_entity_cleanup:
+    path: /admin/start_cleanup
+    defaults: { _controller: ODRAdminBundle:Worker:startcleanup }
+
+odr_storage_entity_cleanup_worker:
+    path: /beanstalk/storage_entity_cleanup
+    defaults: { _controller: ODRAdminBundle:Worker:storageentitycleanup }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------

@@ -709,8 +709,9 @@ class DatarecordInfoService
                     $drf['child_tagSelections'] = $selections;
                 }
 
-                // Store the resulting $drf array by its datafield id
-                $new_drf_array[$df_id] = $drf;
+                // Store the resulting $drf array by its datafield id if the storage entity exists
+                if ( !empty($drf[$expected_fieldtype]) )
+                    $new_drf_array[$df_id] = $drf;
             }
 
             unset( $datarecord_data[$dr_num]['dataRecordFields'] );

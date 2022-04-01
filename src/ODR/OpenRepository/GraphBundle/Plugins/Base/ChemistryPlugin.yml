@@ -8,6 +8,7 @@ odr_plugins.base.chemistry:
     override_child: false
     description: A datafield containing a chemical formula.
     registered_events:
+        PluginAttachEvent: onPluginAttach
         PluginOptionsChangedEvent: onPluginOptionsChanged
         PluginPreRemoveEvent: onPluginPreRemove
     required_fields:

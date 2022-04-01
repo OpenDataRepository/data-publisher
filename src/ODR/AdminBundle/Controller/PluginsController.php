@@ -30,6 +30,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\PluginAttachEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
 // Exceptions
@@ -2819,6 +2820,7 @@ class PluginsController extends ODRCustomController
             }
 
 
+            $plugin_attached = false;
             $plugin_fields_added = false;
             $plugin_fields_changed = false;
             $plugin_settings_changed = false;
@@ -2879,6 +2881,8 @@ class PluginsController extends ODRCustomController
                 // ...then create a renderPluginInstance entity tying the two together
                 $selected_render_plugin_instance = $ec_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
                 /** @var RenderPluginInstance $selected_render_plugin_instance */
+
+                $plugin_attached = true;
             }
 
 
@@ -2969,6 +2973,29 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Should be able to flush here
             $em->flush();
+
+            if ( $plugin_attached ) {
+                // Some render plugins need to do stuff when they get added to a datafield/datatype
+                // e.g. Currency plugins deleting cached table entries
+
+                // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                //  by the event subscribers will prevent further progress...
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new PluginAttachEvent($selected_render_plugin_instance, $user);
+                    $dispatcher->dispatch(PluginAttachEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't particularly want to rethrow the error since it'll interrupt
+                    //  everything downstream of the event (such as file encryption...), but
+                    //  having the error disappear is less ideal on the dev environment...
+                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
+                }
+            }
 
             if ( $plugin_fields_added || $plugin_fields_changed || $plugin_settings_changed ) {
                 // Some render plugins need to do stuff when their settings get changed
