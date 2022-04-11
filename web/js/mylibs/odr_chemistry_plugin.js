@@ -16,7 +16,8 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
     // If the input has '<sub>' or '<sup>' HTML tags already, then suggest replacing them with the
     //  provided sub/superscript delimiters
     input = input.replaceAll('<sub>', subscript_delimiter).replaceAll('</sub>', subscript_delimiter)
-        .replaceAll('<sup>', superscript_delimiter).replaceAll('</sup>', superscript_delimiter);
+        .replaceAll('<sup>', superscript_delimiter).replaceAll('</sup>', superscript_delimiter)
+        .replaceAll('&nbsp;', ' ');
 
     let len = input.length;
     for (let i = 0; i < len; i++) {
@@ -278,6 +279,29 @@ function ODR_prettifyChemicalFormula(input, is_textarea, subscript_delimiter = '
     }
 
     return output;
+}
+
+/**
+ * Runs ODR_parseChemicalFormula() on the given input element using the given delimiters, and prints
+ * the output to parsed_element.  If the remove_whitespace element is checked, then all whitespace
+ * characters are stripped from the input element's value before running ODR_parseChemicalFormula()
+ *
+ * @param {HTMLElement} input_element
+ * @param {HTMLElement} remove_whitespace_element
+ * @param {HTMLElement} parsed_element
+ * @param {string} [subscript_delimiter]
+ * @param {string} [superscript_delimiter]
+ */
+function ODR_runChemistryDialog(input_element, remove_whitespace_element, parsed_element, subscript_delimiter = '_', superscript_delimiter = '^') {
+    // Regardless of whether it appears to be formatted, parse the formula
+    let input_value = $(input_element).val();
+    if ( $(remove_whitespace_element).is(':checked') )
+        input_value = input_value.replaceAll(/\s|&nbsp;/g, '');
+    let output = ODR_parseChemicalFormula( input_value, subscript_delimiter,superscript_delimiter );
+
+    // Display the parsed formula
+    $(parsed_element).val(output);
+    $(parsed_element).trigger('keyup');
 }
 
 /**

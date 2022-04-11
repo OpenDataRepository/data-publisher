@@ -25,6 +25,10 @@
             <i class="fa fa-exclamation-triangle" style="color:red;"></i>&nbsp;The field has at least one instance of a duplicated superscript.
         </div>
 
+        <label for="{{ input_id }}_remove_whitespace" class="pure-u-1" style="font-size: 100%;">
+            <input type="checkbox" id="{{ input_id }}_remove_whitespace" />&nbsp;Remove whitespace from source field&nbsp;&nbsp;<i class="fa fa-info-circle"></i>&nbsp;Will reset any changes made!
+        </label>
+
     {% if field_typename == "Paragraph Text" %}
         <textarea id="{{ input_id }}_parsed" class="ODRChemistryPlugin_input pure-u-20-24" title="The field's value with the suggested changes applied.  You can make more changes if needed."></textarea>
     {% else %}
@@ -50,6 +54,19 @@
 
 <script>
     $(function() {
+        // Attempt to intelligently determine whether the "remove whitespace" box should be checked
+        let input = $("#{{ input_id }}").val().replaceAll(/\s|&nbsp;/g, ' ');
+        let chars = [];
+        let num_spaces = 0;
+        let len = input.length;
+        for (let i = 0; i < len; i++) {
+            chars[i] = input.charAt(i);
+            if ( chars[i] === ' ' )
+                num_spaces++;
+        }
+        if ( num_spaces <= 4 )
+            $("#{{ input_id }}_remove_whitespace").prop('checked', true);
+
         $("#{{ input_id }}_chemistry_trigger").unbind('click').click(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
@@ -79,11 +96,7 @@
                     $("#{{ input_id }}_text_warning").hide();
                 }
                 // Regardless of whether it appears to be formatted, parse the formula
-                let output = ODR_parseChemicalFormula( $("#{{ input_id }}").val(), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
-
-                // Display the parsed formula
-                $("#{{ input_id }}_parsed").val(output);
-                $("#{{ input_id }}_parsed").trigger('keyup');
+                ODR_runChemistryDialog( $("#{{ input_id }}"), $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
 
                 // ...and show the popup
                 $("#{{ input_id }}_popup").show()
@@ -98,6 +111,10 @@
             }
         });
 
+        $("#{{ input_id }}_remove_whitespace").unbind('change').change(function(event) {
+            event.preventDefault();
+            ODR_runChemistryDialog( $("#{{ input_id }}"), $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+        });
         $("#{{ input_id }}_prettify_toggle").unbind('change').change(function(event) {
             event.preventDefault();
             $("#{{ input_id }}_parsed").trigger('keyup');
