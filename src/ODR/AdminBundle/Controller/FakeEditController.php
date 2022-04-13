@@ -585,7 +585,7 @@ class FakeEditController extends ODRCustomController
                 //  load the renderPlugin itself
                 $load_render_plugin = false;
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
-                    if (isset($rpf['properties']['is_derived'])) {
+                    if ( isset($rpf['properties']['is_derived']) ) {
                         $load_render_plugin = true;
                         break;
                     }

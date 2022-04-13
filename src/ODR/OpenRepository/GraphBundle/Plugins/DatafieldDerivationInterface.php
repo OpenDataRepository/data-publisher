@@ -8,16 +8,15 @@
  * Released under the GPLv2
  *
  * All render plugins that have at least one datafield with a value derived from other datafields
- * via the onPostUpdate event must implement this interface.
+ * must implement this interface.
  *
+ * At the moment, this is only used by the FakeEdit Controller so it can correctly enforce uniquness
+ * constraints...e.g. "Mineral Name" is supposed to be unique, but it's derived from "Mineral Display Name".
+ * Since "Mineral Name" is derived, it's not supposed to have a user-provided value via FakeEdit...
+ * so this means "Mineral Display Name" must not be empty, instead.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
-
-// Entities
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 
 interface DatafieldDerivationInterface
 {
@@ -30,17 +29,4 @@ interface DatafieldDerivationInterface
      * @return array
      */
     public function getDerivationMap($render_plugin_instance);
-
-    /**
-     * Gathers parameters so that a datatype plugin can provide an alternate template for reloading
-     * a derived datafield.
-     *
-     * @param string $rendering_context
-     * @param RenderPluginInstance $render_plugin_instance
-     * @param DataFields $datafield
-     * @param DataRecord $datarecord
-     *
-     * @return array
-     */
-    public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord);
 }

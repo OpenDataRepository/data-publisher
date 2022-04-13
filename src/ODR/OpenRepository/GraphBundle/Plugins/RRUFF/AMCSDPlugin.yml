@@ -3,8 +3,9 @@ odr_plugins.rruff.amcsd:
     category: RRUFF
     datatype: true
     render: true
-    version: 1.1.1
+    version: 1.2.0
     override_fields: true
+    override_field_reload: false
     override_child: false
     description: This plugin attempts to mimic the original behavior of the American Mineralogy Crystal Structure Database (AMCSD).  Most of the required fields will be automatically filled out from an uploaded AMC File.
     registered_events:
@@ -18,11 +19,11 @@ odr_plugins.rruff.amcsd:
     # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
     #####################
 
-    # NOTE: the lack of the "is_derived" property for the required fields is intentional...the render
-    #  plugin overrides the "AMC File" rendering to force a reload of the entire edit page when that
-    #  datafield triggers the FileDeleted and FilePreEncrypt events...this page reload accomplishes
-    #  the same thing
-    # NOTE: this also means that AMCSDPlugin.php does NOT need to implement DatafieldDerivationInterface
+    # NOTE: the "is_derived" property for the required fields isn't technically needed...that
+    #  property is primarily for "surgical reloading" of a derived field after a source field is
+    #  modified...but the AMCSD plugin instead overrides the "AMC File" rendering to force a reload
+    #  of the entire edit page when that datafield triggers the FileDeleted and FilePreEncrypt events.
+    # NOTE: this also means that AMCSDPlugin.php does NOT need to implement DatafieldReloadOverrideInterface
 
     required_fields:
         fileno:
@@ -38,18 +39,21 @@ odr_plugins.rruff.amcsd:
             type: ShortVarchar    # must allow leading zeros
             properties:
                 - no_user_edits
+                - is_derived
         authors:
             name: Authors
             description: The names of the authors that published the data
             type: LongText
             properties:
                 - no_user_edits
+                - is_derived
         contents:
             name: File Contents
             description: A copy of the AMC File's contents
             type: LongText
             properties:
                 - no_user_edits
+                - is_derived
 
         amc_file:
             name: AMC File
@@ -76,46 +80,54 @@ odr_plugins.rruff.amcsd:
             type: MediumVarchar
             properties:
                 - no_user_edits
+                - is_derived
         a:
             name: a
             description: The value of the "a" cellparameter from the AMC File
             type: DecimalValue
             properties:
                 - no_user_edits
+                - is_derived
         b:
             name: b
             description: The value of the "b" cellparameter from the AMC File
             type: DecimalValue
             properties:
                 - no_user_edits
+                - is_derived
         c:
             name: c
             description: The value of the "c" cellparameter from the AMC File
             type: DecimalValue
             properties:
                 - no_user_edits
+                - is_derived
         alpha:
             name: alpha
             description: The value of the "alpha" cellparameter from the AMC File
             type: DecimalValue
             properties:
                 - no_user_edits
+                - is_derived
         beta:
             name: beta
             description: The value of the "beta" cellparameter from the AMC File
             type: DecimalValue
             properties:
                 - no_user_edits
+                - is_derived
         gamma:
             name: gamma
             description: The value of the "gamma" cellparameter from the AMC File
             type: DecimalValue
             properties:
                 - no_user_edits
+                - is_derived
         space_group:
             name: Space Group
             description: The value of the "Space Group" field in the AMC File
             type: ShortVarchar
             properties:
                 - no_user_edits
+                - is_derived
     config_options:

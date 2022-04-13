@@ -59,7 +59,9 @@
 {% else %}
     <h1 class="no-margin-top-phone">
         <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        {% if page_type != 'edit' %}
         <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
+        {% endif %}
     </h1>
 {% endif %}
 
@@ -75,11 +77,13 @@
             </li>
         {% endif %}
 
+        {% if page_type != 'edit' %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ChooseView" class="pure-button">
                     Choose View
                 </label>
             </li>
+        {% endif %}
 
         {% if display_add_record %}
             <li class="pure-menu-item SpacerRight">

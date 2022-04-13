@@ -48,6 +48,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symphony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -226,6 +227,7 @@ class PluginsController extends ODRCustomController
             'render',
             'version',
             'override_fields',
+            'override_field_reload',
             'override_child',
             'description',
             'registered_events',
@@ -363,6 +365,13 @@ class PluginsController extends ODRCustomController
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement DatafieldDerivationInterface since it has at least one derived field');
         if ( !$has_derived_field && ($plugin_service instanceof DatafieldDerivationInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldDerivationInterface since it has no derived fields');
+
+        // If a plugin must implement DatafieldReloadOverrideInterface if and only if it claims to
+        //  override datafield reloading
+        if ( $plugin_config['override_field_reload'] && !($plugin_service instanceof DatafieldReloadOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement DatafieldReloadOverrideInterface to match its config file');
+        if ( !$plugin_config['override_field_reload'] && ($plugin_service instanceof DatafieldReloadOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldReloadOverrideInterface to match its config file');
 
 
         // ----------------------------------------
@@ -556,6 +565,9 @@ class PluginsController extends ODRCustomController
 
             if ( $installed_plugin_data['overrideFields'] !== $plugin_config['override_fields'] )
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_fields';
+
+            if ( $installed_plugin_data['overrideFieldReload'] !== $plugin_config['override_field_reload'] )
+                $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_field_reload';
 
 
             // Should doublecheck the plugin type too...
@@ -1129,6 +1141,11 @@ class PluginsController extends ODRCustomController
             else
                 $render_plugin->setOverrideFields(true);
 
+            if ( $plugin_data['override_field_reload'] === false )
+                $render_plugin->setOverrideFieldReload(false);
+            else
+                $render_plugin->setOverrideFieldReload(true);
+
             if ( $plugin_data['override_child'] === false )
                 $render_plugin->setOverrideChild(false);
             else
@@ -1494,6 +1511,11 @@ class PluginsController extends ODRCustomController
                 $render_plugin->setOverrideFields(false);
             else
                 $render_plugin->setOverrideFields(true);
+
+            if ( $plugin_data['override_field_reload'] === false )
+                $render_plugin->setOverrideFieldReload(false);
+            else
+                $render_plugin->setOverrideFieldReload(true);
 
             if ( $plugin_data['override_child'] === false )
                 $render_plugin->setOverrideChild(false);

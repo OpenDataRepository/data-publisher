@@ -3,8 +3,9 @@ odr_plugins.base.url:
     category: Base
     datatype: false
     render: true
-    version: 1.1.0
+    version: 1.2.0
     override_fields: false
+    override_field_reload: false
     override_child: false
     description: The contents of this datafield will be used as the basis for a URL link.
     registered_events:

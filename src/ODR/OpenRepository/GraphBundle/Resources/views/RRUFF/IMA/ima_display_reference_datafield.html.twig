@@ -1,0 +1,115 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {# These reference fields are only allowed to be integers #}
+    {% if field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
+        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+<form class="pure-u-1" id="ViewForm_{{ unique_id }}">
+
+    {# Intentionally ignoring the possibility of a datafield render plugin #}
+    {% set rendered_related_reference = false %}
+
+    {# Extract the related reference data from its array #}
+    {% set reference_dt = related_reference_info['datatype'] %}
+    {% set reference_df_id = related_reference_info['id_field'] %}
+    {% set reference_theme = related_reference_info['theme'] %}
+    {% set reference_a_dr = related_reference_info['datarecord_a'] %}
+    {% set reference_b_dr = related_reference_info['datarecord_b'] %}
+    {% set can_view_datarecord_a = related_reference_info['can_view_datarecord_a'] %}
+    {% set can_view_datarecord_b = related_reference_info['can_view_datarecord_b'] %}
+
+    {# The related reference for this field isn't guaranteed to exist #}
+    {% set reference_dr = null %}
+    {% if rpf_name == 'Reference A' and reference_a_dr is not null %}
+        {% set reference_dr = reference_a_dr %}
+    {% elseif rpf_name == 'Reference B' and reference_b_dr is not null %}
+        {% set reference_dr = reference_b_dr %}
+    {% endif %}
+
+    {# If it does exist, then it's also not guaranteed that the user has permissions to view it #}
+    {% set can_view_related_reference = false %}
+    {% if rpf_name == 'Reference A' and reference_a_dr is not null and can_view_datarecord_a %}
+        {% set can_view_related_reference = true %}
+    {% elseif rpf_name == 'Reference B' and reference_b_dr is not null and can_view_datarecord_b %}
+        {% set can_view_related_reference = true %}
+    {% endif %}
+
+    {# If the user can't view the reference, then the loop below won't be able to locate reference_dr #}
+
+    <fieldset>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+
+        {% if reference_dt is null %}
+            <div class="pure-u-1">
+                <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;The "{{ datatype.dataTypeMeta.shortName }}" database is not linked to a database using the "RRUFF Reference" render plugin.
+            </div>
+        {% else %}
+            {# Despite the underlying field being an integer, we don't want to render the integer value #}
+            {# Instead, we want to render the related reference if it exists #}
+            {% set rendering_options = {'is_top_level': false, 'context': 'text'} %}
+
+            {# The render plugin should always be able to be run, so just extract the render plugin instance #}
+            {% set render_plugin_instance = null %}
+            {% set can_execute_plugin = true %}
+            {% for rpi_num,rpi in reference_dt.renderPluginInstances %}
+                {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+                    {# Only want to save the render_plugin_instance if it's render-able #}
+                    {% set render_plugin_instance = rpi %}
+                {% endif %}
+            {% endfor %}
+
+            {% set content = '' %}
+            {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
+                {# Need to verify that the user can see  #}
+                {% set reference_dt_id = reference_dt['id'] %}
+                {% set linked_records = [] %}
+                {% if datarecord['children'][reference_dt_id] is defined %}
+                    {% set linked_records = datarecord['children'][reference_dt_id] %}
+                {% endif %}
+
+                {% for dr_id,dr in linked_records %}
+                    {% if reference_dr is not null and reference_dr['id'] == dr_id %}
+                        {# The user will always be able to view reference_dr if it's in linked_records #}
+                        {% set rendered_related_reference = true %}
+
+                        {# [datarecord] converts datarecord into a single-element array #}
+                        {% set content = [reference_dr]|datatype_plugin(reference_dt, render_plugin_instance, reference_theme, rendering_options) %}
+                        {% if content|length > 0 %}
+                            <div class="ODRRenderPluginContent ODRReference">{{ content|raw }}</div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            {# If the field has a value but nothing got rendered... #}
+            {% if valuefield_value != '' and not rendered_related_reference %}
+                <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                {% if reference_dr is null %}
+                    <input id="{{ input_id }}" class="pure-u-1 Cursor ODRInputError" type="text" value="" readonly="readonly" style="border: 1px solid red;" />
+                    <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">This field no longer points to a valid reference.</label>
+                {% elseif not can_view_related_reference %}
+                    <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">You are not permitted to view the related reference.</label>
+                {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+
+    </fieldset>
+</form>
+{% endspaceless %}

@@ -1,6 +1,6 @@
 {% spaceless %}
 
-{% if is_top_level == 1 %}
+{% if is_top_level == 1 and original_context != 'text' %}
 <div class="ODRContentWrapper">
     <div class="ODRThemeElement">
         <div class="ODRInnerBox">
@@ -8,7 +8,10 @@
 
 {% set rendering_options = {'context': 'text'} %}
 
-<div class="ODRRenderPluginContent{% if is_top_level == 1 %} ODRReferenceSingle{% else %} ODRReference{% endif %}">
+{% if original_context != 'text' %}
+    <div class="ODRRenderPluginContent{% if is_top_level == 1 %} ODRReferenceSingle{% else %} ODRReference{% endif %}">
+{% endif %}
+
 {% if mapping is defined %}
     {% set author = '' %}
     {% if mapping.authors is defined %}
@@ -93,7 +96,7 @@
     {% endif %}
 #}
 
-    {% if mapping.file|length > 0 %}
+    {% if mapping.file|length > 0 and original_context != 'text' %}
         {% for file in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
             &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" rel="{{ file.id }}">[view file]</a>
 
@@ -104,9 +107,12 @@
         {% endfor %}
     {% endif %}
 {% endif %}
-</div>
 
-{% if is_top_level == 1 %}
+{% if original_context != 'text' %}
+    </div>
+{% endif %}
+
+{% if is_top_level == 1 and original_context != 'text' %}
         </div>
     </div>
 </div>

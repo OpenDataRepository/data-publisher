@@ -130,6 +130,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                 // Needs to be executed in both fake_edit (for autogeneration) and display modes
                 return true;
             }
+
+            // Also need a "text" mode
+            if ( $rendering_options['context'] === 'text' )
+                return true;
         }
 
         // Otherwise, don't execute the plugin
@@ -186,7 +190,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
             // ----------------------------------------
             // Output depends on which context the plugin is being executed from
             $output = '';
-            if ( $rendering_options['context'] === 'display' ) {
+            if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'text' ) {
 
                 // Want to locate the values for each of the mapped datafields
                 $datafield_mapping = array();
@@ -195,7 +199,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                     $rpf_df_id = $rpf_df['id'];
 
                     $df = null;
-                    if (isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]))
+                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                         $df = $datatype['dataFields'][$rpf_df_id];
 
                     if ($df == null)
@@ -207,9 +211,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                     $key = strtolower(str_replace(' ', '_', $rpf_name));
 
                     // The datafield may have a render plugin that should be executed...
-                    if (!empty($df['renderPluginInstances'])) {
+                    if ( !empty($df['renderPluginInstances']) ) {
                         foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
-                            if ($rpi['renderPlugin']['render'] === true) {
+                            if ( $rpi['renderPlugin']['render'] === true ) {
                                 // ...if it does, then create an array entry for it
                                 $datafield_mapping[$key] = array(
                                     'datafield' => $df,
@@ -289,6 +293,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                         'mapping' => $datafield_mapping,
 
                         'is_top_level' => $is_top_level,
+                        'original_context' => $rendering_options['context'],
                     )
                 );
             }

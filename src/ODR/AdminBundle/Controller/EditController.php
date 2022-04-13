@@ -2048,6 +2048,8 @@ class EditController extends ODRCustomController
 
 
             // Need to locate the theme element being reloaded...
+            // TODO - ODRRenderService can technically render a non-master theme for Edit mode...
+            // TODO - ...though self::editAction() doesn't let it happen, yet
             $master_theme = $ti_service->getDatatypeMasterTheme($datatype->getId());
             $query = $em->createQuery(
                'SELECT te
@@ -2075,14 +2077,16 @@ class EditController extends ODRCustomController
                 FROM ODRAdminBundle:RenderPluginFields rpf
                 JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginFields = rpf
                 JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPlugin rp WITH rpi.renderPlugin = rp
                 WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id
-                AND rpf.is_derived = :is_derived
-                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
+                AND rp.overrideFieldReload = :override_field_reload
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+                AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
             )->setParameters(
                 array(
                     'datatype_id' => $datatype->getId(),
                     'datafield_id' => $datafield->getId(),
-                    'is_derived' => true
+                    'override_field_reload' => true
                 )
             );
             $results = $query->getResult();
@@ -2097,7 +2101,7 @@ class EditController extends ODRCustomController
                 $render_plugin = $this->container->get($render_plugin_classname);
 
                 // Request a set of parameters from the render plugin for ODRRenderService to use
-                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord);
+                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord, $master_theme, $user);
 
                 // If the render plugin is going to do something...
                 if ( isset($extra_parameters['template_name']) ) {
