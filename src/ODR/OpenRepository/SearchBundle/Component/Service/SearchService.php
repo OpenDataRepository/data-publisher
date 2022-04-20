@@ -690,13 +690,13 @@ class SearchService
      *
      * @return array
      */
-    public function searchforSelectedTags($datafield, $value)
+    public function searchForSelectedTags($datafield, $value)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Tag' )
-            throw new ODRBadRequestException('searchforSelectedTags() called with '.$typeclass.' datafield', 0xdfd23fd8);
+            throw new ODRBadRequestException('searchForSelectedTags() called with '.$typeclass.' datafield', 0xdfd23fd8);
 
 
         // ----------------------------------------
@@ -722,13 +722,20 @@ class SearchService
             $selections[$tag_id] = 1;
         }
 
-        // This function will turn any non-leaf tags that matched the original search query into
-        //  a (larger) set of leaf tags, and then search for records that have those selected
-        $end_result = self::searchTagDatafield(
-            $datafield,
-            $selections
+        // No point running a further search if no tags matched the search term...
+        $end_result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => array(),
         );
 
+        if ( !empty($selections) ) {
+            // This function will turn any non-leaf tags that matched the original search query into
+            //  a (larger) set of leaf tags, and then search for records that have those selected
+            $end_result = self::searchTagDatafield(
+                $datafield,
+                $selections
+            );
+        }
 
         // ...then recache the search result
         $cached_searches[$value] = $end_result;
@@ -785,6 +792,7 @@ class SearchService
             $selections[$tag_uuid] = 1;
         }
 
+        // TODO - ...does this need the same treatment as self::searchForSelectedTags()?
         $result = self::searchTagTemplateDatafield(
             $template_datafield,
             $selections

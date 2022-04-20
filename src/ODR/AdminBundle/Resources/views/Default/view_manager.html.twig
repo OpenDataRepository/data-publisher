@@ -55,6 +55,11 @@
     {% set display_tracking = true %}
 {% endif %}
 
+{% set display_download_files = false %}
+{% if can_edit_datatype == true and has_datarecords %}
+    {% set display_download_files = true %}
+{% endif %}
+
 {% if notitle is defined %}
 {% else %}
     <h1 class="no-margin-top-phone">
@@ -117,9 +122,9 @@
             </li>
         {% endif %}
 
-        {% if can_edit_datatype %}
+        {% if display_download_files %}
             <li class="pure-menu-item SpacerRight">
-                <label id="ODRMassDownload" class="pure-button">
+                <label id="ODRMassFileDownload" class="pure-button">
                     Download Files
                 </label>
             </li>
@@ -177,8 +182,8 @@
         });
 {% endif %}
 
-{% if can_edit_datatype %}
-        $("#ODRMassDownload").unbind('click').click(function() {
+{% if display_download_files %}
+        $("#ODRMassFileDownload").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
             openMassDownloadDialog("{{ search_key }}");
         });
