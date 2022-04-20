@@ -52,9 +52,15 @@ class CheminReferencesPlugin implements DatatypePluginInterface
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         // TODO - make changes so it can actually run in Edit mode?
-        // This render plugin is only allowed to work in display mode
-        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'display' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            // This render plugin is only allowed to work in display mode
+            if ( $rendering_options['context'] === 'display' )
+                return true;
+
+            // Also need a "text" mode
+            if ( $rendering_options['context'] === 'text' )
+                return true;
+        }
 
         return false;
     }
@@ -191,6 +197,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface
                     'mapping' => $datafield_mapping,
 
                     'is_top_level' => $is_top_level,
+                    'original_context' => $rendering_options['context'],
                 )
             );
 
