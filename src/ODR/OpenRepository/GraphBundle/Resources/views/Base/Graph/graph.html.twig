@@ -36,6 +36,25 @@
             {% endfor %}
         </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
     </div><!-- end of .StaticGraphs -->
+
+    <label id="{{ odr_chart_id }}_render_type_label" for="{{ odr_chart_id }}_render_type" style="display: none;">Use ScatterGL (xy/stackedarea only): </label>
+    <input type="checkbox" id="{{ odr_chart_id }}_render_type" style="display: none;"/>
+
+    <label id="{{ odr_chart_id }}_graph_type_label" for="{{ odr_chart_id }}_graph_type" style="display: none;">Graph Type: </label>
+    <select id="{{ odr_chart_id }}_graph_type" style="display: none;">
+        <option value="xy">xy</option>
+        <option value="bar">bar</option>
+        <option value="piechart">pie</option>
+        <option value="histogram">histogram</option>
+        <option value="stackedarea">stackedarea</option>
+    </select>
+
+    {# TODO - going to need an additional 2 selects and 2 text inputs in order to change error columns #}
+    <label id="{{ odr_chart_id }}_column_1_label" for="{{ odr_chart_id }}_column_1" class="graph_columns" style="display: none;"></label>
+    <select id="{{ odr_chart_id }}_column_1" class="graph_columns" style="display: none;"></select>
+    <label id="{{ odr_chart_id }}_column_2_label" for="{{ odr_chart_id }}_column_2" class="graph_columns" style="display: none;"></label>
+    <select id="{{ odr_chart_id }}_column_2" class="graph_columns" style="display: none;"></select>
+
 {% endif %}
 
 <script type="text/javascript">
@@ -59,7 +78,8 @@ jQuery(function() {
         $(parent).find('.DynamicGraphs').show();
 
         var chart_id = $(parent).find('.ODRDynamicGraph').attr('id');
-        window['SetupGraphs_' + chart_id]();
+        var graph_type = "{{ plugin_options.graph_type }}";
+        window["SetupGraphs_" + chart_id](graph_type);
     });
 {#
     $(".DynamicGraphs").unbind('click').click(function() {
@@ -68,27 +88,49 @@ jQuery(function() {
         $(parent).find('.StaticGraphs').show()
     });
 #}
+
+    $("#{{ odr_chart_id }}_render_type").unbind('change').change(function() {
+        var pieces = $(this).attr('id').split('_');
+        var chart_id = pieces.slice(0, -2).join('_');
+
+        ODRGraph_triggerRebuild(chart_id);
+    });
+
+    $("#{{ odr_chart_id }}_graph_type").unbind('change').change(function() {
+        var pieces = $(this).attr('id').split('_');
+        var chart_id = pieces.slice(0, -2).join('_');
+
+        ODRGraph_triggerRebuild(chart_id);
+    });
+
+    $("select.graph_columns").unbind('change').change(function() {
+        var pieces = $(this).attr('id').split('_');
+        var chart_id = pieces.slice(0, -2).join('_');
+
+        ODRGraph_triggerRebuild(chart_id);
+    });
 });
 
 if (!window.ODRChart) {
-    function ODRChart(graph_type) {
+    function ODRChart() {
         this.chart_id = "";
 
-        this.GraphData = function (chart_obj) {
+        this.GraphData = function (graph_type) {
             /* These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
+            if ( graph_type === null || graph_type === undefined )
+                graph_type = "xy";
+
             switch (graph_type) {
                 case "xy":
-                    return lineChartPlotly(chart_obj, clearPlotlyBars);
+                    return lineChartPlotly(this, clearPlotlyBars);
                 case "bar":
-                    return barChartPlotly(chart_obj, clearPlotlyBars);
+                    return barChartPlotly(this, clearPlotlyBars);
                 case "histogram":
-                    return histogramChartPlotly(chart_obj, clearPlotlyBars);
+                    return histogramChartPlotly(this, clearPlotlyBars);
                 case "stackedarea":
-                    return stackedAreaChartPlotly(chart_obj, clearPlotlyBars);
-                case "lineerror":
-                    return lineerrorChartPlotly(chart_obj, clearPlotlyBars);
+                    return stackedAreaChartPlotly(this, clearPlotlyBars);
                 case "piechart":
-                    return pieChartPlotly(chart_obj, clearPlotlyBars);
+                    return pieChartPlotly(this, clearPlotlyBars);
                 default:
                     break;
             }
@@ -96,13 +138,13 @@ if (!window.ODRChart) {
     }
 }
 
-var SetupGraphs_{{ odr_chart_id }} = function() {
+var SetupGraphs_{{ odr_chart_id }} = function(graph_type = undefined) {
     // Should we just be sending a JSON Object in the first place
     if (!{{ odr_chart_id }}_initialized) {
         {{ odr_chart_id }}_initialized = true;
 
         // If not ODRChart - load class
-        var odr_chart_{{ odr_chart_id }} = new ODRChart('{{ plugin_options.graph_type }}');
+        odr_chart_{{ odr_chart_id }} = new ODRChart();
 
         // Set the chart id
         odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
@@ -120,7 +162,7 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
                 {% for mydr_id, legend in odr_chart_legend %}
                     {% if mydr_id == dr_id %}
                         {% set sort_order = datarecord_sortvalues[dr_id] %}
-                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }} };
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }}, "file_id": {{ file.id }} };
                     {% endif %}
                 {% endfor %}
             }
@@ -131,13 +173,16 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
         {% for o_name, o_value in plugin_options %}
         odr_chart_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
         {% endfor %}
-
-        // Plot selected graph
-        odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
     }
+
+    // Plot selected graph
+    if ( graph_type === undefined )
+        $("#{{ odr_chart_id }}_graph_type").val();
+    odr_chart_{{ odr_chart_id }}.GraphData(graph_type);
 };
 
 var {{ odr_chart_id }}_initialized = false;
+var odr_chart_{{ odr_chart_id }} = null;
 
 </script>
 {% endspaceless %}

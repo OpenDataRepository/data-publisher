@@ -328,7 +328,6 @@ class JobController extends ODRCustomController
 
                 // Since child datatypes can't have the is_admin permission, and this job could be for a child datatype
                 // Load this datatype's grandparent to access the is_admin permission
-                // TODO - let child types have is_admin permission?
                 $datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
 
                 // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete the job

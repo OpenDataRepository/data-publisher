@@ -382,7 +382,7 @@ class PluginsController extends ODRCustomController
             'default',
 //            'choices',    // this is optional
             'description',
-//            'applies_to'    // TODO - not implemented...delete this?
+//            'display_order',    // this is optional
         );
 
         if ( is_array($plugin_config['config_options']) ) {
@@ -699,9 +699,11 @@ class PluginsController extends ODRCustomController
                     'description' => $rpo['description']
                 );
 
-                // This entry is optional in the config file, so only check it when it's not null
+                // These entries are optional in the config file, so ignore unless they're not null
                 if ( !is_null($rpo['choices']) )
                     $tmp[ $rpo['name'] ]['choices'] = $rpo['choices'];
+                if ( !is_null($rpo['display_order']) )
+                    $tmp[ $rpo['name'] ]['display_order'] = $rpo['display_order'];
             }
 
             if ( is_array($plugin_config['config_options']) ) {
@@ -715,9 +717,11 @@ class PluginsController extends ODRCustomController
                             'description' => $data['description'],
                         );
 
-                        // This entry is optional, so have to check whether it exists first
+                        // These entries are optional, so have to check whether they exists first
                         if ( isset($data['choices']) )
                             $tmp[$option_key]['choices'] = $data['choices'];
+                        if ( isset($data['display_order']) )
+                            $tmp[$option_key]['display_order'] = $data['display_order'];
                     }
                     else {
                         // This option exists in the database...
@@ -742,14 +746,25 @@ class PluginsController extends ODRCustomController
                         else if ( $existing_data['default'] === $data['default'] )
                             unset( $tmp[$option_key]['default'] );
 
+                        if ( $existing_data['description'] === $data['description'] )
+                            unset( $tmp[$option_key]['description'] );
+
                         if ( isset($data['choices']) ) {
                             if ( $existing_data['choices'] === $data['choices'] )
                                 unset( $tmp[$option_key]['choices'] );
                         }
 
-                        if ( $existing_data['description'] === $data['description'] )
-                            unset( $tmp[$option_key]['description'] );
+                        // Since "display_order" is never null in the database, it'll always exist
+                        //  in $tmp...but since it probably doesn't exist in the plugin config, the
+                        //  diff checker will repeatedly flag the plugin as needing an update...to
+                        //  fix this, just pretend the plugin's config had the default value
+                        if ( !isset($data['display_order']) )
+                            $data['display_order'] = 0;
 
+                        if ( isset($data['display_order']) ) {
+                            if ( $existing_data['display_order'] === $data['display_order'] )
+                                unset( $tmp[$option_key]['display_order'] );
+                        }
 
                         // If there are no differences, remove the entry
                         if ( count($tmp[$option_key]) == 0 )
@@ -1230,9 +1245,11 @@ class PluginsController extends ODRCustomController
                     else
                         $rpo->setDefaultValue($data['default']);
 
-                    // The "choices" key is optional
+                    // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+                    if ( isset($data['display_order']) )
+                        $rpo->setDisplayOrder($data['display_order']);
 
                     $rpo->setCreatedBy($user);
                     $rpo->setUpdatedBy($user);
@@ -1683,9 +1700,11 @@ class PluginsController extends ODRCustomController
                     else
                         $rpo->setDefaultValue($data['default']);
 
-                    // The "choices" key is optional
+                    // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+                    if ( isset($data['display_order']) )
+                        $rpo->setDisplayOrder($data['display_order']);
 
                     if ($creating) {
                         $rpo->setCreatedBy($user);
@@ -2255,6 +2274,15 @@ class PluginsController extends ODRCustomController
                 }
                 $render_plugin['renderPluginOptions'][$rpo_id]['choices'] = $choices;
             }
+
+            // Order the options by their display_order property...most useful when there's a lot
+            //  of them, such as with the graph plugin
+            uasort($render_plugin['renderPluginOptions'], function($a, $b) {
+                if ( $a['display_order'] <= $b['display_order'] )
+                    return -1;
+                else
+                    return 1;
+            });
 
 
             // ----------------------------------------

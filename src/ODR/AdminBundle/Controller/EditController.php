@@ -924,7 +924,6 @@ class EditController extends ODRCustomController
             // Mark this file's datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // TODO - execute graph plugin?  currently not needed because the graph plugin auto-decrypts files it needs to render a graph...
             // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {

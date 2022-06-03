@@ -34,10 +34,10 @@
     {#<script src="../../js/libs/jquery-1.7.2.js"></script>#}
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     {#<script src="../../js/libs/jquery-ui-1.8.21.js"></script>#}
-    <script src="/js/libs/jquery-ui-1.12.0.min.js"></script>
+{#    <script src="/js/libs/jquery-ui-1.12.0.min.js"></script>#}
 
     <!-- Do the same with Lo-Dash.js -->
-    <script src="../../js/libs/lo-dash.js"></script>
+    <script src="../../js/libs/lo-dash.min.js"></script>
 
     <!-- Load Webfont loader -->
     <script type="text/javascript">
@@ -80,6 +80,21 @@
 {% endif %}
 
 <script type="text/javascript">
+
+    // Polyfills for functions used by odr_plotly_graphs.js, since phantomJS is more out of date
+    //  than expected...
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN#polyfill
+    Number.isNaN = Number.isNaN || function isNaN(input) {
+        return typeof input === 'number' && input !== input;
+    }
+
+    // https://stackoverflow.com/a/27424770
+    Number.isInteger = Number.isInteger || function(value) {
+        return typeof value === "number" &&
+            isFinite(value) &&
+            Math.floor(value) === value;
+    };
+
     // Used to track active plots for resizing
     // Why is this not cleared every time?
     var page_plots = [];
@@ -104,8 +119,6 @@
                         return histogramChartPlotly(chart_obj, preparePlotlyStatic);
                     case "stackedarea":
                         return stackedAreaChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "lineerror":
-                        return lineerrorChartPlotly(chart_obj, preparePlotlyStatic);
                     case "piechart":
                         return pieChartPlotly(chart_obj, preparePlotlyStatic);
                     default:

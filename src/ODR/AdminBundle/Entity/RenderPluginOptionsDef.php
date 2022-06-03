@@ -50,6 +50,11 @@ class RenderPluginOptionsDef
     private $description;
 
     /**
+     * @var int
+     */
+    private $display_order;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -220,6 +225,30 @@ class RenderPluginOptionsDef
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * Set displayOrder.
+     *
+     * @param int $displayOrder
+     *
+     * @return RenderPluginOptionsDef
+     */
+    public function setDisplayOrder($displayOrder)
+    {
+        $this->display_order = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder.
+     *
+     * @return int
+     */
+    public function getDisplayOrder()
+    {
+        return $this->display_order;
     }
 
     /**

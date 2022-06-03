@@ -547,7 +547,6 @@ class MassEditController extends ODRCustomController
                 if (!$can_edit_datafield)
                     continue;
 
-                // TODO - $complete_datarecord_list is filtered now, so this is overkill
                 // Determine whether user can view non-public datarecords for this datatype
                 $dt_id = $datafield_list[$df_id];
                 $can_view_datarecord = false;

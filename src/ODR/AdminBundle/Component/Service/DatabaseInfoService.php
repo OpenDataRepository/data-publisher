@@ -647,7 +647,7 @@ class DatabaseInfoService
      * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
      * TODO - ...or should this be off in the DatatreeInfoService?
      *
-     * @param array $datatype_ids array  dt_ids are values in the array, NOT keys
+     * @param array $datatype_ids dt_ids are values in the array, NOT keys
      */
     public function deleteCachedDatatypeLinkData($datatype_ids)
     {
