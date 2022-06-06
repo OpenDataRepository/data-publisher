@@ -181,7 +181,7 @@ function odrCSV(file, display_order, callback) {
                     }
                 });
 
-                // Attempt to extract a reasonable header from the file
+                // Attempt to extract reasonable header columns from the file
                 var all_numerical = true;
                 for (var i = 0; i < columns.length; i++) {
                     var value = Number( columns[i][0] );
@@ -190,9 +190,14 @@ function odrCSV(file, display_order, callback) {
                         break;
                     }
                 }
+                // Ran into a few files with a different number of header columns than data columns
+                var mismatched_headers = false;
+                if ( columns[0].length !== columns[1].length )
+                    mismatched_headers = true;
+
                 var headers = [];
                 for (var i = 0; i < columns.length; i++) {
-                    if ( all_numerical )
+                    if ( all_numerical || mismatched_headers )
                         headers.push( 'Column ' + (i+1) );
                     else
                         headers.push( columns[i][0] );
@@ -208,7 +213,7 @@ function odrCSV(file, display_order, callback) {
 
                 console.log("Lines downloaded: " + columns[0].length);
                 var json = JSON.stringify(columns);
-                console.log(json);
+                // console.log(json);
                 $(element_id).html(json);
 
                 callback(null, data_file)
@@ -575,8 +580,8 @@ function updateSelectedColumns(chart_obj, chart_type, headers) {
     $("#" + chart_id + "_graph_type_label").show();
     $("#" + chart_id + "_graph_type").show();
 
-    $("#" + chart_id + "_render_type_label").show();
-    $("#" + chart_id + "_render_type").show();
+    $("#" + chart_id + "_use_scatterGL_label").show();
+    $("#" + chart_id + "_use_scatterGL").show();
 
     // Re-enable and relabel the selectors based on the current graph type
     $(".graph_columns").hide();
@@ -1037,7 +1042,7 @@ function lineChartPlotly(chart_obj, onComplete) {
                         trace.x = columns[x_column];
                         trace.y = columns[y_column]
 
-                        if ( $("#" + chart_obj.chart_id + "_render_type").length > 0 && $("#" + chart_obj.chart_id + "_render_type").is(':checked') )
+                        if ( $("#" + chart_obj.chart_id + "_use_scatterGL").length > 0 && $("#" + chart_obj.chart_id + "_use_scatterGL").is(':checked') )
                             trace.type = 'scattergl';
                         else
                             trace.type = 'scatter';
@@ -1238,7 +1243,7 @@ function stackedAreaChartPlotly(chart_obj, onComplete) {
                         trace.fill = 'tozeroy';
                         trace.mode = 'lines';
 
-                        if ( $("#" + chart_obj.chart_id + "_render_type").length > 0 && $("#" + chart_obj.chart_id + "_render_type").is(':checked') )
+                        if ( $("#" + chart_obj.chart_id + "_use_scatterGL").length > 0 && $("#" + chart_obj.chart_id + "_use_scatterGL").is(':checked') )
                             trace.type = 'scattergl';
                         else
                             trace.type = 'scatter';

@@ -37,8 +37,8 @@
         </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
     </div><!-- end of .StaticGraphs -->
 
-    <label id="{{ odr_chart_id }}_render_type_label" for="{{ odr_chart_id }}_render_type" style="display: none;">Use ScatterGL (xy/stackedarea only): </label>
-    <input type="checkbox" id="{{ odr_chart_id }}_render_type" style="display: none;"/>
+    <label id="{{ odr_chart_id }}_use_scatterGL_label" for="{{ odr_chart_id }}_use_scatterGL" style="display: none;">Use ScatterGL (xy/stackedarea only): </label>
+    <input type="checkbox" id="{{ odr_chart_id }}_use_scatterGL" style="display: none;" checked/>
 
     <label id="{{ odr_chart_id }}_graph_type_label" for="{{ odr_chart_id }}_graph_type" style="display: none;">Graph Type: </label>
     <select id="{{ odr_chart_id }}_graph_type" style="display: none;">
@@ -89,7 +89,7 @@ jQuery(function() {
     });
 #}
 
-    $("#{{ odr_chart_id }}_render_type").unbind('change').change(function() {
+    $("#{{ odr_chart_id }}_use_scatterGL").unbind('change').change(function() {
         var pieces = $(this).attr('id').split('_');
         var chart_id = pieces.slice(0, -2).join('_');
 

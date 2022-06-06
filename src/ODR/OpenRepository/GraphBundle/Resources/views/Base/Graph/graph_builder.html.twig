@@ -54,8 +54,7 @@
     <!-- Plot.ly JS Plots Based on D3 -->
     {#<script type="text/javascript" src="../../js/mylibs/nvd3/d3.v3.min.js"></script>#}
     <script type="text/javascript" src="../../js/mylibs/d3.v4.min.js"></script>
-    {#<script type="text/javascript" src="../..//js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>#}
-    <script type="text/javascript" src="../../js/mylibs/plotly-1.5.0.min.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/plotly-1.58.5.min.js"></script>
 
     <script type="text/javascript" src="../..//js/mylibs/d3-queue.v3.min.js"></script>
     <script type="text/javascript" src="../..//js/mylibs/odr_plotly_graphs.js"></script>
@@ -78,6 +77,8 @@
         </div><!-- end of .DynamicGraph Wrapper -->
     </div><!-- end of .DynamicGraphs -->
 {% endif %}
+
+    <input type="checkbox" id="{{ odr_chart_id }}_use_scatterGL" style="display: none;" {# checked #}/>    {# NOTE: want phantomJS to use SVG instead of scatterGL for line plots, to be safe #}
 
 <script type="text/javascript">
 
