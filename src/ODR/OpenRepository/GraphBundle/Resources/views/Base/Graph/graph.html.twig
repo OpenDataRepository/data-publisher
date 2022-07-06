@@ -19,6 +19,82 @@
                         <div class="plotlybars-text">Loading graph</div>
                     </div>
                     <!-- <svg class="pure-u-1"></svg> -->
+
+                    <div id="{{ odr_chart_id }}_settings" class="DynamicGraphSettingsDiv">
+                        <a><i class="fa fa-cog"></i></a>
+
+                        <div class="DynamicGraphSettings">
+                            <div class="DynamicGraphSettingsDiv_close">
+                                <label id="{{ odr_chart_id }}_close" style="cursor:pointer;">
+                                    <i class="fa fa-close"></i>&nbsp;Close
+                                </label>
+                            </div>
+
+                            <div>
+                                <label id="{{ odr_chart_id }}_column_1_label" for="{{ odr_chart_id }}_column_1" class="graph_columns"></label>
+                                <select id="{{ odr_chart_id }}_column_1" class="graph_columns" style="display: none;"></select>
+                            </div>
+                            <div>
+                                <label id="{{ odr_chart_id }}_column_2_label" for="{{ odr_chart_id }}_column_2" class="graph_columns" style="vertical-align: top; display: none;"></label>
+                                <select id="{{ odr_chart_id }}_column_2" class="graph_columns" multiple style="display: none;"></select>
+                            </div>
+                            <div>
+                                <label id="{{ odr_chart_id }}_graph_type_label" for="{{ odr_chart_id }}_graph_type">Graph Type: </label>
+                                <select id="{{ odr_chart_id }}_graph_type">
+                                    <option value="xy">xy</option>
+                                    <option value="bar">bar</option>
+                                    <option value="piechart">pie</option>
+                                    <option value="histogram">histogram</option>
+                                    <option value="stackedarea">stackedarea</option>
+                                </select>
+                            </div>
+
+                            <div id="{{ odr_chart_id }}_line_settings" class="{{ odr_chart_id }}_settings" style="display: none;">
+                                <label id="{{ odr_chart_id }}_line_type_label" for="{{ odr_chart_id }}_line_type">Line Type: </label>
+                                <select id="{{ odr_chart_id }}_line_type">
+                                    <option value="lines" {% if plugin_options.line_type == "lines" %}selected{% endif %}>Lines</option>
+                                    <option value="markers" {% if plugin_options.line_type == "markers" %}selected{% endif %}>Markers</option>
+                                    <option value="lines+markers" {% if plugin_options.line_type == "lines+markers" %}selected{% endif %}>Lines+Markers</option>
+                                </select>
+                                <br>
+                                <label id="{{ odr_chart_id }}_normalize_y_label" for="{{ odr_chart_id }}_normalize_y">Normalize Y Axis: </label>
+                                <input type="checkbox" id="{{ odr_chart_id }}_normalize_y" {% if plugin_options.normalize_y_axis == "yes" %}checked{% endif %} />
+                                <br>
+                                <label id="{{ odr_chart_id }}_disable_scatterGL_label" for="{{ odr_chart_id }}_disable_scatterGL">Disable ScatterGL: </label>
+                                <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" />
+                            </div>
+
+                            <div id="{{ odr_chart_id }}_bar_settings" class="{{ odr_chart_id }}_settings" style="display: none;">
+                                <label id="{{ odr_chart_id }}_bar_type_label" for="{{ odr_chart_id }}_bar_type">Bar Type: </label>
+                                <select id="{{ odr_chart_id }}_bar_type">
+                                    <option value="v" {% if plugin_options.bar_type == "vert" %}selected{% endif %}>Vertical</option>
+                                    <option value="h" {% if plugin_options.bar_type == "horizontal" %}selected{% endif %}>Horizontal</option>
+                                </select>
+                                <br>
+                                <label id="{{ odr_chart_id }}_bar_options_label" for="{{ odr_chart_id }}_bar_options">Bar Options: </label>
+                                <select id="{{ odr_chart_id }}_bar_options">
+                                    <option value="group" {% if plugin_options.bar_options == "grouped" %}selected{% endif %}>Grouped</option>
+                                    <option value="stack" {% if plugin_options.bar_options == "stacked" %}selected{% endif %}>Stacked</option>
+                                </select>
+                            </div>
+
+                            <div id="{{ odr_chart_id }}_histogram_settings" class="{{ odr_chart_id }}_settings" style="display: none;">
+                                <label id="{{ odr_chart_id }}_histogram_dir_label" for="{{ odr_chart_id }}_histogram_dir">Histogram Type: </label>
+                                <select id="{{ odr_chart_id }}_histogram_dir">
+                                    <option value="v" {% if plugin_options.histogram_dir == "vert" %}selected{% endif %}>Vertical</option>
+                                    <option value="h" {% if plugin_options.histogram_dir == "horizontal" %}selected{% endif %}>Horizontal</option>
+                                </select>
+                                <br>
+                                <label id="{{ odr_chart_id }}_histogram_stack_label" for="{{ odr_chart_id }}_histogram_stack">Histogram Stack: </label>
+                                <select id="{{ odr_chart_id }}_histogram_stack">
+                                    <option value="group" {% if plugin_options.histogram_stack == "grouped" %}selected{% endif %}>Grouped</option>
+                                    <option value="stack" {% if plugin_options.histogram_stack == "stacked" %}selected{% endif %}>Stacked</option>
+                                    <option value="overlay" {% if plugin_options.histogram_stack == "overlay" %}selected{% endif %}>Overlaid</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                 </div><!-- end of .ODRGraph -->
             {% endif %}
         </div><!-- end of .DynamicGraph Wrapper -->
@@ -36,25 +112,6 @@
             {% endfor %}
         </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
     </div><!-- end of .StaticGraphs -->
-
-    <label id="{{ odr_chart_id }}_use_scatterGL_label" for="{{ odr_chart_id }}_use_scatterGL" style="display: none;">Use ScatterGL (xy/stackedarea only): </label>
-    <input type="checkbox" id="{{ odr_chart_id }}_use_scatterGL" style="display: none;" checked/>
-
-    <label id="{{ odr_chart_id }}_graph_type_label" for="{{ odr_chart_id }}_graph_type" style="display: none;">Graph Type: </label>
-    <select id="{{ odr_chart_id }}_graph_type" style="display: none;">
-        <option value="xy">xy</option>
-        <option value="bar">bar</option>
-        <option value="piechart">pie</option>
-        <option value="histogram">histogram</option>
-        <option value="stackedarea">stackedarea</option>
-    </select>
-
-    {# TODO - going to need an additional 2 selects and 2 text inputs in order to change error columns #}
-    <label id="{{ odr_chart_id }}_column_1_label" for="{{ odr_chart_id }}_column_1" class="graph_columns" style="display: none;"></label>
-    <select id="{{ odr_chart_id }}_column_1" class="graph_columns" style="display: none;"></select>
-    <label id="{{ odr_chart_id }}_column_2_label" for="{{ odr_chart_id }}_column_2" class="graph_columns" style="display: none;"></label>
-    <select id="{{ odr_chart_id }}_column_2" class="graph_columns" style="display: none;"></select>
-
 {% endif %}
 
 <script type="text/javascript">
@@ -89,25 +146,29 @@ jQuery(function() {
     });
 #}
 
-    $("#{{ odr_chart_id }}_use_scatterGL").unbind('change').change(function() {
-        var pieces = $(this).attr('id').split('_');
-        var chart_id = pieces.slice(0, -2).join('_');
+    var elements = [
+        'column_1', 'column_2', 'graph_type',
+        'line_type', 'normalize_y', 'disable_scatterGL',
+        'bar_type', 'bar_options',
+        'histogram_dir', 'histogram_stack'
+    ];
 
-        ODRGraph_triggerRebuild(chart_id);
+    $.each(elements, function(index, elem) {
+        $("#{{ odr_chart_id }}_" + elem).unbind('change').change(function() {
+            var pieces = $(this).attr('id').split('_');
+            var chart_id = pieces.slice(0, -2).join('_');  console.log(chart_id);
+
+            ODRGraph_triggerRebuild(chart_id);
+            $("select.graph_columns").blur();
+        });
     });
 
-    $("#{{ odr_chart_id }}_graph_type").unbind('change').change(function() {
-        var pieces = $(this).attr('id').split('_');
-        var chart_id = pieces.slice(0, -2).join('_');
-
-        ODRGraph_triggerRebuild(chart_id);
+    $("#{{ odr_chart_id }}_settings").click(function() {
+        $(this).children(".DynamicGraphSettings").first().show();
     });
-
-    $("select.graph_columns").unbind('change').change(function() {
-        var pieces = $(this).attr('id').split('_');
-        var chart_id = pieces.slice(0, -2).join('_');
-
-        ODRGraph_triggerRebuild(chart_id);
+    $("#{{ odr_chart_id }}_close").click(function(event) {
+        $(this).closest(".DynamicGraphSettings").first().hide();
+        event.stopPropagation();
     });
 });
 

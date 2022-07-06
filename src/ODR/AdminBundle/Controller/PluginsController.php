@@ -1248,6 +1248,8 @@ class PluginsController extends ODRCustomController
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+                    // ...still need to provide a default of 0 so doctrine doesn't complain apparently
+                    $rpo->setDisplayOrder(0);
                     if ( isset($data['display_order']) )
                         $rpo->setDisplayOrder($data['display_order']);
 
@@ -1703,6 +1705,8 @@ class PluginsController extends ODRCustomController
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+                    // ...still need to provide a default of 0 so doctrine doesn't complain apparently
+                    $rpo->setDisplayOrder(0);
                     if ( isset($data['display_order']) )
                         $rpo->setDisplayOrder($data['display_order']);
 

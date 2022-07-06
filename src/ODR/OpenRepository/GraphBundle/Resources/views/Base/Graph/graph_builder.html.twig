@@ -78,7 +78,8 @@
     </div><!-- end of .DynamicGraphs -->
 {% endif %}
 
-    <input type="checkbox" id="{{ odr_chart_id }}_use_scatterGL" style="display: none;" {# checked #}/>    {# NOTE: want phantomJS to use SVG instead of scatterGL for line plots, to be safe #}
+    {# NOTE: phantomJS can't use WebGL...probably unable to save the output...so use SVG instead #}
+    <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" style="display: none;" checked />
 
 <script type="text/javascript">
 

@@ -182,26 +182,7 @@ function odrCSV(file, display_order, callback) {
                 });
 
                 // Attempt to extract reasonable header columns from the file
-                var all_numerical = true;
-                for (var i = 0; i < columns.length; i++) {
-                    var value = Number( columns[i][0] );
-                    if ( Number.isNaN(value) ) {
-                        all_numerical = false;
-                        break;
-                    }
-                }
-                // Ran into a few files with a different number of header columns than data columns
-                var mismatched_headers = false;
-                if ( columns[0].length !== columns[1].length )
-                    mismatched_headers = true;
-
-                var headers = [];
-                for (var i = 0; i < columns.length; i++) {
-                    if ( all_numerical || mismatched_headers )
-                        headers.push( 'Column ' + (i+1) );
-                    else
-                        headers.push( columns[i][0] );
-                }
+                var headers = odrCSV_getHeaders(columns);
 
                 var data_file = {};
                 data_file.dr_id = file.dr_id;
@@ -210,6 +191,7 @@ function odrCSV(file, display_order, callback) {
                 data_file.legend = file.legend;
                 data_file.columns = columns;
                 data_file.headers = headers;
+                data_file.new_file = true;
 
                 console.log("Lines downloaded: " + columns[0].length);
                 var json = JSON.stringify(columns);
@@ -231,11 +213,48 @@ function odrCSV(file, display_order, callback) {
         data_file.columns = JSON.parse(json);
         console.log("Lines read: " + data_file.columns[0].length);
 
-        // Don't need to reload the headers
-        delete data_file.headers;
+        data_file.headers = odrCSV_getHeaders(data_file.columns);
+        data_file.new_file = false;
 
         callback(null, data_file);
     }
+}
+
+/**
+ * Returns an array of header values based on the columns of data from a file...if the first row of
+ * all columns looks like a string, then it'll attempt to return those...but if not, it'll return
+ * an array of "Column #" strings.
+ * @param {array} columns
+ * @returns {array}
+ */
+function odrCSV_getHeaders(columns) {
+    var all_numerical = true;
+    for (var i = 0; i < columns.length; i++) {
+        var value = Number( columns[i][0] );
+        if ( Number.isNaN(value) ) {
+            all_numerical = false;
+            break;
+        }
+    }
+    // Ran into a few files with a different number of header columns than data columns
+    var mismatched_headers = false;
+    for (var i = 0; i < columns.length; i++) {
+        if ( (columns[i][0] !== undefined && columns[i][1] === undefined)
+            || (columns[i][0] === undefined && columns[i][1] !== undefined)
+        ) {
+            mismatched_headers = true;
+        }
+    }
+
+    var headers = [];
+    for (var i = 0; i < columns.length; i++) {
+        if ( all_numerical || mismatched_headers )
+            headers.push( 'Column ' + (i+1) );
+        else
+            headers.push( columns[i][0] );
+    }
+
+    return headers;
 }
 
 /**
@@ -525,10 +544,10 @@ function getErrorBarSettings(chart_obj, columns) {
  *
  * @param {object} chart_obj
  * @param {string} chart_type
- * @param {array|undefined} headers
+ * @param {object} headers
  * @returns {array}
  */
-function updateSelectedColumns(chart_obj, chart_type, headers) {
+function updateSelectedColumns(chart_obj, chart_type, file) {
     var chart_id = chart_obj.chart_id;
     var num_selectors = 2;
 
@@ -539,28 +558,33 @@ function updateSelectedColumns(chart_obj, chart_type, headers) {
         ids.push(id);
 
         // If the headers variable is defined, then reset the column names in the dropdowns
-        if ( headers !== undefined ) {
+        if ( file.new_file === true ) {
             $(id).children('option').remove();
 
-            var element = $("<option>", {"value": "", "html": ""});
-            $(id).append(element);
+            // var element = $("<option>", {"value": "", "html": ""});
+            // $(id).append(element);
 
-            for (var j = 0; j < headers.length; j++) {
-                var element = $("<option>", {"value": j, "html": headers[j]});
+            for (var j = 0; j < file.headers.length; j++) {
+                var element = $("<option>", {"value": j, "html": file.headers[j]});
                 $(id).append(element);
             }
         }
 
         // Determine the selected values for each of the dropdowns
         var val = $(id).val();
-        if ( val === '' )
-            selected_values.push( val );
-        else
+
+        if ( !Array.isArray(val) ) {
             selected_values.push( Number(val) );
+        }
+        else {
+            $.each(val, function(index,elem) {
+                selected_values.push( Number(elem) );
+            });
+        }
     }
 
     // If the column headers were reset, then select the default options
-    if ( headers !== undefined ) {
+    if ( file.new_file === true ) {
         // Select the current graph type
         $("#" + chart_id + "_graph_type").children('option').each(function(index, elem) {
             if ( $(elem).val() === chart_type )
@@ -570,21 +594,26 @@ function updateSelectedColumns(chart_obj, chart_type, headers) {
         });
 
         // Select the default columns based on the plugin settings
-        $(ids[0] + " option:eq(" + chart_obj.x_values_column + ")").prop('selected', true);
-        selected_values[0] = Number(chart_obj.x_values_column) - 1;
-        $(ids[1] + " option:eq(" + chart_obj.y_values_column + ")").prop('selected', true);
-        selected_values[1] = Number(chart_obj.y_values_column) - 1;
+        var default_x_column = Number(chart_obj.x_values_column) - 1;
+        $(ids[0] + " option:eq(" + default_x_column + ")").prop('selected', true);
+        selected_values[0] = default_x_column;
+
+        var default_y_column = Number(chart_obj.y_values_column) - 1;
+        $(ids[1] + " option:eq(" + default_y_column + ")").prop('selected', true);
+        selected_values[1] = default_y_column;
     }
 
-    // Show the graph type selector
-    $("#" + chart_id + "_graph_type_label").show();
-    $("#" + chart_id + "_graph_type").show();
-
-    $("#" + chart_id + "_use_scatterGL_label").show();
-    $("#" + chart_id + "_use_scatterGL").show();
+    // Show settings specific to the current graph type
+    $("." + chart_id + "_settings").hide();
+    if ( chart_type === 'histogram' )
+        $("#" + chart_id + "_histogram_settings").show();
+    else if ( chart_type === 'bar' )
+        $("#" + chart_id + "_bar_settings").show();
+    else if ( chart_type === 'xy' )
+        $("#" + chart_id + "_line_settings").show();
 
     // Re-enable and relabel the selectors based on the current graph type
-    $(".graph_columns").hide();
+    $("#" + chart_id + "_settings").find(".graph_columns").hide();
     if ( chart_type === 'histogram' ) {
         // Histograms only read one column
         $(ids[0] + "_label").html("values: ").show();
@@ -646,7 +675,7 @@ function histogramChartPlotly(chart_obj, onComplete) {
                         console.log('Plotting histogram: ' + dr_id);
 
                         var columns = file.columns;
-                        var selected_columns = updateSelectedColumns(chart_obj, "histogram", file.headers);
+                        var selected_columns = updateSelectedColumns(chart_obj, "histogram", file);
                         var data_column = selected_columns[0];
 
                         if ( data_column === '' || !Number.isInteger( Number(data_column) ) )
@@ -656,7 +685,13 @@ function histogramChartPlotly(chart_obj, onComplete) {
 
                         // Build the trace object for Plotly
                         var trace = {};
-                        if (chart_obj.histogram_dir !== undefined && chart_obj.histogram_dir === "horizontal")
+                        var dir = 'v';
+                        if ( $("#" + chart_obj.chart_id + "_histogram_dir").length > 0 )
+                            dir = $("#" + chart_obj.chart_id + "_histogram_dir").val();
+                        else if (chart_obj.bar_type !== undefined && chart_obj.histogram_dir === "horizontal")
+                            trace.orientation = 'h';
+
+                        if (dir === 'h')
                             trace.y = columns[data_column];
                         else
                             trace.x = columns[data_column];
@@ -695,11 +730,17 @@ function histogramChartPlotly(chart_obj, onComplete) {
             };
 
             // Histogram-specific layout settings...
-            if (chart_obj.histogram_stack != undefined) {
+            if ( $("#" + chart_obj.chart_id + "_histogram_stack").length > 0 )
+                layout.barmode = $("#" + chart_obj.chart_id + "_histogram_stack").val();
+            else if (chart_obj.histogram_stack === undefined)
+                layout.barmode = 'group';
+            else {
                 if (chart_obj.histogram_stack === "stacked")
                     layout.barmode = "stack";
                 else if (chart_obj.histogram_stack === "overlay")
                     layout.barmode = "overlay";
+                else
+                    layout.barmode = 'group';
             }
 
             if ( error_messages.length > 0 ) {
@@ -762,19 +803,20 @@ function barChartPlotly(chart_obj, onComplete) {
                         console.log('Plotting bar: ' + dr_id);
 
                         var columns = file.columns;
-                        var selected_columns = updateSelectedColumns(chart_obj, "bar", file.headers);
+                        var selected_columns = updateSelectedColumns(chart_obj, "bar", file);
+
+                        $.each(selected_columns, function(index, column_id) {
+                            if ( column_id === '' || !Number.isInteger( Number(column_id) ) )
+                                error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + column_id + "\"");
+                            else if ( columns[column_id] === undefined )
+                                error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (column_id+1));
+                        });
+
+                        if ( selected_columns.length < 2 )
+                            error_messages.push("Unable to plot a \"bar\" graph for \"" + file.legend + "\" with only one column selected");
+
+                        // The column to use for the x axis will be the first entry in selected_columns...
                         var x_column = selected_columns[0];
-                        var y_column = selected_columns[1];
-
-                        if ( x_column === '' || !Number.isInteger( Number(x_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + x_column + "\"");
-                        else if ( columns[x_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (x_column+1));
-
-                        if ( y_column === '' || !Number.isInteger( Number(y_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + y_column + "\"");
-                        else if ( columns[y_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (y_column+1));
 /*
                         if ( error_bar_plus_type === 'data' ) {
                             if ( error_bar_plus_value === '' || !Number.isInteger( Number(error_bar_plus_value) ) )
@@ -790,32 +832,43 @@ function barChartPlotly(chart_obj, onComplete) {
                                 error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (error_bar_minus_value+1));
                         }
 */
+                        // ...but there could be multiple columns from the same file that the user
+                        //  wants to use for the y axis, and each of them need their own trace...
+                        for (var i = 1; i < selected_columns.length; i++) {
+                            var y_column = selected_columns[i];
 
-                        // Build the trace object for Plotly
-                        var trace = {};
-                        trace.x = columns[x_column];
-                        trace.y = columns[y_column];
-                        trace.type = 'bar';
+                            // Build the trace object for Plotly
+                            var trace = {};
+                            trace.x = columns[x_column];
+                            trace.y = columns[y_column];
+                            trace.type = 'bar';
 /*
-                        if ( chart_obj.error_bar_plus_type !== "none" ) {
-                            // If error bars are required, then translate the provided options into
-                            //  something Plotly understands
-                            trace.error_y = getErrorBarSettings(chart_obj, columns);
-                        }
+                            if ( chart_obj.error_bar_plus_type !== "none" ) {
+                                // If error bars are required, then translate the provided options into
+                                //  something Plotly understands
+                                trace.error_y = getErrorBarSettings(chart_obj, columns);
+                            }
 */
-                        if (chart_obj.bar_type !== undefined && chart_obj.bar_type === "horizontal")
-                            trace.orientation = 'h';
-                        else
-                            trace.orientation = 'v';
+                            if ( $("#" + chart_obj.chart_id + "_bar_type").length > 0 )
+                                trace.orientation = $("#" + chart_obj.chart_id + "_bar_type").val();
+                            else if (chart_obj.bar_type === undefined)
+                                trace.orientation = 'v';
+                            else {
+                                if (chart_obj.bar_type === "horizontal")
+                                    trace.orientation = 'h';
+                                else
+                                    trace.orientation = 'v';
+                            }
 
-                        // Name used for grouping bars
-                        trace.name = file.legend;
+                            // Name used for grouping bars
+                            trace.name = file.legend;
 
-                        // Add line to chart data
-                        chart_data.push(trace);
+                            // Add line to chart data
+                            chart_data.push(trace);
 
-                        // Store that this data is loaded
-                        loaded_data[dr_id] = 1;
+                            // Store that this data is loaded
+                            loaded_data[dr_id] = 1;
+                        }
                     }
                 }
             }
@@ -841,9 +894,18 @@ function barChartPlotly(chart_obj, onComplete) {
                 yaxis: yaxis_settings
             };
 
-            // TODO - don't think this works...
-            if (chart_obj.bar_options !== undefined && chart_obj.bar_options === "stacked")
-                layout.barmode = 'stack';
+            // NOTE: "stacked" barmode only works when multiple columns from the same file are graphed
+            // It won't stack data from multiple files together
+            if ( $("#" + chart_obj.chart_id + "_bar_options").length > 0 )
+                layout.barmode = $("#" + chart_obj.chart_id + "_bar_options").val();
+            else if (chart_obj.bar_options === undefined)
+                layout.barmode = 'group';
+            else {
+                if (chart_obj.bar_options === "stacked")
+                    layout.barmode = 'stack';
+                else
+                    layout.barmode = 'group';
+            }
 
             if ( error_messages.length > 0 ) {
                 // Encountered an error...don't display any data
@@ -899,9 +961,12 @@ function pieChartPlotly(chart_obj, onComplete) {
                         console.log('Plotting pie: ' + dr_id);
 
                         var columns = file.columns;
-                        var selected_columns = updateSelectedColumns(chart_obj, "piechart", file.headers);
+                        var selected_columns = updateSelectedColumns(chart_obj, "piechart", file);
                         var data_column = selected_columns[0];
                         var labels_column = selected_columns[1];
+
+                        if ( selected_columns.length < 2 )
+                            error_messages.push("Unable to plot an \"pie\" graph for \"" + file.legend + "\" with only one column selected");
 
                         if ( data_column === '' || !Number.isInteger( Number(data_column) ) )
                             error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + data_column + "\"");
@@ -910,10 +975,12 @@ function pieChartPlotly(chart_obj, onComplete) {
                         else if ( columns[data_column].length > 100 )
                             error_messages.push("Not creating a pie chart from the file \"" + file.legend + "\" because it would have more than 100 slices");
 
-                        if ( labels_column === '' || !Number.isInteger( Number(labels_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + labels_column + "\"");
-                        else if ( columns[labels_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (labels_column+1));
+                        if ( selected_columns.length >= 2 ) {
+                            if ( labels_column === '' || !Number.isInteger( Number(labels_column) ) )
+                                error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + labels_column + "\"");
+                            else if ( columns[labels_column] === undefined )
+                                error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (labels_column+1));
+                        }
 
 
                         // Build the trace object for Plotly
@@ -995,6 +1062,14 @@ function lineChartPlotly(chart_obj, onComplete) {
                 file_data[file.display_order] = file;
             }
 
+            // Normalizing the y axis has consequences both in trace creation and layout settings
+            // ...plotly requires each set of data to reference its own y-axis
+            var normalize_y_axis = false;
+            if ( $("#" + chart_obj.chart_id + "_normalize_y").length > 0 && $("#" + chart_obj.chart_id + "_normalize_y").is(':checked') )
+                normalize_y_axis = true;
+            else if ( chart_obj.normalize_y_axis === "yes" )
+                normalize_y_axis = true;
+
             // Is tracking loaded_data useful?
             var trace_count = 0;
             var loaded_data = [];
@@ -1007,19 +1082,20 @@ function lineChartPlotly(chart_obj, onComplete) {
                         console.log('Plotting xy: ' + dr_id);
 
                         var columns = file.columns;
-                        var selected_columns = updateSelectedColumns(chart_obj, "xy", file.headers);
+                        var selected_columns = updateSelectedColumns(chart_obj, "xy", file);
+
+                        $.each(selected_columns, function(index, column_id) {
+                            if ( column_id === '' || !Number.isInteger( Number(column_id) ) )
+                                error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + column_id + "\"");
+                            else if ( columns[column_id] === undefined )
+                                error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (column_id+1));
+                        });
+
+                        if ( selected_columns.length < 2 )
+                            error_messages.push("Unable to plot an \"xy\" graph for \"" + file.legend + "\" with only one column selected");
+
+                        // The column to use for the x axis will be the first entry in selected_columns...
                         var x_column = selected_columns[0];
-                        var y_column = selected_columns[1];
-
-                        if ( x_column === '' || !Number.isInteger( Number(x_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + x_column + "\"");
-                        else if ( columns[x_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (x_column+1));
-
-                        if ( y_column === '' || !Number.isInteger( Number(y_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + y_column + "\"");
-                        else if ( columns[y_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (y_column+1));
 /*
                         if ( error_bar_plus_type === 'data' ) {
                             if ( error_bar_plus_value === '' || !Number.isInteger( Number(error_bar_plus_value) ) )
@@ -1036,47 +1112,61 @@ function lineChartPlotly(chart_obj, onComplete) {
                         }
 */
 
-                        // Build the trace object for Plotly
-                        var trace = {};
-                        trace.name = file.legend;
-                        trace.x = columns[x_column];
-                        trace.y = columns[y_column]
+                        // ...but there could be multiple columns from the same file that the user
+                        //  wants to use for the y axis, and each of them need their own trace...
+                        for (var i = 1; i < selected_columns.length; i++) {
+                            var y_column = selected_columns[i];
 
-                        if ( $("#" + chart_obj.chart_id + "_use_scatterGL").length > 0 && $("#" + chart_obj.chart_id + "_use_scatterGL").is(':checked') )
-                            trace.type = 'scattergl';
-                        else
-                            trace.type = 'scatter';
+                            // Build the trace object for Plotly
+                            var trace = {};
+                            trace.x = columns[x_column];
+                            trace.y = columns[y_column];
 
-                        if (chart_obj.line_type !== undefined)
-                            trace.mode = chart_obj.line_type;    // NOTE: if trace.mode == 'lines', then it's an "xy" plot.  if trace.mode == 'markers', then it's a "scatter" plot
-                        else
-                            trace.mode = 'lines';
+                            // If plotting more than one column from the file, then need to append
+                            //  the column name after the default legend value
+                            trace.name = file.legend;
+                            if ( selected_columns.length > 2 )
+                                trace.name = file.legend + ' ' + file.headers[ selected_columns[i] ];
 
-                        // When each file is being plotted with its own y-axis scaling, plotly
-                        //  requires each set of data to reference its own y-axis
-                        trace_count++;
-                        if ( chart_obj.normalize_y_axis === "yes" ) {
-                            if (trace_count === 1) {
-                                // Use the default value for first set of data
-                                trace.yaxis = 'y';
+                            // Want to use WebGL if at all possible, but need the ability to disable
+                            //  it because phantomJS only works when rendering SVG
+                            if ( $("#" + chart_obj.chart_id + "_disable_scatterGL").length > 0 && !$("#" + chart_obj.chart_id + "_disable_scatterGL").is(':checked') )
+                                trace.type = 'scattergl';
+                            else
+                                trace.type = 'scatter';
+
+                            if ( $("#" + chart_obj.chart_id + "_line_type").length > 0 )
+                                trace.mode = $("#" + chart_obj.chart_id + "_line_type").val();
+                            else if (chart_obj.line_type !== undefined)
+                                trace.mode = chart_obj.line_type;    // NOTE: if trace.mode == 'lines', then it's an "xy" plot.  if trace.mode == 'markers', then it's more of a "scatter" plot
+                            else
+                                trace.mode = 'lines';
+
+                            trace_count++;
+                            if ( normalize_y_axis ) {
+                                if (trace_count === 1) {
+                                    // Use the default value for first set of data
+                                    trace.yaxis = 'y';
+                                }
+                                else {
+                                    // Subsequent sets of data get "y2", "y3", "y4", etc
+                                    trace.yaxis = 'y' + trace_count.toString();
+                                }
                             }
-                            else {
-                                // Subsequent sets of data get "y2", "y3", "y4", etc
-                                trace.yaxis = 'y' + trace_count.toString();
-                            }
-                        }
 /*
-                        else if ( chart_obj.error_bar_plus_type !== "none" ) {
-                            // If error bars are required, then translate the provided options into
-                            //  something Plotly understands
-                            trace.error_y = getErrorBarSettings(chart_obj, columns);
-                        }
+                            else if ( chart_obj.error_bar_plus_type !== "none" ) {
+                                // If error bars are required, then translate the provided options into
+                                //  something Plotly understands
+                                trace.error_y = getErrorBarSettings(chart_obj, columns);
+                            }
 */
-                        // Add line to chart data
-                        chart_data.push(trace);
 
-                        // Store that this data is loaded
-                        loaded_data[dr_id] = 1;
+                            // Add line to chart data
+                            chart_data.push(trace);
+
+                            // Store that this data is loaded
+                            loaded_data[dr_id] = 1;
+                        }
                     }
                 }
             }
@@ -1086,7 +1176,7 @@ function lineChartPlotly(chart_obj, onComplete) {
             var yaxis_settings = getYAxisSettings(chart_obj);
 
             // The "Normalize Y Axis" setting can require changes to the axis settings...
-            if ( chart_obj.normalize_y_axis === "no" || trace_count < 2 ) {
+            if ( !normalize_y_axis || trace_count < 2 ) {
                 // Gridlines and ticks make sense here because all files are going to be displayed
                 //  with the exact same y-axis scaling
                 yaxis_settings.showline = true;
@@ -1122,7 +1212,7 @@ function lineChartPlotly(chart_obj, onComplete) {
             };
 
             // When each set of data is being graphed with its own y-axis...
-            if ( chart_obj.normalize_y_axis === "yes" ) {
+            if ( normalize_y_axis ) {
                 // ...then plotly requires a separate yaxis settings object for each set of data
                 var axis_basestr = 'yaxis';
                 for (i = 1; i <= trace_count; i++) {
@@ -1207,19 +1297,20 @@ function stackedAreaChartPlotly(chart_obj, onComplete) {
                         console.log('Plotting stacked area: ' + dr_id);
 
                         var columns = file.columns;
-                        var selected_columns = updateSelectedColumns(chart_obj, "stackedarea", file.headers);
+                        var selected_columns = updateSelectedColumns(chart_obj, "stackedarea", file);
+
+                        $.each(selected_columns, function(index, column_id) {
+                            if ( column_id === '' || !Number.isInteger( Number(column_id) ) )
+                                error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + column_id + "\"");
+                            else if ( columns[column_id] === undefined )
+                                error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (column_id+1));
+                        });
+
+                        if ( selected_columns.length < 2 )
+                            error_messages.push("Unable to plot an \"stackedarea\" graph for \"" + file.legend + "\" with only one column selected");
+
+                        // The column to use for the x axis will be the first entry in selected_columns...
                         var x_column = selected_columns[0];
-                        var y_column = selected_columns[1];
-
-                        if ( x_column === '' || !Number.isInteger( Number(x_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + x_column + "\"");
-                        else if ( columns[x_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (x_column+1));
-
-                        if ( y_column === '' || !Number.isInteger( Number(y_column) ) )
-                            error_messages.push("The file for \"" + file.legend + "\" can't identify a column with the string \"" + y_column + "\"");
-                        else if ( columns[y_column] === undefined )
-                            error_messages.push("The file for \"" + file.legend + "\" does not have data for column " + (y_column+1));
 /*
                         if ( error_bar_plus_type === 'data' ) {
                             if ( error_bar_plus_value === '' || !Number.isInteger( Number(error_bar_plus_value) ) )
@@ -1236,33 +1327,40 @@ function stackedAreaChartPlotly(chart_obj, onComplete) {
                         }
 */
 
-                        // Build the trace object for Plotly
-                        var trace = {};
-                        trace.x = columns[x_column];
-                        trace.y = columns[y_column];
-                        trace.fill = 'tozeroy';
-                        trace.mode = 'lines';
+                        // ...but there could be multiple columns from the same file that the user
+                        //  wants to use for the y axis, and each of them need their own trace...
+                        for (var i = 1; i < selected_columns.length; i++) {
+                            var y_column = selected_columns[i];
 
-                        if ( $("#" + chart_obj.chart_id + "_use_scatterGL").length > 0 && $("#" + chart_obj.chart_id + "_use_scatterGL").is(':checked') )
-                            trace.type = 'scattergl';
-                        else
-                            trace.type = 'scatter';
+                            // Build the trace object for Plotly
+                            var trace = {};
+                            trace.x = columns[x_column];
+                            trace.y = columns[y_column];
+                            trace.fill = 'tozeroy';
+                            trace.mode = 'lines';
 
+                            // Want to use WebGL if at all possible, but need the ability to disable
+                            //  it because phantomJS only works when rendering SVG
+                            if ( $("#" + chart_obj.chart_id + "_disable_scatterGL").length > 0 && !$("#" + chart_obj.chart_id + "_disable_scatterGL").is(':checked') )
+                                trace.type = 'scattergl';
+                            else
+                                trace.type = 'scatter';
 /*
-                        if ( chart_obj.error_bar_plus_type !== "none" ) {
-                            // If error bars are required, then translate the provided options into
-                            //  something Plotly understands
-                            trace.error_y = getErrorBarSettings(chart_obj, columns);
-                        }
+                            if ( chart_obj.error_bar_plus_type !== "none" ) {
+                                // If error bars are required, then translate the provided options into
+                                //  something Plotly understands
+                                trace.error_y = getErrorBarSettings(chart_obj, columns);
+                            }
 */
-                        // Name used for grouping bars
-                        trace.name = file.legend;
+                            // Name used for grouping bars
+                            trace.name = file.legend;
 
-                        // Add line to chart data
-                        chart_data.push(trace);
+                            // Add line to chart data
+                            chart_data.push(trace);
 
-                        // Store that this data is loaded
-                        loaded_data[dr_id] = 1;
+                            // Store that this data is loaded
+                            loaded_data[dr_id] = 1;
+                        }
                     }
                 }
             }

@@ -4391,3 +4391,30 @@ i {
 .ODRMultiDatafield_fieldtype {
     width: 100%;
 }
+
+
+.ODRDynamicGraph {
+    position: relative;
+}
+.DynamicGraphSettingsDiv {
+    cursor: pointer;
+    position: absolute;
+    z-index: 999;
+    top: 10px;
+    left: 20px;
+}
+.DynamicGraphSettings {
+    background-color: lightyellow;
+    border: 1px dashed gray;
+    padding: 5px;
+    position: absolute;
+    display: none;
+    min-width: 200px;
+    z-index: 999;
+    cursor: default;
+    /*left: 4px;*/
+    top: -45px;
+}
+.DynamicGraphSettingsDiv_close {
+    text-align: right;
+}
