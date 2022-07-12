@@ -42,3 +42,9 @@ services:
             $token_manager: "@security.csrf.token_manager"
             $templating: "@templating"
             $logger: "@logger"
+
+    odr_plugins.rruff.rruff_sample:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
+        arguments:
+            $templating: "@templating"
+            $logger: "@logger"
