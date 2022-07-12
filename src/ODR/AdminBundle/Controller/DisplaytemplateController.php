@@ -3644,15 +3644,22 @@ if ($debug)
         try {
             // Ensure required variables exist
             $post = $request->request->all();
-            if ( !isset($post['_token']) || !isset($post['fieldtypes']) || !isset($post['searchable']) || !isset($post['public_status']) )
+            if ( !isset($post['_token']) || !isset($post['searchable']) || !isset($post['public_status']) )
                 throw new ODRBadRequestException();
 
-            foreach ($post['fieldtypes'] as $df_id => $val)
-                $post['fieldtypes'][$df_id] = intval($val);
             foreach ($post['searchable'] as $df_id => $val)
                 $post['searchable'][$df_id] = intval($val);
             foreach ($post['public_status'] as $df_id => $val)
                 $post['public_status'][$df_id] = intval($val);
+
+            // The fieldtypes variable might not be set, since those form entries are disabled when
+            //  the user isn't allowed to change fieldtypes
+            if ( isset($post['fieldtypes']) ) {
+                foreach ($post['fieldtypes'] as $df_id => $val)
+                    $post['fieldtypes'][$df_id] = intval($val);
+            }
+            else
+                $post['fieldtypes'] = array();
 
 
             /** @var \Doctrine\ORM\EntityManager $em */

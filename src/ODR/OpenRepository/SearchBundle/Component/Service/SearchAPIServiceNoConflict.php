@@ -26,6 +26,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -130,6 +131,8 @@ class SearchAPIServiceNoConflict
      */
     public function getSearchableDatafieldsForUser($top_level_datatype_ids, $user_permissions, $search_as_super_admin = false)
     {
+        throw new ODRException('Please use the regular SearchAPIService instead, this one does not return correct results');
+
         // Going to need to filter the resulting list based on the user's permissions
         $datatype_permissions = array();
         $datafield_permissions = array();
@@ -214,6 +217,8 @@ class SearchAPIServiceNoConflict
      */
     public function filterSearchKeyForUser($datatype, $search_key, $user_permissions, $search_as_super_admin = false)
     {
+        throw new ODRException('Please use the regular SearchAPIService instead, this one does not return correct results');
+
         // Convert the search key into array format...
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
         $filtered_search_params = array();
@@ -869,6 +874,8 @@ class SearchAPIServiceNoConflict
      */
     public function performTemplateSearch($search_key, $user_permissions, $search_as_super_admin = false)
     {
+        throw new ODRException('Please use the regular SearchAPIService instead, this one does not return correct results');
+
         // ----------------------------------------
         // Unlike regular searching, this function doesn't need to filter the search key with the
         //  list of searchable datafields...that'll take place later on during the actual searching
@@ -1252,6 +1259,8 @@ class SearchAPIServiceNoConflict
      */
     public function performSearch($datatype, $search_key, $user_permissions, $sort_df_id = 0, $sort_ascending = true, $search_as_super_admin = false)
     {
+        throw new ODRException('Please use the regular SearchAPIService instead, this one does not return correct results');
+
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);

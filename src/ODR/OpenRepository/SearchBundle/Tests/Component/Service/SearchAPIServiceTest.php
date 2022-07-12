@@ -125,7 +125,8 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     'gen' => 'downs',
                 ),
-                array(98,    // Abelsonite
+                array(
+                    98,    // Abelsonite
                     101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
                     99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
                 ),
@@ -207,6 +208,25 @@ class SearchAPIServiceTest extends WebTestCase
                     '30' => "c",
                 ),
                 array(99,101,104,110,114,117,127,130,132,134,135,136),
+                true
+            ],
+
+            // ----------------------------------------
+            // Searches involving nulls and the empty string
+            'IMA List: mineral_aliases is blank, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '19' => '""',
+                ),
+                array(91,93,95,96,97),
+                true
+            ],
+            'IMA List: mineral_aliases is not blank, including non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '19' => '!""',
+                ),
+                array(92,94),
                 true
             ],
 
@@ -510,7 +530,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '1' => 'f',
                 ),
                 array(
-//                    98,    // Abelsonite
+                    98,    // Abelsonite...record 1 fulfills authors: "f", while record 35 fulfills gen: "downs"
                     101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
                     99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
                 ),
@@ -522,7 +542,8 @@ class SearchAPIServiceTest extends WebTestCase
                     'gen' => 'downs',
                     '17' => 't',
                 ),
-                array(98,    // Abelsonite
+                array(
+                    98,    // Abelsonite
 //                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
                     99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
                 ),
@@ -555,7 +576,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),    // authors have "downs" and "hazen" individually, but not the string "downs hazen"
                 false
             ],
-
+/*
             'RRUFF Reference: general search of "abelsonite"' => [
                 array(
                     'dt_id' => 1,
@@ -572,6 +593,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(2,6,7,8,9,17,25,27,31,32,35,43,49,58,60,61,64,66,68,71,72,75,79,81,82,83),
                 false
             ],
+*/
             'RRUFF Reference: general search of "abelsonite OR american"' => [
                 array(
                     'dt_id' => 1,
@@ -579,10 +601,141 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 array(
                     1,35,63,83,
-                    2,6,7,8,9,17,25,27,31,32,/*35,*/43,49,58,60,61,64,66,68,71,72,75,79,81,82/*,83*/
+                    2,6,7,8,9,17,25,27,31,32,43,49,58,60,61,64,66,68,71,72,75,79,81,82,
                 ),
                 false
             ],
+
+            'IMA List: general search of "downs mineral"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => 'downs mineral',
+                ),
+                array(94,97),
+                false
+            ],
+/*
+            'RRUFF Reference: general search of "532"' => [
+                array(
+                    'dt_id' => 1,
+                    'gen' => '532',
+                ),
+                array(24),
+                false
+            ],
+            'IMA List: general search of "532"' => [
+                array(
+                    'dt_id' => 2,
+                    'gen' => '532',
+                ),
+                array(94),    // Aegirine
+                false
+            ],
+            'RRUFF Sample: general search of "532"' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => '532',
+                ),
+                array(
+                    // Samples of Aegirine
+                    101,114,117,127,130,136,
+                    // Samples with 532 spectra
+                    98,100,102,103,105,107,109,115,116,118,
+                    124,125,126,131,133,137,
+                    // Samples of Aegirine with 532 spectra
+                    111,113,119,120,123,129,139,
+                ),
+                false
+            ],
+*/
+            'RRUFF Sample: general search of "downs OR 532", including non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => 'downs OR 532',
+                ),
+                array(
+                    // Abelsonite
+                    98,
+                    // Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+                    // Adelite
+                    102,115,
+                    // Bournonite
+                    124,126,
+                    // Amesite
+                    133,137,
+                ),
+                true
+            ],
+            'RRUFF Sample: general search of "downs 532", including non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => 'downs 532',
+                ),
+                array(
+                    // Samples need to have "downs" somewhere, and have "532" somewhere
+
+                    // Samples of Abelsonite, with 532 wavelength
+                    98,
+                    // Samples of Aegirine, with 532 wavelength
+                    111,113,119,120,123,129,139,
+                    // Samples of Anorthite, with 532 wavelength
+                    100,103,105,107,109,116,118,125,131,
+
+                    // (The remaining) Samples of Aegirine, with 532 from pages in rruff reference
+                    101,114,117,127,130,136,
+                ),
+                true
+            ],
+
+            // ----------------------------------------
+            // Searches to catch issues caused by a situation where C links to B, B links to A, and C also links to A
+            'RRUFF Sample: authors contains "ross"' => [
+                array(
+                    'dt_id' => 3,
+                    '1' => 'ross',    // results in 73 and 77
+                ),
+                array(
+                    // Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+
+                    // 107 also links to 77
+                ),
+                false
+            ],
+            'RRUFF Sample: general search of "ross"' => [
+                array(
+                    'dt_id' => 3,
+                    'gen' => 'ross',    // results in 73 and 77 from references, and 99, 106, 128 from rruff sample
+                ),
+                array(
+                    // Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+
+                    // 107 also links to 77
+                ),
+                false
+            ],
+            'RRUFF Sample: general search of "asdf"' => [
+                array(
+                    'dt_id' => 3,
+                    '1' => 'asdf',
+                ),
+                array(),
+                false
+            ]
         ];
     }
 
