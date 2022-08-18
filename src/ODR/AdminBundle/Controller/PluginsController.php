@@ -2849,7 +2849,7 @@ class PluginsController extends ODRCustomController
                             throw new ODRBadRequestException('The render plugin requires the field mapped to "'.$rpf->getFieldName().'" to be unique, but the datafield "'.$df->getFieldName().'" can not be unique');
                     }
                     if ( $rpf->getSingleUploadsOnly() ) {
-                        if ( !$dfi_service->hasMultipleUploads($df) )
+                        if ( $dfi_service->hasMultipleUploads($df) )
                             throw new ODRBadRequestException('The render plugin requires the field mapped to "'.$rpf->getFieldName().'" to only allow single uploads, but the datafield "'.$df->getFieldName().'" already has multiple uploaded files/images');
                     }
                 }

@@ -306,8 +306,15 @@ class DatafieldInfoService
         $query = $this->em->createQuery($str)->setParameters( array('datafield' => $datafield) );
         $results = $query->getResult();
 
+        // If $results has no rows, then nothing has been uploaded to the datafield...therefore it
+        //  technically does not have multiple files/images
+        if ( empty($results) )
+            return false;
+
+        // Otherwise...
         foreach ($results as $result) {
-            // $result[1] contains how many files/images each datarecord has
+            // ...if $result[1] is greater than 1, then at least one datarecord has multiple uploads
+            //  for the given datafield
             if ( intval($result[1]) > 1 )
                 return true;
         }
