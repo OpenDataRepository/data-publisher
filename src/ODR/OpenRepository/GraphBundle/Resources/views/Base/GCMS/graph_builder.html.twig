@@ -58,7 +58,7 @@
 
     <script type="text/javascript" src="../../js/mylibs/d3-queue.v3.min.js"></script>
     <script type="text/javascript" src="../../js/mylibs/odr_plotly_graphs.js"></script>
-    <script type="text/javascript" src="../../js/mylibs/odr_graph_plugin.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/odr_gcms_plugin.js"></script>
 
     <!-- App JS -->
     <!-- <script src="../../js/app.js"></script> -->
@@ -107,26 +107,12 @@
         window['SetupGraphs_{{ odr_chart_id }}']();
     });
 
-    if (!window.ODRChart) {
-        function ODRChart(graph_type) {
+    if (!window.ODRGCMSChart) {
+        function ODRGCMSChart() {
             this.chart_id = "";
 
             this.GraphData = function (chart_obj) {
-                /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
-                switch (graph_type) {
-                    case "xy":
-                        return ODRGraph_lineChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "bar":
-                        return ODRGraph_barChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "histogram":
-                        return ODRGraph_histogramChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "stackedarea":
-                        return ODRGraph_stackedAreaChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "piechart":
-                        return ODRGraph_pieChartPlotly(chart_obj, preparePlotlyStatic);
-                    default:
-                        break;
-                }
+                return ODRGraph_GCMSlineChartPlotly(chart_obj, preparePlotlyStatic);
             }
         }
     }
@@ -137,7 +123,7 @@
             {{ odr_chart_id }}_initialized = true;
 
             // If not ODRChart - load class
-            var odr_chart_{{ odr_chart_id }} = new ODRChart('{{ plugin_options.graph_type }}');
+            var odr_chart_{{ odr_chart_id }} = new ODRGCMSChart();
 
             // Set the chart id
             odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
@@ -171,5 +157,6 @@
     };
 
     var {{ odr_chart_id }}_initialized = false;
+    var odr_chart_{{ odr_chart_id }} = null;
 </script>
 {% endspaceless %}

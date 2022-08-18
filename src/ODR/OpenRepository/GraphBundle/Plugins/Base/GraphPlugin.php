@@ -14,7 +14,6 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 // Events
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
@@ -23,13 +22,14 @@ use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 use ODR\AdminBundle\Component\Service\CryptoService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
 
 
-class GraphPlugin implements DatatypePluginInterface
+class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 {
 
     /**
@@ -41,11 +41,6 @@ class GraphPlugin implements DatatypePluginInterface
      * @var CryptoService
      */
     private $crypto_service;
-
-    /**
-     * @var string
-     */
-    private $odr_tmp_directory;
 
     /**
      * @var string
@@ -64,12 +59,13 @@ class GraphPlugin implements DatatypePluginInterface
     public function __construct(
         EngineInterface $templating,
         CryptoService $crypto_service,
-        $odr_tmp_directory,
-        $odr_web_directory
+        string $odr_tmp_directory,
+        string $odr_web_directory
     ) {
+        parent::__construct($templating, $odr_tmp_directory, $odr_web_directory);
+
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
-        $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
     }
 
@@ -368,12 +364,6 @@ class GraphPlugin implements DatatypePluginInterface
                                     $filepath = $this->crypto_service->decryptFile($file['id']);
                                 }
                             }
-
-                            // Check the file for errors now, since errors inside plotly end up
-                            //  never being displayed to the user...
-                            $errors = self::validateFile($options, $filepath);
-                            if ( !empty($errors) )
-                                self::validateFileError($errors, $file['fileMeta']['originalFileName']);
                         }
 
                         // Set the chart id
@@ -407,12 +397,6 @@ class GraphPlugin implements DatatypePluginInterface
                             }
                         }
 
-                        // Check the file for errors now, since errors inside plotly end up never
-                        //  being displayed to the user...
-                        $errors = self::validateFile($options, $filepath);
-                        if ( !empty($errors) )
-                            self::validateFileError($errors, $file['fileMeta']['originalFileName']);
-
                         // Set the chart id
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
 
@@ -424,7 +408,8 @@ class GraphPlugin implements DatatypePluginInterface
                     }
 
                     // Pre-rendered graph file does not exist...need to create it
-                    $output_filename = self::buildGraph($page_data, $filename);
+                    $page_data['template_name'] = 'ODROpenRepositoryGraphBundle:Base:Graph/graph_builder.html.twig';
+                    $output_filename = parent::buildGraph($page_data, $filename);
 
                     // Delete previously encrypted non-public files
                     foreach ($files_to_delete as $file_path)
@@ -453,188 +438,6 @@ class GraphPlugin implements DatatypePluginInterface
 
 
     /**
-     * Builds the static graphs for the server.
-     *
-     * @param array $page_data A Map holding all the data that is needed for creating the graph
-     *                          html, and for the phantomjs js server to render it.
-     * @param string $filename The name that the svg file should have.
-     *
-     * @throws \Exception
-     *
-     * @return string
-     */
-    private function buildGraph($page_data, $filename)
-    {
-        // Going to use Symfony to write files
-        $fs = new \Symfony\Component\Filesystem\Filesystem();
-
-        // Files written by this function must be in web folder, otherwise phantomJS can't find them
-        $output_path = $this->odr_web_directory.'/uploads/files/';
-
-        // Prepare other variables needed for the graph file's name
-        $datatype_folder = 'datatype_'.$page_data['target_datatype_id'].'/';
-        $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
-
-
-        // The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
-        $output1 = $this->templating->render(
-            'ODROpenRepositoryGraphBundle:Base:Graph/graph_builder.html.twig', $page_data
-        );
-        $fs->dumpFile($output_path."Chart__".$file_id_list.'.html', $output1);
-        // Note that this will save graphs with data from non-public files in the web-accessible space
-        // TODO - is there a way of keeping them outside of web-accessible space?
-
-
-        // phantomJS's temporary output needs to be in ODR's tmp directory, otherwise ODR isn't
-        //  guaranteed to be able to move it to the web-accessible directory
-        $output_tmp_svg = $this->odr_tmp_directory."/graph_" . Uuid::uuid4()->toString();
-        // The final svg needs to be in a web-accessible directory
-        $output_svg = $output_path.'graphs/'.$datatype_folder.$filename;
-
-        // JSON data to be passed to the phantom js server
-        $json_data = array(
-            "data" => array(
-                'URL' => $output_path."Chart__".$file_id_list.'.html',
-                'selector' => $page_data['odr_chart_id'],
-                'output' => $output_tmp_svg
-            )
-        );
-
-        $data_string = json_encode($json_data);
-
-        // Curl request to the PhantomJS server
-        $ch = curl_init('localhost:9494');
-
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-Type: application/json',
-            'Content-Length: ' . strlen($data_string)
-        ));
-
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        // Parse output to fix CamelCase in SVG element
-        if ( file_exists($output_tmp_svg) ) {
-            $created_file = file_get_contents($output_tmp_svg);
-            $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
-            $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
-            file_put_contents($output_svg, $fixed_file);
-
-            // Remove the svg file in the temporary directory
-            unlink($output_tmp_svg);
-
-            // Remove the HTML file
-            unlink($output_path."Chart__".$file_id_list.'.html');
-            // Return the relative path to the final svg file so the browser can download it
-            return '/uploads/files/graphs/'.$datatype_folder.$filename;
-        }
-        else {
-            if ( strlen($output_svg) > 40 ) {
-                $output_svg = "..." . substr($output_svg,(strlen($output_svg) - 40), strlen($output_svg));
-            }
-
-            throw new \Exception('The file "'. $output_svg .'" does not exist');
-        }
-    }
-
-
-    /**
-     * Performs some checks as to whether a file is valid for graphing or not...
-     *
-     * @param array $options
-     * @param string $filepath
-     *
-     * @throws \Exception
-     */
-    private function validateFile($options, $filepath)
-    {
-        // Ensure the file exists first...
-        ini_set('auto_detect_line_endings', TRUE);
-        $handle = fopen($filepath, "r");
-        if ( !$handle )
-            throw new \Exception('Could not open "'.$filepath.'"');
-
-        $errors = array();
-
-        /*
-         * TODO
-         * web/js/mylibs/odr_plotly_graphs.js is currently written so it ignores lines with fewer
-         *  columns than expected, and also ignores extra values in each line...having php throw an
-         *  error here on either condition doesn't really make sense...
-         *
-         * It would make sense if there was some sort of a "strict" option...but that would require
-         *  the ability to "validate files before saving", and/or also require users being able to
-         *  edit/replace existing files...
-         */
-/*
-        // Currently, this only makes sense on a couple graph types
-        $graph_type = $options['graph_type'];
-        if ( $graph_type === 'xy' || $graph_type === 'bar' || $graph_type === 'stackedarea' ) {
-            $line_num = 1;
-            $expected_separator = null;
-
-            // These graphs need at least 2 columns...bar graphs could have a 3rd for y-error values
-            $max_separators = 1;
-            if ( $options['graph_type'] === 'bar' )
-                $max_separators = 2;
-
-            do {
-                // Read a line from the file...
-                $line = trim( fgets($handle) );
-                if ( !empty($line) && $line{0} !== '#' ) {
-                    // Get the number of characters in this line since it's not a comment
-                    $counts = count_chars($line, 1);
-
-                    if ( is_null($expected_separator) ) {
-                        // For the first line of data, determine which separator the file claims
-                        //  to be using...
-                        if ( isset($counts[44]) )     // ascii value for comma
-                            $expected_separator = 44;
-                        else if ( isset($counts[9]) ) // ascii value for horizontal tab
-                            $expected_separator = 9;
-                    }
-                    else if ( !isset($counts[$expected_separator]) || $counts[$expected_separator] > $max_separators ) {
-                        // If any subsequent line of data either doesn't have that separator, or has
-                        //  more than one of them, then that's an error with the file...
-                        $errors[] = $line_num;
-                    }
-                }
-                $line_num++;
-
-            } while ( !feof($handle) );
-        }
-*/
-        fclose($handle);
-        return $errors;
-    }
-
-
-    /**
-     * Easier to throw file validation errors this way...
-     *
-     * @param array $errors
-     * @param string $filename
-     *
-     * @throws \Exception
-     */
-    private function validateFileError($errors, $filename)
-    {
-        $str = 'Error in file "'.$filename.'": ';
-        if ( count($errors) == 1 )
-            $str .= 'Line '.$errors[0].' has';
-        else if ( count($errors) < 15 )
-            $str .= 'Lines '.implode(', ', $errors).' have';
-        else
-            $str .= 'Lines '.implode(', ', array_slice($errors, 0, 15)).' (and more) have';
-        $str .= ' an unexpected number of columns';
-
-        throw new \Exception($str);
-    }
-
-
-    /**
      * Called when a user changes RenderPluginOptions or RenderPluginMaps entries for this plugin.
      *
      * @param PluginOptionsChangedEvent $event
@@ -650,7 +453,7 @@ class GraphPlugin implements DatatypePluginInterface
                 $plugin_df = $rpm->getDataField();
         }
 
-        self::deleteCachedGraphs(0, $plugin_df);
+        parent::deleteCachedGraphs(0, $plugin_df);
     }
 
 
@@ -661,43 +464,7 @@ class GraphPlugin implements DatatypePluginInterface
      */
     public function onFileDelete(FileDeletedEvent $event)
     {
-        self::deleteCachedGraphs($event->getFileId(), $event->getDatafield());
+        parent::deleteCachedGraphs($event->getFileId(), $event->getDatafield());
     }
 
-
-    /**
-     * Locates and deletes cached graph images referencing this file
-     *
-     * @param int $file_id
-     * @param DataFields $datafield
-     */
-    private function deleteCachedGraphs($file_id, $datafield)
-    {
-        // Need to try to locate the filenames on the server
-        $filename_fragment = '';
-        if ($file_id !== 0) {
-            // If a file_id was passed in, then attempt to find graphs that use just that file
-            $filename_fragment = '_'.$file_id.'_';
-        }
-        else {
-            // If a file_id wasn't passed in, then attempt to find all graphs for the given datafield
-            $filename_fragment = '__'.$datafield->getId().'.svg';
-        }
-
-        // Graphs are organized into subdirectories by datatype id
-        $datatype_id = $datafield->getDataType()->getId();
-        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
-        if ( file_exists($graph_filepath) ) {
-            $files = scandir($graph_filepath);
-            foreach ($files as $filename) {
-                // TODO - assumes linux?
-                if ($filename === '.' || $filename === '..')
-                    continue;
-
-                // If this cached graph used this file, unlink it to force a rebuild later on
-                if ( strpos($filename, $filename_fragment) !== false )
-                    unlink($graph_filepath.'/'.$filename);
-            }
-        }
-    }
 }

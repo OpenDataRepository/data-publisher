@@ -144,11 +144,14 @@ class GraphController extends ODRCustomController
             }
             $datatype = $datatype_array[$datatype_id];
 
-            // The datatype could technically have multiple render plugins, so need to find the
-            //  correct one
+            // The datatype could technically have multiple render plugins, but since the graph plugin
+            //  is set to "render: true", there should only be one of them
             $render_plugin_instance = null;
             foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.graph') {
+                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                if ( $plugin_classname === 'odr_plugins.base.graph'
+                    || $plugin_classname === 'odr_plugins.base.gcms'
+                ) {
                     $render_plugin_instance = $rpi;
                     break;
                 }
@@ -176,9 +179,11 @@ class GraphController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Render the static graph
+            // Render the static graph using the correct plugin
+            $plugin_classname = $render_plugin_instance['renderPlugin']['pluginClassName'];
+
             /** @var DatatypePluginInterface $svc */
-            $svc = $this->container->get('odr_plugins.base.graph');
+            $svc = $this->container->get($plugin_classname);
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
 
             return $this->redirect($filename);
