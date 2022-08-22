@@ -1992,7 +1992,7 @@ class SearchAPIService
         // The records in this datatype only "matter" if the datatype was searched on...
         $own_dr_list = $search_datatree['dr_list'];
         foreach ($own_dr_list as $dr_id => $parent_dr_id) {
-            if ( $flattened_list[$dr_id] & SearchAPIService::CANT_VIEW ) {
+            if ( !isset($flattened_list[$dr_id]) || ($flattened_list[$dr_id] & SearchAPIService::CANT_VIEW) ) {
                 // User can't view this record, so don't know if the datatype was searched on...
                 // Keep looking
             }
