@@ -41,10 +41,13 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class WorkerController extends ODRCustomController
@@ -67,6 +70,8 @@ class WorkerController extends ODRCustomController
 
         $ret = '';
 
+        $conn = null;
+
         try {
             $post = $_POST;
 //print_r($post);
@@ -84,7 +89,8 @@ class WorkerController extends ODRCustomController
 
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $pheanstalk = $this->get('pheanstalk');
+
+            /** @var Logger $logger */
             $logger = $this->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -110,11 +116,26 @@ class WorkerController extends ODRCustomController
             // Grab necessary objects
             /** @var ODRUser $user */
             $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find( $user_id );
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecord_id );
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find( $datafield_id );
-            $em->refresh($datafield);
+            if ( is_null($datafield) )
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype->getDeletedAt() != null )
+                throw new ODRNotFoundException('Datatype');
+
+            $top_level_datatype = $datatype->getGrandparent();
+            if ( $top_level_datatype->getDeletedAt() != null )
+                throw new ODRNotFoundException('Grandparent Datatype');
+
+            $datarecord = null;
+            if ( $datarecord_id != 0 ) {
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecord_id );
+                if ( is_null($datarecord) )
+                    throw new ODRNotFoundException('Datarecord');
+            }
 
             /** @var FieldType $old_fieldtype */
             $old_fieldtype = $repo_fieldtype->find( $old_fieldtype_id );
@@ -123,18 +144,12 @@ class WorkerController extends ODRCustomController
             $new_fieldtype = $repo_fieldtype->find( $new_fieldtype_id );
             $new_typeclass = $new_fieldtype->getTypeClass();
 
-            // Ensure datarecord/datafield pair exist...they should, but have to make sure...
-            if ($datarecord == null)
-                throw new ODRException('Datarecord '.$datarecord_id.' is deleted');
-            if ($datafield == null)
-                throw new ODRException('Datafield '.$datafield_id.' is deleted');
-
 
             // Radio options need typename to distinguish...
             $old_typename = $old_fieldtype->getTypeName();
             $new_typename = $new_fieldtype->getTypeName();
             if ($old_typename == $new_typename)
-                throw new \Exception('Not allowed to migrate between the same Fieldtype');
+                throw new ODRBadRequestException('Not allowed to migrate between the same Fieldtype');
 
             // Need to handle radio options separately...
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
@@ -190,90 +205,239 @@ class WorkerController extends ODRCustomController
 
                     if ($changes_made)
                         $em->flush();
+
+                    // ----------------------------------------
+                    // Do not mark this datarecord as updated
+                    // Delete the relevant cached datarecord entries
+                    $cache_service->delete('cached_datarecord_'.$datarecord->getGrandparent()->getId());
+                    $cache_service->delete('cached_table_data_'.$datarecord->getGrandparent()->getId());
+
+                    // Delete all relevant search cache entries
+                    $search_cache_service->onDatafieldModify($datafield);
                 }
             }
             else if ( $new_typeclass !== 'Radio' ) {
-                // Grab the source entity repository
-                $src_repository = $em->getRepository('ODRAdminBundle:'.$old_typeclass);
+                // ----------------------------------------
+                // Going to perform these migrations with native SQL, since Doctrine slows it
+                //  down to unacceptable levels
+                $conn = $em->getConnection();
+                $conn->beginTransaction();
 
-                // Grab the entity that needs to be migrated
-                $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()));
-
-                // No point migrating anything if the src entity doesn't exist in the first place...would be no data in it
-                if ($src_entity !== null) {
-                    $logger->info('WorkerController::migrateAction() >> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"');
-                    $ret .= '>> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"'."\n";
-
-                    $value = null;
-                    if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
-                        // text -> text requires nothing special
-                        $value = $src_entity->getValue();
-                    }
-                    else if ( ($old_typeclass == 'IntegerValue' || $old_typeclass == 'DecimalValue') && ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
-                        // number -> text is easy
-                        $value = strval($src_entity->getValue());
-                    }
-                    else if ($old_typeclass == 'IntegerValue' && $new_typeclass == 'DecimalValue') {
-                        // integer -> decimal
-                        $value = floatval($src_entity->getValue());
-                    }
-                    else if ($old_typeclass == 'DecimalValue' && $new_typeclass == 'IntegerValue') {
-                        // decimal -> integer
-                        $value = intval($src_entity->getValue());
-                    }
-                    else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'IntegerValue') ) {
-                        // text -> integer
-                        $pattern = '/[^0-9\.\-]+/i';
-                        $replacement = '';
-                        $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
-
-                        if ( is_numeric($new_value) )
-                            $value = intval($new_value);
-                        else
-                            $value = '';        // will get turned into NULL
-                    }
-                    else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'DecimalValue') ) {
-                        // text -> decimal
-                        $pattern = '/[^0-9\.\-]+/i';
-                        $replacement = '';
-                        $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
-
-                        if ( is_numeric($new_value) )
-                            $value = floatval($new_value);
-                        else
-                            $value = '';        // will get turned into NULL
-                    }
-                    else if ( $old_typeclass == 'DatetimeValue' ) {
-                        // date -> anything
-                        $value = null;
-                    }
-                    else if ( $new_typeclass == 'DatetimeValue' ) {
-                        // anything -> date
-                        $value = new \DateTime('9999-12-31 00:00:00');
-                    }
-
-                    // Save changes
-                    if ( $new_typeclass == 'DatetimeValue' )
-                        $ret .= 'set dest_entity to "'.$value->format('Y-m-d H:i:s').'"'."\n";
-                    else
-                        $ret .= 'set dest_entity to "'.$value.'"'."\n";
-                    $em->remove($src_entity);
+                // Going to need to map typeclasses to actual tables, since not using Doctrine
+                $table_map = array(
+                    'IntegerValue' => 'odr_integer_value',
+                    'DecimalValue' => 'odr_decimal_value',
+                    'ShortVarchar' => 'odr_short_varchar',
+                    'MediumVarchar' => 'odr_medium_varchar',
+                    'LongVarchar' => 'odr_long_varchar',
+                    'LongText' => 'odr_long_text',
+                    'DatetimeValue' => 'odr_datetime_value',
+                );
 
 
-                    // Create a new storage entity with the correct fieldtype...
-                    $new_obj = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-                    // ...then update it to have the desired value
-                    $emm_service->updateStorageEntity(
-                        $user,
-                        $new_obj,
-                        array('value' => $value),
-                        false,    // don't delay flush
-                        false,    // don't fire PostUpdate Event...nothing fundamental has changed
-                    );
+                // ----------------------------------------
+                // This query should do nothing, but make sure that the destination table doesn't
+                //  have any undeleted entries for this datafield
+                $delete_dest_query = 'UPDATE '.$table_map[$new_typeclass].' SET deletedAt = NOW() WHERE data_field_id = '.$datafield->getId().' AND deletedAt IS NULL';
+                $rows = $conn->executeUpdate($delete_dest_query);
+
+                if ( $rows > 0 )
+                    $logger->warning('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted '.$rows.' of data for datafield '.$datafield->getId().' from the "'.$new_typeclass.'" table...should have been 0.');
+
+
+                // ----------------------------------------
+                // Going to use an  "INSERT ... SELECT" construct to transfer all acceptable
+                //  data from the source table to the destination table
+                $insert_query = 'INSERT INTO '.$table_map[$new_typeclass].'(data_field_id, field_type_id, data_record_id, data_record_fields_id, created, updated, deletedAt, createdBy, updatedBy, value';
+                // DecimalValue fieldtypes have both 'value' and 'original_value'
+                if ( $new_fieldtype->getTypeClass() === 'DecimalValue' )
+                    $insert_query .= ', original_value';
+                $insert_query .= ')';
+
+                // Most of the SELECT is the same for all migrations...
+                $select_query = ' SELECT e.data_field_id, '.$new_fieldtype->getId().', e.data_record_id, e.data_record_fields_id, NOW(), NOW(), NULL, '.$user->getId().', '.$user->getId().', ';
+                $remaining_query = ' FROM '.$table_map[$old_typeclass].' AS e WHERE e.data_field_id = '.$datafield->getId().' AND e.deletedAt IS NULL';
+
+                // ...but the rest of it depends on the type of data being migrated, and what it's
+                //  being migrated to
+                $old_length = 0;
+                $old_is_text = false;
+                if ( $old_typeclass === 'ShortVarchar' ) {
+                    $old_length = 32;
+                    $old_is_text = true;
                 }
-                else {
-                    $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
+                else if ( $old_typeclass === 'MediumVarchar' ) {
+                    $old_length = 64;
+                    $old_is_text = true;
                 }
+                else if ( $old_typeclass === 'LongVarchar' ) {
+                    $old_length = 255;
+                    $old_is_text = true;
+                }
+                else if ( $old_typeclass === 'LongText' ) {
+                    $old_length = 9999;
+                    $old_is_text = true;
+                }
+
+                $new_length = 0;
+                $new_is_text = false;
+                if ( $new_typeclass === 'ShortVarchar' ) {
+                    $new_length = 32;
+                    $new_is_text = true;
+                }
+                else if ( $new_typeclass === 'MediumVarchar' ) {
+                    $new_length = 64;
+                    $new_is_text = true;
+                }
+                else if ( $new_typeclass === 'LongVarchar' ) {
+                    $new_length = 255;
+                    $new_is_text = true;
+                }
+                else if ( $new_typeclass === 'LongText' ) {
+                    $new_length = 9999;
+                    $new_is_text = true;
+                }
+
+
+                // Each of the different migration types requires a slightly different query...
+                if ( $old_is_text && $new_is_text && $old_length < $new_length ) {
+                    // Shorter text values can be inserted into longer text values without any
+                    // extra conversions
+                    $select_query .= 'e.value';
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.value != ""';
+                }
+                else if ( $old_is_text && $new_is_text && $old_length > $new_length ) {
+                    // Longer text values need to be truncated to go into shorter text values
+                    $select_query .= 'SUBSTRING(e.value, 1, '.$new_length.')';
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.value != ""';
+                }
+                else if ( $old_is_text && $new_typeclass === 'IntegerValue' ) {
+                    // Converting text into an integer requires a cast...
+                    $select_query .= 'CAST(e.value AS SIGNED)';
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.value != ""';
+
+                    // ...but it also needs both a REGEX and BETWEEN conditions, otherwise an
+                    //  error will be thrown when encountering values that aren't valid 4 byte
+                    //  integers
+                    $remaining_query .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::INTEGER_REGEX.'")';
+
+                    // The regex MUST come before the BETWEEN, otherwise the BETWEEN will throw
+                    //  warnings (which are upgraded to errors) when comparing non-integer values
+                    $remaining_query .= ' AND CAST(e.value AS DOUBLE) BETWEEN -2147483648 AND 2147483647';
+                    // NOTE - the cast here uses a DOUBLE, since that can handle absurdly large
+                    //  numbers...if it was instead cast to a SIGNED here, then it would be much more
+                    //  likely to encounter an "out of range" value, and crash the whole migration
+                }
+                else if ( $old_is_text && $new_typeclass === 'DecimalValue' ) {
+                    // Converting text into a decimal requires a cast for the value...
+                    $select_query .= 'CAST(SUBSTR(e.value, 1, 255) AS DOUBLE)';
+                    // ...but the original_value should just match the original text being converted
+                    $select_query .= ', SUBSTR(e.value, 1, 255)';    // TODO - this guarantees a fit inside a varchar(255), but it probably shouldn't even be varchar(32) due to precision
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.value != ""';
+
+                    // It also needs a REGEX, otherwise an error will be thrown when encountering
+                    //  values that aren't valid doubles
+                    $remaining_query .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_REGEX.'")';
+                }
+                else if ( $old_typeclass === 'IntegerValue' && $new_is_text ) {
+                    // The string representation of a 4 byte integer is always able to fit into
+                    //  the text fields, since they're at least 32 bytes long
+                    $select_query .= 'CAST(e.value AS CHAR('.$new_length.'))';
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.value IS NOT NULL';
+                }
+                else if ( $old_typeclass === 'DecimalValue' && $new_is_text ) {
+                    // Want to convert the 'original_value' property of the Decimal...needs to be
+                    //  truncated because original_value could technically be longer than the text
+                    //  field  TODO - it probably shouldn't even be varchar(32), due to precision
+                    $select_query .= 'SUBSTRING(e.original_value, 1, '.$new_length.')';
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.original_value IS NOT NULL';
+                }
+                else if ( $old_typeclass === 'IntegerValue' && $new_typeclass === 'DecimalValue' ) {
+                    // Integers can get converted into Decimals without issue...need one cast
+                    //  for the value, and another for the original_value
+                    $select_query .= 'CAST(e.value AS DOUBLE)';
+                    $select_query .= ', CAST(e.value AS CHAR(255))';
+
+                    // Don't need a regex to verify that integers are valid for conversion to decimal
+
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.value IS NOT NULL';
+                }
+                else if ( $old_typeclass === 'DecimalValue' && $new_typeclass === 'IntegerValue' ) {
+                    // Want to convert the 'original_value' property of the Decimal
+                    $select_query .= 'CAST(e.original_value AS SIGNED)';
+
+                    // Still need to use a BETWEEN in case the decimal is larger than a 4 byte integer
+                    $remaining_query .= ' AND CAST(e.original_value AS DOUBLE) BETWEEN -2147483648 AND 2147483647';
+                    // NOTE - the cast here uses a DOUBLE, since that can handle absurdly large
+                    //  numbers...if it was instead cast to a SIGNED here, then it would be much more
+                    //  likely to encounter an "out of range" value, and crash the whole migration
+
+                    // Don't need a regex to verify that decimals are valid for conversion to integer
+
+                    // Only copy non-blank values
+                    $remaining_query .= ' AND e.original_value IS NOT NULL';
+                }
+                else if ( $old_typeclass === 'DatetimeValue' && $new_is_text ) {
+                    // Converting from a date to a text value is pretty easy
+                    $select_query .= 'CAST(e.value AS CHAR('.$new_length.'))';
+                }
+
+                // Text/number fields can't be converted into dates  TODO - ...for now
+
+
+                // Stitch all parts of the query together and execute it
+                $final_query = $insert_query.$select_query.$remaining_query;
+                $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': '.$final_query);
+
+                $rows = $conn->executeUpdate($final_query);
+                $logger->info('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': copied '.$rows.' rows of data from "'.$old_typeclass.'" to "'.$new_typeclass.'" for datafield '.$datafield->getId());
+
+
+                // ----------------------------------------
+                // Now that the values have been moved, soft-delete the entries in the source
+                //  table
+                $delete_src_query = 'UPDATE '.$table_map[$old_typeclass].' SET deletedAt = NOW() WHERE data_field_id = '.$datafield->getId().' AND deletedAt IS NULL';
+                $rows = $conn->executeUpdate($delete_src_query);
+
+                $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted '.$rows.' rows of data for datafield '.$datafield->getId().' from the "'.$old_typeclass.'" table');
+
+
+                // No errors at this point, commit the changes
+//                $conn->rollBack();
+                $conn->commit();
+
+
+                // ----------------------------------------
+                // Need to delete all cache entries for all datarecords of the datatype...can't just
+                //  delete them for the datarecords that got migrated
+                $query =
+                   'SELECT dr.id AS dr_id, dr.unique_id AS unique_id
+                    FROM odr_data_record dr
+                    WHERE dr.data_type_id = '.$datafield->getDataType()->getGrandparent()->getId().'
+                    AND dr.deletedAt IS NULL';
+                $results = $conn->fetchAll($query);
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+                    $unique_id = $result['unique_id'];
+
+//                    if ( $cache_service->exists('cached_datarecord_'.$dr_id) ) {
+                        $cache_service->delete('cached_datarecord_'.$dr_id);
+                        $cache_service->delete('cached_table_data_'.$dr_id);
+                        $cache_service->delete('json_record_'.$unique_id);
+//                    }
+                }
+                $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted cache entries for '.count($results).' datarecords from top-level datatype '.$top_level_datatype->getId());
+
+                // Also need to delete all relevant search cache entries
+                $search_cache_service->onDatafieldModify($datafield);
             }
 
             // ----------------------------------------
@@ -292,21 +456,14 @@ class WorkerController extends ODRCustomController
 $ret .= '  Set current to '.$count."\n";
             }
 
-
-            // ----------------------------------------
-            // Do not mark this datarecord as updated
-            // Delete the relevant cached datarecord entries
-            $cache_service->delete('cached_datarecord_'.$datarecord->getGrandparent()->getId());
-            $cache_service->delete('cached_table_data_'.$datarecord->getGrandparent()->getId());
-
-            // Delete all relevant search cache entries
-            $search_cache_service->onDatafieldModify($datafield);
-
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
             // This is only ever called from command-line...
             $request->setRequestFormat('json');
+
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
 
             $source = 0x5e17488a;
             if ($e instanceof ODRException)
@@ -748,6 +905,216 @@ $ret .= '  Set current to '.$count."\n";
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = $error_prefix.$e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Creates a pile of background jobs with the intent of locating useless storage entities in
+     * the backend database, so they can get deleted.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function startcleanupAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // TODO - this works, but chewing through ~23 million useless rows takes a rather long time
+            throw new ODRException('Do not continue');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $url = $this->generateUrl('odr_storage_entity_cleanup_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Want to find pointless blank values in these tables...
+            $tables = array(
+                'odr_short_varchar',
+
+                // The other ones aren't as important...
+                'odr_medium_varchar',
+                'odr_long_varchar',
+                'odr_long_text',
+                'odr_integer_value',
+                'odr_decimal_value',
+            );
+
+            // Need a list of all datafields...including the "deleted" ones
+            $query = 'SELECT df.id AS df_id FROM odr_data_fields df';
+            $conn = $em->getConnection();
+            $results = $conn->executeQuery($query);
+
+            foreach ($results as $result) {
+                $df_id = intval($result['df_id']);
+
+//                if ( $df_id > 10 )
+//                    break;
+
+                foreach ($tables as $table) {
+                    // Create a job for each datafield/table combo
+                    $payload = json_encode(
+                        array(
+                            'datafield_id' => $df_id,
+                            'table' => $table,
+
+                            'api_key' => $beanstalk_api_key,
+                            'url' => $url,
+                            'redis_prefix' => $redis_prefix,    // debug purposes only
+                        )
+                    );
+
+                    $pheanstalk->useTube('storage_entity_cleanup')->put($payload);
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xfe66de84;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Called by a background process to determine which storage entities from a specific table for
+     * the given datafield can be deleted without losing any historical data.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function storageentitycleanupAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $ret = '';
+
+        $conn = null;
+
+        try {
+
+            throw new ODRException('Do not continue');
+
+            $post = $_POST;
+//print_r($post);
+            if (!isset($post['datafield_id']) || !isset($post['table']) || !isset($post['api_key']))
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $datafield_id = intval($post['datafield_id']);
+            $table = $post['table'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            if ($api_key !== $beanstalk_api_key)
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            /** @var Logger $logger */
+            $logger = $this->get('logger');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            $query =
+               'SELECT e.id, e.data_record_fields_id AS drf_id, e.value, e.created, e.updated
+                FROM '.$table.' e
+                WHERE e.data_field_id = '.$datafield_id.'
+                ORDER BY e.data_record_fields_id, e.id';
+            $results = $conn->executeQuery($query);
+
+            $prev_id = $prev_drf = $prev_value = null;
+            $blank_ids = array();
+
+            foreach ($results as $result) {
+                $id = $result['id'];
+                $drf_id = $result['drf_id'];
+                $value = $result['value'];
+                $created = $result['created'];//->format('Y-m-d H:i:s');
+                $updated = $result['updated'];//->format('Y-m-d H:i:s');
+
+                // This drf is different than the previous, so it should be the first storage entity
+                //  for this datarecord/datafield pair
+                if ( $drf_id !== $prev_drf ) {
+                    // If the value is the empty string, and the created date is equal to the
+                    //  updated date...
+                    if ( ($value === '' || is_null($value) ) && $created === $updated) {
+                        // ...then this is most likely an unnecessary entry created by CSVImport,
+                        //  and can get deleted without losing either data or history
+                        $blank_ids[] = $id;
+                    }
+                }
+
+                // Need to keep track of the drf id...
+                $prev_drf = $drf_id;
+            }
+
+            // Be sure the check the last entry in the list
+            if ( $prev_value === '' || is_null($prev_value) )
+                $blank_ids[] = $prev_id;
+
+            if ( !empty($blank_ids) ) {
+                $offset = 0;
+                $length = 5000;
+
+                while (true) {
+                    $slice = array_slice($blank_ids, $offset, $length);
+                    if ( !empty($slice) ) {
+                        $delete_query = 'DELETE FROM '.$table.' WHERE id IN ('.implode(',', $slice).');';
+                        $offset += $length;
+
+                        $rows = $conn->executeUpdate($delete_query);
+                        $logger->debug('WorkerController::storageentitycleanupAction(): deleted '.$rows.' rows from "'.$table.'" for datafield '.$datafield_id);
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+
+        }
+        catch (\Exception $e) {
+            // This is only ever called from command-line...
+            $request->setRequestFormat('json');
+
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0x5e17488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

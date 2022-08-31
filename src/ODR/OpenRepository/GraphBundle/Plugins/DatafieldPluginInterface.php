@@ -18,15 +18,27 @@ interface DatafieldPluginInterface
 {
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array $datarecord
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options);
+
+    /**
      * Executes the RenderPlugin on the provided datafield
      *
      * @param array $datafield
      * @param array $datarecord
      * @param array $render_plugin_instance
-     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
+     * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master');
+    public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options);
 }

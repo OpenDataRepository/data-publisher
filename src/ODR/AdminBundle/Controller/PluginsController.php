@@ -30,6 +30,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\PluginAttachEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
 // Exceptions
@@ -47,11 +48,13 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symphony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 // YAML Parsing
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -224,6 +227,7 @@ class PluginsController extends ODRCustomController
             'render',
             'version',
             'override_fields',
+            'override_field_reload',
             'override_child',
             'description',
             'registered_events',
@@ -362,6 +366,13 @@ class PluginsController extends ODRCustomController
         if ( !$has_derived_field && ($plugin_service instanceof DatafieldDerivationInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldDerivationInterface since it has no derived fields');
 
+        // If a plugin must implement DatafieldReloadOverrideInterface if and only if it claims to
+        //  override datafield reloading
+        if ( $plugin_config['override_field_reload'] && !($plugin_service instanceof DatafieldReloadOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement DatafieldReloadOverrideInterface to match its config file');
+        if ( !$plugin_config['override_field_reload'] && ($plugin_service instanceof DatafieldReloadOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldReloadOverrideInterface to match its config file');
+
 
         // ----------------------------------------
         // If there are entries in the "config_options" key, ensure they are properly formed
@@ -371,7 +382,7 @@ class PluginsController extends ODRCustomController
             'default',
 //            'choices',    // this is optional
             'description',
-//            'applies_to'    // TODO - not implemented...delete this?
+//            'display_order',    // this is optional
         );
 
         if ( is_array($plugin_config['config_options']) ) {
@@ -430,6 +441,10 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -467,7 +482,6 @@ class PluginsController extends ODRCustomController
             $plugin_update_problems = self::getPluginUpdateProblems($em, $plugins_with_updates);
 
             // Render and return a page displaying the installed/available plugins
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:list_plugins.html.twig',
@@ -551,6 +565,9 @@ class PluginsController extends ODRCustomController
 
             if ( $installed_plugin_data['overrideFields'] !== $plugin_config['override_fields'] )
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_fields';
+
+            if ( $installed_plugin_data['overrideFieldReload'] !== $plugin_config['override_field_reload'] )
+                $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_field_reload';
 
 
             // Should doublecheck the plugin type too...
@@ -682,9 +699,11 @@ class PluginsController extends ODRCustomController
                     'description' => $rpo['description']
                 );
 
-                // This entry is optional in the config file, so only check it when it's not null
+                // These entries are optional in the config file, so ignore unless they're not null
                 if ( !is_null($rpo['choices']) )
                     $tmp[ $rpo['name'] ]['choices'] = $rpo['choices'];
+                if ( !is_null($rpo['display_order']) )
+                    $tmp[ $rpo['name'] ]['display_order'] = $rpo['display_order'];
             }
 
             if ( is_array($plugin_config['config_options']) ) {
@@ -698,9 +717,11 @@ class PluginsController extends ODRCustomController
                             'description' => $data['description'],
                         );
 
-                        // This entry is optional, so have to check whether it exists first
+                        // These entries are optional, so have to check whether they exists first
                         if ( isset($data['choices']) )
                             $tmp[$option_key]['choices'] = $data['choices'];
+                        if ( isset($data['display_order']) )
+                            $tmp[$option_key]['display_order'] = $data['display_order'];
                     }
                     else {
                         // This option exists in the database...
@@ -725,14 +746,25 @@ class PluginsController extends ODRCustomController
                         else if ( $existing_data['default'] === $data['default'] )
                             unset( $tmp[$option_key]['default'] );
 
+                        if ( $existing_data['description'] === $data['description'] )
+                            unset( $tmp[$option_key]['description'] );
+
                         if ( isset($data['choices']) ) {
                             if ( $existing_data['choices'] === $data['choices'] )
                                 unset( $tmp[$option_key]['choices'] );
                         }
 
-                        if ( $existing_data['description'] === $data['description'] )
-                            unset( $tmp[$option_key]['description'] );
+                        // Since "display_order" is never null in the database, it'll always exist
+                        //  in $tmp...but since it probably doesn't exist in the plugin config, the
+                        //  diff checker will repeatedly flag the plugin as needing an update...to
+                        //  fix this, just pretend the plugin's config had the default value
+                        if ( !isset($data['display_order']) )
+                            $data['display_order'] = 0;
 
+                        if ( isset($data['display_order']) ) {
+                            if ( $existing_data['display_order'] === $data['display_order'] )
+                                unset( $tmp[$option_key]['display_order'] );
+                        }
 
                         // If there are no differences, remove the entry
                         if ( count($tmp[$option_key]) == 0 )
@@ -1124,6 +1156,11 @@ class PluginsController extends ODRCustomController
             else
                 $render_plugin->setOverrideFields(true);
 
+            if ( $plugin_data['override_field_reload'] === false )
+                $render_plugin->setOverrideFieldReload(false);
+            else
+                $render_plugin->setOverrideFieldReload(true);
+
             if ( $plugin_data['override_child'] === false )
                 $render_plugin->setOverrideChild(false);
             else
@@ -1208,9 +1245,13 @@ class PluginsController extends ODRCustomController
                     else
                         $rpo->setDefaultValue($data['default']);
 
-                    // The "choices" key is optional
+                    // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+                    // ...still need to provide a default of 0 so doctrine doesn't complain apparently
+                    $rpo->setDisplayOrder(0);
+                    if ( isset($data['display_order']) )
+                        $rpo->setDisplayOrder($data['display_order']);
 
                     $rpo->setCreatedBy($user);
                     $rpo->setUpdatedBy($user);
@@ -1277,6 +1318,10 @@ class PluginsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -1336,7 +1381,6 @@ class PluginsController extends ODRCustomController
 
             $plugin_update_problems = $plugin_update_problems[$plugin_classname];
 
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_problems.html.twig',
@@ -1486,6 +1530,11 @@ class PluginsController extends ODRCustomController
                 $render_plugin->setOverrideFields(false);
             else
                 $render_plugin->setOverrideFields(true);
+
+            if ( $plugin_data['override_field_reload'] === false )
+                $render_plugin->setOverrideFieldReload(false);
+            else
+                $render_plugin->setOverrideFieldReload(true);
 
             if ( $plugin_data['override_child'] === false )
                 $render_plugin->setOverrideChild(false);
@@ -1653,9 +1702,13 @@ class PluginsController extends ODRCustomController
                     else
                         $rpo->setDefaultValue($data['default']);
 
-                    // The "choices" key is optional
+                    // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+                    // ...still need to provide a default of 0 so doctrine doesn't complain apparently
+                    $rpo->setDisplayOrder(0);
+                    if ( isset($data['display_order']) )
+                        $rpo->setDisplayOrder($data['display_order']);
 
                     if ($creating) {
                         $rpo->setCreatedBy($user);
@@ -1860,6 +1913,9 @@ class PluginsController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             // Grab necessary objects
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -2033,7 +2089,6 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form.html.twig',
@@ -2094,6 +2149,8 @@ class PluginsController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Ensure the relevant entities exist
@@ -2221,6 +2278,15 @@ class PluginsController extends ODRCustomController
                 }
                 $render_plugin['renderPluginOptions'][$rpo_id]['choices'] = $choices;
             }
+
+            // Order the options by their display_order property...most useful when there's a lot
+            //  of them, such as with the graph plugin
+            uasort($render_plugin['renderPluginOptions'], function($a, $b) {
+                if ( $a['display_order'] <= $b['display_order'] )
+                    return -1;
+                else
+                    return 1;
+            });
 
 
             // ----------------------------------------
@@ -2350,7 +2416,6 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form_data.html.twig',
@@ -2784,7 +2849,7 @@ class PluginsController extends ODRCustomController
                             throw new ODRBadRequestException('The render plugin requires the field mapped to "'.$rpf->getFieldName().'" to be unique, but the datafield "'.$df->getFieldName().'" can not be unique');
                     }
                     if ( $rpf->getSingleUploadsOnly() ) {
-                        if ( !$dfi_service->hasMultipleUploads($df) )
+                        if ( $dfi_service->hasMultipleUploads($df) )
                             throw new ODRBadRequestException('The render plugin requires the field mapped to "'.$rpf->getFieldName().'" to only allow single uploads, but the datafield "'.$df->getFieldName().'" already has multiple uploaded files/images');
                     }
                 }
@@ -2809,6 +2874,7 @@ class PluginsController extends ODRCustomController
             }
 
 
+            $plugin_attached = false;
             $plugin_fields_added = false;
             $plugin_fields_changed = false;
             $plugin_settings_changed = false;
@@ -2869,6 +2935,8 @@ class PluginsController extends ODRCustomController
                 // ...then create a renderPluginInstance entity tying the two together
                 $selected_render_plugin_instance = $ec_service->createRenderPluginInstance($user, $selected_render_plugin, $target_datatype, $target_datafield);    // need to flush here
                 /** @var RenderPluginInstance $selected_render_plugin_instance */
+
+                $plugin_attached = true;
             }
 
 
@@ -2901,7 +2969,7 @@ class PluginsController extends ODRCustomController
                 else {
                     // ...otherwise, update the existing entity
                     $props = array(
-                        'dataField' => $df_id
+                        'dataField' => $df
                     );
                     $changes_made = $emm_service->updateRenderPluginMap($user, $rpm, $props, true);    // don't need to flush...
 
@@ -2959,6 +3027,29 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Should be able to flush here
             $em->flush();
+
+            if ( $plugin_attached ) {
+                // Some render plugins need to do stuff when they get added to a datafield/datatype
+                // e.g. Currency plugins deleting cached table entries
+
+                // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                //  by the event subscribers will prevent further progress...
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new PluginAttachEvent($selected_render_plugin_instance, $user);
+                    $dispatcher->dispatch(PluginAttachEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't particularly want to rethrow the error since it'll interrupt
+                    //  everything downstream of the event (such as file encryption...), but
+                    //  having the error disappear is less ideal on the dev environment...
+                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
+                }
+            }
 
             if ( $plugin_fields_added || $plugin_fields_changed || $plugin_settings_changed ) {
                 // Some render plugins need to do stuff when their settings get changed

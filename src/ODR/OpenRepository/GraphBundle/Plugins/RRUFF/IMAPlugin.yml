@@ -5,8 +5,9 @@ odr_plugins.rruff.ima:
     render: true
     version: 1.0.0
     override_fields: true
+    override_field_reload: true
     override_child: false
-    description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.
+    description: This plugin enforces various constraints placed on the International Mineralogical Association's (IMA) list of minerals.  The various chemistry fields required by the IMA Plugin should also be using the Chemistry Plugin.
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
         PostUpdateEvent: onPostUpdate
@@ -14,7 +15,7 @@ odr_plugins.rruff.ima:
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
     # IMAPlugin.php and twig files for this plugin use them to match renderplugin fields to actual datafields
-    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE TWO FILES AS WELL
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE FILES AS WELL
     #####################
 
     required_fields:
@@ -54,7 +55,7 @@ odr_plugins.rruff.ima:
             description:
             type: ShortVarchar
             properties:
-                - must_be_unique    # NOTE - comment this out if abbreviations are added after the rest of the mineral's data
+                - must_be_unique
 
         chemistry_elements:
             name: Chemistry Elements
@@ -80,18 +81,17 @@ odr_plugins.rruff.ima:
             description:
             type: LongVarchar
 
-#        end_member_elements:    # TODO - rruff.info derives end member elements from the RRUFF formula
-#            name: End Member Elements
-#            description:
-#            type: LongVarchar
-#            properties:
-#                - no_user_edits
-#                - is_derived
-#        end_member_formula:
-#            name: End Member Formula
-#            description:
-#            type: LongVarchar
+        # NOTE - rruff.info also had Fleischer, Handbook of Mineralogy, and End Member chemistry, but those aren't being imported
+        # NOTE - ...it also had End Member Elements (derived from the RRUFF formula for some reason)
 
-        # TODO - alternate display and search for first/second reference
+
+        reference_a:
+            name: Reference A    # TODO - this is like the "initial" reference, right?
+            description:
+            type: IntegerValue
+        reference_b:
+            name: Reference B    # TODO - this is like the "most recent redefinition" reference, right?
+            description:
+            type: IntegerValue
 
     config_options:

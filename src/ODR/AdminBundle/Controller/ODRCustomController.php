@@ -39,6 +39,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class ODRCustomController extends Controller
@@ -66,7 +67,6 @@ class ODRCustomController extends Controller
     {
         // -----------------------------------
         // Grab necessary objects
-        $templating = $this->get('templating');
         $session = $this->get('session');
 
         $use_jupyterhub = false;
@@ -77,7 +77,6 @@ class ODRCustomController extends Controller
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
         /** @var CloneThemeService $clone_theme_service */
         $clone_theme_service = $this->container->get('odr.clone_theme_service');
@@ -91,6 +90,8 @@ class ODRCustomController extends Controller
         $theme_service = $this->container->get('odr.theme_info_service');
         /** @var ODRTabHelperService $odr_tab_service */
         $odr_tab_service = $this->container->get('odr.tab_helper_service');
+        /** @var EngineInterface $templating */
+        $templating = $this->get('templating');
 
 
         $logged_in = false;

@@ -1,244 +1,237 @@
 {% spaceless %}
-    <div class="ODRContentWrapper">
-        {# Template Group Default Datatype Manager #}
-        {% set datatype = related_datatypes[initial_datatype_id] %}
-        {% set datatype_meta = datatype.dataTypeMeta %}
 
-        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
-        {% if datatype_meta.searchSlug == '' %}
-            {# this shouldn't be an issue anymore, but keep around just in case #}
-            {% set datatype_baseurl = path('odr_admin_homepage') %}
+{% set datatype = related_datatypes[initial_datatype_id] %}
+{% set datatype_meta = datatype.dataTypeMeta %}
+
+{% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+{% if datatype_meta.searchSlug == '' %}
+    {# this shouldn't be an issue anymore, but keep around just in case #}
+    {% set datatype_baseurl = path('odr_admin_homepage') %}
+{% endif %}
+
+{% set is_metadata_datatype = false %}
+{% if datatype.metadata_for is not null %}
+    {% set is_metadata_datatype = true %}
+{% endif %}
+
+{# Pre-determine which permissions user has for this datatype... #}
+{% set can_view_datatype = false %}
+{% set can_view_datarecord = false %}
+{% set can_edit_datarecord = false %}
+{% set can_add_datarecord = false %}
+{% set can_delete_datarecord = false %}
+{% set is_datatype_admin = false %}
+
+{% if datatype_permissions[ datatype.id ] is defined %}
+
+    {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
+        {% set can_view_datatype = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
+        {% set can_view_datarecord = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+        {% set can_edit_datarecord = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+        {% set can_add_datarecord = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+        {% set can_delete_datarecord = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+        {% set is_datatype_admin = true %}
+    {% endif %}
+{% endif %}
+
+<div class="ODRContentWrapper">
+
+{% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
+    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+        'header_label': 'Database Tools',
+        'pure_sizes': 'pure-u-md-1-4 pure-u-lg-5-24 pure-u-xl-5-24',
+        'icon': 0
+    } %}
+
+    <div {#{% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}#}>
+        <span id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</span>
+        &nbsp;
+        <span class="ODRDatatypeInfoDiv">
+            <i class="fa fa-lg fa-info-circle"></i>
+            <span class="ODRDatatypeInfo">
+                <div>
+                    <b>Created By: </b>{{ datatype.createdBy|user_string }}
+                    <b> on </b>{{ datatype.created|date('Y-m-d') }}
+                </div>
+                <div>
+                    <b>Description: </b>{{ datatype_meta.description }}
+                </div>
+            </span>
+        </span>
+
+        {# number of datarecords for this datatype #}
+        {% set datarecord_count = 0 %}
+        {% if related_metadata[ datatype.id ] is defined %}
+            {% set datarecord_count = related_metadata[ datatype.id ] %}
         {% endif %}
+        <div>
+            Records: <span id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</span>
+        </div>
 
-        {% set is_metadata_datatype = false %}
-        {% if datatype.metadata_for is not null %}
-            {% set is_metadata_datatype = true %}
-        {% endif %}
-
-        {# Pre-determine which permissions user has for this datatype... #}
-        {% set can_view_datatype = false %}
-        {% set can_view_datarecord = false %}
-        {% set can_edit_datarecord = false %}
-        {% set can_add_datarecord = false %}
-        {% set can_delete_datarecord = false %}
-        {% set is_datatype_admin = false %}
-
-        {% if datatype_permissions[ datatype.id ] is defined %}
-
-            {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
-                {% set can_view_datatype = true %}
+        {# link to search this datatype #}
+        <div>
+            {% if datarecord_count == 0 %}
+                {# don't display link, nothing to view #}
+            {% else %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_search"
+                   href="{{ datatype_baseurl }}"
+                >
+                    <i class="fa fa-lg fa-search"></i>&nbsp;Search
+                </a>
             {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
-                {% set can_view_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-                {% set can_edit_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-                {% set can_add_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-                {% set can_delete_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-                {% set is_datatype_admin = true %}
-            {% endif %}
-        {% endif %}
+        </div>
 
-        {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
-            {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-                'header_label': 'Database Tools',
-                'pure_sizes': 'pure-u-md-1-4 pure-u-lg-5-24 pure-u-xl-5-24',
-                'icon': 0
-            } %}
-
-            <div {#{% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}#}>
-                <span id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</span>
-                &nbsp;
-                <span class="ODRDatatypeInfoDiv">
-                    <i class="fa fa-lg fa-info-circle"></i>
-                    <span class="ODRDatatypeInfo">
-                        <div>
-                            <b>Created By: </b>{{ datatype.createdBy|user_string }}
-                            <b> on </b>{{ datatype.created|date('Y-m-d') }}
-                        </div>
-                        <div>
-                            <b>Description: </b>{{ datatype_meta.description }}
-                        </div>
-                    </span>
-                </span>
-
-                {# number of datarecords for this datatype #}
-                {% set datarecord_count = 0 %}
-                {% if related_metadata[ datatype.id ] is defined %}
-                    {% set datarecord_count = related_metadata[ datatype.id ] %}
+        {# add record link for this datatype...only makes sense for a metadata datatype if it doesn't already have a record #}
+        <div>
+            {% if can_add_datarecord %}
+                {% if (is_metadata_datatype and datarecord_count == 0)
+                    or (not is_metadata_datatype)
+                %}
+                    <a id="ODRDatarecordList_{{ datatype.id }}_add"
+                       href="{{ datatype_baseurl }}#{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id }) }}"
+                    >
+                        <i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record
+                    </a>
                 {% endif %}
-                <div>
-                    Records:
-                    <span id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</span>
-                </div>
+            {% endif %}
+        </div>
 
-                {# link to search this datatype #}
-                <div>
-                    {% if datarecord_count == 0 %}
-                        {# don't display link, nothing to view #}
-                    {% else %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_search"
-                           href="{{ datatype_baseurl }}"
-                        >
-                            <i class="fa fa-lg fa-search"></i>&nbsp;Search
-                        </a>
-                    {% endif %}
-                </div>
+        {# CSV import link for this datatype...never makes sense for a metadata dataype #}
+        <div>
+            {% if is_datatype_admin and not is_metadata_datatype %}
+                <a class="address"
+                   href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
+                >
+                    <i class="fa fa-lg fa-upload"></i>&nbsp;Import
+                </a>
+            {% endif %}
+        </div>
 
-                {# add record link for this datatype...only makes sense for a metadata datatype if
-                   it doesn't already have a record #}
-                <div>
-                    {% if can_add_datarecord %}
-                        {% if (is_metadata_datatype and datarecord_count == 0)
-                            or (not is_metadata_datatype)
-                        %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_add"
-                           href="{{ datatype_baseurl }}#{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id }) }}"
-                        >
-                            <i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record
-                        </a>
-                        {% endif %}
-                    {% endif %}
-                </div>
+        {# master layout designer link #}
+        <div>
+            {% if is_datatype_admin %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                   class="address"
+                   href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
+                   title="Edit {{ datatype_meta.shortName }} Master Design"
+                >
+                    <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
+                </a>
+            {% endif %}
+        </div>
 
-                {# CSV import link for this datatype...never makes sense for a metadata dataype #}
-                <div>
-                    {% if is_datatype_admin and not is_metadata_datatype %}
-                        <a class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
-                        >
-                            <i class="fa fa-lg fa-upload"></i>&nbsp;Import
-                        </a>
-                    {% endif %}
-                </div>
-
-                {# master layout designer link #}
-                <div>
-                    {% if is_datatype_admin %}
+        {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
+        {# metadata layout designer link...never makes sense for a metadata datatype #}
+        <div>
+            {% if not is_metadata_datatype %}
+                {% if is_datatype_admin %}
+                    {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
                         <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                            class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
-                           title="Edit {{ datatype_meta.shortName }} Master Design"
+                           href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
+                           title="Edit {{ datatype_meta.shortName }} Master Layout"
                         >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
+                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
+                        </a>
+                    {% else %}
+                        <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                           class="address"
+                           href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
+                           title="Choose a metadata template"
+                        >
+                            <i class="fa fa-lg fa-plus-circle"></i>
+                            <span>&nbsp;Add Properties Page</span>
                         </a>
                     {% endif %}
-                </div>
-
-                {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
-                {# metadata layout designer link...never makes sense for a metadata datatype #}
-                <div>
-                {% if not is_metadata_datatype %}
-                    {% if is_datatype_admin %}
-                        {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
-                            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                               class="address"
-                               href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
-                               title="Edit {{ datatype_meta.shortName }} Master Layout"
-                            >
-                                <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
-                            </a>
-                        {% else %}
-                            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                               class="address"
-                               href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
-                               title="Choose a metadata template"
-                            >
-                                <i class="fa fa-lg fa-plus-circle"></i>
-                                <span>&nbsp;Add Properties Page</span>
-                            </a>
-                        {% endif %}
-                    {% endif %}
                 {% endif %}
-                </div>
-
-                {# Group management link for this datatype #}
-                <div>
-                {% if is_datatype_admin %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
-                       class="address"
-                       href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
-                    >
-                        <i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups
-                    </a>
-                {% endif %}
-                </div>
-
-                {# History tracking link for this datatype #}
-                <div>
-                {% if can_edit_datarecord %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_track_changes"
-                       class="address"
-                       href="{{ datatype_baseurl }}#{{ path('odr_track_datatype_changes', { 'datatype_id': datatype.id }) }}"
-                    >
-                        <i class="fa fa-lg fa-camera"></i>&nbsp;View Recent Changes
-                    </a>
-                {% endif %}
-                </div>
-
-            {% if is_datatype_admin and not is_metadata_datatype %}
-                {# spacer div so it's harder to unintentionally click on the deletion link #}
-                <div>&nbsp;</div>
-
-                {# deletion link for this datatype #}
-                <div>
-                    <a id="ODRDatatypeList_{{ datatype.id }}_delete"
-                       class="Pointer"
-                       onclick="deleteDatatype_landing({{ datatype.id }});"
-                    >
-                        <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
-                    </a>
-                </div>
             {% endif %}
+        </div>
 
+        {# Group management link for this datatype #}
+        <div>
+            {% if is_datatype_admin %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
+                   class="address"
+                   href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
+                >
+                    <i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups
+                </a>
+            {% endif %}
+        </div>
+
+        {# History tracking link for this datatype #}
+        <div>
+            {% if can_edit_datarecord %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_track_changes"
+                   class="address"
+                   href="{{ datatype_baseurl }}#{{ path('odr_track_datatype_changes', { 'datatype_id': datatype.id }) }}"
+                >
+                    <i class="fa fa-lg fa-camera"></i>&nbsp;View Recent Changes
+                </a>
+            {% endif %}
+        </div>
+
+        {% if is_datatype_admin and not is_metadata_datatype %}
+            {# spacer div so it's harder to unintentionally click on the deletion link #}
+            <div>&nbsp;</div>
+
+            {# deletion link for this datatype #}
+            <div>
+                <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="ODRDeleteDatatype Pointer">
+                    <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
+                </a>
             </div>
-            {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
         {% endif %}
-        {# Template Group Default Datatype Manager #}
 
+    </div>
+    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+{% endif %}
 
-        {# Template Group Instructions #}
-        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-            'header_label': 'Manage Your Database',
-            'pure_sizes': 'pure-u-md-3-4 pure-u-lg-19-24 pure-u-xl-19-24',
-            'icon': 0
-        } %}
+    {# Template Group Instructions #}
+    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+        'header_label': 'Manage Your Database',
+        'pure_sizes': 'pure-u-md-3-4 pure-u-lg-19-24 pure-u-xl-19-24',
+        'icon': 0
+    } %}
         <p>The settings under the "Manage Database" heading allow you to modify and add records to your database.</p>
         <p>Your database may have related databases that provide reference or other data that are used in your database.
             If so, you can managed those databases using the tools in the list of "Related Databases" below. Depending
             on your permission level, you may not have access to all features of the related databases.</p>
-        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {# END Template Group Instructions #}
+    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {# END Template Group Instructions #}
 
-
-        {# Manage Related Databases #}
-        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-            'header_label': 'Related Databases',
-            'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
-            'icon': 0
-        } %}
+    {# Manage Related Databases #}
+    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+        'header_label': 'Related Databases',
+        'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
+        'icon': 0
+    } %}
         {% include 'ODRAdminBundle:Datatype:type_list_related_databases.html.twig' with {
             'top_level_datatype': datatype,
             'datatypes': related_datatypes,
             'metadata': related_metadata,
             'datatype_permissions': datatype_permissions
         } %}
-        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {# END Manage Related Databases #}
+    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {# END Manage Related Databases #}
 
 
-        {# Recent Activity Graphs #}
-        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-            'header_label': 'Recent Activity over the past 6 weeks',
-            'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
-            'icon': 0
-        } %}
+    {# Recent Activity Graphs #}
+    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+        'header_label': 'Recent Activity over the past 6 weeks',
+        'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
+        'icon': 0
+    } %}
         <div id="ODRDashboardGraphs">
         {% if dashboard_graphs|raw|length > 0 %}
             {{ dashboard_graphs | raw }}
@@ -246,31 +239,26 @@
             <div style="margin-left: 20px;">No changes made</div>
         {% endif %}
         </div>
-        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {# END Recent Activity Graphs #}
-    </div>
+    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {# END Recent Activity Graphs #}
+</div>  <!-- end #ODRContentWrapper -->
 
-    <script>
-        $(function () {
-            disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+<script>
+    $(function () {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-            // Get the sparkline plugin to work on the smaller graphs
-            $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});
-        });
+        // Get the sparkline plugin to work on the smaller graphs
+        $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});
 
-        /**
-         * Deletes a top-level datatype from the landing page.
-         *
-         * @param {number} datatype_id
-         */
-        function deleteDatatype_landing(datatype_id) {
-            var datatype_name = $("#ODRDatarecordList_" + datatype_id + "_name").html();
+{% if is_datatype_admin and not is_metadata_datatype %}
+        $(".ODRDeleteDatatype").unbind('click').click(function() {
+            var datatype_name = $("#ODRDatarecordList_{{ datatype.id }}_name").html();
 
             if (confirm("Are you sure you want to delete the \"" + datatype_name + "\" database and all associated records?")) {
                 // Delete the datatype selected
                 var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1));
-                url += datatype_id;
+                url += '{{ datatype.id }}';
 
                 $.ajax({
                     cache: false,
@@ -299,7 +287,30 @@
                     }
                 });
             }
-        }
+        });
+{% endif %}
 
-    </script>
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        $('#ODRDatarecordList_{{ datatype.id }}_name').parent()
+            .attr('data-step', '2')
+            .attr('data-intro', 'This area contains links to pages useful for database administration.');
+        $('#ODRDatatypeList_filter')
+            .attr('data-step', '3')
+            .attr('data-intro', "The list of related databases can be filtered by typing into this field.");
+        $('#ODRDatatypeList').find('.fa-search').first().closest('td')
+            .attr('data-step', '4')
+            .attr('data-intro', 'Clicking one of these links brings up the search results page for the associated database.');
+        $('#ODRDatatypeList').find('.fa-tachometer').first().closest('td')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Clicking one of these links brings up the database management page for the associated database.');
+
+        // Initialize the help button
+        $('#ODRHelpButton').unbind('click').click(function() {
+            introJs().setOption("disableInteraction", true)
+                .start();
+        });
+    });
+</script>
 {% endspaceless %}

@@ -2,24 +2,61 @@ odr_plugins.base.gcms:
     name: GCMassSpec Plugin
     category: Base
     datatype: true
-    version: 1.1.0
+    render: true
+    version: 1.2.0
     override_fields: false
+    override_field_reload: false
     override_child: true
-    description: The GC Mass Spec plugin will read and extract data from Agilent .MS and .CH files.  Eventually, it will plot them as well.
+    description: TODO
     registered_events:
+        FileDeletedEvent: onFileDelete
+        PluginOptionsChangedEvent: onPluginOptionsChanged
+
     required_fields:
-        ms_file:
-            name: Agilent .MS File
-            description: Agilent .MS file for data extraction.
+        graph_file:
+            name: Graph File
+            description: A file containing GCMS values for plotting.
             type: File
-        ch_file:
-            name: Agilent .CH File
-            description: Agilent .CH file for data extraction.
-            type: File
+            properties:
+                - single_uploads_only
+
     config_options:
-#        header:
-#            name: Header Type
-#            type: String
-#            default: selector 
-#            choices: selector||Use dropdown selector on pivot field.,tabs||Tabs will display different graph children.,accordion||Different data sets will unfold like an accordion.
-#            description: Choose how multiple data sets will display. 
+        graph_width:
+            name: Graph Width
+            type: string
+            default: 900
+            description: Enter a width in pixels for the graph.
+            display_order: 1
+        graph_height:
+            name: Graph Height
+            type: string
+            default: 300
+            description: Enter a height in pixels for the graph.
+            display_order: 2
+
+        time_column:
+            name: TIME Column
+            type: integer
+            default: 1
+            description: TODO
+            display_order: 3
+        amu_column:
+            name: AMU Column
+            type: integer
+            default: 2
+            description: TODO
+            display_order: 4
+        counts_column:
+            name: COUNTS Column
+            type: integer
+            default: 5
+            description: COUNTS
+            display_order: 5
+
+        layout:
+            name: Layout
+            type: String
+            default: full_width
+            choices: full_width||Graphs and Fields are full width.,13_23||Data is 1/3. Graph is 2/3.,23_13||Data is 2/3. Graph is 1/3.,14_34||Data is 1/4. Graph is 3/4.,34_14||Data is 3/4. Graph is 1/4.
+            description: Choose the layout of the graph area.
+            display_order: 6

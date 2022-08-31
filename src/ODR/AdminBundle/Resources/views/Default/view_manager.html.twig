@@ -55,11 +55,18 @@
     {% set display_tracking = true %}
 {% endif %}
 
+{% set display_download_files = false %}
+{% if can_edit_datatype == true and has_datarecords %}
+    {% set display_download_files = true %}
+{% endif %}
+
 {% if notitle is defined %}
 {% else %}
     <h1 class="no-margin-top-phone">
         <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        {% if page_type != 'edit' %}
         <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
+        {% endif %}
     </h1>
 {% endif %}
 
@@ -75,11 +82,13 @@
             </li>
         {% endif %}
 
+        {% if page_type != 'edit' %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ChooseView" class="pure-button">
                     Choose View
                 </label>
             </li>
+        {% endif %}
 
         {% if display_add_record %}
             <li class="pure-menu-item SpacerRight">
@@ -113,9 +122,9 @@
             </li>
         {% endif %}
 
-        {% if can_edit_datatype %}
+        {% if display_download_files %}
             <li class="pure-menu-item SpacerRight">
-                <label id="ODRMassDownload" class="pure-button">
+                <label id="ODRMassFileDownload" class="pure-button">
                     Download Files
                 </label>
             </li>
@@ -173,8 +182,8 @@
         });
 {% endif %}
 
-{% if can_edit_datatype %}
-        $("#ODRMassDownload").unbind('click').click(function() {
+{% if display_download_files %}
+        $("#ODRMassFileDownload").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
             openMassDownloadDialog("{{ search_key }}");
         });
@@ -461,11 +470,6 @@
     function copyAndModifyView(theme_id) {
         var url = '{{ path('odr_clone_theme', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
-
-        {# requests to copy a theme from a search results page should create a search_results theme #}
-        {% if title == 'Search Result' %}
-        url += '/search_results';
-        {% endif %}
 
         setModalMessage("Copying selected theme, please wait...");
 

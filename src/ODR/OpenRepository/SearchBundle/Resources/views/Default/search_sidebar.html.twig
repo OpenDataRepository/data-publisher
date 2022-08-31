@@ -19,6 +19,35 @@
     {% endif %}
 {% endfor %}
 
+{% if not can_use_general_search %}
+    {# If the top-level datatype doesn't have any searchable datafields, then try the child datatypes #}
+    {% for child_datatype_id in datatype_relations['child_datatypes'] %}
+        {% set child_datatype = datatype_array[child_datatype_id] %}
+
+        {% for df_id, datafield in child_datatype['dataFields'] %}
+            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
+                {% set can_use_general_search = true %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+{% endif %}
+
+{% if not can_use_general_search %}
+    {# ...if neither the top-level nor the child datatypes have any searchable datafields, then try the linked datatypes #}
+    {% for linked_datatype_id in datatype_relations['linked_datatypes'] %}
+        {% set linked_datatype = datatype_array[linked_datatype_id] %}
+
+        {% for df_id, datafield in linked_datatype['dataFields'] %}
+            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+            {% if searchable == GENERAL_SEARCH or searchable == ADVANCED_SEARCH %}
+                {% set can_use_general_search = true %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+{% endif %}
+
+
     <div class="ODRThemeElement">
         <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
         <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />

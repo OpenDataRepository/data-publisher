@@ -58,6 +58,11 @@ ODR\AdminBundle\Entity\RenderPlugin:
             nullable: false
             column: override_fields
             default: false
+        overrideFieldReload:
+            type: boolean
+            nullable: false
+            column: override_field_reload
+            default: false
 
         plugin_type:
             type: smallint

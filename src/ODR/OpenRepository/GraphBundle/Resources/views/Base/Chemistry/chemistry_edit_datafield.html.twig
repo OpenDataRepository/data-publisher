@@ -1,0 +1,156 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+{% if field_typename == "Paragraph Text" %}
+    <fieldset>
+        <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+        {% if is_datatype_admin %}
+            <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+        {% endif %}
+            {{ datafield_meta.fieldName }}
+
+            {% include 'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_popup.html.twig' with {
+                'field_typename': field_typename,
+                'unique_id': unique_id,
+                'input_id': input_id,
+
+                'subscript_delimiter': subscript_delimiter,
+                'superscript_delimiter': superscript_delimiter,
+            } %}
+        </label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+            <textarea
+                id="{{ input_id }}"
+                class="pure-u-1"
+                name="{{ input_name }}"
+                {% if datafield_meta.required == 1 %}required="required"{% endif %}
+                data-error-type="inline"
+            >{{ valuefield_value }}</textarea>
+            <i class="fa fa-save ODRSaveIndicator ODRChemistryPlugin_SaveIndicator"></i>
+        </div>
+    </fieldset>
+
+{% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+    <fieldset>
+        <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+        {% if is_datatype_admin %}
+            <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+        {% endif %}
+            {{ datafield_meta.fieldName }}
+
+            {% include 'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_popup.html.twig' with {
+                'field_typename': field_typename,
+                'unique_id': unique_id,
+                'input_id': input_id,
+
+                'subscript_delimiter': subscript_delimiter,
+                'superscript_delimiter': superscript_delimiter,
+            } %}
+        </label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+            <input
+                {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                type="text"
+                id="{{ input_id }}"
+                class="pure-u-1"
+                name="{{ input_name }}"
+                value="{{ valuefield_value }}"
+                data-error-type="inline"
+            />
+            <i class="fa fa-save ODRSaveIndicator ODRChemistryPlugin_SaveIndicator"></i>
+        </div>
+    </fieldset>
+{% endif %}
+
+{% set max_length = '' %}
+{% if field_typename == "Long Text" %}
+    {% set max_length = 255 %}
+{% elseif field_typename == "Medium Text" %}
+    {% set max_length = 64 %}
+{% elseif field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
+
+{% if
+    field_typename == "Paragraph Text"
+    or field_typename == "Long Text"
+    or field_typename == "Medium Text"
+    or field_typename == "Short Text"
+%}
+<script>
+    var {{ field_typeclass }}Interval_{{ unique_id }} = null;
+    $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+        clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+        {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+    });
+
+    $("#EditForm_{{ unique_id }}").validate({
+        rules: {
+            "{{ input_name }}": {
+                {% if field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+                maxlength: {{ max_length }},
+                {% endif %}
+
+                {% if datafield_meta.is_unique %}
+                required: true,
+                {% endif %}
+
+                {% if datafield_meta.is_unique %}
+                {# need to query ODR to see whether the contents of this field are unique or not #}
+                remote: {
+                    url: "{{ path('odr_check_fake_record_field_uniqueness', { 'datafield_id': datafield.id, 'datarecord_id': datarecord.id }) }}",
+                    type: "post",
+                    data: {
+                        {# The form's value is automatically inserted by jQuery validate #}
+                        "{{ field_typeclass }}Form[_token]": function () {
+                            return $("#EditForm_{{ unique_id }}").find("input[type=hidden]").val();
+                        },
+                        "{{ field_typeclass }}Form[error_type]": "json",
+                    }
+                }
+                {% endif %}
+            }
+        },
+
+        {% if datafield_meta.is_unique %}
+        onkeyup: false,    // If the datafield fires off a remote event to check uniqueness, then don't trigger validation on every keyup event
+        {% endif %}
+
+        submitHandler: function(form) {
+            SaveRecordData(
+                '#EditForm_{{ unique_id }}', {{ field_typeclass }}Interval_{{ unique_id }}
+            );
+        }
+    });
+</script>
+{% endif %}
+
+{% endspaceless %}

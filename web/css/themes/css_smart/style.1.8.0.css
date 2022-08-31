@@ -1176,6 +1176,20 @@ ul#wizardStatus li.completed:before{
     transform: rotate(90deg);
     margin-right: -10px;
 }
+.ODRDragHandle_info {
+    cursor: default;
+    position: absolute;
+    top: calc(50% - 40px);
+    right: -25px;
+    width: 50px;
+    text-align: center;
+
+    background: white;
+    border: 1px solid black;
+    color: rgb(85, 85, 85);
+    font-size: 16px;
+    z-index: 200;
+}
 
 .ODRSortHandle,
 .ODRDragHandle {

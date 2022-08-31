@@ -488,11 +488,10 @@ class DatarecordInfoService
                 }
             }
             foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
-                $ldr_id = $ldt['descendant']['id'];
-
                 // The deletion process does extra work to ensure nothing can link to a deleted
                 //  datatype...but make doubly sure here
-                if ( !is_null($ldt['descendant']['dataType']) ) {
+                if ( !is_null($ldt['descendant']) && !is_null($ldt['descendant']['dataType']) ) {
+                    $ldr_id = $ldt['descendant']['id'];
                     $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
                     // Store this linked datarecord as a "child" of the datarecord that links to it
@@ -709,8 +708,9 @@ class DatarecordInfoService
                     $drf['child_tagSelections'] = $selections;
                 }
 
-                // Store the resulting $drf array by its datafield id
-                $new_drf_array[$df_id] = $drf;
+                // Store the resulting $drf array by its datafield id if the storage entity exists
+                if ( !empty($drf[$expected_fieldtype]) )
+                    $new_drf_array[$df_id] = $drf;
             }
 
             unset( $datarecord_data[$dr_num]['dataRecordFields'] );

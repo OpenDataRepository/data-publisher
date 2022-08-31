@@ -68,10 +68,6 @@
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
     });
 
-    function notifySaved() {
-        $.jGrowl('SAVED');
-    }
-
     function setRole(id) {
         var data = id.split('_');
         var role = data[0];

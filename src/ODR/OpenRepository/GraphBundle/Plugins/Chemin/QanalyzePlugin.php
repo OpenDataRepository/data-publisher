@@ -47,17 +47,40 @@ class QanalyzePlugin implements DatafieldPluginInterface
 
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array $datarecord
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
+    {
+        // The Qanalyze Plugin should work in the 'display' context
+        if ( $rendering_options['context'] === 'display' )
+            return true;
+
+        // TODO - make it work in edit mode by replacing the field with a boolean?
+        // TODO - ...or change the required field to be a boolean in the first place?
+
+        return false;
+    }
+
+
+    /**
      * Executes the Qanalyze Plugin.
      *
      * @param array $datafield
      * @param array $datarecord
      * @param array $render_plugin_instance
-     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
+     * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datafield, $datarecord, $render_plugin_instance, $themeType = 'master')
+    public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
 
         try {
@@ -159,19 +182,25 @@ class QanalyzePlugin implements DatafieldPluginInterface
 
 
             // ----------------------------------------
-            // If the datafield has a value of "0", then the "Run Qanalyze" button will be hidden
-            $output = "";
-            if ($always_display_run_button || $value > 0) {
-                $output = $this->templating->render(
-                   'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig',
-                    array(
-                        'label_field' => $label_field,
-                        'xrd_field' => $xrd_field,
-                        'phase_field' => $phase_field,
-                        'wavelength_field' => $wavelength_field,
-                    )
-                );
+            // If the datafield has a value of "0", then the "Run Qanalyze" button should be hidden
+            // ...in order to make this happen, $output needs to not be empty though
+            // TODO - make this a render plugin setting of some sort?  "no_fallback" or something?
+            $output = "<div></div>";
+
+            if ( $rendering_options['context'] === 'display' ) {
+                if ($always_display_run_button || $value > 0) {
+                    $output = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig',
+                        array(
+                            'label_field' => $label_field,
+                            'xrd_field' => $xrd_field,
+                            'phase_field' => $phase_field,
+                            'wavelength_field' => $wavelength_field,
+                        )
+                    );
+                }
             }
+
             return $output;
         }
         catch (\Exception $e) {

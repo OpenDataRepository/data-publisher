@@ -25,7 +25,6 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
@@ -42,6 +41,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -50,7 +50,7 @@ use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class AMCSDPlugin implements DatatypePluginInterface
+class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 {
 
     /**
@@ -1153,5 +1153,53 @@ class AMCSDPlugin implements DatatypePluginInterface
             $current_value = '00000';
 
         return $current_value;
+    }
+
+
+    /**
+     * Returns an array of which datafields are derived from which source datafields, with everything
+     * identified by datafield id.
+     *
+     * @param array $render_plugin_instance
+     *
+     * @return array
+     */
+    public function getDerivationMap($render_plugin_instance)
+    {
+        // Don't execute on instances of other render plugins
+        if ( $render_plugin_instance['renderPlugin']['pluginClassName'] !== 'odr_plugins.rruff.amcsd' )
+            return array();
+        $render_plugin_map = $render_plugin_instance['renderPluginMap'];
+
+        // The AMCSD plugin derives almost all of its fields from the contents of the file uploaded
+        //  to the "AMC File" field
+        $amc_file_df_id = $render_plugin_map['AMC File']['id'];
+        $mineral_name_df_id = $render_plugin_map['Mineral']['id'];
+        $authors_df_id = $render_plugin_map['Authors']['id'];
+        $database_code_amcsd_df_id = $render_plugin_map['database_code_amcsd']['id'];
+        $file_contents_df_id = $render_plugin_map['File Contents']['id'];
+        $a_df_id = $render_plugin_map['a']['id'];
+        $b_df_id = $render_plugin_map['b']['id'];
+        $c_df_id = $render_plugin_map['c']['id'];
+        $alpha_df_id = $render_plugin_map['alpha']['id'];
+        $beta_df_id = $render_plugin_map['beta']['id'];
+        $gamma_df_id = $render_plugin_map['gamma']['id'];
+        $space_group_df_id = $render_plugin_map['Space Group']['id'];
+
+        // Since a datafield could be derived from multiple datafields, the source datafields need
+        //  to be in an array (even though that's not the case for this Plugin)
+        return array(
+            $mineral_name_df_id => array($amc_file_df_id),
+            $authors_df_id => array($amc_file_df_id),
+            $database_code_amcsd_df_id => array($amc_file_df_id),
+            $file_contents_df_id => array($amc_file_df_id),
+            $a_df_id => array($amc_file_df_id),
+            $b_df_id => array($amc_file_df_id),
+            $c_df_id => array($amc_file_df_id),
+            $alpha_df_id => array($amc_file_df_id),
+            $beta_df_id => array($amc_file_df_id),
+            $gamma_df_id => array($amc_file_df_id),
+            $space_group_df_id => array($amc_file_df_id),
+        );
     }
 }

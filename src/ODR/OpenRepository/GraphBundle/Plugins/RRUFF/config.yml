@@ -20,8 +20,10 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
+            $theme_info_service: "@odr.theme_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $permissions_service: "@odr.permissions_management_service"
             $lock_service: "@odr.lock_service"
             $search_cache_service: "@odr.search_cache_service"
             $sort_service: "@odr.sort_service"
@@ -38,5 +40,11 @@ services:
             $lock_service: "@odr.lock_service"
             $search_cache_service: "@odr.search_cache_service"
             $token_manager: "@security.csrf.token_manager"
+            $templating: "@templating"
+            $logger: "@logger"
+
+    odr_plugins.rruff.rruff_sample:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
+        arguments:
             $templating: "@templating"
             $logger: "@logger"

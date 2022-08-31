@@ -23,68 +23,69 @@
 </div>
 {% endif %}
 
+{% set page_label = 'Display' %}
+{% set other_page_label = 'Edit' %}
+{% set mode_switch_element = '#ODREditRecord' %}
+{% if page_type == 'edit' %}
+    {% set page_label = 'Edit' %}
+    {% set other_page_label = 'Display' %}
+    {% set mode_switch_element = '#ODRViewRecord' %}
+{% endif %}
+
 <script>
-
-    jQuery(function() {
+    $(function() {
         // Setup IntroJS Walkthrough
-        jQuery('#ODRHelpButton')
+        $('#ODRHelpButton')
             .attr('data-step', '1')
-            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        jQuery('#ODRPageSelectSettings')
-            .attr('data-step', '2')
-            .attr('data-intro', 'The settings gear contains customizable settings for this page (search results).');
-        jQuery('#ChooseView')
-            .attr('data-step', '3')
-            .attr('data-intro', 'Clicking "Choose View" brings up a menu of options for selecting alternate search views or creating your own.');
-        jQuery('#ODREditButton')
-            .attr('data-step', '4')
-            .attr('data-intro', 'Switch to "Edit" mode for this record.');
-        jQuery('#ODRDownloadAllFilesButton')
-            .attr('data-step', '5')
-            .attr('data-intro', 'This button opens a window that lets you quickly select and download files from this record.');
-        jQuery('#ODRSearchResultsPrevious')
-            .attr('data-step', '6')
-            .attr('data-intro', 'View the previous record in your search results list.');
-        jQuery('#ODRReturnToSearchResults')
-            .attr('data-step', '7')
-            .attr('data-intro', 'Return to your search results.');
-        jQuery('#ODRSearchResultsNext')
-            .attr('data-step', '8')
-            .attr('data-intro', 'View the next record in your search results list.');
-        jQuery('#ODRRecordSummary')
-            .attr('data-step', '9')
-            .attr('data-intro', 'This area shows a summary of the search results.');
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
 
+        $('#ODRReturnToSearchResults')
+            .attr('data-step', '2')
+            .attr('data-intro', 'Click here to return to the list of all records that matched your search.');
+        $('#ODRSearchResultsPrevious')
+            .attr('data-step', '3')
+            .attr('data-intro', 'Clicking this button will take you to the previous record in the search results list...');
+        $('#ODRSearchResultsNext')
+            .attr('data-step', '4')
+            .attr('data-intro', '...and this button will take you to the next record.');
+
+        $('{{ mode_switch_element }}')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Click here to switch to "{{ other_page_label }}" mode for this record.');
+        $('#ODRPublicRecord')
+            .attr('data-step', '6')
+            .attr('data-intro', 'Clicking this toggles the public status for this record.');
+        $('#ODRDeleteRecord')
+            .attr('data-step', '7')
+            .attr('data-intro', 'Clicking this will delete the current record.');
+        $('#ODRAddRecord')
+            .attr('data-step', '8')
+            .attr('data-intro', 'Clicking "Add New Record" takes you to a page where you can create a new record for this database.');
+        $('#ODRDownloadAllFilesButton')
+            .attr('data-step', '9')
+            .attr('data-intro', 'Clicking this will open a dialog that allows you to download all files as a zip archive from one or more fields in this record.');
+        $('#ODRTracking')
+            .attr('data-step', '10')
+            .attr('data-intro', 'Clicking this takes you to a page that shows all recent updates to this record.');
+
+        $('#ODRPageSelectSettings')
+            .attr('data-step', '11')
+            .attr('data-intro', 'The settings gear contains customizable settings for this {{ page_label }} page.');
+        $('#ChooseView')
+            .attr('data-step', '12')
+            .attr('data-intro', 'Clicking this brings up a dialog of options for selecting from alternate layouts, or for creating one of your own.');
 
         // Initialize the help button
-        jQuery('#ODRHelpButton').unbind('click').click(function() {
-            introJs()
-                .onbeforechange(introJsStepBeforeChangeHandler)
-                .onbeforeexit(introJsExitHandler)
+        $('#ODRHelpButton').unbind('click').click(function() {
+            // Can't guarantee that the user is going to visit the steps in order, so just ensure
+            //  the list of buttons is opened whenever the help sequence starts
+            if ( !$("#page_settings_menu").is(":visible") )
+                $("#ODRPageSelectSettings").click();
+
+            introJs().setOption("disableInteraction", true)
                 .start();
         });
     });
-
-    function introJsStepBeforeChangeHandler(elem) {
-        if (jQuery(elem).attr("id") === "ODRPageSelectSettings") {
-            if (!jQuery("#page_settings_menu").is(":visible")) {
-                // Click the gear icon so the "Choose View" button is visible
-                jQuery(elem).click();
-            }
-        }
-        if (
-            jQuery(elem).attr("id") !== "ODRPageSelectSettings"
-            && jQuery(elem).attr("id") !== "ChooseView"
-        ) {
-            if (jQuery("#ChooseView").is(":visible")) {
-                // Ensure the "Choose View" button is not visible
-                jQuery("#ODRPageSelectSettings").click();
-            }
-        }
-    }
-
-    function introJsExitHandler() {
-    }
 
     function returnToSearchResults() {
         var offset = "{{ offset }}";

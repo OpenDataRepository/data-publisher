@@ -36,6 +36,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class TrackingController extends ODRCustomController
@@ -90,6 +91,8 @@ class TrackingController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataRecord $datarecord */
@@ -152,7 +155,6 @@ class TrackingController extends ODRCustomController
             $datarecord_name = $dr_array[$grandparent_datarecord->getId()]['nameField_value'];
 
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
@@ -216,6 +218,8 @@ class TrackingController extends ODRCustomController
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // Ensure the search key is valid before attempting to decode it...
@@ -304,7 +308,6 @@ class TrackingController extends ODRCustomController
             $readable_search_key = $search_key_service->getReadableSearchKey($search_key);
 
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
@@ -363,6 +366,8 @@ class TrackingController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -415,7 +420,6 @@ class TrackingController extends ODRCustomController
 
 
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
@@ -467,6 +471,8 @@ class TrackingController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var ODRUser $target_user */
@@ -534,7 +540,6 @@ class TrackingController extends ODRCustomController
             $month_ago = (new \DateTime())->sub(new \DateInterval("P1M"));
 
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
@@ -642,6 +647,8 @@ class TrackingController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $grandparent_datatype */
@@ -868,7 +875,6 @@ class TrackingController extends ODRCustomController
             if ( $row_count > self::ROWS_SOFT_LIMIT )
                 $rows_exceeded = true;
 
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_data.html.twig',
@@ -2132,6 +2138,9 @@ class TrackingController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType|null $datatype_restriction */
             $datatype_restriction = null;
@@ -2246,7 +2255,6 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Render the list of users
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_dialog_datafield_selection.html.twig',
@@ -2294,6 +2302,8 @@ class TrackingController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // --------------------
@@ -2355,7 +2365,6 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Render the list of users
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_dialog_user_selection.html.twig',

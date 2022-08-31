@@ -26,7 +26,7 @@
             <div class="ODRInnerBox">
                 <div class="pure-u-1"></div>
                 <div class="pure-u-24-24"><h3 class="ODRHeader">Group Settings</h3></div>
-                <div id="ThemeDesignForm"></div>
+                <div id="ThemeDesignForm"></div>    {# NOTE - using this id instead of something like "ODRGroupPropertiesForm" because of a mess of CSS rules #}
             </div>
         </div>
     </div>
@@ -34,6 +34,12 @@
         <div id="ODRGroupListContent" class="pure-u-1"></div>
     </div>
 </div>
+
+<style>
+    .introjs-tooltip {
+        max-width: 800px !important;
+    }
+</style>
 
 <script>
     var SaveTimeout = 1500;
@@ -47,15 +53,27 @@
         $(window).unbind('resize');
         $(window).resize(function() {
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
-            WindowResizeInterval = window.setInterval("resizeOverlayDivs()", 50);
+            WindowResizeInterval = window.setInterval("resizeOverlayDivs()", 100);
         });
 
-        $(".ODRThemeListContentHeader").last().next().show();
-    });
+        $('#ODRHelpButton').unbind('click').click(function() {
+            // Need a group to be selected for this to work properly...
+            if ( $(".ODREditGroup.ODRActiveIcon").length === 0 ) {
+                // ...no group selected.
+                var group_id = $(".ODREditGroup").first().attr('rel');
 
-    function notifySaved() {
-        $.jGrowl('SAVED');
-    }
+                // Load the admin group...
+                loadGroupData(group_id, function() {
+                    // ...and start the sequence afterwards
+                    ODRGroup_startIntroJS();
+                });
+            }
+            else {
+                // ...a group is selected.  Don't need to load the admin group, just roll with it.
+                ODRGroup_startIntroJS();
+            }
+        });
+    });
 
     var WindowResizeInterval = "";
     function resizeOverlayDivs() {
@@ -119,11 +137,13 @@
     function InitHeader() {
 
         $(".ODRDatatypeGroupMembers").unbind('click').click(function() {
+            // Clear any area of the page that might currently have group-related content
+            $("#ODRGroupListContent").html('');
+            $("#ODRGroupUserList").html('');
+            $("#ThemeDesignForm").html('');
 
             // Clear the currently selected group indicator
             $(".ODREditGroup").removeClass('ODRActiveIcon');
-            $(".ODRGroupMembers").removeClass('ODRActiveIcon');
-            $("#ODRGroupPropertiesFormDiv").html('');
 
             // Grab the datatype id
             var datatype_id = $("#datatype_id").val();
@@ -165,6 +185,11 @@
         });
 
         $(".ODRAddGroup").unbind('click').click(function() {
+            // Clear any area of the page that might currently have group-related content
+            $("#ODRGroupListContent").html('');
+            $("#ODRGroupUserList").html('');
+            $("#ThemeDesignForm").html('');
+
             // Grab the datatype id
             var datatype_id = $("#datatype_id").val();
 
@@ -181,15 +206,7 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    // Remove permissions UI if it currently exists
-                    if ( $(".ODRGroupListContentHeader") != undefined ) {
-                        $(".ODRGroupListContentHeader").next().remove();
-                        $(".ODRGroupListContentHeader").remove();
-                    }
-
-                    $("#ThemeDesignForm").html('');
-
-                    // Reload the theme list html
+                    // Reload the group list html
                     LoadGroupList(datatype_id);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -213,101 +230,9 @@
         });
 
         $(".ODREditGroup").unbind('click').click(function() {
-            // Clear the currently selected group indicator
-            $(".ODRGroupMembers").removeClass('ODRActiveIcon');
-            $("#ODRGroupPropertiesFormDiv").html('');
-            $("#ThemeDesignForm").html('');
-
-            $(".ODREditGroup").removeClass('ODRActiveIcon');
-            $(this).addClass('ODRActiveIcon');
-
             // Grab the id of the group to load
             var group_id = $(this).attr('rel');
-
-            // Load form for current group if not already loaded
-            var url = '{{ path('odr_manage_group_permissions', { 'group_id': 0 } ) }}';
-            url = url.substring(0, (url.length - 1));
-            url += group_id;
-
-            $("#ODRGroupListContent").html('');
-            // alert(url);  return;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    // Hide the group properties div if there's a group in there and the user loaded the permissions UI for another group
-                    var active_group_properties = $(".ODRGroupProperties.ODRActiveIcon");
-                    if ( active_group_properties.length > 0 ) {
-                        if ( $(active_group_properties).attr('rel') != group_id ) {
-                            $("#ODRGroupPropertiesFormDiv").hide().html("");
-                            $(active_group_properties).removeClass("ODRActiveIcon");
-                        }
-                    }
-
-                    $("#ODRGroupListContent").html(data.d.html).fadeIn('fast');
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
-
-        $(".ODRGroupMembers").unbind('click').click(function() {
-            // Clear the currently selected group indicator
-            $(".ODRGroupProperties").removeClass('ODRActiveIcon');
-            $(".ODRGroupMembers").removeClass('ODRActiveIcon');
-            $(this).addClass('ODRActiveIcon');
-
-            var group_id = $(this).attr('rel');
-
-            var url = '{{ path('odr_group_membership', {'group_id': 0}) }}';
-            url = url.substring(0, (url.length - 1));
-            url += group_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    $("#ODRGroupPropertiesFormDiv").html(data.d).fadeIn('fast');
-                    attachUserLinks();
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
+            loadGroupData(group_id);
         });
 
         $(".ODRDeleteGroup").each(function() {
@@ -324,6 +249,76 @@
                     DeleteGroup(datatype_id, group_id);
                 }
             });
+        });
+    }
+
+    /**
+     * Loads and sets up all the HTML required for editing an ODR group.
+     *
+     * @param {integer} group_id
+     * @param {function} [callback]
+     */
+    function loadGroupData(group_id, callback) {
+        if (callback === undefined)
+            callback = function() {}
+
+        // Clear any area of the page that might currently have group-related content
+        $("#ODRGroupListContent").html('');
+        $("#ODRGroupUserList").html('');
+        $("#ThemeDesignForm").html('');
+
+        // Highlight the icon for the group that just got clicked
+        $(".ODREditGroup").removeClass('ODRActiveIcon');
+        $("#edit_group_" + group_id).addClass('ODRActiveIcon');
+
+        // Load form for current group if not already loaded
+        var url = '{{ path('odr_manage_group_permissions', { 'group_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += group_id;
+
+        // alert(url);  return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // Splice the returned html blocks onto the page
+                $("#ODRGroupListContent").html(data.d.group_content_html).fadeIn('fast');    // the part with the datafields
+                $("#ThemeDesignForm").html(data.d.group_properties_html).fadeIn('fast');    // the part with the group name/description
+                $("#ODRGroupUserList").html(data.d.user_list_html).fadeIn('fast');    // the part with the user list for this group
+
+                // Always want to attach links to the group's user list...
+                attachUserLinks();
+
+                // ...but only activate the rest of the properties if editing a custom group
+                if (data.d.prevent_all_changes !== 1)
+                    InitGroupPropertyForm();    // defined in permissions_wrapper.html.twig
+
+                // Need to update which elements introJS is looking at
+                ODRGroup_setupIntroJS();
+
+                // Execute the callback if it exists
+                callback();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
         });
     }
 
@@ -467,13 +462,9 @@
             success: function(data) {
                 // Remove permissions UI if it currently exists
                 if ( $(".ODRGroupListContentHeader").length > 0 ) {
-                    var group_id_data = $(".ODRGroupListContentHeader").attr('id').split('_');
-                    var current_group_id = group_id_data[1];
-
-                    if (group_id == current_group_id) {
-                        $("#ODRGroupListContent_" + group_id).next().remove();
-                        $("#ODRGroupListContent_" + group_id).remove();
-                    }
+                    $("#ODRGroupListContent").html('');
+                    $("#ODRGroupUserList").html('');
+                    $("#ThemeDesignForm").html('');
                 }
 
                 // Reload group list div
@@ -498,6 +489,112 @@
                 }
             }
         });
+    }
+
+
+    /**
+     * Most of the elements needed for the introJS tour don't exist when this page is first loaded,
+     * so the setup needs to happen after a group has been loaded onto the page.
+     */
+    function ODRGroup_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('#ODRGroupList').children().first()
+            .attr('data-step', '2')
+            .attr('data-intro', 'All databases receive these four default groups when first created, which should hopefully cover the most common usage requirements.');
+        var default_group = $('#ODRGroupList').children().first().children().last().children().first();
+        $(default_group).next().next().next()
+            .attr('data-step', '3')
+            .attr('data-intro', 'Users in the "View" group are able to see public content, even if the database is non-public.  If the database is public, then adding users to this group is meaningless.');
+        $(default_group).next().next()
+            .attr('data-step', '4')
+            .attr('data-intro', 'Users in the "View All" group are able to see all content regardless of whether it is public or not.');
+        $(default_group).next()
+            .attr('data-step', '5')
+            .attr('data-intro', 'Users in the "Edit" group are able to view, add, edit, and delete all content in the database.  However, they cannot add/change/remove any fields or childtypes in the database.');
+        $(default_group)
+            .attr('data-step', '6')
+            .attr('data-intro', 'Users in the "Admin" group are able to make any change to the content, structure, and permissions of a database.<br><br>They can also delete it entirely, so be careful who you allow into this group.');
+        $('.ODRAddGroup').parent().parent()
+            .attr('data-step', '7')
+            .attr('data-intro', 'If you have a requirement that is not covered by the four default groups, then clicking here will create a new custom group that will allow a finer degree of control over permissions.<br><br>Typically, this is most useful when you want users to be able to edit most data...but need to prevent them from seeing, editing, or deleting particularly important and sensitive data.');
+        $('.ODRDeleteGroup').first()
+            .attr('data-step', '8')
+            .attr('data-intro', 'The Default groups cannot be deleted, but you can delete a Custom group for this database at any time.<br><br>All users in the deleted group will lose any permissions the group gave them, but may still have permissions to this database if they belong to a different group.');
+
+        $('.ODREditGroup.ODRActiveIcon')
+            .attr('data-step', '9')
+            .attr('data-intro', 'Clicking one of these edit icons will load and display all data for the associated group.');
+
+        $("#ODRGroupUserList")
+            .attr('data-step', '10')
+            .attr('data-intro', "This area displays a list of which users, if any, are members of the currently selected group.");
+        $('.ODRUserLink').first()
+            .attr('data-step', '11')
+            .attr('data-intro', "Clicking on a user's name will take you to a page where you can change which groups that user belongs to.");
+        $('.ODRDatatypeGroupMembers')
+            .attr('data-step', '12')
+            .attr('data-intro', 'Alternately, you can quickly bring up a list of all users which belong to any group in this database by clicking here.');
+
+        $('#ThemeDesignForm')
+            .attr('data-step', '13')
+            .attr('data-intro', 'The name and description for custom groups can be changed here, to make it easier to recognize what users in this group are allowed to do.');
+
+        if ( $('.ODRGroup_unchangeable').length > 0 ) {
+            // If a default group is selected, then remind that no changes are allowed
+            $('.ODRGroup_unchangeable')
+                .attr('data-step', '14')
+                .attr('data-intro', "Since Default groups are not allowed to be modified, most of the elements currently displayed on the page won't work.");
+        }
+
+        // Find the permissions icons for the top-level datatype
+        $('.ODRDatatypePermissionIcons').first()
+            .attr('data-step', '15')
+            .attr('data-intro', 'These icons control which actions the group is allowed to perform on records in this database...');
+        $('.ODRCanViewDatarecord').first()
+            .attr('data-step', '16')
+            .attr('data-intro', '...whether the group is allowed to view non-public records...');
+        $('.ODRCanAddDatarecord').first()
+            .attr('data-step', '17')
+            .attr('data-intro', '...create new records...');
+        $('.ODRCanDeleteDatarecord').first()
+            .attr('data-step', '18')
+            .attr('data-intro', '...delete existing records...');
+        $('.ODRCanChangePublicStatus').first()
+            .attr('data-step', '19')
+            .attr('data-intro', '...or change public status of records.');
+        $('.ODRIsDatatypeAdmin').first()
+            .attr('data-step', '20')
+            .attr('data-intro', 'The final icon controls whether users in the group are allowed to create/modify/delete fields in the database, and change permissions of users for this database.');
+        // Find the permissions icons for the first child datatype
+        var childtype_icons = $('.ODRDatatypePermissionIcons')[1];
+        $(childtype_icons)
+            .attr('data-step', '21')
+            .attr('data-intro', "The actions for a child database are slightly different. The first icon allows the group to see the child database if it's not public.<br><br>The remaining four icons work identically to those for the top-level database.");
+
+        // Find the first non-markdown datafield that's public
+        $('.ODRDataField').not('.ODRMarkdownField').find('.ODRPublicDatafield.ODRActiveIcon').first().closest('.ODRDataField')
+            .attr('data-step', '22')
+            .attr('data-intro', "Public datafields and their contents are always visible to everybody, but by clicking on the field you can change whether users in this group are allowed to modify the field's data.  The permissions this group has for a given field are indicated by the color of the background overlay.");
+        // Find the first non-markdown datafield that's not public
+        $('.ODRDataField').not('.ODRMarkdownField').find('.ODRPublicDatafield').not('.ODRActiveIcon').first().closest('.ODRDataField')
+            .attr('data-step', '23')
+            .attr('data-intro', "Non-public datafields can also be set so users in the group can't even see them in the first place.<br><br>Keep in mind that a user will still be able to see the field if they also belong to a different group that can view the field, such as the \"View All\" or \"Edit\" groups.");
+        // Find the first markdown datafield
+        $('.ODRDataField.ODRMarkdownField').first()
+            .attr('data-step', '24')
+            .attr('data-intro', "Markdown fields can't have their contents changed, so you can only change whether users can view them or not. Public markdown fields are always visible.");
+    }
+
+    /**
+     * Begins the introJS tour for ODR's group management page.
+     */
+    function ODRGroup_startIntroJS() {
+        introJs().setOption("disableInteraction", true)
+            .start();
     }
 </script>
 

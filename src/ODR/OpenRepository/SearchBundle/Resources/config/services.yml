@@ -36,7 +36,6 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"
-            $search_cache_service: "@odr.search_cache_service"
             $search_key_service: "@odr.search_key_service"
             $sort_service: "@odr.sort_service"
             $cache_service: "@odr.cache_service"

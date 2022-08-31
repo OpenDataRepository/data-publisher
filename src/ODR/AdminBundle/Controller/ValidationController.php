@@ -52,6 +52,9 @@ use Symfony\Component\HttpFoundation\Response;
 class ValidationController extends ODRCustomController
 {
 
+    const SAVE = false;
+//    const SAVE = true;
+
     /**
      * Debug function to force the correct datetime format in the database
      *
@@ -65,9 +68,6 @@ class ValidationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         $em = null;
         $conn = null;
@@ -240,7 +240,7 @@ class ValidationController extends ODRCustomController
                 $first = $query->execute();
             }
 
-            if ($save)
+            if (self::SAVE)
                 $conn->commit();
             else
                 $conn->rollBack();
@@ -286,9 +286,6 @@ class ValidationController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        $save = false;
-//        $save = true;
-
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
@@ -306,7 +303,7 @@ class ValidationController extends ODRCustomController
             /** @var DataTypeMeta[] $results */
             $results = $query->getResult();
 
-            if (!$save) {
+            if (!self::SAVE) {
                 print '<pre> These are the child datatypes that would be modified to have a null search slug'."\n\n";
                 print '<table>';
                 print '<tr>';
@@ -370,9 +367,6 @@ class ValidationController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        $save = false;
-//        $save = true;
-
         $conn = null;
 
         try {
@@ -428,7 +422,7 @@ class ValidationController extends ODRCustomController
             print 'missing datafield meta entries: '."\n";
             print_r($missing_datafields);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_datafields as $num => $df_id) {
                     /** @var DataFields $df */
                     $df = $repo_datafield->find($df_id);
@@ -493,7 +487,7 @@ class ValidationController extends ODRCustomController
             print 'missing datarecord meta entries: '."\n";
             print_r($missing_datarecords);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_datarecords as $num => $dr_id) {
                     /** @var DataRecord $dr */
                     $dr = $repo_datarecord->find($dr_id);
@@ -557,7 +551,7 @@ class ValidationController extends ODRCustomController
             print 'missing datatype meta entries: '."\n";
             print_r($missing_datatypes);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_datatypes as $num => $dt_id) {
                     /** @var DataType $dt */
                     $dt = $repo_datatype->find($dt_id);
@@ -618,7 +612,7 @@ class ValidationController extends ODRCustomController
             print 'missing file meta entries: '."\n";
             print_r($missing_files);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_files as $num => $f_id) {
                     /** @var File $file */
                     $file = $repo_file->find($f_id);
@@ -665,7 +659,7 @@ class ValidationController extends ODRCustomController
             print 'missing image meta entries: '."\n";
             print_r($missing_images);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_images as $num => $i_id) {
                     /** @var Image $image */
                     $image = $repo_image->find($i_id);
@@ -714,7 +708,7 @@ class ValidationController extends ODRCustomController
             print 'missing radio option meta entries: '."\n";
             print_r($missing_radio_options);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_radio_options as $num => $ro_id) {
                     /** @var RadioOptions $ro */
                     $ro = $repo_radio_options->find($ro_id);
@@ -758,7 +752,7 @@ class ValidationController extends ODRCustomController
             print 'missing theme meta entries: '."\n";
             print_r($missing_themes);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_themes as $num => $t_id) {
                     /** @var Theme $theme */
                     $theme = $repo_theme->find($t_id);
@@ -805,7 +799,7 @@ class ValidationController extends ODRCustomController
             print 'missing theme element meta entries: '."\n";
             print_r($missing_theme_elements);
 
-            if ($save) {
+            if (self::SAVE) {
                 foreach ($missing_theme_elements as $num => $te_id) {
                     /** @var ThemeElement $te */
                     $te = $repo_theme_element->find($te_id);
@@ -831,7 +825,7 @@ class ValidationController extends ODRCustomController
             }
 
             // ----------------------------------------
-            if ($save)
+            if (self::SAVE)
                 $em->flush();
 
             print '</pre>';
@@ -870,9 +864,6 @@ class ValidationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         $conn = null;
 
@@ -971,7 +962,7 @@ class ValidationController extends ODRCustomController
             // Turn the deleted filter back on
             $em->getFilters()->enable('softdeleteable');
 
-            if ($save)
+            if (self::SAVE)
                 $conn->commit();
             else
                 $conn->rollBack();
@@ -1008,9 +999,6 @@ class ValidationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         $conn = null;
 
@@ -1096,7 +1084,7 @@ class ValidationController extends ODRCustomController
             // Turn the deleted filter back on
             $em->getFilters()->enable('softdeleteable');
 
-            if ($save)
+            if (self::SAVE)
                 $conn->commit();
             else
                 $conn->rollBack();
@@ -1134,9 +1122,6 @@ class ValidationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         $conn = null;
 
@@ -1249,7 +1234,7 @@ class ValidationController extends ODRCustomController
 
                     print "-- created datatree entry for ancestor ".$ancestor_id.", descendant ".$descendant_id."...\n";
 
-                    if ($save) {
+                    if (self::SAVE) {
                         $em->persist($dt);
                         $em->flush();
                         $em->refresh($dt);
@@ -1281,7 +1266,7 @@ class ValidationController extends ODRCustomController
                 $dt_meta->setUpdated(new \DateTime());
                 $dt_meta->setUpdatedBy($user);
 
-                if ($save) {
+                if (self::SAVE) {
                     $em->persist($dt);
                     $em->flush();
                     $em->refresh($dt);
@@ -1337,7 +1322,7 @@ class ValidationController extends ODRCustomController
             );
             $query->execute();
 
-            if ($save)
+            if (self::SAVE)
                 $conn->commit();
             else
                 $conn->rollBack();
@@ -1381,9 +1366,6 @@ class ValidationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         $conn = null;
 
@@ -1569,7 +1551,7 @@ class ValidationController extends ODRCustomController
                 }
             }
 
-            if ($save)
+            if (self::SAVE)
                 $conn->commit();
             else
                 $conn->rollBack();
@@ -1712,9 +1694,6 @@ class ValidationController extends ODRCustomController
      */
     public function themeElementcheckAction(Request $request)
     {
-        $save = false;
-//        $save = true;
-
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
@@ -2057,9 +2036,6 @@ class ValidationController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        $save = false;
-//        $save = true;
-
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $conn = $em->getConnection();
@@ -2090,7 +2066,7 @@ class ValidationController extends ODRCustomController
             print 'updated '.$rows.' rows';
             print '</pre>';
 
-            if ($save)
+            if (self::SAVE)
                 $conn->commit();
             else
                 $conn->rollBack();
@@ -2184,9 +2160,6 @@ class ValidationController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         $conn = null;
 
@@ -2324,7 +2297,7 @@ class ValidationController extends ODRCustomController
 
 
             // ----------------------------------------
-            if (!$save)
+            if (!self::SAVE)
                 $conn->rollBack();
             else
                 $conn->commit();

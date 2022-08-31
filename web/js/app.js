@@ -37,12 +37,15 @@ var SaveTimeout = 2000;
         }
     }, "Please enter a valid Integer value.");
     jQuery.validator.addMethod('ODRDecimal', function(value, element) {
-        // Regex matches zero, optionally followed by a decimal point then any sequence of digits
+        // This regex matches...
+        // an optional '+' or '-' sign, followed by either...
+        //  - a sequence of digits followed by an optional period and more optional digits
         // OR
-        // an optional minus sign followed by a non-zero integer, optionally followed by a decimal point and any sequence of digits
-        // OR
-        // a minus sign followed by a zero and a decimal point, followed by any sequence of digits that has at least one non-zero digit
-        return this.optional(element) || /^0(\.[0-9]+)?$|^-?[1-9][0-9]*(\.[0-9]+)?$|^-0\.[0-9]*[1-9]+[0-9]*$/.test(value);
+        //  - an optional sequence of digits followed by a mandatory period and at least one digit
+        // ...which can then be followed by another optional sequence...
+        // - 'e' or 'E', followed by an optional '-' or '+', followed by at least one digit
+        return this.optional(element) || /^[+-]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(value);
+
     }, "Please enter a valid Decimal value.");
 
     jQuery.validator.setDefaults({

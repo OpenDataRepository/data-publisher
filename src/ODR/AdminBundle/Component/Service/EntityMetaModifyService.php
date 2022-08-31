@@ -24,6 +24,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Group;
@@ -54,6 +55,7 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRException;
 // Events
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Other
@@ -269,6 +271,13 @@ class EntityMetaModifyService
      */
     public function updateDatafieldMeta($user, $datafield, $properties, $delay_flush = false)
     {
+        // ----------------------------------------
+        // Verify that changes to certain properties are given as Doctrine entities instead of ids
+        if ( isset($properties['fieldType']) && !($properties['fieldType'] instanceof FieldType) )
+            throw new ODRException('EntityMetaModifyService::updateDatafieldMeta(): $properties["fieldType"] is not an instanceof FieldType', 500, 0x0cbc871c);
+
+
+        // ----------------------------------------
         // Load the old meta entry
         /** @var DataFieldsMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataFieldsMeta')->findOneBy(
@@ -281,7 +290,7 @@ class EntityMetaModifyService
         $changes_made = false;
         $existing_values = array(
             // These entities can be set here since they're never null
-            'fieldType' => $old_meta_entry->getFieldType()->getId(),
+            'fieldType' => $old_meta_entry->getFieldType(),
 
             'fieldName' => $old_meta_entry->getFieldName(),
             'description' => $old_meta_entry->getDescription(),
@@ -307,6 +316,96 @@ class EntityMetaModifyService
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
         );
+
+
+        // ----------------------------------------
+        // Want to ensure that certain properties aren't "out of sync" with the datafield's fieldtype
+
+        // Use the value from $properties if it exists, otherwise fall back to the datafield's
+        //  current value
+        $relevant_fieldtype = $datafield->getFieldType();
+        if ( isset($properties['fieldType']) )
+            $relevant_fieldtype = $properties['fieldType'];
+
+        $relevant_typeclass = $relevant_fieldtype->getTypeClass();    // NOTE - may not actually be different from old typeclass
+
+        // If the datafield is no longer a radio field, then ensure it's not listed in the cached
+        //  default radio options
+        if ( $datafield->getFieldType()->getTypeClass() === 'Radio' && $relevant_typeclass !== 'Radio' )
+            $this->cache_service->delete('default_radio_options');
+
+        // Also need to specifically track changes from multiple radio/select to single radio/select
+        $old_fieldtype_typename = $datafield->getFieldType()->getTypeName();
+        $new_fieldtype_typename = $relevant_fieldtype->getTypeName();    // NOTE - may not actually be different from old typename
+
+        // Ensure that the searchable property isn't set to something invalid for this fieldtype
+        switch ($relevant_typeclass) {
+            case 'DecimalValue':
+            case 'IntegerValue':
+            case 'LongText':
+            case 'LongVarchar':
+            case 'MediumVarchar':
+            case 'ShortVarchar':
+            case 'Radio':
+            case 'Tag':
+                // All of these fieldtypes can have any value for searchable
+                break;
+
+            case 'Image':
+            case 'File':
+            case 'Boolean':
+            case 'DatetimeValue':
+                // Use the value from $properties if it exists, otherwise fall back to the datafield's
+                //  current value
+                $relevant_searchable = $datafield->getSearchable();
+                if ( isset($properties['searchable']) )
+                    $relevant_searchable = $properties['searchable'];
+
+                // General search is meaningless for these fieldtypes, so they can only
+                //  be searched via advanced search
+                if ($relevant_searchable == DataFields::GENERAL_SEARCH
+                    || $relevant_searchable == DataFields::ADVANCED_SEARCH
+                ) {
+                    $properties['searchable'] = DataFields::ADVANCED_SEARCH_ONLY;
+                }
+                break;
+
+            default:
+                // No other fieldtypes can be searched
+                $properties['searchable'] = DataFields::NOT_SEARCHED;
+                break;
+        }
+
+        // Ensure that certain fieldtypes can't have the property that "prevents user edits"
+        switch ($relevant_typeclass) {
+            case 'File':
+            case 'Image':
+            case 'Radio':
+            case 'Tag':
+            case 'Markdown':
+                $properties['prevent_user_edits'] = false;
+                break;
+        }
+
+        // Reset a datafield's markdown text if it's not longer a markdown field
+        if ($relevant_typeclass !== 'Markdown')
+            $properties['markdownText'] = '';
+
+        // Clear properties related to radio options and tags if it's not one of those fieldtypes
+        if ($relevant_typeclass !== 'Radio' && $relevant_typeclass !== 'Tag') {
+            // These properties are shared by radio options and tags
+            $properties['radio_option_name_sort'] = false;
+            $properties['radio_option_display_unselected'] = false;
+        }
+        if ($relevant_typeclass !== 'Tag') {
+            // These properties are only used by tags
+            $properties['tags_allow_multiple_levels'] = false;
+            $properties['tags_allow_non_admin_edit'] = false;
+        }
+
+
+        // ----------------------------------------
+        // Determine whether any changes need to be made
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value)
                 $changes_made = true;
@@ -339,7 +438,7 @@ class EntityMetaModifyService
 
         // Set any new properties
         if ( isset($properties['fieldType']) )
-            $new_datafield_meta->setFieldType( $this->em->getRepository('ODRAdminBundle:FieldType')->find( $properties['fieldType'] ) );
+            $new_datafield_meta->setFieldType( $properties['fieldType'] );
 
         if ( isset($properties['fieldName']) )
             $new_datafield_meta->setFieldName( $properties['fieldName'] );
@@ -414,6 +513,48 @@ class EntityMetaModifyService
         if (!$delay_flush) {
             $this->em->flush();
             $this->em->refresh($datafield);
+        }
+
+
+        // Now that the datafield got saved, check whether the field got changed to only allow a
+        //  single radio selection...
+        if ( ($old_fieldtype_typename == 'Multiple Radio' || $old_fieldtype_typename == 'Multiple Select')
+            && ($new_fieldtype_typename == 'Single Radio' || $new_fieldtype_typename == 'Single Select')
+        ) {
+            // ...because that means the field needs to have at most a single default radio option
+            $query = $this->em->createQuery(
+               'SELECT ro
+                FROM ODRAdminBundle:RadioOptionsMeta rom
+                JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
+                WHERE ro.dataField = :datafield_id AND rom.isDefault = 1
+                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+                ORDER BY rom.displayOrder'
+            )->setParameters(array('datafield_id' => $datafield->getId()));
+            $results = $query->getResult();
+
+            $count = 0;
+            foreach ($results as $ro) {
+                /** @var RadioOptions $ro */
+
+                // Ignore the first default radio option
+                $count++;
+                if ($count == 1)
+                    continue;
+
+                // Otherwise, mark the radio option as "not default"
+                $props = array(
+                    'isDefault' => false
+                );
+                self::updateRadioOptionsMeta($user, $ro, $props, true);    // don't flush immediately
+            }
+
+            // If not delaying flush, then save the changes made to the radio options now
+            if ( !$delay_flush )
+                $this->em->flush();
+
+            // Faster to just delete the cached list of default radio options, rather than try to
+            //  figure out specifics
+            $this->cache_service->delete('default_radio_options');
         }
 
 
@@ -614,6 +755,36 @@ class EntityMetaModifyService
      */
     public function updateDatatypeMeta($user, $datatype, $properties, $delay_flush = false)
     {
+        // ----------------------------------------
+        // Verify that changes to certain properties are given as Doctrine entities instead of ids
+        // These properties are allowed to be null, so need to use array_key_exists() instead of isset()
+        if ( array_key_exists('externalIdField', $properties)
+            && !is_null($properties['externalIdField'])
+            && !($properties['externalIdField'] instanceof DataFields)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateDatatypeMeta(): $properties["externalIdField"] is not an instanceof DataFields', 500, 0x7f1efae4);
+        }
+        if ( array_key_exists('nameField', $properties)
+            && !is_null($properties['nameField'])
+            && !($properties['nameField'] instanceof DataFields)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateDatatypeMeta(): $properties["nameField"] is not an instanceof DataFields', 500, 0x7f1efae4);
+        }
+        if ( array_key_exists('sortField', $properties)
+            && !is_null($properties['sortField'])
+            && !($properties['sortField'] instanceof DataFields)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateDatatypeMeta(): $properties["sortField"] is not an instanceof DataFields', 500, 0x7f1efae4);
+        }
+        if ( array_key_exists('backgroundImageField', $properties)
+            && !is_null($properties['backgroundImageField'])
+            && !($properties['backgroundImageField'] instanceof DataFields)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateDatatypeMeta(): $properties["backgroundImageField"] is not an instanceof DataFields', 500, 0x7f1efae4);
+        }
+
+
+        // ----------------------------------------
         // Load the old meta entry
         /** @var DataTypeMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
@@ -644,14 +815,14 @@ class EntityMetaModifyService
         );
 
         // These datafield entries could be null to begin with
-        if ( $old_meta_entry->getExternalIdField() !== null )
-            $existing_values['externalIdField'] = $old_meta_entry->getExternalIdField()->getId();
-        if ( $old_meta_entry->getNameField() !== null )
-            $existing_values['nameField'] = $old_meta_entry->getNameField()->getId();
-        if ( $old_meta_entry->getSortField() !== null )
-            $existing_values['sortField'] = $old_meta_entry->getSortField()->getId();
-        if ( $old_meta_entry->getBackgroundImageField() !== null )
-            $existing_values['backgroundImageField'] = $old_meta_entry->getBackgroundImageField()->getId();
+        if ( !is_null($old_meta_entry->getExternalIdField()) )
+            $existing_values['externalIdField'] = $old_meta_entry->getExternalIdField();
+        if ( !is_null($old_meta_entry->getNameField()) )
+            $existing_values['nameField'] = $old_meta_entry->getNameField();
+        if ( !is_null($old_meta_entry->getSortField()) )
+            $existing_values['sortField'] = $old_meta_entry->getSortField();
+        if ( !is_null($old_meta_entry->getBackgroundImageField()) )
+            $existing_values['backgroundImageField'] = $old_meta_entry->getBackgroundImageField();
 
 
         foreach ($existing_values as $key => $value) {
@@ -698,32 +869,31 @@ class EntityMetaModifyService
 
 
         // Set any new properties
-
         // isset() will return false when ('externalIdField' => null), so need to use
         //  array_key_exists() instead
         if ( array_key_exists('externalIdField', $properties) ) {
             if ( is_null($properties['externalIdField']) )
                 $new_datatype_meta->setExternalIdField(null);
             else
-                $new_datatype_meta->setExternalIdField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['externalIdField']) );
+                $new_datatype_meta->setExternalIdField( $properties['externalIdField'] );
         }
         if ( array_key_exists('nameField', $properties) ) {
             if ( is_null($properties['nameField']) )
                 $new_datatype_meta->setNameField(null);
             else
-                $new_datatype_meta->setNameField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['nameField']) );
+                $new_datatype_meta->setNameField( $properties['nameField'] );
         }
         if ( array_key_exists('sortField', $properties) ) {
             if ( is_null($properties['sortField']) )
                 $new_datatype_meta->setSortField(null);
             else
-                $new_datatype_meta->setSortField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['sortField']) );
+                $new_datatype_meta->setSortField( $properties['sortField'] );
         }
         if ( array_key_exists('backgroundImageField', $properties) ) {
             if ( is_null($properties['backgroundImageField']) )
                 $new_datatype_meta->setBackgroundImageField(null);
             else
-                $new_datatype_meta->setBackgroundImageField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
+                $new_datatype_meta->setBackgroundImageField( $properties['backgroundImageField'] );
         }
 
         if ( isset($properties['searchSlug']) )
@@ -1364,18 +1534,18 @@ class EntityMetaModifyService
      * then deleting the old entity.
      *
      * @param ODRUser $user
-     * @param RadioSelection $entity
+     * @param RadioSelection $radio_selection
      * @param array $properties
      * @param bool $delay_flush
      *
      * @return RadioSelection
      */
-    public function updateRadioSelection($user, $entity, $properties, $delay_flush = false)
+    public function updateRadioSelection($user, $radio_selection, $properties, $delay_flush = false)
     {
         // No point making new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            'selected' => $entity->getSelected()
+            'selected' => $radio_selection->getSelected()
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1383,17 +1553,17 @@ class EntityMetaModifyService
         }
 
         if (!$changes_made)
-            return $entity;
+            return $radio_selection;
 
 
         // Determine whether to create a new entry or modify the previous one
         $remove_old_entry = false;
         $new_entity = null;
-        if ( self::createNewMetaEntry($user, $entity) ) {
+        if ( self::createNewMetaEntry($user, $radio_selection) ) {
             // Clone the old RadioSelection entry
             $remove_old_entry = true;
 
-            $new_entity = clone $entity;
+            $new_entity = clone $radio_selection;
 
             // These properties aren't automatically updated when persisting the cloned entity...
             $new_entity->setCreated(new \DateTime());
@@ -1402,7 +1572,7 @@ class EntityMetaModifyService
             $new_entity->setUpdatedBy($user);
         }
         else {
-            $new_entity = $entity;
+            $new_entity = $radio_selection;
         }
 
         // Set any new properties
@@ -1414,15 +1584,14 @@ class EntityMetaModifyService
 
         // Delete the old entry if needed
         if ($remove_old_entry)
-            $this->em->remove($entity);
+            $this->em->remove($radio_selection);
 
         // Save the new meta entry
         $this->em->persist($new_entity);
         if (!$delay_flush) {
             $this->em->flush();
-            $this->em->refresh($entity->getRadioOption());
+            $this->em->refresh($radio_selection->getRadioOption());
         }
-
 
         return $new_entity;
     }
@@ -1440,10 +1609,17 @@ class EntityMetaModifyService
      */
     public function updateRenderPluginMap($user, $render_plugin_map, $properties, $delay_flush = false)
     {
+        // ----------------------------------------
+        // Verify that changes to certain properties are given as Doctrine entities instead of ids
+        if ( isset($properties['dataField']) && !($properties['dataField'] instanceof DataFields) )
+            throw new ODRException('EntityMetaModifyService::updateRenderPluginMap():  $properties["dataField"] is not an instanceof DataFields', 500, 0xa190c481);
+
+
+        // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            'dataField' => $render_plugin_map->getDataField()->getId(),
+            'dataField' => $render_plugin_map->getDataField(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1476,7 +1652,7 @@ class EntityMetaModifyService
 
         // Set any new properties
         if (isset($properties['dataField']))
-            $new_rpm->setDataField( $this->em->getRepository('ODRAdminBundle:DataFields')->find($properties['dataField']) );
+            $new_rpm->setDataField( $properties['dataField'] );
 
         $new_rpm->setUpdatedBy($user);
         $this->em->persist($new_rpm);
@@ -1640,6 +1816,7 @@ class EntityMetaModifyService
             else
                 $properties['value'] = intval($properties['value']);
         }
+        // Don't need to do the same for DecimalValue here, setValue() will deal with it
 
 
         // Determine whether to create a new entry or modify the previous one
@@ -1815,18 +1992,18 @@ class EntityMetaModifyService
      * then deleting the old entity.
      *
      * @param ODRUser $user
-     * @param TagSelection $entity
+     * @param TagSelection $tag_selection
      * @param array $properties
      * @param bool $delay_flush
      *
      * @return TagSelection
      */
-    public function updateTagSelection($user, $entity, $properties, $delay_flush = false)
+    public function updateTagSelection($user, $tag_selection, $properties, $delay_flush = false)
     {
         // No point making new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            'selected' => $entity->getSelected()
+            'selected' => $tag_selection->getSelected()
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1834,17 +2011,17 @@ class EntityMetaModifyService
         }
 
         if (!$changes_made)
-            return $entity;
+            return $tag_selection;
 
 
         // Determine whether to create a new entry or modify the previous one
         $remove_old_entry = false;
         $new_entity = null;
-        if ( self::createNewMetaEntry($user, $entity) ) {
+        if ( self::createNewMetaEntry($user, $tag_selection) ) {
             // Clone the old TagSelection entry
             $remove_old_entry = true;
 
-            $new_entity = clone $entity;
+            $new_entity = clone $tag_selection;
 
             // These properties aren't automatically updated when persisting the cloned entity...
             $new_entity->setCreated(new \DateTime());
@@ -1853,7 +2030,7 @@ class EntityMetaModifyService
             $new_entity->setUpdatedBy($user);
         }
         else {
-            $new_entity = $entity;
+            $new_entity = $tag_selection;
         }
 
         // Set any new properties
@@ -1865,15 +2042,14 @@ class EntityMetaModifyService
 
         // Delete the old entry if needed
         if ($remove_old_entry)
-            $this->em->remove($entity);
+            $this->em->remove($tag_selection);
 
         // Save the new meta entry
         $this->em->persist($new_entity);
         if (!$delay_flush) {
             $this->em->flush();
-            $this->em->refresh($entity->getTag());
+            $this->em->refresh($tag_selection->getTag());
         }
-
 
         return $new_entity;
     }
@@ -1892,11 +2068,18 @@ class EntityMetaModifyService
      */
     public function updateThemeDatafield($user, $theme_datafield, $properties, $delay_flush = false)
     {
+        // ----------------------------------------
+        // Verify that changes to certain properties are given as Doctrine entities instead of ids
+        if ( isset($properties['themeElement']) && !($properties['themeElement'] instanceof ThemeElement) )
+            throw new ODRException('EntityMetaModifyService::updateThemeDatafield(): $properties["themeElement"] is not an instanceof ThemeElement', 500, 0xa67d1d77);
+
+
+        // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
             // This entity can be set here since it's never null
-            'themeElement' => $theme_datafield->getThemeElement()->getId(),
+            'themeElement' => $theme_datafield->getThemeElement(),
 
             'displayOrder' => $theme_datafield->getDisplayOrder(),
             'cssWidthMed' => $theme_datafield->getCssWidthMed(),
@@ -1935,7 +2118,7 @@ class EntityMetaModifyService
 
         // Set any new properties
         if (isset($properties['themeElement']))
-            $new_theme_datafield->setThemeElement( $this->em->getRepository('ODRAdminBundle:ThemeElement')->find($properties['themeElement']) );
+            $new_theme_datafield->setThemeElement( $properties['themeElement'] );
 
         if (isset($properties['displayOrder']))
             $new_theme_datafield->setDisplayOrder( $properties['displayOrder'] );

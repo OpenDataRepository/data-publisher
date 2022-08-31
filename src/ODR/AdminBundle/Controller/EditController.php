@@ -80,6 +80,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\Router;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class EditController extends ODRCustomController
@@ -392,8 +394,8 @@ class EditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // Grab the necessary entities
@@ -422,9 +424,17 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Also prevent a datarecord from being deleted if certain jobs are in progress
-            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
-            $tj_service->checkActiveJobs($datarecord, $restricted_jobs, "Unable to delete this datarecord");
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datarecord
+            $new_job_data = array(
+                'job_type' => 'delete_datarecord',
+                'target_entity' => $datarecord,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this Datarecord, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -914,7 +924,6 @@ class EditController extends ODRCustomController
             // Mark this file's datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // TODO - execute graph plugin?  currently not needed because the graph plugin auto-decrypts files it needs to render a graph...
             // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {
@@ -2038,6 +2047,8 @@ class EditController extends ODRCustomController
 
 
             // Need to locate the theme element being reloaded...
+            // TODO - ODRRenderService can technically render a non-master theme for Edit mode...
+            // TODO - ...though self::editAction() doesn't let it happen, yet
             $master_theme = $ti_service->getDatatypeMasterTheme($datatype->getId());
             $query = $em->createQuery(
                'SELECT te
@@ -2065,14 +2076,16 @@ class EditController extends ODRCustomController
                 FROM ODRAdminBundle:RenderPluginFields rpf
                 JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginFields = rpf
                 JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPlugin rp WITH rpi.renderPlugin = rp
                 WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id
-                AND rpf.is_derived = :is_derived
-                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
+                AND rp.overrideFieldReload = :override_field_reload
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+                AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
             )->setParameters(
                 array(
                     'datatype_id' => $datatype->getId(),
                     'datafield_id' => $datafield->getId(),
-                    'is_derived' => true
+                    'override_field_reload' => true
                 )
             );
             $results = $query->getResult();
@@ -2087,7 +2100,7 @@ class EditController extends ODRCustomController
                 $render_plugin = $this->container->get($render_plugin_classname);
 
                 // Request a set of parameters from the render plugin for ODRRenderService to use
-                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord);
+                $extra_parameters = $render_plugin->getOverrideParameters('edit', $render_plugin_instance, $datafield, $datarecord, $master_theme, $user);
 
                 // If the render plugin is going to do something...
                 if ( isset($extra_parameters['template_name']) ) {
@@ -2161,6 +2174,8 @@ class EditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataFields $datafield */
@@ -2214,7 +2229,6 @@ class EditController extends ODRCustomController
 
 
             // Render and return the HTML for the list of files
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:edit_file_datafield.html.twig',
@@ -2279,9 +2293,10 @@ class EditController extends ODRCustomController
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
             /** @var ThemeInfoService $ti_service */
             $ti_service = $this->container->get('odr.theme_info_service');
-
-            $router = $this->get('router');
+            /** @var EngineInterface $templating */
             $templating = $this->get('templating');
+            /** @var Router $router */
+            $router = $this->get('router');
 
 
             // ----------------------------------------
@@ -2550,6 +2565,9 @@ class EditController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -2696,7 +2714,6 @@ class EditController extends ODRCustomController
 
 
             // Render the dialog box for this request
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',

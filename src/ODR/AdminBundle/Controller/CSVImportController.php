@@ -43,6 +43,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -59,6 +60,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -70,6 +72,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 // CSV Reader
 use Ddeboer\DataImport\Reader\CsvReader;
 // ForceUTF8
@@ -104,6 +107,10 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -132,18 +139,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -187,7 +192,6 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Render the basic csv import page
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:CSVImport:import.html.twig',
@@ -300,6 +304,11 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
 
             /** @var DataType $source_datatype */
             $source_datatype = $repo_datatype->find($source_datatype_id);
@@ -336,18 +345,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$target_datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $source_datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -501,7 +508,6 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Render the page
-            $templating = $this->get('templating');
             if ( count($error_messages) == 0 ) {
                 // If no errors, render the column/datafield/fieldtype selection page
                 $return['d'] = array(
@@ -1140,6 +1146,8 @@ class CSVImportController extends ODRCustomController
             $csv_helper_service = $this->container->get('odr.csv_import_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // Need to store fieldtype ids and fieldtype typenames
@@ -1195,18 +1203,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -1390,6 +1396,16 @@ class CSVImportController extends ODRCustomController
                     unset( $unique_columns[$column_id] );
                 }
             }
+
+
+            // TODO - if CSVImport gets the ability to change fieldtypes, then it needs to go here-ish
+            // TODO - fieldtype changes need to happen before validation so the validation runs on the correct fieldtype
+
+            // TODO - ...problem is that the asynchronous background job aspect of fieldtype migration isn't exactly negotiable
+            // TODO - it's mostly better than before, but each field could still take a noticeable amount of time to migrate
+
+            // TODO - juggling some arbitrary number of fieldtype migrations in the middle of a CSVImport is extremely unappealing
+            // TODO - ...additionally, not really liking that "changes are made" before the user gets a validation screen...if they decide to not import, changes have still been made
 
 
             // ----------------------------------------
@@ -2030,7 +2046,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper integer value, and will be converted to "'.intval($value).'"'
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid integer value, and will not be imported'
                                 )
                             );
                         }
@@ -2041,7 +2057,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper decimal value, and will be converted to "'.floatval($value).'"'
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid decimal value, and will not be imported'
                                 ),
                             );
                         }
@@ -2315,7 +2331,6 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $templating = $this->get('templating');
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -2323,8 +2338,12 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             // ----------------------------------------
@@ -2370,18 +2389,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -2528,7 +2545,7 @@ class CSVImportController extends ODRCustomController
                         foreach ($tag_names as $num => $tag_name)
                             $tag_names[$num] = trim($tag_name);
 
-                        $existing_tag_array = $th_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
+                        $existing_tag_array = $tag_helper_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
                     }
 
                     // The only point of this entire if statement is to render stuff for user
@@ -2541,7 +2558,7 @@ class CSVImportController extends ODRCustomController
 
                     // Locate the tags already in the datafield
                     $existing_tag_array = $datafields[$df_id]['tags'];
-                    $existing_tag_array = $th_service->convertTagsForListImport($existing_tag_array);
+                    $existing_tag_array = $tag_helper_service->convertTagsForListImport($existing_tag_array);
 
                     // Determine whether the tags to be selected will require any new tags
                     $would_create_new_tags = false;
@@ -2553,7 +2570,7 @@ class CSVImportController extends ODRCustomController
                         foreach ($tag_names as $num => $tag_name)
                             $tag_names[$num] = trim($tag_name);
 
-                        $existing_tag_array = $th_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
+                        $existing_tag_array = $tag_helper_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
                     }
 
                     // Only care when some new tag is created
@@ -2564,7 +2581,7 @@ class CSVImportController extends ODRCustomController
 
             // Need to render the end result of tag creation, so sort those fields by tag name
             foreach ($new_tag_arrays as $col_num => $tags) {
-                $th_service->orderStackedTagArray($tags, true);
+                $tag_helper_service->orderStackedTagArray($tags, true);
                 $new_tag_arrays[$col_num] = $tags;
             }
 
@@ -2672,10 +2689,12 @@ class CSVImportController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
+            /** @var TagHelperService $tag_helper_service */
+            $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
 
@@ -2726,19 +2745,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_import' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_import',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVImport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -2835,10 +2851,7 @@ class CSVImportController extends ODRCustomController
             /** @var DataFields[] $hydrated_datafields */
             $hydrated_datafields = array();
 
-            // Create any necessary datafields
-            $new_datafields = array();
-            $new_mapping = array();
-            $created = false;
+            // Verify some of the mapping prior to creating any new datafields
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
 
@@ -2849,35 +2862,55 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form');
 
+                    // Might as well store for later...
+                    $hydrated_datafields[$datafield->getId()] = $datafield;
+
+
+                    // Need to check whether this is the datatype's external id field...
                     $is_external_id_field = false;
                     if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield_id )
                         $is_external_id_field = true;
 
-                    // If the datafield is set to prevent user edits, and the user somehow managed
-                    //  to sneak a field into here to force CSVImport to make a change to it, throw
-                    //  an error
-                    // ...unless it's the datatype's external id field, since that one is critical
-                    //  for a CSV import to work properly
+                    // ...because CSVImport needs to ignore the "prevent_user_edits" property when
+                    //  it comes to an external id field.  The property should be enforced on all
+                    //  other fields, however
                     if ( $datafield->getPreventUserEdits() && !$is_external_id_field )
                         throw new ODRForbiddenException("The Datatype's administrator has blocked changes to the \"".$datafield->getFieldName()."\" Datafield.");
-
-                    // Store for later...
-                    $hydrated_datafields[$datafield->getId()] = $datafield;
-
-//print 'loaded existing datafield '.$datafield_id."\n";
-                    $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
                 }
                 else {  // $datafield_id == 'new'
-                    // Grab desired fieldtype from post
-                    if ( $fieldtype_mapping == null )
+                    // Verify that the requested fieldtype for the new datafield exists
+                    if ( is_null($fieldtype_mapping) )
                         throw new ODRException('Invalid Form');
 
                     /** @var FieldType $fieldtype */
                     $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_id] );
-                    if ($fieldtype == null)
+                    if ( is_null($fieldtype) )
                         throw new ODRException('Invalid Form');
+                }
+            }
 
-                    // Create new datafield...not delaying flush on purpose, need datafield id...
+
+            // ----------------------------------------
+            // Create any necessary datafields
+            $new_datafields = array();
+            $new_mapping = array();
+            $created = false;
+            foreach ($datafield_mapping as $column_id => $datafield_id) {
+                $datafield = null;
+
+                if ( is_numeric($datafield_id) ) {
+                    // Datafield is already hydrated
+                    $datafield = $hydrated_datafields[$datafield_id];
+
+                    // Don't need to do anything else to the field at the moment
+//print 'loaded existing datafield '.$datafield_id."\n";
+                    $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
+                }
+                else {  // $datafield_id == 'new'
+                    /** @var FieldType $fieldtype */
+                    $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_id] );
+
+                    // Create new datafield...can't delay flush here, need the id of the new datafield
                     $created = true;
                     $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype);
 
@@ -2926,12 +2959,11 @@ class CSVImportController extends ODRCustomController
 
                     // Also need to delete some search cache entries here...
                     $search_cache_service->onDatafieldCreate($new_datafield);
-
+                    // ...and since the new datafield is already hydrated, store it for later
                     $hydrated_datafields[$new_datafield->getId()] = $new_datafield;
                 }
 
                 // Save all changes
-                // TODO Is this needed here?
                 $em->flush();
 
                 // Update cached versions of datatype and master theme since new datafields were added
@@ -2965,7 +2997,7 @@ print_r($new_mapping);
                 $df_id = $new_mapping[$column_id];
                 $df = $hydrated_datafields[$df_id];
                 $stacked_tag_array = $df_array[$df_id]['tags'];
-                $stacked_tag_array = $th_service->convertTagsForListImport($stacked_tag_array);
+                $stacked_tag_array = $tag_helper_service->convertTagsForListImport($stacked_tag_array);
 
                 // Going to need the hydrated versions of all tags for this datafield in order to
                 //  properly create TagTree entries...
@@ -3485,6 +3517,9 @@ exit();
             $em->flush($datarecord);
             $em->refresh($datarecord);
 
+            // Would prefer to not create storage entities if they're just going to store blank
+            //  values, but need to know which entities already exist in order to pull that off...
+            $existing_storage_entities = null;
 
             // If a datarecord got created, fire off the DatarecordCreated event
             if ($datarecord_created) {
@@ -3505,6 +3540,71 @@ exit();
                     //  the datarecord in a state that the user can't view/edit
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
+                }
+            }
+            else {
+                // The only way for a datarecord to already have storage entities is if it wasn't
+                //  just created.  While the cached datarecord array (inadvertently) stores whether
+                //  a drf entry has an associated storage entity, it's not guaranteed to exist at
+                //  this point in time...the chance of having to rebuild it just to delete it at the
+                //  end of this function, combined with $datarecord possibly being not top-level,
+                //  means that using an SQL query is the better option.
+                $prefixes = array(
+                    'Boolean' => 'bv',
+                    'IntegerValue' => 'iv',
+                    'DecimalValue' => 'dv',
+                    'ShortVarchar' => 'sv',
+                    'MediumVarchar' => 'mv',
+                    'LongVarchar' => 'lv',
+                    'LongText' => 'lt',
+                    'DatetimeValue' => 'dtv',
+
+                    // There will be other tables in the results, but don't care about them
+                );
+
+                $query =
+                   'SELECT drf.id, ft.type_class,
+                        bv.id AS bv_id, bv.data_field_id AS bv_df_id,
+                        iv.id AS iv_id, iv.data_field_id AS iv_df_id,
+                        dv.id AS dv_id, dv.data_field_id AS dv_df_id,
+                        sv.id AS sv_id, sv.data_field_id AS sv_df_id,
+                        mv.id AS mv_id, mv.data_field_id AS mv_df_id,
+                        lv.id AS lv_id, lv.data_field_id AS lv_df_id,
+                        lt.id AS lt_id, lt.data_field_id AS lt_df_id,
+                        dtv.id AS dtv_id, dtv.data_field_id AS dtv_df_id
+                    FROM odr_data_record dr
+                    LEFT JOIN odr_data_record_fields drf ON drf.data_record_id = dr.id
+                    LEFT JOIN odr_data_fields df ON drf.data_field_id = df.id
+                    LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+                    LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
+                    LEFT JOIN odr_boolean bv ON drf.id = bv.data_record_fields_id
+                    LEFT JOIN odr_integer_value iv ON drf.id = iv.data_record_fields_id
+                    LEFT JOIN odr_decimal_value dv ON drf.id = dv.data_record_fields_id
+                    LEFT JOIN odr_short_varchar sv ON drf.id = sv.data_record_fields_id
+                    LEFT JOIN odr_medium_varchar mv ON drf.id = mv.data_record_fields_id
+                    LEFT JOIN odr_long_varchar lv ON drf.id = lv.data_record_fields_id
+                    LEFT JOIN odr_long_text lt ON drf.id = lt.data_record_fields_id
+                    LEFT JOIN odr_datetime_value dtv ON drf.id = dtv.data_record_fields_id
+                    WHERE dr.id = '.$datarecord->getId().'
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+                    AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+                $conn = $em->getConnection();
+                $results = $conn->executeQuery($query);
+
+                foreach ($results as $result) {
+                    $typeclass = $result['type_class'];
+                    if ( isset($prefixes[$typeclass]) ) {
+                        // If this is a relevant fieldtype...
+                        $prefix = $prefixes[$typeclass];
+
+                        if ( !is_null($result[$prefix.'_id']) && !is_null($result[$prefix.'_df_id']) ) {
+                            // ...and there's an active storage entity for this drf entry...
+                            $df_id = $result[$prefix.'_df_id'];
+                            $e_id = $result[$prefix.'_id'];
+                            // ...then store the id for later reference
+                            $existing_storage_entities[$df_id] = $e_id;
+                        }
+                    }
                 }
             }
 
@@ -3529,11 +3629,6 @@ exit();
                     $column_data = trim($column_data);
 
                     if ($typeclass == 'Boolean') {
-                        // Get the existing entity for this datarecord/datafield, or create a new
-                        //  one if it doesn't exist
-                        /** @var ODRBoolean $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-
                         // Assume the field is checked initially...
                         $checked = true;
                         switch ($column_data) {
@@ -3546,9 +3641,25 @@ exit();
                                 break;
                         }
 
-                        // Ensure the value in the datafield matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $checked));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && !$checked ) {
+                            // There's no existing storage entity, and the CSV file doesn't have
+                            //  a 'checked' value...do nothing, rather than create a storage entity
+                            //  just to store nothing
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store an unchecked value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
+
+                            // Get the existing entity for this datarecord/datafield, or create a new
+                            //  one if it doesn't exist
+                            /** @var ODRBoolean $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+
+                            // Ensure the value in the datafield matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $checked));
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
                         $csv_filenames = array();
@@ -3734,87 +3845,131 @@ exit();
                             $em->flush();
                     }
                     else if ($typeclass == 'IntegerValue') {
-                        // Get the existing entity for this datarecord/datafield, or create a new
-                        //  one if it doesn't exist
-                        /** @var IntegerValue $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
 
-                        // NOTE - intentionally not using intval() here...self::csvvalidateAction()
-                        //  would've already warned if column data wasn't an integer
-                        // In addition, updateStorageEntity() has to have values passed as strings,
-                        //  and will convert back to integer before saving
-                        $value = $column_data;
+                            // Get the existing entity for this datarecord/datafield, or create a new
+                            //  one if it doesn't exist
+                            /** @var IntegerValue $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                            // NOTE - intentionally not using intval() here...updateStorageEntity() has
+                            //  to have values passed as strings, and will convert back to integer before
+                            //  saving
+                            $value = '';
+                            if ( ValidUtility::isValidInteger($column_data) )
+                                $value = $column_data;
 
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'DecimalValue') {
-                        // Get the existing entity for this datarecord/datafield, or create a new
-                        //  one if it doesn't exist
-                        /** @var DecimalValue $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
 
-                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction()
-                        //  would've already warned if column data wasn't a float
-                        // In addition, updateStorageEntity() has to have values passed as strings,
-                        //  and DecimalValue::setValue() will deal with any string received
-                        $value = $column_data;
+                            // Get the existing entity for this datarecord/datafield, or create a new
+                            //  one if it doesn't exist
+                            /** @var DecimalValue $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                            // NOTE - intentionally not using floatval() here...updateStorageEntity() has
+                            //  to have values passed as strings, and DecimalValue::setValue() will deal
+                            //  with any string received
+                            $value = '';
+                            if ( ValidUtility::isValidDecimal($column_data) )
+                                $value = $column_data;
 
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'LongText' || $typeclass == 'LongVarchar' || $typeclass == 'MediumVarchar' || $typeclass == 'ShortVarchar') {
-                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
-                        /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
-
-                        // Need to truncate overly-long strings here...otherwise doctrine will throw
-                        //  an error and the import of this record will fail
-                        $truncated = false;
-                        if ( $typeclass == 'ShortVarchar' && strlen($column_data) > 32 ) {
-                            $truncated = true;
-                            $column_data = substr($column_data, 0, 32);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
                         }
-                        else if ( $typeclass == 'MediumVarchar' && strlen($column_data) > 64 ) {
-                            $truncated = true;
-                            $column_data = substr($column_data, 0, 64);
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
+
+                            // Get the existing entity for this datarecord/datafield, or create a
+                            //  new one if it doesn't exist
+                            /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+
+                            // Need to truncate overly-long strings here...otherwise doctrine will throw
+                            //  an error and the import of this record will fail
+                            $truncated = false;
+                            if ( $typeclass == 'ShortVarchar' && strlen($column_data) > 32 ) {
+                                $truncated = true;
+                                $column_data = substr($column_data, 0, 32);
+                            }
+                            else if ( $typeclass == 'MediumVarchar' && strlen($column_data) > 64 ) {
+                                $truncated = true;
+                                $column_data = substr($column_data, 0, 64);
+                            }
+                            else if ( $typeclass == 'LongVarchar' && strlen($column_data) > 255 ) {
+                                $truncated = true;
+                                $column_data = substr($column_data, 0, 255);
+                            }
+
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
+
+                            if ( $truncated )
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
+                            else
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
                         }
-                        else if ( $typeclass == 'LongVarchar' && strlen($column_data) > 255 ) {
-                            $truncated = true;
-                            $column_data = substr($column_data, 0, 255);
-                        }
-
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
-
-                        if ( $truncated )
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
-                        else
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
-
                     }
                     else if ($typeclass == 'DatetimeValue') {
-                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
-                        /** @var DatetimeValue $entity */
-                        $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                        if ( !isset($existing_storage_entities[$datafield->getId()]) && $column_data === '' ) {
+                            // There's no existing storage entity, and the CSV file has a blank entry
+                            //  for this column...do nothing, rather than create a storage entity
+                            //  just to store a blank value
+                            $status .= '    -- skipping datafield '.$datafield->getId().' ('.$typeclass.') instead of creating a new entity to store a blank value...'."\n";
+                        }
+                        else {
+                            // Otherwise, there either is a storage entity (which should get updated)
+                            //  or the CSV file has a value that needs to be stored
 
-                        // Turn the data into a DateTime object...csvvalidateAction() already
-                        //  would've warned if column data isn't actually a date
-                        $value = null;
-                        if ( $column_data !== '' )
-                            $value = new \DateTime($column_data);
+                            // Get the existing entity for this datarecord/datafield, or create a
+                            //  new one if it doesn't exist
+                            /** @var DatetimeValue $entity */
+                            $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // Ensure the value stored in the entity matches the value in the import file
-                        $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
-                        if ($value == null)
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
-                        else
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
+                            // Turn the data into a DateTime object...csvvalidateAction() already
+                            //  would've warned if column data isn't actually a date
+                            $value = null;
+                            if ( $column_data !== '' )
+                                $value = new \DateTime($column_data);
 
+                            // Ensure the value stored in the entity matches the value in the import file
+                            $emm_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            if ($value == null)
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
+                            else
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
+                        }
                     }
                     else if ($typeclass == 'Radio') {
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";

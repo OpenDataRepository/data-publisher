@@ -1375,16 +1375,14 @@ class ODRRenderService
 
         $parameters = array();
         if ( isset($extra_parameters['token_list']) ) {
-            // This is a datafield reload for the edit page...need to locate array entries for
-            //  the datatype, datarecord, and datafield...
+            // This is a datafield reload for the edit page...need to ensure the arrays are stacked...
+            $datatype_array = $this->dbi_service->stackDatatypeArray($datatype_array, $initial_datatype_id);
+            $datarecord_array = $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
+            $theme_array = $this->theme_service->stackThemeArray($theme_array, $initial_theme_id);
 
-            // Need to locate the array entry for the datatype...
-            $target_datatype = $datatype_array[$initial_datatype_id];
-
-            // ...and the datarecord...
-            $target_datarecord = $datarecord_array[$initial_datarecord_id];
-
-            // ...and the datafield
+            // Then pull specific entities out of these arrays...
+            $target_datatype = $datatype_array;
+            $target_datarecord = $datarecord_array;
             $target_datafield = $target_datatype['dataFields'][$datafield_id];
 
             // Also need to figure out whether this is for a linked datarecord or not

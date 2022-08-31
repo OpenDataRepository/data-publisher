@@ -136,12 +136,6 @@ odr_group_properties:
     requirements:
         group_id:  \d+
 
-odr_group_membership:
-    path:  /admin/group/members/{group_id}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:groupmembers }
-    requirements:
-        group_id:  \d+
-
 odr_datatype_group_membership:
     path:  /admin/group/members_datatype/{datatype_id}
     defaults: { _controller: ODRAdminBundle:ODRGroup:datatypegroupmembers }
@@ -338,15 +332,15 @@ odr_save_theme_properties:
     requirements:
         theme_id: \d+
 
-odr_design_hidden_theme_element:
-    path:  /design/hiddenthemeelement/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:hiddenthemeelement }
+odr_design_theme_element_visibility:
+    path:  /design/themeelementvisibility/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementvisibility }
     requirements:
         theme_element_id:  \d+
 
-odr_design_hidden_theme_datafield:
-    path:  /design/hiddenthemedatafield/{theme_element_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Theme:hiddenthemedatafield }
+odr_design_theme_datafield_visibility:
+    path:  /design/themedatafieldvisibility/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themedatafieldvisibility }
     requirements:
         theme_element_id:  \d+
         datafield_id: \d+
@@ -1116,6 +1110,15 @@ odr_sync_with_template_worker:
     defaults: { _controller: ODRAdminBundle:Worker:syncwithtemplate }
     methods: [ POST ]
 
+odr_storage_entity_cleanup:
+    path: /admin/start_cleanup
+    defaults: { _controller: ODRAdminBundle:Worker:startcleanup }
+
+odr_storage_entity_cleanup_worker:
+    path: /beanstalk/storage_entity_cleanup
+    defaults: { _controller: ODRAdminBundle:Worker:storageentitycleanup }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1390,6 +1393,8 @@ odr_get_zip_archive_progress:
 
 #-----------------------------------------
 # Validation Controller
+# These routes are in order of how they should be run...later routes may suggest or make nonsensical
+#  changes if the previous routes haven't been run beforehand
 
 # Ensures dates aren't in a "0000-00-00 ..." format
 odr_fix_database_dates:
@@ -1399,11 +1404,19 @@ odr_fix_database_dates:
 odr_childtype_search_slug_fix:
     path: /admin/childtype_search_slug_fix
     defaults: { _controller: ODRAdminBundle:Validation:childsearchslugfix }
+# Locate duplicate (user, group) pairs in the UserGroup table
+odr_find_duplicate_user_groups:
+    path: /admin/find_duplicate_user_groups
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicateusergroups }
+# Ensure all fieldtype entries exist and have the correct properties
+odr_check_fieldtype_table:
+    path:  /admin/check_fieldtype_table
+    defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+# Ensure datafields with a master_datafield_id also have a template_field_uuid
+odr_fix_missing_datafield_template_uuids:
+    path:  /admin/fix_missing_datafield_template_uuids
+    defaults: { _controller: ODRAdminBundle:Validation:fixmissingdatafielduuids }
 
-# Theme_elements aren't allowed to have both theme_datatype and theme_datafield entries
-odr_find_overachieving_theme_elements:
-    path:  /admin/find_overachieving_theme_elements
-    defaults: { _controller: ODRAdminBundle:Validation:themeElementcheck }
 # Locates entities without meta entries
 odr_fix_missing_meta_entries:
     path: /admin/fix_meta_entries
@@ -1412,7 +1425,9 @@ odr_fix_missing_meta_entries:
 odr_find_duplicate_meta_entries:
     path: /admin/find_duplicate_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatemetaentries }
+
 # Locate/delete a pile of child entities that make no sense when their parent entities are deleted
+# This needs to be run repeatedly until it stops making changes
 odr_find_orphaned_entities:
     path: /admin/find_orphaned_entities
     defaults: { _controller: ODRAdminBundle:Validation:findorphanedentities }
@@ -1420,37 +1435,31 @@ odr_find_orphaned_entities:
 odr_find_undeleted_meta_entries:
     path: /admin/find_undeleted_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:findundeletedmetaentries }
-# Locate themes that have the same parent_theme_id, but there's no theme_datatype trail to reach them
-odr_trace_theme_ancestory:
-    path: /admin/trace_theme_ancestory
-    defaults: { _controller: ODRAdminBundle:Validation:tracethemeancestory }
-# Locate duplicate (user, group) pairs in the UserGroup table
-odr_find_duplicate_user_groups:
-    path: /admin/find_duplicate_user_groups
-    defaults: { _controller: ODRAdminBundle:Validation:findduplicateusergroups }
-
-# Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
-odr_fix_datatree_entries:
-    path: /admin/fix_datatree_entries
-    defaults: { _controller: ODRAdminBundle:Validation:fixdatatreeentries }
-
+# Datatypes aren't allowed to claim exterinal_id/name/background_image fields from other datatypes
 odr_find_datatype_meta_errors:
     path: /admin/find_datatype_meta_errors
     defaults: { _controller: ODRAdminBundle:Validation:finddatatypemetaerrors }
 
+# Theme_elements aren't allowed to have both theme_datatype and theme_datafield entries
+odr_find_overachieving_theme_elements:
+    path:  /admin/find_overachieving_theme_elements
+    defaults: { _controller: ODRAdminBundle:Validation:themeElementcheck }
+# Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
+odr_fix_datatree_entries:
+    path: /admin/fix_datatree_entries
+    defaults: { _controller: ODRAdminBundle:Validation:fixdatatreeentries }
 # zeta/epsilon has a whole mess of problems related to themes...
 odr_find_datatypes_without_master_themes:
     path:  /admin/find_datatypes_without_master_themes/{check_top_level}
     defaults: { _controller: ODRAdminBundle:Validation:finddatatypeswithoutmasterthemes }
     requirements:
         check_top_level: 0|1
-odr_fix_missing_datafield_template_uuids:
-    path:  /admin/fix_missing_datafield_template_uuids
-    defaults: { _controller: ODRAdminBundle:Validation:fixmissingdatafielduuids }
 
-odr_check_fieldtype_table:
-    path:  /admin/check_fieldtype_table
-    defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+# Locate themes that have the same parent_theme_id, but there's no theme_datatype trail to reach them
+# Unsure what to do about this one...the problems it finds can't be easily fixed
+odr_trace_theme_ancestory:
+    path: /admin/trace_theme_ancestory
+    defaults: { _controller: ODRAdminBundle:Validation:tracethemeancestory }
 
 odr_compare_datatypes:
     path:  /admin/type/compare/{left_datatype_id}/{right_datatype_id}/{filter}

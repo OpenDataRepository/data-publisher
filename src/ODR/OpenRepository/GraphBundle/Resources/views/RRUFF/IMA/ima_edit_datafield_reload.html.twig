@@ -10,14 +10,7 @@
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
     {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
-    {% if field_typename == "Boolean" and datarecordfield.boolean[0] is defined %}
-        {% set valuefield = datarecordfield.boolean[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "File" %}
-        {% set valuefield = datarecordfield.file %}
-    {% elseif field_typename == "Image" %}
-        {% set valuefield = datarecordfield.image %}
-    {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
+    {% if field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
         {% set valuefield_value = valuefield.original_value %}
     {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
@@ -32,23 +25,10 @@
     {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
         {% set valuefield = datarecordfield.mediumVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typeclass == "Radio" %}
-        {% set valuefield = datarecordfield.radioSelection %}
-    {% elseif field_typeclass == "Tag" %}
-        {% set valuefield = datarecordfield.tagSelection %}
     {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
-        {% set valuefield = datarecordfield.datetimeValue[0] %}
-        {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Markdown" %}
-        {% set valuefield = '' %}
     {% endif %}
-{% endif %}
-
-{% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
-    {% set valuefield = [] %}
 {% endif %}
 
 {% set max_length = '' %}
@@ -91,6 +71,7 @@
                     data-error-type="inline"
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                 >{{ valuefield_value }}</textarea>
+                <i class="fa fa-save ODRSaveIndicator"></i>
             </div>
         </fieldset>
 

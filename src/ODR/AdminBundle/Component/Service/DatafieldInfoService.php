@@ -16,11 +16,10 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\FieldType;
-// Exceptions
-// Services
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+
 
 class DatafieldInfoService
 {
@@ -29,11 +28,6 @@ class DatafieldInfoService
      * @var EntityManager
      */
     private $em;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $dbi_service;
 
     /**
      * @var Logger
@@ -45,16 +39,13 @@ class DatafieldInfoService
      * DatafieldInfoService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatabaseInfoService $database_info_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
         $this->logger = $logger;
     }
 
@@ -288,82 +279,6 @@ class DatafieldInfoService
 
 
     /**
-     * Helper function to determine whether a datafield can have its fieldtype changed.
-     *
-     * Tracked jobs in-progress prevent changing of fieldtype too, but those need to be checked for
-     * and handled by the caller since those are temporary restrictions.
-     *
-     * @param DataFields $datafield
-     *
-     * @return array
-     */
-    public function canChangeFieldtype($datafield)
-    {
-        // TODO - not 100% true, technically...can go from text -> text or number -> text, but can't go from text -> number...
-        // Also prevent a fieldtype change if the datafield is marked as unique
-        if ($datafield->getIsUnique() == true) {
-            return array(
-                'prevent_change' => true,
-                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is currently marked as Unique.",
-            );
-        }
-
-
-        // TODO - the FieldType table has a list of sortable fieldtypes...but migration takes so long that the datatype will usually be sorted with an incomplete set of values...
-        // Also prevent a fieldtype change if the datafield is being used as a sort field by
-        //  any datatype
-        $query = $this->em->createQuery(
-           'SELECT dtm.shortName
-            FROM ODRAdminBundle:DataFields AS df
-            JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.sortField = df
-            JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
-            WHERE df.id = :datafield_id
-            AND df.deletedAt IS NULL AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
-        $results = $query->getArrayResult();
-
-        if ( !empty($results) ) {
-            return array(
-                'prevent_change' => true,
-                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype",
-            );
-        }
-
-
-        // Prevent a datafield's fieldtype from changing if it's derived from a template
-        if ( !is_null($datafield->getMasterDataField()) ) {
-            return array(
-                'prevent_change' => true,
-                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is derived from a Master Template.",
-            );
-        }
-
-        // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
-        $query = $this->em->createQuery(
-           'SELECT df.id
-            FROM ODRAdminBundle:DataFields df
-            WHERE df.masterDataField = :datafield_id
-            AND df.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
-        $results = $query->getArrayResult();
-
-        if ( !empty($results) ) {
-            return array(
-                'prevent_change' => true,
-                'prevent_change_message' => "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet..."
-            );
-        }
-
-        // ----------------------------------------
-        // Otherwise, no problems changing fieldtype of this datafield
-        return array(
-            'prevent_change' => false,
-            'prevent_change_message' => '',
-        );
-    }
-
-
-    /**
      * Helper function to determine whether a datafield has multiple files/images uploaded or not.
      *
      * @param DataFields $datafield
@@ -391,82 +306,20 @@ class DatafieldInfoService
         $query = $this->em->createQuery($str)->setParameters( array('datafield' => $datafield) );
         $results = $query->getResult();
 
+        // If $results has no rows, then nothing has been uploaded to the datafield...therefore it
+        //  technically does not have multiple files/images
+        if ( empty($results) )
+            return false;
+
+        // Otherwise...
         foreach ($results as $result) {
-            // $result[1] contains how many files/images each datarecord has
+            // ...if $result[1] is greater than 1, then at least one datarecord has multiple uploads
+            //  for the given datafield
             if ( intval($result[1]) > 1 )
                 return true;
         }
 
         return false;
-    }
-
-
-    /**
-     * Returns an array of fieldtype ids that the datafield is allowed to have in its current context.
-     *
-     * @param DataFields $datafield
-     * @param array $datatype_array
-     *
-     * @return array
-     */
-    public function getAllowedFieldtypes($datafield, $datatype_array = null)
-    {
-        // ----------------------------------------
-        // Need a list of all fieldtype ids to start from...
-        /** @var FieldType[] $tmp */
-        $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
-        $allowed_fieldtypes = array();
-        foreach ($tmp as $ft)
-            $allowed_fieldtypes[] = $ft->getId();
-
-        // ...but can use the cached datatype array to get the rest of the data for determining this
-        $datatype = $datafield->getDataType();
-        if ( is_null($datatype_array) )
-            $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
-
-        $dt = $datatype_array[$datatype->getId()];
-        $df = $dt['dataFields'][$datafield->getId()];
-
-
-        // ----------------------------------------
-        // If the datafield is using a render plugin...
-        if ( !empty($df['renderPluginInstances']) ) {
-            foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
-                // There's only going to be one rpf in here, but the key will be different
-                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
-                    // ...then the fieldtype can't be changed from what the render plugin requires
-                    $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
-                    $allowed_fieldtypes = array_intersect($allowed_fieldtypes, $df_fieldtypes);
-                }
-            }
-        }
-
-        // If the datatype is using a render plugin...
-        if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
-                // ...then if this datafield is required by the render plugin...
-                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
-                    if ( $rpf_df['id'] === $datafield->getId() ) {
-                        // ...then the fieldtype can't be changed from what the render plugin requires
-                        $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
-                        $allowed_fieldtypes = array_intersect($allowed_fieldtypes, $dt_fieldtypes);
-
-                        // No point looking through the rest of the cached array
-                        break;
-                    }
-                }
-            }
-        }
-
-
-        // ----------------------------------------
-        // TODO - allow changing fieldtype of unique fields...can go from text -> text or number -> text, but not text -> number...
-        // TODO - allow changing fieldtype of sort fields...currently fieldtype migration takes so long that the datatype will usually be sorted with an incomplete set of values...
-
-
-        // ----------------------------------------
-        // Return which fieldtypes the datafield is allowed to have
-        return $allowed_fieldtypes;
     }
 
 
@@ -553,5 +406,149 @@ class DatafieldInfoService
         // Didn't find a duplicate, return true
         return true;
     }
-}
 
+
+    /**
+     * Returns an array with three entries for each datafield in $datafield_ids...
+     * 1) can the datafield's fieldtype be changed?
+     * 2) if the fieldtype can't be changed, then a string with the reason it can't
+     * 3) which fieldtypes the datafield is allowed to change to
+     *
+     * @param array $datatype_array
+     * @param integer $datatype_id
+     * @param array|null $datafield_ids If null, then determine for all datafields of datatype
+     *
+     * @return array
+     */
+    public function getFieldtypeInfo($datatype_array, $datatype_id, $datafield_ids = null)
+    {
+        // ----------------------------------------
+        $fieldtype_info = array();
+
+        // If no datafields were specified, then determine the allowed fieldtypes of all datafields
+        //  in the given datatype
+        if ( is_null($datafield_ids) ) {
+            $datafield_ids = array();
+
+            foreach ($datatype_array[$datatype_id]['dataFields'] as $df_id => $df)
+                $datafield_ids[] = $df_id;
+        }
+
+        // Most likely going to need a list of all available fieldtypes
+        /** @var FieldType[] $tmp */
+        $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
+        $all_fieldtypes = array();
+        foreach ($tmp as $ft)
+            $all_fieldtypes[] = $ft->getId();
+
+
+        // ----------------------------------------
+        // Two of the four reasons to prevent a change to a datafield's fieldype require database
+        //  lookups
+        $query = $this->em->createQuery(
+           'SELECT df.id AS df_id, d_df.id AS derived_df_id, dt.id AS dt_id
+            FROM ODRAdminBundle:DataFields AS df
+            LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
+            LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.sortField = df
+            LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
+            WHERE df IN (:datafield_ids)
+            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL
+            AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters( array('datafield_ids' => $datafield_ids) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $df_id = $result['df_id'];
+            $derived_df_id = $result['derived_df_id'];
+            $dt_id = $result['dt_id'];
+
+            $fieldtype_info[$df_id] = array(
+                'prevent_change' => false,
+                'prevent_change_message' => '',
+                'allowed_fieldtypes' => $all_fieldtypes,
+            );
+
+            // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
+            // Prevent a datafield's fieldtype from changing if other fields are derived from it
+            if ( !is_null($derived_df_id) ) {
+                $fieldtype_info[$df_id]['prevent_change'] = true;
+                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
+            }
+
+            // TODO - allow changing fieldtype of sort fields?
+            // Prevent a datafield's fieldtype from changing if it's being used as a sort field by
+            //  any datatype
+            if ( !is_null($dt_id) ) {
+                $fieldtype_info[$df_id]['prevent_change'] = true;
+                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+            }
+        }
+
+
+        // ----------------------------------------
+        // The other two reasons to prevent a change to a datafield's fieldtype, as well as the
+        //  allowed fieldtypes, can be found via the cached datatype array
+        $dt = $datatype_array[$datatype_id];
+
+        // If the datatype is using a render plugin...
+        if ( !empty($dt['renderPluginInstances']) ) {
+            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                // ...then determine the allowed fieldtypes for each of its defined datafields
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                    $df_id = $rpf_df['id'];
+
+                    if ( isset($fieldtype_info[$df_id]) ) {
+                        $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $dt_fieldtypes);
+                    }
+                }
+            }
+        }
+
+
+        foreach ($datafield_ids as $df_num => $df_id) {
+            // Get the datafield's array entry from the cached datatype entry
+            $df = $dt['dataFields'][$df_id];
+            $current_fieldtype_id = $df['dataFieldMeta']['fieldType']['id'];
+
+
+            // Prevent a datafield's fieldtype from changing if it's derived from a template field
+            if ( !is_null($df['masterDataField']) ) {
+                $fieldtype_info[$df_id]['prevent_change'] = true;
+                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is derived from a Master Template.";
+            }
+
+            // TODO - allow changing fieldtype of unique fields?
+            // TODO - ...can go from shorter text -> longer text, or number -> text...but not necessarily from longer text -> shorter text, or text -> number
+            // Prevent a datafield's fieldtype from changing if it's marked as unique
+            if ( $df['dataFieldMeta']['is_unique'] === true ) {
+                $fieldtype_info[$df_id]['prevent_change'] = true;
+                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
+            }
+
+
+            // If the datafield is using a render plugin...
+            if ( !empty($df['renderPluginInstances']) ) {
+                foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                    // There's only going to be one rpf in here, but don't know the array key beforehand
+                    foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
+                        // ...then the fieldtype can't be changed from what the render plugin requires
+                        $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $df_fieldtypes);
+                    }
+                }
+            }
+
+            // If the datafield isn't supposed to change its fieldtype, then remove all but the
+            //  current fieldtype from the 'allowed_fieldtypes' section of the array
+            if ( $fieldtype_info[$df_id]['prevent_change'] === true ) {
+                foreach ($fieldtype_info[$df_id]['allowed_fieldtypes'] as $num => $ft_id) {
+                    if ( $ft_id !== $current_fieldtype_id )
+                        unset( $fieldtype_info[$df_id]['allowed_fieldtypes'][$num] );
+                }
+            }
+        }
+
+        return $fieldtype_info;
+    }
+}

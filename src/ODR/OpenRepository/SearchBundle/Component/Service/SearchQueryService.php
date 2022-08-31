@@ -1542,6 +1542,13 @@ class SearchQueryService
                     // searching on some inequality...can't be null
                     $possible = false;
                 }
+                else if ($char === 'I') {
+                    // Searching based on a null value...
+                    if ( strpos($piece, 'NOT') !== false ) {
+                        // searching for e.value IS NOT NULL  ...can't be null
+                        $possible = false;
+                    }
+                }
                 else {
                     // searching on equality...need to look into the params list...
                     $term = substr($piece, strpos($piece, ':')+1);
@@ -1933,13 +1940,28 @@ class SearchQueryService
                     if ( strlen($piece) > 2 && substr($piece, 0, 1) === "\"" && substr($piece, -1) === "\"" )
                         $piece_is_quoted = true;
 
-                    if ( $piece === "\"\"" && $can_be_null ) {
-                        if ($negate)
-                            $str .= ' IS NOT NULL ';
-                        else
-                            $str .= ' IS NULL ';
+                    if ( $piece === "\"\"" ) {
+                        if ( $can_be_null ) {
+                            // Integer/Decimal fields have null values instead of the empty string
+                            if ($negate)
+                                $str .= ' IS NOT NULL ';
+                            else
+                                $str .= ' IS NULL ';
 
-                        $searching_on_null = true;
+                            // This search term won't have an associated parameter
+                            $searching_on_null = true;
+                        }
+                        else {
+                            // All other fieldtypes are supposed to have the empty string instead
+                            // ...or simply not exist
+                            if ($negate)
+                                $str .= ' != ';
+                            else
+                                $str .= ' = ';
+
+                            // Want to search on the empty string '', not the string '""'
+                            $piece = '';
+                        }
                     }
                     else if ( $piece_is_quoted && strpos($piece, " ") === false ) {  // does have a quote, but doesn't have a space
                         // NOTE - this intentionally excludes searches like "\"abc def\""...I'm

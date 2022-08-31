@@ -192,10 +192,21 @@
     var isMasterType = 0;
     {% endif %}
     var SaveTimeout = 1500;
+
+    var fieldtype_array = {};
+    {% for ft_id,ft_typename in fieldtype_array %}
+    fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
+    {% endfor %}
+
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         initPage();
+
+        // Initialize the help button
+        $("#ODRHelpButton").unbind('click').click(function() {
+            ODRDesign_startIntroJS();
+        });
 
 {# TODO - enable this once a better non-master theme designer gets worked out...
         {% if notify_of_sync is defined and notify_of_sync == true %}
@@ -207,10 +218,6 @@
         {% endif %}
 #}
     });
-
-    function notifySaved() {
-        $.jGrowl('SAVED');
-    }
 
     /**
      * Loads the properties form for the given theme_element.
@@ -1342,6 +1349,7 @@
                 SaveThemeElementOrder("#FieldArea_" + datatype_id);
 
                 // Init the page
+                clearAllFields();
                 initPage();
 
                 // Show the element
@@ -1786,7 +1794,6 @@
             ResetToolSet();
         });
 
-
         $("#ThemeDesignWrapper").click(function(e) {
             if (e.target !== this)
                 return;
@@ -1811,7 +1818,6 @@
             ResetToolSet();
         });
 
-
         $("#right-spacer").click(function(e) {
             if (e.target !== this)
                 return;
@@ -1819,7 +1825,6 @@
             clearAllFields();
             ResetToolSet();
         });
-
 
         $(".ODRUndeleteFields").unbind('click').click(function() {
             /* Un-delete disabled due to redesign */
@@ -1863,9 +1868,13 @@
 #}
         });
 
-
         // Don't want to be able to highlight everything...
         $("#content").find(".ODRInnerBox").disableSelection();
+
+
+        // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
+        //  setup for introJS is run...
+        ODRDesign_setupIntroJS();
     }
 
     // Need to be able to delay saving changes to the datafield properties form for a couple seconds
@@ -1884,7 +1893,7 @@
             SaveDatafieldProperty_Interval[datafield_id] = window.clearInterval(SaveDatafieldProperty_Interval[datafield_id]);
 
         // Load the saved form data for this field
-        if ( SaveDatafieldProperty_Data[datafield_id] === undefined)
+        if ( SaveDatafieldProperty_Data[datafield_id] === undefined || SaveDatafieldProperty_Data[datafield_id] === null )
             return;
         var post_data = SaveDatafieldProperty_Data[datafield_id];
         SaveDatafieldProperty_Data[datafield_id] = null;
@@ -2232,11 +2241,6 @@
             }
         });
 
-        var fieldtype_array = {};
-        {% for ft_id,ft_typename in fieldtype_array %}
-        fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
-        {% endfor %}
-
         // Override the handler for the fieldtype selector
         tdf_odpf.find("#DatafieldsForm_field_type").each(function() {
             // Grab Datafield id
@@ -2246,90 +2250,16 @@
             // ...
             $(this).unbind('change').change(function() {
 
-                // If datatype has datarecords, changing a fieldtype might cause loss of data
-                var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
-                var pf = $("#previous_fieldtype");
-                var previous_fieldtype_id = pf.val();
-                var current_fieldtype_id = $("#DatafieldsForm_field_type").val();
+                var previous_fieldtype_id = $("#previous_fieldtype").val();
+                var new_fieldtype_id = $("#DatafieldsForm_field_type").val();
 
-                var previous_fieldtype = fieldtype_array[previous_fieldtype_id];
-                var current_fieldtype = fieldtype_array[current_fieldtype_id];
+                // Determine if there's any problem converting from the current fieldtype to a new
+                //  one
+                var previous_typename = fieldtype_array[previous_fieldtype_id];
+                var new_typename = fieldtype_array[new_fieldtype_id];
+                var str = getFieldtypeMigrationWarning(previous_typename, new_typename);
 
-
-                // Changes that require no extra consideration or work
-                var no_warn = {
-                    // single radio and single select fields can be changed to any other radio fieldtype
-                    'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
-                    'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
-                    // multiple radio can be changed to multiple select, and vice versa
-                    'Multiple Radio': ['Multiple Select'],
-                    'Multiple Select': ['Multiple Radio'],
-                    // markdown fields have no data to lose
-                    'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
-                };
-
-                // Changes that require the server to migrate data between storage entities
-                // TODO - changing other fieldtypes to radio/select fields
-                var time_warn = {
-                    'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
-                    'Long Text': ['Paragraph Text'],
-                    'Medium Text': ['Paragraph Text','Long Text'],
-                    'Short Text': ['Paragraph Text','Long Text','Medium Text'],
-                    'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text']
-                };
-
-                // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
-                var length_warn = {
-                    'Paragraph Text': ['Long Text','Medium Text','Short Text'],
-                    'Long Text': ['Medium Text','Short Text'],
-                    'Medium Text': ['Short Text']
-                };
-
-                // Changes from text fields to integer/decimal...it can easily result in lost data
-                var number_warn = {
-                    'Paragraph Text': ['Integer','Decimal'],
-                    'Long Text': ['Integer','Decimal'],
-                    'Medium Text': ['Integer','Decimal'],
-                    'Short Text': ['Integer','Decimal']
-                };
-
-                // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
-                var radio_warn = {
-                    'Multiple Radio': ['Single Radio','Single Select'],
-                    'Multiple Select': ['Single Radio','Single Select']
-                };
-
-                // Converting from decimal to integer...going to lose fractional parts of data
-                var precision_warn = {
-                    'Decimal': ['Integer']
-                };
-
-                // TODO - conversions to boolean?
-
-                // All other changes necessarily result in loss of ALL data
-
-                // Warn the user about potential issues when changing fieldtypes
-                if ( no_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, no_warn[previous_fieldtype]) !== -1 ) {
-                    str = '';
-                }
-                else if ( time_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, time_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
-                }
-                else if ( length_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, length_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield...some data may be truncated...are you sure?';
-                }
-                else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: All non-numerical characters will be deleted from the textfield, and the remaining characters converted into a number...If the textfield is not mostly numerical already, the resulting values may be nonsensical...are you sure?';
-                }
-                else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';
-                }
-                else if ( precision_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, precision_warn[previous_fieldtype]) !== -1 ) {
-                    str = 'WARNING: Any fractional parts of the decimal values will be dropped during this migration of data...are you sure?';
-                }
-
-
-                if ( $("#has_datarecords").val() === '' || str === '' || confirm(str) ) {
+                if ( $("#has_datarecords").val() === '' || str === '' || confirm(str + '..are you sure?') ) {
                     // Datatype has no datarecords attached, or user doesn't care...save the change
                     // console.log('fieldtype changed, triggering instant save for datafield', datafield_id);
                     SaveDatafieldProperty_Data[datafield_id] = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
@@ -2339,23 +2269,23 @@
                     SaveDatafieldProperties(datafield_id);
 
                     str = '';
-                    if (current_fieldtype === 'Paragraph Text')
+                    if (new_typename === 'Paragraph Text')
                         str = 'No Character Limit';
-                    else if (current_fieldtype === 'Long Text')
+                    else if (new_typename === 'Long Text')
                         str = '255 Character Limit';
-                    else if (current_fieldtype === 'Medium Text')
+                    else if (new_typename === 'Medium Text')
                         str = '64 Character Limit';
-                    else if (current_fieldtype === 'Short Text')
+                    else if (new_typename === 'Short Text')
                         str = '32 Character Limit';
 
                     if (str !== '')
                         $("#field_type_meta").attr('title', str);
 
-                    pf.val(current_fieldtype_id);
+                    $("#previous_fieldtype").val(new_fieldtype_id);
                 }
                 else {
                     // Revert back to old field type
-                    previous_fieldtype_id = pf.val();
+                    previous_fieldtype_id = $("#previous_fieldtype").val();
                     $(this).val( previous_fieldtype_id );
                 }
 
@@ -2364,6 +2294,100 @@
 
         $(form_div).fadeIn('fast');
     }
+
+
+    /**
+     * Returns a string with a warning about potential undesirable changes that will be caused by
+     * migrating from one fieldtype to another.
+     *
+     * @param {string} previous_typename
+     * @param {string} new_typename
+     *
+     * @returns {string}
+     */
+    function getFieldtypeMigrationWarning(previous_typename, new_typename) {
+        // No warnings if no fieldtype changes
+        if ( previous_typename == new_typename )
+            return '';
+
+        var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
+
+        // Changes that require no extra consideration or work
+        var no_warn = {
+            // single radio and single select fields can be changed to any other radio fieldtype
+            'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
+            'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
+            // multiple radio can be changed to multiple select, and vice versa
+            'Multiple Radio': ['Multiple Select'],
+            'Multiple Select': ['Multiple Radio'],
+            // markdown fields have no data to lose
+            'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
+        };
+
+        // Changes that require the server to migrate data between storage entities
+        // TODO - changing other fieldtypes to radio/select fields
+        var time_warn = {
+            'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
+            'Long Text': ['Paragraph Text'],
+            'Medium Text': ['Paragraph Text','Long Text'],
+            'Short Text': ['Paragraph Text','Long Text','Medium Text'],
+            'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text'],
+            'DateTime': ['Paragraph Text','Long Text','Medium Text','Short Text'],
+        };
+
+        // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
+        var length_warn = {
+            'Paragraph Text': ['Long Text','Medium Text','Short Text'],
+            'Long Text': ['Medium Text','Short Text'],
+            'Medium Text': ['Short Text']
+        };
+
+        // Changes from text fields to integer/decimal...it can easily result in lost data
+        var number_warn = {
+            'Paragraph Text': ['Integer','Decimal'],
+            'Long Text': ['Integer','Decimal'],
+            'Medium Text': ['Integer','Decimal'],
+            'Short Text': ['Integer','Decimal']
+        };
+
+        // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
+        var radio_warn = {
+            'Multiple Radio': ['Single Radio','Single Select'],
+            'Multiple Select': ['Single Radio','Single Select']
+        };
+
+        // Converting from decimal to integer...going to lose fractional parts of data
+        var precision_warn = {
+            'Decimal': ['Integer']
+        };
+
+        // TODO - conversions to boolean?  conversions to datetime?
+
+        // All other changes necessarily result in loss of ALL data
+
+        // Warn the user about potential issues when changing fieldtypes
+        if ( no_warn[previous_typename] !== undefined && $.inArray(new_typename, no_warn[previous_typename]) !== -1 ) {
+            str = '';
+        }
+        else if ( time_warn[previous_typename] !== undefined && $.inArray(new_typename, time_warn[previous_typename]) !== -1 ) {
+            str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
+        }
+        else if ( length_warn[previous_typename] !== undefined && $.inArray(new_typename, length_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield. Some data may be lost.';
+        }
+        else if ( number_warn[previous_typename] !== undefined && $.inArray(new_typename, number_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: All data that is not already numerical will be lost.';
+        }
+        else if ( radio_warn[previous_typename] !== undefined && $.inArray(new_typename, radio_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected.';
+        }
+        else if ( precision_warn[previous_typename] !== undefined && $.inArray(new_typename, precision_warn[previous_typename]) !== -1 ) {
+            str = 'WARNING: Any fractional parts of the decimal values will be lost.';
+        }
+
+        return str;
+    }
+
 
     // Need to be able to delay saving changes to the datatype properties form for a couple seconds
     //  so that users aren't getting constantly interrupted
@@ -2384,7 +2408,7 @@
         $('#UpdateDataTypeForm_short_name').val($('#UpdateDataTypeForm_long_name').val());
 
         // Load the saved form data for this datatype
-        if ( SaveDatatypeProperty_Data[datatype_id] === undefined)
+        if ( SaveDatatypeProperty_Data[datatype_id] === undefined || SaveDatatypeProperty_Data[datatype_id] === null )
             return;
         var post_data = SaveDatatypeProperty_Data[datatype_id];
         SaveDatatypeProperty_Data[datatype_id] = null;
@@ -2550,6 +2574,7 @@
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
+                // TODO - reload childtype/page on error?
             },
             complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
@@ -3072,5 +3097,94 @@
 
         if ( $(loading_div).length > 0 )
             $(loading_div).remove();
+    }
+
+    /**
+     * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+     */
+    function ODRDesign_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        // $()
+        //     .attr('data-step', '2')
+        //     .attr('data-intro', 'TODO');
+
+        $('.ODRDatatypeProperties:visible').first()
+            .attr('data-step', '3')
+            .attr('data-intro', "Clicking on the header for a database will bring up relevant actions and properties down the left side of the page.<br><br>Not all of the options are guaranteed to be available at all times.");
+        $('#ODRDatatype_addTE')
+            .attr('data-step', '4')
+            .attr('data-intro', 'You can click here to add another group box to the currently selected database.  These are used for organizing groups of datafields, or child databases.');
+        $('#ODRThemeElement_addDF')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Clicking here will create a new field for the currently selected database.  For more precise control, you may want to select a group box first.');
+        $('#ODRThemeElement_addCDT')
+            .attr('data-step', '6')
+            .attr('data-intro', "Clicking here will create a new child database in the currently selected database. This is primarily used for data that \"can't exist\" without a record the top-level database.<br><br>For example, until you have a record in a \"Sample\" database, you can't really take any \"Measurements\" on the \"Sample\".");
+        $('#ODRThemeElement_linkDT')
+            .attr('data-step', '7')
+            .attr('data-intro', 'Clicking here will bring up a dialog that will display any existing databases that you can link to. This is primarily used for data that \"exists independently\" of the top-level database.<br><br>For example, data that already exists elsewhere on ODR such as References, or data that somebody else manages.');
+        // $('#ODRThemeElement_linkFT')
+        //     .attr('data-step', '8')
+        //     .attr('data-intro', 'TODO');
+        $('#ODRDatatype_renderPlugin')
+            .attr('data-step', '9')
+            .attr('data-intro', "Clicking here will open a dialog that will allow you to attach, modify, or detach a Render Plugin from the currently selected database or field.<br><br>Render Plugins use the data on the page to render additional features, such as Graphs, Maps, or Currency, to name a few.");
+        $('#ODRDatatype_publicStatus')
+            .attr('data-step', '10')
+            .attr('data-intro', 'Clicking here will toggle the public status of the currently selected database or field.  Public fields or databases do not require permissions to view');
+        $('#ODRDatatype_delete')
+            .attr('data-step', '11')
+            .attr('data-intro', "Clicking here will attempt to delete the currently selected entity, if it's permitted.");
+
+        $("#ThemeDesignForm")
+            .attr('data-step', '12')
+            .attr('data-position', 'right')
+            .attr('data-intro', "Properties of the selected database or field are displayed in this area.  In certain cases, the icons can be clicked on to open additional dialogs or pages of reports.");
+
+        // Find the first visible theme element
+        var theme_element_handle = $(".ODRThemeElementHandle:visible").first();
+        $(theme_element_handle)
+            .attr('data-step', '13')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking on this icon selects a group box, allowing you to move it to a different location on the page.<br><br>The green bars to the middle right of the selection allow you to resize the group box, by clicking there and dragging left or right.');
+        {# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_element_handle).parent().find('.ODRDragHandle').first()
+            .attr('data-step', '14')
+            .attr('data-intro', 'You can resize the group box by clicking here and dragging to the left or right.');
+        #}
+
+        // Find the first visible datafield in the first visible theme element
+        var theme_datafield = $(theme_element_handle).parent().find('.ODRDataField').first();
+        $(theme_datafield)
+            .attr('data-step', '15')
+            .attr('data-position', 'top')
+            .attr('data-intro', 'Clicking anywhere inside a field selects it, allowing you to resize it in the same manner as if you had selected a group box.<br><br>You can move the field by clicking and dragging the green bars in the center of the field.');
+        {# Unfortunately, since the drag handles are dynamically added after the element is clicked, introJS can't target them
+        $(theme_datafield).find('.ODRDragHandle').first()
+            .attr('data-step', '16')
+            .attr('data-intro', 'Fields are resized the same way as group boxes....click here and drag to the left or right.');
+        #}
+    }
+
+    /**
+     * Begins the introJS tour for ODR's master theme designer page.
+     */
+    function ODRDesign_startIntroJS() {
+        introJs().setOption("disableInteraction", true)
+            .onbeforechange(function(elem) {
+                if ( $(elem).hasClass('ODRDatatypeProperties')
+                    || $(elem).hasClass('ODRThemeElementHandle')
+                    || $(elem).hasClass('ODRDataField')
+                ) {
+                    // Since introJS was set up after these elements were initialized, we can click
+                    //  them when reaching those points
+                    $(elem).trigger('click');
+                }
+            })
+            .start();
     }
 </script>

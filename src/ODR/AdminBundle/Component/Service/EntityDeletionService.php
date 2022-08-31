@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -90,12 +91,12 @@ class EntityDeletionService
     /**
      * @var TrackedJobService
      */
-    private $tj_service;
+    private $tracked_job_service;
 
     /**
      * @var ThemeInfoService
      */
-    private $ti_service;
+    private $theme_info_service;
 
     /**
      * @var Logger
@@ -145,8 +146,8 @@ class EntityDeletionService
         $this->pm_service = $permissions_management_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_service = $search_service;
-        $this->tj_service = $tracked_job_service;
-        $this->ti_service = $theme_info_service;
+        $this->tracked_job_service = $tracked_job_service;
+        $this->theme_info_service = $theme_info_service;
         $this->logger = $logger;
     }
 
@@ -182,9 +183,17 @@ class EntityDeletionService
                 throw new ODRBadRequestException( $props['delete_message'] );
 
 
-            // Also prevent a datafield from being deleted if certain jobs are in progress
-            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
-            $this->tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to delete this datafield");
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datafield
+            $new_job_data = array(
+                'job_type' => 'delete_datafield',
+                'target_entity' => $datafield,
+            );
+
+            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this Datafield, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -461,7 +470,7 @@ class EntityDeletionService
 
             // Rebuild all cached theme entries the datafield belonged to
             foreach ($all_datafield_themes as $t)
-                $this->ti_service->updateThemeCacheEntry($t->getParentTheme(), $user);
+                $this->theme_info_service->updateThemeCacheEntry($t->getParentTheme(), $user);
 
         }
         catch (\Exception $e) {
@@ -706,9 +715,17 @@ class EntityDeletionService
             // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
 
 
-            // Prevent a datatype from being deleted if certain jobs are in progress
-            $restricted_jobs = array('mass_edit', 'migrate', 'csv_export', 'csv_import_validate', 'csv_import');
-            $this->tj_service->checkActiveJobs($datatype, $restricted_jobs, "Unable to delete this datatype");
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datatype
+            $new_job_data = array(
+                'job_type' => 'delete_datatype',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this Datatype, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------

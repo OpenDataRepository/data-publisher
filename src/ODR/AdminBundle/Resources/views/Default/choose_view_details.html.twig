@@ -76,8 +76,8 @@
             {% if user != "anon." and theme.created_by == user.id and theme.theme_type != "master" %}
                 {# users can edit non-master themes they created #}
                 <span class="ODRModifyTheme">edit view</span> |
-            {% elseif is_datatype_admin and theme.theme_type == "master" %}
-                {# datatype admins are also allowed to edit master themes from here #}
+            {% elseif is_datatype_admin and (theme.theme_type == "master" or theme.is_default == 1) %}
+                {# datatype admins are also allowed to edit both default and master themes whether they created them or not #}
                 <span class="ODRModifyTheme">edit view</span> |
             {% endif %}
 

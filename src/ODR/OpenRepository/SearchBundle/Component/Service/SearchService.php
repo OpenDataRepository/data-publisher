@@ -690,13 +690,13 @@ class SearchService
      *
      * @return array
      */
-    public function searchforSelectedTags($datafield, $value)
+    public function searchForSelectedTags($datafield, $value)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Tag' )
-            throw new ODRBadRequestException('searchforSelectedTags() called with '.$typeclass.' datafield', 0xdfd23fd8);
+            throw new ODRBadRequestException('searchForSelectedTags() called with '.$typeclass.' datafield', 0xdfd23fd8);
 
 
         // ----------------------------------------
@@ -722,13 +722,20 @@ class SearchService
             $selections[$tag_id] = 1;
         }
 
-        // This function will turn any non-leaf tags that matched the original search query into
-        //  a (larger) set of leaf tags, and then search for records that have those selected
-        $end_result = self::searchTagDatafield(
-            $datafield,
-            $selections
+        // No point running a further search if no tags matched the search term...
+        $end_result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => array(),
         );
 
+        if ( !empty($selections) ) {
+            // This function will turn any non-leaf tags that matched the original search query into
+            //  a (larger) set of leaf tags, and then search for records that have those selected
+            $end_result = self::searchTagDatafield(
+                $datafield,
+                $selections
+            );
+        }
 
         // ...then recache the search result
         $cached_searches[$value] = $end_result;
@@ -785,6 +792,7 @@ class SearchService
             $selections[$tag_uuid] = 1;
         }
 
+        // TODO - ...does this need the same treatment as self::searchForSelectedTags()?
         $result = self::searchTagTemplateDatafield(
             $template_datafield,
             $selections
@@ -2104,9 +2112,10 @@ class SearchService
 
 
     /**
-     * Similar to self::getSearchableDatafields(), but only stores uuid, typeclass, and searchable
-     * information.  This is required to be able to pull off a "general" search across templates,
-     * the data stored in the other function is organized by different criteria.
+     * Works mostly the same way as self::getSearchableDatafields(), but stores data for templates
+     * instead...the main difference is that there's no point dividing the datafields into public
+     * and non-public groups, since the datatype/datafield permissions for a template have no effect
+     * on whether users can see the derived data.
      *
      * @param string $template_uuid
      *
@@ -2125,7 +2134,9 @@ class SearchService
             if (!$df_list) {
                 // If not cached, need to rebuild the list...
                 $query = $this->em->createQuery(
-                   'SELECT df.fieldUuid AS df_uuid, dfm.searchable, ft.typeClass
+                   'SELECT
+                        df.id AS df_id, df.fieldUuid AS df_uuid, dfm.searchable, ft.typeClass,
+                        dt.id AS dt_id
                     FROM ODRAdminBundle:DataType AS dt
                     LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
                     LEFT JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
@@ -2140,20 +2151,28 @@ class SearchService
                 if (!$results)
                     continue;
 
+                // Only need these once...
+                $df_list = array(
+                    'dt_id' => $results[0]['dt_id'],
+                    'datafields' => array(),
+                );
+
                 // Insert each of the datafields into the array...
-                $df_list = array();
                 foreach ($results as $result) {
                     // If the datatype doesn't have any datafields, don't attempt to save anything
-                    if ( is_null($result['df_uuid']) )
+                    if ( is_null($result['df_id']) )
                         continue;
 
                     $searchable = $result['searchable'];
                     $typeclass = $result['typeClass'];
+
+                    $df_id = $result['df_id'];
                     $df_uuid = $result['df_uuid'];
 
-                    $df_list[$df_uuid] = array(
+                    $df_list['datafields'][$df_id] = array(
                         'searchable' => $searchable,
-                        'typeclass' => $typeclass
+                        'typeclass' => $typeclass,
+                        'field_uuid' => $df_uuid,
                     );
                 }
 

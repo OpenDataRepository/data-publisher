@@ -19,7 +19,8 @@
                     {% set df = mapping.comment %}
                     {% for rpi_num,rpi in df.renderPluginInstances %}
                         {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
-                            {% set comment_text = df|datafield_plugin(comment_data.datarecord, rpi, 'text')|raw %}
+                            {% set rendering_options = {'context': 'text'} %}
+                            {% set comment_text = df|datafield_plugin(comment_data.datarecord, rpi, rendering_options)|raw %}
                         {% endif %}
                     {% endfor %}
 

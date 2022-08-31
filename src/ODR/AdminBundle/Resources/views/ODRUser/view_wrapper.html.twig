@@ -6,11 +6,11 @@
 {% endif %}
 
 <h1 class="no-margin-top-phone">
-    <span>Effective Permissions Viewer for "{{ datatype.getshortname }}" &raquo; {{ target_user.getuserstring }}</span>
+    <span>Effective Permissions Viewer for "{{ datatype.getshortname }}" &raquo; <span class="ODRVIewPermissions_username">{{ target_user.getuserstring }}</span>
 </h1>
 
 <button class="pure-button ODRManageGroups">Return to "Manage Groups" page</button>
-
+{#
 <div class="pure-u-1">
     {% if not datatype.isPublic and not can_view_datatype %}
         <b>This user is not allowed to view this non-public Datatype!</b>
@@ -53,7 +53,6 @@
                     {% endif %}
                 </div>
             </div>
-{#
             <div class="pure-u-1" style="padding-top:15px">
                 <div class="pure-u-1">
                     <span class="FLeft">
@@ -91,7 +90,6 @@
                     {% endif %}
                 </div>
             </div>
-#}
             <div class="pure-u-1" style="padding-top:15px">
                 <div class="pure-u-1">
                     <span class="FLeft">
@@ -170,13 +168,13 @@
         </div>
     {% endif %}
 </div>
-
+#}
 <div id="ODRRenderContent" class="pure-u-1"></div>
 
 <script>
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-
+{#
         $(".ODREditTheme").unbind('click').click(function() {
             var theme_id = $(this).attr('rel');
 
@@ -215,6 +213,13 @@
                 }
             });
         });
+#}
+        {% if can_view_datatype or datatype.dataTypeMeta.publicDate|is_public %}
+        ODRViewPermissions_loadTheme('{{ target_user.id }}', '{{ master_theme.id }}');
+        {% else %}
+        $("#ODRRenderContent").html('<b class="ODRViewPermissions_notallowed">This user is not allowed to view this non-public Datatype!</b>')
+        ODRViewPermissions_setupIntroJS();
+        {% endif %}
 
         $(".ODRManageGroups").unbind('click').click(function() {
             var url = '{{ path('odr_manage_user_groups', {'user_id': 0}) }}';
@@ -231,7 +236,9 @@
             WindowResizeInterval = window.setInterval("resizeOverlayDivs()", 50);
         });
 
-        resizeOverlayDivs();
+        $('#ODRHelpButton').unbind('click').click(function() {
+            ODRViewPermissions_startIntroJS();
+        });
     });
 
     var WindowResizeInterval = "";
@@ -247,6 +254,82 @@
             // Apply dimensions of parent div to loading div
             $(this).css({"height": height, "line-height": height, "width": width});
         });
+    }
+
+    /**
+     * Loads and renders the requested theme as the requested user sees it.
+     * @param {integer} user_id
+     * @param {integer} theme_id
+     */
+    function ODRViewPermissions_loadTheme(user_id, theme_id) {
+        var url = '{{ path('odr_view_permissions_result', {'user_id': 0, 'theme_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 3)) + user_id + "/" + theme_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRRenderContent").html(data.d.html);
+                resizeOverlayDivs();
+                ODRViewPermissions_setupIntroJS();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * In the interest of potential future changes, this page loads a theme afterwards instead of
+     * rendering it as part of the base page...so this requires introJS steps to be added after it's
+     * loaded.
+     */
+    function ODRViewPermissions_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('.ODRVIewPermissions_username')
+            .attr('data-step', '2')
+            .attr('data-intro', 'This page shows you which fields and childtypes this user is allowed to see and edit in this database.');
+        $('.ODRViewPermissions_notallowed')
+            .attr('data-step', '3')
+            .attr('data-intro', "Since you're seeing this notification, the user is not allowed to see this database at all.");
+
+        $('.ODREditableDatafield').first().parent()
+            .attr('data-step', '4')
+            .attr('data-intro', "If a field has no overlay, then the user can both view and edit it.");
+        $('.ODRVisibleDatafield').first().parent()
+            .attr('data-step', '5')
+            .attr('data-intro', "If a field has a light blue overlay, then the user can view the field...but can't edit it.");
+        $('.ODRBlockedDatafield').first().parent()
+            .attr('data-step', '6')
+            .attr('data-intro', "If a field has a gray overlay, then the user can't view or edit it.");
+    }
+
+    /**
+     * Begins the introJS tour for ODR's user group management page.
+     */
+    function ODRViewPermissions_startIntroJS() {
+        introJs().setOption("disableInteraction", true)
+            .start();
     }
 </script>
 {% endspaceless %}

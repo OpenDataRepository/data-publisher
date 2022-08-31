@@ -71,6 +71,11 @@ class RenderPlugin
     private $overrideFields;
 
     /**
+     * @var bool
+     */
+    private $overrideFieldReload;
+
+    /**
      * @var integer
      */
     private $plugin_type;
@@ -325,6 +330,30 @@ class RenderPlugin
     public function getOverrideFields()
     {
         return $this->overrideFields;
+    }
+
+    /**
+     * Set overrideFieldReload.
+     *
+     * @param bool $overrideFieldReload
+     *
+     * @return RenderPlugin
+     */
+    public function setOverrideFieldReload($overrideFieldReload)
+    {
+        $this->overrideFieldReload = $overrideFieldReload;
+
+        return $this;
+    }
+
+    /**
+     * Get overrideFieldReload.
+     *
+     * @return bool
+     */
+    public function getOverrideFieldReload()
+    {
+        return $this->overrideFieldReload;
     }
 
     /**

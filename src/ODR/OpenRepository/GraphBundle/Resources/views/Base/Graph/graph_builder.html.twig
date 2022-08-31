@@ -34,10 +34,10 @@
     {#<script src="../../js/libs/jquery-1.7.2.js"></script>#}
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     {#<script src="../../js/libs/jquery-ui-1.8.21.js"></script>#}
-    <script src="/js/libs/jquery-ui-1.12.0.min.js"></script>
+{#    <script src="/js/libs/jquery-ui-1.12.0.min.js"></script>#}
 
     <!-- Do the same with Lo-Dash.js -->
-    <script src="../../js/libs/lo-dash.js"></script>
+    <script src="../../js/libs/lo-dash.min.js"></script>
 
     <!-- Load Webfont loader -->
     <script type="text/javascript">
@@ -54,11 +54,11 @@
     <!-- Plot.ly JS Plots Based on D3 -->
     {#<script type="text/javascript" src="../../js/mylibs/nvd3/d3.v3.min.js"></script>#}
     <script type="text/javascript" src="../../js/mylibs/d3.v4.min.js"></script>
-    {#<script type="text/javascript" src="../..//js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>#}
-    <script type="text/javascript" src="../../js/mylibs/plotly-1.5.0.min.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/plotly-1.58.5.min.js"></script>
 
-    <script type="text/javascript" src="../..//js/mylibs/d3-queue.v3.min.js"></script>
-    <script type="text/javascript" src="../..//js/mylibs/odr_plotly_graphs.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/d3-queue.v3.min.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/odr_plotly_graphs.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/odr_graph_plugin.js"></script>
 
     <!-- App JS -->
     <!-- <script src="../../js/app.js"></script> -->
@@ -79,7 +79,25 @@
     </div><!-- end of .DynamicGraphs -->
 {% endif %}
 
+    {# NOTE: phantomJS can't use WebGL...probably unable to save the output...so use SVG instead #}
+    <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" style="display: none;" checked />
+
 <script type="text/javascript">
+
+    // Polyfills for functions used by odr_plotly_graphs.js, since phantomJS is more out of date
+    //  than expected...
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN#polyfill
+    Number.isNaN = Number.isNaN || function isNaN(input) {
+        return typeof input === 'number' && input !== input;
+    }
+
+    // https://stackoverflow.com/a/27424770
+    Number.isInteger = Number.isInteger || function(value) {
+        return typeof value === "number" &&
+            isFinite(value) &&
+            Math.floor(value) === value;
+    };
+
     // Used to track active plots for resizing
     // Why is this not cleared every time?
     var page_plots = [];
@@ -97,17 +115,15 @@
                 /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
                 switch (graph_type) {
                     case "xy":
-                        return lineChartPlotly(chart_obj, preparePlotlyStatic);
+                        return ODRGraph_lineChartPlotly(chart_obj, preparePlotlyStatic);
                     case "bar":
-                        return barChartPlotly(chart_obj, preparePlotlyStatic);
+                        return ODRGraph_barChartPlotly(chart_obj, preparePlotlyStatic);
                     case "histogram":
-                        return histogramChartPlotly(chart_obj, preparePlotlyStatic);
+                        return ODRGraph_histogramChartPlotly(chart_obj, preparePlotlyStatic);
                     case "stackedarea":
-                        return stackedAreaChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "lineerror":
-                        return lineerrorChartPlotly(chart_obj, preparePlotlyStatic);
+                        return ODRGraph_stackedAreaChartPlotly(chart_obj, preparePlotlyStatic);
                     case "piechart":
-                        return pieChartPlotly(chart_obj, preparePlotlyStatic);
+                        return ODRGraph_pieChartPlotly(chart_obj, preparePlotlyStatic);
                     default:
                         break;
                 }

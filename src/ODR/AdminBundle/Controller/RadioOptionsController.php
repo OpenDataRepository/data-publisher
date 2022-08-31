@@ -18,6 +18,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
@@ -39,6 +40,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Templating\EngineInterface;
 
 
 class RadioOptionsController extends ODRCustomController
@@ -68,6 +70,8 @@ class RadioOptionsController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataFields $datafield */
@@ -111,7 +115,6 @@ class RadioOptionsController extends ODRCustomController
             $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
             // Render the template
-            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:radio_option_dialog_form.html.twig',
@@ -287,8 +290,8 @@ class RadioOptionsController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SearchService $search_service */
             $search_service = $this->container->get('odr.search_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var RadioOptions $radio_option */
@@ -328,10 +331,17 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to delete a radio option from a derived datafield');
 
-            // Also prevent a radio option from being deleted if certain jobs are in progress by
-            //  throwing an error
-            $restricted_jobs = array('mass_edit', /*'migrate',*/ 'csv_export', 'csv_import_validate', 'csv_import');
-            $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to delete this radio option");
+
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this radio option
+            $new_job_data = array(
+                'job_type' => 'delete_radio_option',
+                'target_entity' => $datafield,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this RadioOption, as it would interfere with an already running '.$conflicting_job.' job');
 
             // As nice as it would be to delete any/all radio options derived from a template option
             //  here, the template synchronization needs to tell the user what will be changed, or
@@ -467,8 +477,8 @@ class RadioOptionsController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var TrackedJobService $tj_service */
-            $tj_service = $this->container->get('odr.tracked_job_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             // Grab necessary objects
@@ -518,9 +528,17 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException('Not allowed to change the name of a radio option for a derived field');
 
-            // Also prevent a radio option from being renamed if certain jobs are in progress
-            $restricted_jobs = array(/*'mass_edit',*/ /*'migrate',*/ 'csv_export', 'csv_import_validate', 'csv_import');
-            $tj_service->checkActiveJobs($datafield, $restricted_jobs, "Unable to rename this radio option");
+
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datarecord
+            $new_job_data = array(
+                'job_type' => 'rename_radio_option',
+                'target_entity' => $datafield,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to rename this RadioOption, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------

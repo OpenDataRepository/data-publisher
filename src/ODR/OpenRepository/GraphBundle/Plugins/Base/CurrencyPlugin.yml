@@ -3,11 +3,14 @@ odr_plugins.base.currency:
     category: Base
     datatype: false
     render: true
-    version: 1.1.0
+    version: 1.2.0
     override_fields: false
+    override_field_reload: false
     override_child: false
     description: A datafield containing a currency value.  Currently only handles US currency.
     registered_events:
+        PluginAttachEvent: onPluginAttach
+        PluginPreRemoveEvent: onPluginPreRemove
     required_fields:
         currency_field:
             name: Currency Field

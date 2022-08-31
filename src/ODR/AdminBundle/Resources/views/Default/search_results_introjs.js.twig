@@ -1,0 +1,60 @@
+{% spaceless %}
+
+{% set page_element = "#ODRPageSelect" %}
+{% set view_element = ".ODRShortResultsHeader:first" %}
+{% set edit_element = ".ODRShortResultsHeader_edit:first" %}
+{% if page_type == 'text' %}
+    {% set page_element = "#TextResults_paginate" %}
+    {% set view_element = ".ODRTableRecord:first" %}
+    {% set edit_element = ".ODREditLink:first" %}
+{% endif %}
+
+    // Setup IntroJS Walkthrough
+    $('#ODRHelpButton')
+        .attr('data-step', '1')
+        .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+    $('#ODRPageSelectSettings')
+        .attr('data-step', '2')
+        .attr('data-intro', 'The settings gear contains customizable settings for this search results page.');
+    $('#ChooseView')
+        .attr('data-step', '3')
+        .attr('data-intro', 'Clicking this brings up a dialog of options for selecting from alternate layouts, or for creating one of your own.');
+    $('#ODRAddRecord')
+        .attr('data-step', '4')
+        .attr('data-intro', 'Clicking "Add New Record" takes you to a page where you can create a new record for this database.');
+    $('#ODRMassEdit')
+        .attr('data-step', '5')
+        .attr('data-intro', 'Mass Edit allows users to change values or the public status of all records in the result list at once.');
+    $('#ODRCSVExport')
+        .attr('data-step', '6')
+        .attr('data-intro', 'CSV Export allows users to create CSV downloads of the data in the result list.');
+    $('#ODRTracking')
+        .attr('data-step', '7')
+        .attr('data-intro', 'Clicking this takes you to a page that shows all recent updates to this database.');
+    $('#ODRMassDownload')
+        .attr('data-step', '8')
+        .attr('data-intro', 'This opens a dialog that allows you to download all files as a zip archive from one or more fields in this database.');
+    $('{{ page_element }}')
+        .attr('data-step', '9')
+        .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
+    $('{{ view_element }}')
+        .attr('data-step', '10')
+        .attr('data-intro', 'Click the left side of a result header to view the record.');
+    $('{{ edit_element }}')
+        .attr('data-step', '11')
+        .attr('data-intro', 'Click the right side of a result header to enter the edit page for that record.');
+    $('#ODRRunApp')
+        .attr('data-step', '12')
+        .attr('data-intro', 'If this button is visible, one or more JupyterHub apps will be available in the select box to the left.');
+
+    // Initialize the help button
+    $('#ODRHelpButton').unbind('click').click(function() {
+        // Can't guarantee that the user is going to visit the steps in order, so just ensure
+        //  the list of buttons is opened whenever the help sequence starts
+        if ( !$("#page_settings_menu").is(":visible") )
+            $("#ODRPageSelectSettings").click();
+
+        introJs().setOption("disableInteraction", true)
+            .start();
+    });
+{% endspaceless %}

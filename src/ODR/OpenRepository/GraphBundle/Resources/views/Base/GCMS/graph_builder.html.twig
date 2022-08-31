@@ -1,0 +1,162 @@
+<!doctype xhtml>
+<!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
+
+<!-- Consider adding a manifest.appcache: h5bp.com/d/Offline -->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+
+    <!-- Use the .htaccess and remove these lines to avoid edge case issues.  More info: h5bp.com/b/378 -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    <title>{% block title %}Welcome!{% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" />
+
+    <meta name="description" content="ODR Graph Generator">
+    <meta name="author" content="Open Data Repostiory (opendatarepository.org)">
+
+    <!-- Mobile viewport optimized: h5bp.com/viewport -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <!-- iPhone: Don't render numbers as call links -->
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- Icon Styles -->
+    <link rel="stylesheet" src="../../css/fonts/font-awesome.css">
+
+    <!-- Symfony Stylesheets -->
+    <link src="../../css/pure_odr_custom.css" type="text/css" rel="stylesheet">
+    <link src="../../css/custom.css" type="text/css" rel="stylesheet" />
+
+    {#<script src="../../js/libs/jquery-1.7.2.js"></script>#}
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    {#<script src="../../js/libs/jquery-ui-1.8.21.js"></script>#}
+{#    <script src="/js/libs/jquery-ui-1.12.0.min.js"></script>#}
+
+    <!-- Do the same with Lo-Dash.js -->
+    <script src="../../js/libs/lo-dash.min.js"></script>
+
+    <!-- Load Webfont loader -->
+    <script type="text/javascript">
+        $(function() {
+            window.WebFontConfig = {
+                google: {families: ['PT Sans:400,700']},
+                active: function () {
+                    $(window).trigger('fontsloaded')
+                }
+            }
+        });
+    </script>
+
+    <!-- Plot.ly JS Plots Based on D3 -->
+    {#<script type="text/javascript" src="../../js/mylibs/nvd3/d3.v3.min.js"></script>#}
+    <script type="text/javascript" src="../../js/mylibs/d3.v4.min.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/plotly-1.58.5.min.js"></script>
+
+    <script type="text/javascript" src="../../js/mylibs/d3-queue.v3.min.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/odr_plotly_graphs.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/odr_gcms_plugin.js"></script>
+
+    <!-- App JS -->
+    <!-- <script src="../../js/app.js"></script> -->
+</head>
+
+{% spaceless %}
+
+{# Create a dynamic or static graph - either rollup or individual #}
+{% set datatype = datatype_array[target_datatype_id] %}
+
+{% if odr_chart_legend|length %}
+    <div class="pure-u-1 DynamicGraphs">
+        <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper" style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px">
+            {% if odr_chart_files|length %}
+                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1"  style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px"></div><!-- end of .ODRGraph -->
+            {% endif %}
+        </div><!-- end of .DynamicGraph Wrapper -->
+    </div><!-- end of .DynamicGraphs -->
+{% endif %}
+
+    {# NOTE: phantomJS can't use WebGL...probably unable to save the output...so use SVG instead #}
+    <input type="checkbox" id="{{ odr_chart_id }}_disable_scatterGL" style="display: none;" checked />
+
+<script type="text/javascript">
+
+    // Polyfills for functions used by odr_plotly_graphs.js, since phantomJS is more out of date
+    //  than expected...
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN#polyfill
+    Number.isNaN = Number.isNaN || function isNaN(input) {
+        return typeof input === 'number' && input !== input;
+    }
+
+    // https://stackoverflow.com/a/27424770
+    Number.isInteger = Number.isInteger || function(value) {
+        return typeof value === "number" &&
+            isFinite(value) &&
+            Math.floor(value) === value;
+    };
+
+    // Used to track active plots for resizing
+    // Why is this not cleared every time?
+    var page_plots = [];
+
+    jQuery(function() {
+        // Plot the chart
+        window['SetupGraphs_{{ odr_chart_id }}']();
+    });
+
+    if (!window.ODRGCMSChart) {
+        function ODRGCMSChart() {
+            this.chart_id = "";
+
+            this.GraphData = function (chart_obj) {
+                return ODRGraph_GCMSlineChartPlotly(chart_obj, preparePlotlyStatic);
+            }
+        }
+    }
+
+    var SetupGraphs_{{ odr_chart_id }} = function() {
+        // Should we just be sending a JSON Object in the first place
+        if (!{{ odr_chart_id }}_initialized) {
+            {{ odr_chart_id }}_initialized = true;
+
+            // If not ODRChart - load class
+            var odr_chart_{{ odr_chart_id }} = new ODRGCMSChart();
+
+            // Set the chart id
+            odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
+            odr_chart_{{ odr_chart_id }}.data_files = [];
+
+            // Set the file download URL (static path)
+            var file_url = "../../";
+
+            // Build array of file data
+            {% for dr_id, file in odr_chart_files %}
+            var file = '{{ file.localFileName }}';
+            if (file != "") {
+                {% for mydr_id, legend in odr_chart_legend %}
+                    {% if mydr_id == dr_id %}
+                        // Use Static File Path
+                        {% set sort_order = datarecord_sortvalues[dr_id] %}
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }} };
+                    {% endif %}
+                {% endfor %}
+            }
+            {% endfor %}
+
+            // Map remaining options to chart
+            {% for o_name, o_value in plugin_options %}
+            odr_chart_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
+            {% endfor %}
+
+            // Plot selected graph
+            odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
+        }
+    };
+
+    var {{ odr_chart_id }}_initialized = false;
+    var odr_chart_{{ odr_chart_id }} = null;
+</script>
+{% endspaceless %}

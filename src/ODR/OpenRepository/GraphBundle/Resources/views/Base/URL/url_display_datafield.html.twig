@@ -1,0 +1,13 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+
+<fieldset>
+    <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+    <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+        <div class="ODRRenderPluginField">{{ value|raw }}{% if value|raw|length > 0 %}&nbsp;<i class="fa fa-external-link"></i>{% endif %}</div>
+    </div>
+</fieldset>
+
+{% endspaceless %}

@@ -14,7 +14,7 @@
 
             <table>
                 <tbody>
-                <tr>
+                <tr class="ODRExportDelimiter">
                     <td>Column delimiter:</td>
                     <td>
                         <select class="DelimiterSelect">
@@ -135,11 +135,11 @@
         </form>
 
         <div style="margin: 10px;">
-            <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
+            <button id="ODRCSVExport_selectall" class="pure-button" type="button">Select All</button>
             &nbsp;
-            <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
+            <button id="ODRCSVExport_deselectall" class="pure-button" type="button">Deselect All</button>
             &nbsp;
-            <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+            <button class="ODRCSVExport_startexport pure-button pure-button-primary">Export</button>
         </div>
 
         {% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {
@@ -151,7 +151,7 @@
         } %}
 
         <div style="margin: 15px;">
-            <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+            <button class="ODRCSVExport_startexport pure-button pure-button-primary" type="button">Export</button>
         </div>
     </div>
 
@@ -181,7 +181,7 @@
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
         // The overlay divs need this transition to finish before they can get the correct width
         setTimeout("resizeCSVExportOverlayDivs()", 300);
-        setTimeout("selectAll()", 300);
+        setTimeout( function() { $("#ODRCSVExport_selectall").trigger('click'); }, 300);
 
         initCSVExportPage();
         window.scrollTo(0,0);
@@ -189,6 +189,29 @@
         // Need a tab id in html5 sessionStorage if one doesn't exist
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
+        $("#ODRCSVExport_selectall").unbind('click').click(function() {
+            $(".ODRCSVExport").each(function() {
+                if ( $(this).hasClass('ODRUnselectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
+                    $(this).trigger('click');
+            });
+        });
+
+        $("#ODRCSVExport_deselectall").unbind('click').click(function() {
+            $(".ODRCSVExport").each(function() {
+                if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
+                    $(this).trigger('click');
+            });
+        });
+
+        $(".ODRCSVExport_startexport").unbind('click').click(function() {
+            doCSVExport();
+        });
+
+        $('#ODRHelpButton').unbind('click').click(function() {
+            ODRCSVExport_startIntroJS();
+        });
+        ODRCSVExport_setupIntroJS();
     });
 
     /**
@@ -525,26 +548,6 @@
     }
 
     /**
-     * Selects all datafields on the CSVExport page.
-     */
-    function selectAll() {
-        $(".ODRCSVExport").each(function() {
-            if ( $(this).hasClass('ODRUnselectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
-                $(this).trigger('click');
-        });
-    }
-
-    /**
-     * Deselects all datafields on the CSVExport page.
-     */
-    function deselectAll() {
-        $(".ODRCSVExport").each(function() {
-            if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
-                $(this).trigger('click');
-        });
-    }
-
-    /**
      * Performs a final verification check, then creates/submits a form from the selected datafields.
      */
     function doCSVExport() {
@@ -628,6 +631,9 @@
                     getJobProgress('csv_export', data.d.tracked_job_id);
                 }
             },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
@@ -642,6 +648,61 @@
                 }
             }
         });
+    }
+
+    /**
+     * Not strictly necessary to have this off in its own function, but it makes more sense this way.
+     */
+    function ODRCSVExport_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('#CSVExportForm').prev()
+            .attr('data-step', '2')
+            .attr('data-intro', 'This page allows you to create a CSVExport from the records in the search result.');
+
+        $('.ODRDataField').first()
+            .attr('data-step', '3')
+            .attr('data-intro', "Most likely, you don't want to include every single fields in the export. Clicking on a field will change whether it's included in the export or not...fields with a green overlay will be exported, while fields with a red overlay will not.");
+        $('#ODRCSVExport_selectall')
+            .attr('data-step', '4')
+            .attr('data-intro', "Clicking this button will select all fields on the page for inclusion in the export...");
+        $('#ODRCSVExport_deselectall')
+            .attr('data-step', '5')
+            .attr('data-intro', "...and clicking this button will do the opposite, excluding all fields on the page from the export.  You'll need to select at least one field afterwards to be able to begin an export.");
+
+        $('.ODRExportDelimiter')
+            .attr('data-step', '6')
+            .attr('data-intro', "This dropdown allows you to define the delimiter used for separating values.<br><br>The two most common delimiters for this kind of file are commas (Comma-Separated File) and tabs (Tab-Separated File), but you can also define your own.");
+        $('.ODRFileImageDelimiter')
+            .attr('data-step', '7')
+            .attr('data-intro', 'File and Image fields could have multiple uploads, so another delimiter is required to separate the filenames inside those fields.');
+        $('.ODRRadioDelimiter')
+            .attr('data-step', '8')
+            .attr('data-intro', 'Radio fields that allow multiple selected options need an additional delimiter to separate the names of selected options from each other.');
+        $('.ODRTagDelimiter')
+            .attr('data-step', '9')
+            .attr('data-intro', 'Tag fields allow multiple selections, so a delimiter is required to handle the possibility of multiple selected tags.');
+        $('.ODRTagHierarchyDelimiter')
+            .attr('data-step', '10')
+            .attr('data-intro', 'Tag fields that define multiple levels of tags (e.g. parents, children) need their own delimiter to be able to correctly identify which child tags are selected.');
+        $('.ODRExportDelimiter').parent()    {# TODO - is there a way to skip this step if there's only one visible delimiter?  introJs().nextStep() doesn't do it #}
+            .attr('data-step', '11')
+            .attr('data-intro', "All of the delimiters defined or selected here must be different from each other, otherwise the resulting export file would be useless.");
+
+        $('.ODRCSVExport_startexport').first()
+            .attr('data-step', '12')
+            .attr('data-intro', 'Once you have selected the fields and the delimiters you want for the CSV file, clicking on this button will cause ODR to begin exporting the selected data.');
+    }
+
+    /**
+     * Begins the introJS tour for ODR's CSVExport page.
+     */
+    function ODRCSVExport_startIntroJS() {
+        introJs().setOption("disableInteraction", true)
+            .start();
     }
 </script>
 

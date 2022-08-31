@@ -1,6 +1,8 @@
 {% spaceless %}
 
-<h2>Group Membership for "{{ target_user.getuserstring }}"</h2>
+<h2>
+    <span id="ODRUserGroup_username">Group Membership for "{{ target_user.getuserstring }}"</span>
+</h2>
 
 {% if datatypes|length == 0 %}
     <div class="ODRDatarecordListHeader">No Datatypes exist!</div>
@@ -74,7 +76,7 @@
                         class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
                         {% if user_group_list[group_id] is defined %}checked{% endif %}
                     />
-                    <span class="ODRGroupName">View Only</span>
+                    <span class="ODRGroupName">View</span>
                 </span>
 
                 {% set group_id = dt['groups']['view_all']['id'] %}
@@ -152,10 +154,6 @@
 {% endif %}
 
 <script>
-    function notifySaved() {
-        $.jGrowl('SAVED');
-    }
-
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
@@ -223,6 +221,9 @@
                     $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
                 });
             }
+
+            // NOTE - need to also execute this whenever the table finishes drawing
+            ODRUserGroup_setupIntroJS();
         });
 
         $("#ODRDatatypeList").removeAttr('style');
@@ -262,8 +263,7 @@
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
-//alert(url);
-//return;
+            // alert(url);  return;
 
             UpdateURL(url);
         });
@@ -277,8 +277,7 @@
             url = url.substring(0, (url.length - 3));
             url += user_id + '/' + datatype_id;
 
-//alert(url);
-//return;
+            // alert(url);  return;
 
             UpdateURL(url);
         });
@@ -298,8 +297,7 @@
             url = url.substring(0, (url.length - 5));
             url += user_id + '/' + group_id + '/' + value;
 
-//alert(url);
-//return;
+            // alert(url);  return;
 
             $.ajax({
                 cache: false,
@@ -352,8 +350,21 @@
                 }
             });
         });
+
+        $('#ODRHelpButton').unbind('click').click(function() {
+            ODRUserGroup_startIntroJS();
+        });
+
+        // NOTE - the 'draw.dt' event for dataTables.js only executes when something is typed in the
+        //  search filter, since the table already "exists" on the page when dataTables is initialized.
+        // Therefore, need to also initialize introJS after page load
+        ODRUserGroup_setupIntroJS();
     });
 
+    /**
+     * Opens and aligns the list of groups for the selected database.
+     * @param {HTMLElement} element
+     */
     function openGroupList(element) {
         // Going to need these three numbers to determine where to put the group list div
         var table_offset = $("#ODRDatatypeList_wrapper").offset().top;
@@ -381,6 +392,80 @@
 
             $(group_div).offset({ top: final_offset });
         });
+    }
+
+    /**
+     * Some of the elements needed for the introJS tour don't exist when this page is first loaded,
+     * so the setup needs to happen after a database has been selected.
+     */
+    function ODRUserGroup_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('#ODRUserGroup_username')
+            .attr('data-step', '2')
+            .attr('data-intro', 'This page allows you to change which databases an ODR user has permissions to.<br><br>All databases that you have admin permissions to are displayed the table on this page.');
+        $('#ODRDatatypeList_filter')
+            .attr('data-step', '3')
+            .attr('data-intro', "If you know which database you're looking for, the table can be filtered by typing in this field.");
+
+        // $('tr.odd:nth-child(1) td:nth-child(2)')
+        //     .attr('data-step', '4')
+        //     .attr('data-intro', 'All databases that you have admin permissions to are displayed in this table.');
+        $('tr.odd:nth-child(1) td:nth-child(1)')
+            .attr('data-step', '5')
+            .attr('data-intro', "Hovering over this icon brings up basic information about the database, in case you need more than just the name to identify the correct database.");
+        $('tr.odd:nth-child(1) td:nth-child(3)')
+            .attr('data-step', '6')
+            .attr('data-intro', 'If the user already has permissions to the database, then a checkmark is displayed in this column.');
+        $('tr.odd:nth-child(1) td:nth-child(4)')
+            .attr('data-step', '7')
+            .attr('data-intro', 'If the database is public, then a checkmark is displayed in this column.');
+        // $('tr.odd:nth-child(1) td:nth-child(5)')
+        $('.ODRListExpand').first()
+            .attr('data-step', '8')
+            .attr('data-intro', 'Clicking on this caret icon will display all available groups for the database.');
+
+        $('.ODRGroupList').first().children('div:nth-child(1)').first()
+            .attr('data-step', '9')
+            .attr('data-intro', 'The four default groups for the database are always displayed here.<br><br>A user can only be a member of a single default group per database.');
+        $('.ODRGroupList').first().children('div:nth-child(2)').first().children('span:nth-child(1)').first()
+            .attr('data-step', '10')
+            .attr('data-intro', 'Users in the "View" group are able to see public content, even if the database is non-public.  If the database is public, then adding users to this group is meaningless.');
+        $('.ODRGroupList').first().children('div:nth-child(2)').first().children('span:nth-child(2)').first()
+            .attr('data-step', '11')
+            .attr('data-intro', 'Users in the "View All" group are able to see all content regardless of whether it is public or not.');
+        $('.ODRGroupList').first().children('div:nth-child(2)').first().children('span:nth-child(3)').first()
+            .attr('data-step', '12')
+            .attr('data-intro', 'Users in the "Edit" group are able to view, add, edit, and delete all content in the database.  However, they cannot add/change/remove any fields or childtypes in the database.');
+        $('.ODRGroupList').first().children('div:nth-child(2)').first().children('span:nth-child(4)').first()
+            .attr('data-step', '13')
+            .attr('data-intro', 'Users in the "Admin" group are able to make any change to the content, structure, and permissions of a database.<br><br>They can also delete it entirely, so be careful who you allow into this group.');
+
+        $('.ODRGroupList').first().children('div:nth-child(4)').first()
+            .attr('data-step', '14')
+            .attr('data-intro', 'Any custom groups that have been defined for the database will be displayed here.<br><br>A user can be a member of any number of custom groups for a database.');
+
+        $('.ODRGroupEdit').first()
+            .attr('data-step', '15')
+            .attr('data-intro', 'Clicking this button will take you to the page where you can modify or create Groups for this database.');
+        $('.ODREffectivePermissions').first()
+            .attr('data-step', '16')
+            .attr('data-intro', 'Clicking this button will take you to a page where you can view exactly what the user will be able to see or edit for this database, if anything.<br><br>This is most useful when the user belongs to more than one group.');
+    }
+
+    /**
+     * Begins the introJS tour for ODR's user group management page.
+     */
+    function ODRUserGroup_startIntroJS() {
+        // Ensure a group list is visible before starting the tour
+        if ( !$('.ODRGroupList').first().is(':visible') )
+            $('.ODRListExpand').first().trigger('click');
+
+        introJs().setOption("disableInteraction", true)
+            .start();
     }
 </script>
 {% endspaceless %}

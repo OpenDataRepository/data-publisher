@@ -25,6 +25,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -34,6 +35,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
@@ -44,6 +46,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Templating\EngineInterface;
 // CSV Reader
 use Ddeboer\DataImport\Writer\CsvWriter;
 
@@ -84,6 +87,8 @@ class CSVExportController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
 
 
             /** @var DataType $datatype */
@@ -134,6 +139,11 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Don't want to prevent access to the csv_export page if a background job is running
+            // If a background job is running, then csvExportStartAction() will refuse to start
+
+
+            // ----------------------------------------
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
@@ -169,7 +179,6 @@ class CSVExportController extends ODRCustomController
 
             // ----------------------------------------
             // Generate the HTML required for a header
-            $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
                 array(
@@ -259,6 +268,8 @@ class CSVExportController extends ODRCustomController
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
 
             /** @var DataType $datatype */
@@ -266,7 +277,12 @@ class CSVExportController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
-                throw new ODRBadRequestException('CSVExport called on a child datatype');
+                throw new ODRBadRequestException('Unable to run CSVExport from a child datatype');
+
+            // This doesn't make sense on a master datatype
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to export from a master template');
+
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
@@ -287,11 +303,20 @@ class CSVExportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
-            if ( $datatype->getIsMasterType() )
-                throw new ODRBadRequestException('Unable to export from a master template');
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_export' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_export',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVExport job, as it would interfere with an already running '.$conflicting_job.' job');
 
 
+            // ----------------------------------------
             // Translate the primary delimiter if needed
             if ($delimiter === 'tab')
                 $delimiter = "\t";
@@ -479,13 +504,7 @@ class CSVExportController extends ODRCustomController
             $reuse_existing = false;
 //$reuse_existing = true;
 
-            // Determine if this user already has an export job going for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'createdBy' => $user->getId(), 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new \Exception('You already have an export job going for this datatype...wait until that one finishes before starting a new one');
-            else
-                $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-
+            $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
             $return['d'] = array("tracked_job_id" => $tracked_job_id);
@@ -681,7 +700,8 @@ class CSVExportController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
-                throw new ODRBadRequestException('Datatype '.$datatype_id.' is not a top-level datatype');
+                throw new ODRBadRequestException('Unable to run CSVExport from a child datatype');
+
             // This doesn't make sense on a master datatype
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to export from a master template');

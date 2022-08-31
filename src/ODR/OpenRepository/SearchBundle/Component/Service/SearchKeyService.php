@@ -270,6 +270,8 @@ class SearchKeyService
      * The current implementation is ONLY useful for the current version of general search...in the
      * future this will need to get completely rewritten to return an expression tree instead.
      *
+     * self::tokenizeGeneralSearch() should probably be the only function that calls this.
+     *
      * @param string $str
      *
      * @return array
@@ -303,7 +305,7 @@ class SearchKeyService
                     else {
                         // Found starting quote
                         $in_quote = true;
-                        $token = "\"";    // TODO - this drops everything before the double-quote in a string like  >abc"def<
+                        $token = "\"";
                     }
                     break;
                 case " ":
@@ -400,6 +402,90 @@ class SearchKeyService
         if ( $token !== '' ) {
             // Store the last token when the string ends
             $tokens[] = $token;
+        }
+
+        return $tokens;
+    }
+
+
+    /**
+     * Modifies a value meant for a general search so the search system can work correctly with it.
+     *
+     * @param string $value
+     * @return array
+     */
+    private function tokenizeGeneralSearch($value)
+    {
+        /**
+         * So general search is technically a shorthand...a general search for "Gold" needs
+         * to find all records where at least one of the searchable fields contains "Gold"
+         * e.g. (field_1 = Gold OR field_2 = Gold OR field_3 = Gold OR ...)
+         *
+         * A general search for "Gold OR Quartz" needs to find all records where at least
+         * one of the searchable fields contains "Gold", OR one of the searchable fields
+         * contains "Quartz"  e.g.
+         * (field_1 = "Gold" OR field_2 = "Gold" OR field_3 = "Gold" OR ...)
+         * OR
+         * (field_1 = "Quartz" OR field_2 = "Quartz" OR field_3 = "Quartz" OR ...)
+         *
+         * Because ORs are associative and commutative, the above is equvalent to
+         * (field_1 = "Gold OR Quartz" OR field_2 = "Gold OR Quartz" OR ...)
+         *
+         *
+         * However, a general search for "Gold AND Quartz" needs to find all records where
+         * at least one of the searchable fields contains "Gold", AND at least one field
+         * IN THE SAME RECORD contains "Quartz"  e.g.
+         * (field_1 = "Gold" OR field_2 = "Gold" ...) AND (field_1 = "Quartz" OR field_2 = "Quartz" ...)
+         *
+         * The above query is already fully simplified, and CAN NOT be simplified further.
+         * Attempting to distribute the search terms creates an exponentional increase in
+         * the amount of work that searching has to do to return the correct result.
+         */
+
+        // Attempt to split the general search string into tokens
+        $tokens = self::tokenize($value);
+
+        /**
+         * The existing implementation of general search can't deal with search queries that
+         * combine both OR and AND...due to ODR's lack of grouping operators, you're stuck
+         * with writing ambiguous queries like "Gold OR Silver AND Quartz"...which due to the
+         * relative precedence of the operators actually means "Gold OR (Silver AND Quartz)"
+         *
+         * Unfortunately, ODR needs to have ANDs on the top level for query result merging
+         * to return the correct answer...so the above would need to get wrapped into a
+         * multi-level expression structure...which causes a cascade of problems down the
+         * line.
+         *
+         * Rather than undertake a prohibitive amount of work to implement this correctly,
+         * I'm assuming this is going to be rare enough to just throw an Exception for now.
+         */
+        $has_or = $has_and = false;
+        foreach ($tokens as $token) {
+            if ( $token === '||' )
+                $has_or = true;
+            else if ( $token === '&&' )
+                $has_and = true;
+        }
+        if ( $has_or && $has_and )
+            throw new ODRNotImplementedException("Unable to correctly perform a General Search that combines both OR and AND conditions");
+
+        // Do stuff to the list of tokens so it's in a format useful for general search
+        if ( isset($tokens[1]) ) {
+            if ( $tokens[1] === '||' ) {
+                // Since all the tokens are connected by ORs, they can all get merged back
+                //  into a single string (see above for reasoning)
+                $tokens = array(0 => implode(' ', $tokens));
+            }
+            else {
+                // Since all the tokens are connected by ANDs, the tokens can be turned
+                //  directly into separate facets for searching purposes
+                foreach ($tokens as $token_num => $token) {
+                    // Don't want the '&&' tokens in the array, however
+                    if ( $token === '&&' )
+                        unset( $tokens[$token_num] );
+                }
+                $tokens = array_values($tokens);
+            }
         }
 
         return $tokens;
@@ -625,46 +711,50 @@ class SearchKeyService
      * Converts a search key into an array of searching criteria for use by self::performSearch()
      *
      * $search_params = array(
-     *     ['affected_datatypes'] => array(
+     *     'affected_datatypes' => array(    // This has the id of each datatype with a datafield/metadata condition being searched on
      *         0 => <datatype_A_id>,
-     *         1 => <datatype_B_id>,
+     *         [1] => <datatype_B_id>,
      *         ...
      *     ),
-     *     ['general'] => array(
-     *         'merge_type' = 'OR',
-     *         'search_terms' => array(
-     *             '<df_id>' => array(
-     *                 'value' => ...,
-     *                 'entity_type' => 'datafield',
-     *                 'entity_id' => <df_id>
-     *             ),
-     *             ...
+     *     'all_datatypes' => array(    // This includes the datatype being searched on, and all its child/linked descendants
+     *         0 => <datatype_A_id>,
+     *         [1] => <datatype_B_id>,
+     *         ...
+     *     ),
+     *     ['general'] => array(    // This only exists when a general search term is defined
+     *         0 => array(
+     *             'facet_type' => 'general',
+     *             'merge_type' = 'OR',
+     *             'search_terms' => array(
+     *                 '<df_id>' => array(
+     *                     'value' => ...,
+     *                     'entity_type' => 'datafield',
+     *                     'entity_id' => <df_id>
+     *                 ),
+     *                 '<additional datafields>' => array(...),
+     *                 ...
+     *             )
+     *         ),
+     *         [1] => array(...),    // Additional facets only exist when general search has multiple tokens
+     *         ...
+     *     ),
+     *     <datatype_A_id> => array(    // These exists even when no search terms are entered...
+     *         0 => array(              // ...but the facets don't exist without a search term
+     *             'facet_type' => 'single',
+     *             'merge_type' = 'AND',
+     *             'search_terms' => array(
+     *                 '[<df_id>]' => array(
+     *                     'value' => ...,
+     *                     'entity_type' => 'datafield',
+     *                     'entity_id' => <df_id>
+     *                 ),
+     *                 '[<additional datafield ids>]' => array(...),
+     *                 '[<additional metadata keys such as created, createdBy, etc>]' => array(...),
+     *                 ...
+     *             )
      *         )
      *     ),
-     *     [<datatype_A_id>] => array(
-     *         'merge_type' = 'AND',
-     *         'search_terms' => array(
-     *             '<df_id>' => array(
-     *                 'value' => ...,
-     *                 'entity_type' => 'datafield',
-     *                 'entity_id' => <df_id>
-     *             ),
-     *             ...
-     *             '<created>' => array(
-     *                 'after' => ...,
-     *                 'before' => ...,
-     *                 'entity_type' => 'datatype',
-     *                 'entity_id' => <dt_id>
-     *             ),
-     *             ...
-     *             '<createdBy>' => array(
-     *                 'value' => ...,
-     *                 'entity_type' => 'datatype',
-     *                 'entity_id' => <dt_id>
-     *             ),
-     *             ...
-     *         )
-     *     ),
+     *     [<datatype_B_id>] => array(...),    // All child/linked datatypes with a searchable datafield have an entry
      *     ...
      * )
      *
@@ -675,19 +765,17 @@ class SearchKeyService
      */
     public function convertSearchKeyToCriteria($search_key, $searchable_datafields)
     {
-        // Want the search key in array format...
-        $search_params = self::decodeSearchKey($search_key);
-
-        $datatype_id = intval($search_params['dt_id']);
-
+        // Each datatype with a searchable datafield gets its own entry in the criteria array
         $criteria = array(
             'search_type' => 'datatype',
-            $datatype_id => array(
-                'facet_type' => 'single',
-                'merge_type' => "AND",
-                'search_terms' => array(),
-            )
         );
+        foreach ($searchable_datafields as $dt_id => $df_list)
+            $criteria[$dt_id] = array();
+
+
+        // Want the search key in array format...
+        $search_params = self::decodeSearchKey($search_key);
+        $datatype_id = intval($search_params['dt_id']);
 
         foreach ($search_params as $key => $value) {
 
@@ -709,95 +797,28 @@ class SearchKeyService
                 if ($value === '')
                     continue;
 
-                /**
-                 * So general search is technically a shorthand...a general search for "Gold" needs
-                 * to find all records where at least one of the searchable fields contains "Gold"
-                 * e.g. (field_1 = Gold OR field_2 = Gold OR field_3 = Gold OR ...)
-                 *
-                 * A general search for "Gold OR Quartz" needs to find all records where at least
-                 * one of the searchable fields contains "Gold", OR one of the searchable fields
-                 * contains "Quartz"  e.g.
-                 * (field_1 = "Gold" OR field_2 = "Gold" OR field_3 = "Gold" OR ...)
-                 * OR
-                 * (field_1 = "Quartz" OR field_2 = "Quartz" OR field_3 = "Quartz" OR ...)
-                 *
-                 * Because ORs are associative and commutative, the above is equvalent to
-                 * (field_1 = "Gold OR Quartz" OR field_2 = "Gold OR Quartz" OR ...)
-                 *
-                 *
-                 * However, a general search for "Gold AND Quartz" needs to find all records where
-                 * at least one of the searchable fields contains "Gold", AND at least one field
-                 * IN THE SAME RECORD contains "Quartz"  e.g.
-                 * (field_1 = "Gold" OR field_2 = "Gold" ...) AND (field_1 = "Quartz" OR field_2 = "Quartz" ...)
-                 *
-                 * The above query is already fully simplified, and CAN NOT be simplified further.
-                 * Attempting to distribute the search terms creates an exponentional increase in
-                 * the amount of work that searching has to do to return the correct result.
-                 */
-
-                // Attempt to split the general search string into tokens
-                $tokens = self::tokenize($value);
-
-                /**
-                 * The existing implementation of general search can't deal with search queries that
-                 * combine both OR and AND...due to ODR's lack of grouping operators, you're stuck
-                 * with writing ambiguous queries like "Gold OR Silver AND Quartz"...which due to the
-                 * relative precedence of the operators actually means "Gold OR (Silver AND Quartz)"
-                 *
-                 * Unfortunately, ODR needs to have ANDs on the top level for query result merging
-                 * to return the correct answer...so the above would need to get wrapped into a
-                 * multi-level expression structure...which causes a cascade of problems down the
-                 * line.
-                 *
-                 * Rather than undertake a prohibitive amount of work to implement this correctly,
-                 * I'm assuming this is going to be rare enough to just throw an Exception for now.
-                 */
-                $has_or = $has_and = false;
-                foreach ($tokens as $token) {
-                    if ( $token === '||' )
-                        $has_or = true;
-                    else if ( $token === '&&' )
-                        $has_and = true;
-                }
-                if ( $has_or && $has_and )
-                    throw new ODRNotImplementedException("Unable to correctly perform a General Search that combines both OR and AND conditions");
-
-                // Do stuff to the list of tokens so it's in a format useful for general search
-                if ( isset($tokens[1]) ) {
-                    if ( $tokens[1] === '||' ) {
-                        // Since all the tokens are connected by ORs, they can all get merged back
-                        //  into a single string (see above for reasoning)
-                        $tokens = array(0 => implode(' ', $tokens));
-                    }
-                    else {
-                        // Since all the tokens are connected by ANDs, the tokens can be turned
-                        //  directly into separate facets for searching purposes
-                        foreach ($tokens as $token_num => $token) {
-                            // Don't want the '&&' tokens in the array, however
-                            if ( $token === '&&' )
-                                unset( $tokens[$token_num] );
-                        }
-                        $tokens = array_values($tokens);
-                    }
-                }
-
 
                 // ----------------------------------------
+                // Attempt to split the general search string into tokens
+                $tokens = self::tokenizeGeneralSearch($value);
+
                 // For each token in the search string...
                 foreach ($tokens as $token_num => $token) {
-                    // Each token in the search string needs to be its own facet
-                    $criteria['general_'.$token_num] = array(
-                        'facet_type' => 'general',
-                        'merge_type' => 'OR',
-                        'search_terms' => array()
-                    );
-
                     // Need to find each datafield that qualifies for general search...
                     // 0 - not searchable
                     // 1 - searchable only through general search
                     // 2 - searchable in both general and advanced search
                     // 3 - searchable only in advanced search
                     foreach ($searchable_datafields as $dt_id => $df_list) {
+                        // Each token in the general search string gets its own facet
+                        if ( !isset($criteria['general'][$token_num]) ) {
+                            $criteria['general'][$token_num] = array(
+                                'facet_type' => 'general',
+                                'merge_type' => 'OR',
+                                'search_terms' => array()
+                            );
+                        }
+
                         foreach ($df_list as $df_id => $df_data) {
                             // General search needs both the searchable flag and the typeclass
                             $searchable = $df_data['searchable'];
@@ -823,8 +844,8 @@ class SearchKeyService
                                     case 'LongText':
                                     case 'Radio':
                                     case 'Tag':
-                                        // A general search makes sense for each of these
-                                        $criteria['general_'.$token_num]['search_terms'][$df_id] = array(
+                                        // A general search makes sense for these fieldtypes
+                                        $criteria['general'][$token_num]['search_terms'][$df_id] = array(
                                             'value' => $token,
                                             'entity_type' => 'datafield',
                                             'entity_id' => $df_id,
@@ -843,6 +864,8 @@ class SearchKeyService
                 $df_id = intval($key);
                 $typeclass = null;
 
+                // Due to SearchAPIService::getSearchableDatafieldsForUser(), this array only has
+                //  datafields the user can view
                 foreach ($searchable_datafields as $dt_id => $df_list) {
                     if ( isset($df_list[$df_id]) ) {
                         $typeclass = $df_list[$df_id]['typeclass'];
@@ -850,9 +873,10 @@ class SearchKeyService
                     }
                 }
 
-                // Every search except for the general search merges by AND
-                if ( !isset($criteria[$dt_id]) ) {
-                    $criteria[$dt_id] = array(
+                // Every search except for the general search merges by AND, and so they can all
+                //  go into the same facet...will label it 0 for convenience
+                if ( !isset($criteria[$dt_id][0]) ) {
+                    $criteria[$dt_id][0] = array(
                         'facet_type' => 'single',
                         'merge_type' => 'AND',
                         'search_terms' => array()
@@ -874,7 +898,7 @@ class SearchKeyService
 
                     // Create an entry in the criteria array for this datafield...there won't be any
                     //  duplicate entries
-                    $criteria[$dt_id]['search_terms'][$df_id] = array(
+                    $criteria[$dt_id][0]['search_terms'][$df_id] = array(
                         'filename' => $filename,
                         'has_files' => $has_files,
                         'entity_type' => 'datafield',
@@ -906,7 +930,7 @@ class SearchKeyService
 
                     // Create an entry in the criteria array for this datafield...there won't be any
                     //  duplicate entries
-                    $criteria[$dt_id]['search_terms'][$df_id] = array(
+                    $criteria[$dt_id][0]['search_terms'][$df_id] = array(
                         'combine_by_OR' => $combine_by_or,
                         'selections' => $selections,
                         'entity_type' => 'datafield',
@@ -917,7 +941,7 @@ class SearchKeyService
                 else {
                     // Create an entry in the criteria array for this datafield...there won't be any
                     //  duplicate entries
-                    $criteria[$dt_id]['search_terms'][$df_id] = array(
+                    $criteria[$dt_id][0]['search_terms'][$df_id] = array(
                         'value' => $value,
                         'entity_type' => 'datafield',
                         'entity_id' => $df_id,
@@ -937,17 +961,18 @@ class SearchKeyService
                             break;
                     }
 
-                    // Every search except for the general search merges by AND
-                    if ( !isset($criteria[$dt_id]) ) {
-                        $criteria[$dt_id] = array(
+                    // Every search except for the general search currently merges by AND, and so
+                    //  they can all go into the same facet...will label it 0 for convenience
+                    if ( !isset($criteria[$dt_id][0]) ) {
+                        $criteria[$dt_id][0] = array(
                             'facet_type' => 'single',
                             'merge_type' => 'AND',
                             'search_terms' => array()
                         );
                     }
 
-                    if ( !isset($criteria[$dt_id]['search_terms'][$df_id]) ) {
-                        $criteria[$dt_id]['search_terms'][$df_id] = array(
+                    if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
+                        $criteria[$dt_id][0]['search_terms'][$df_id] = array(
                             'before' => null,
                             'after' => null,
                             'entity_type' => 'datafield',
@@ -959,7 +984,7 @@ class SearchKeyService
                     // $key is a datetime entry
                     if ($pieces[1] === 's') {
                         // start date, aka "after this date"
-                        $criteria[$dt_id]['search_terms'][$df_id]['after'] = new \DateTime($value);
+                        $criteria[$dt_id][0]['search_terms'][$df_id]['after'] = new \DateTime($value);
                     }
                     else {
                         // end date, aka "before this date"
@@ -976,16 +1001,17 @@ class SearchKeyService
                             $date_end->add(new \DateInterval('P1D'));
                         }
 
-                        $criteria[$dt_id]['search_terms'][$df_id]['before'] = $date_end;
+                        $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
                     }
                 }
                 else {
                     // $key is one of the modified/created/modifiedBy/createdBy/publicStatus entries
                     $dt_id = intval($pieces[1]);
 
-                    // Every search except for the general search merges by AND
-                    if (!isset($criteria[$dt_id])) {
-                        $criteria[$dt_id] = array(
+                    // Every search except for the general search currently merges by AND, and so
+                    //  they can all go into the same facet...will label it 0 for convenience
+                    if ( !isset($criteria[$dt_id][0]) ) {
+                        $criteria[$dt_id][0] = array(
                             'facet_type' => 'single',
                             'merge_type' => 'AND',
                             'search_terms' => array()
@@ -994,7 +1020,7 @@ class SearchKeyService
 
                     if ($pieces[2] === 'pub') {
                         // publicStatus
-                        $criteria[$dt_id]['search_terms']['publicStatus'] = array(
+                        $criteria[$dt_id][0]['search_terms']['publicStatus'] = array(
                             'value' => $value,
                             'entity_type' => 'datatype',
                             'entity_id' => $dt_id,
@@ -1010,7 +1036,7 @@ class SearchKeyService
                         if ($pieces[3] === 'by') {
                             // createdBy or modifiedBy
                             $type .= 'By';
-                            $criteria[$dt_id]['search_terms'][$type] = array(
+                            $criteria[$dt_id][0]['search_terms'][$type] = array(
                                 'user' => intval($value),
                                 'entity_type' => 'datatype',
                                 'entity_id' => $dt_id,
@@ -1018,8 +1044,8 @@ class SearchKeyService
                             );
                         }
                         else {
-                            if (!isset($criteria[$dt_id]['search_terms'][$type])) {
-                                $criteria[$dt_id]['search_terms'][$type] = array(
+                            if ( !isset($criteria[$dt_id][0]['search_terms'][$type]) ) {
+                                $criteria[$dt_id][0]['search_terms'][$type] = array(
                                     'before' => null,
                                     'after' => null,
                                     'entity_type' => 'datatype',
@@ -1030,7 +1056,7 @@ class SearchKeyService
 
                             if ($pieces[3] === 's') {
                                 // start date, aka "after this date"
-                                $criteria[$dt_id]['search_terms'][$type]['after'] = new \DateTime($value);
+                                $criteria[$dt_id][0]['search_terms'][$type]['after'] = new \DateTime($value);
                             }
                             else {
                                 $date_end = new \DateTime($value);
@@ -1048,7 +1074,7 @@ class SearchKeyService
                                 }
 
                                 // end date, aka "before this date"
-                                $criteria[$dt_id]['search_terms'][$type]['before'] = $date_end;
+                                $criteria[$dt_id][0]['search_terms'][$type]['before'] = $date_end;
                             }
                         }
                     }
@@ -1056,23 +1082,23 @@ class SearchKeyService
             }
         }
 
-        // Save the list of datatypes being searched on, not including the ones to be merged_by_OR
-        // All datarecords belonging to datatypes contained in $affected_datatypes will be initially
-        //  marked as -1 (does not match), and therefore must m
+
+        // ----------------------------------------
+        // Determine which datatypes have datafields that are being searched on...any datarecord of
+        //  that datatype must be marked as "needs to match", so that the latter parts of the search
+        //  process can correctly exclude records that don't match
         $affected_datatypes = array();
-        foreach ($criteria as $key => $facet) {
-            if ($key === 'search_type')
+        foreach ($criteria as $key => $facet_list) {
+            if ( !is_numeric($key) )
                 continue;
 
-            // Datafields being searched via general search can't be marked as "-1" (needs to match)
-            //  to begin with...doing so will typically cause child datatypes that are also searched
-            //  to "not match", and therefore exclude their parents from the search results.
-            // The final merge still works when the datarecords with the affected datafields start
-            //  out with a value of "0" (doesn't matter)
-            if ($facet['merge_type'] === 'AND') {
-                foreach ($facet['search_terms'] as $key => $params) {
-                    $dt_id = $params['datatype_id'];
-                    $affected_datatypes[$dt_id] = 1;
+            foreach ($facet_list as $facet_num => $facet) {
+                // Currently, all criteria except for general search are merged by AND
+                if ( $facet['merge_type'] === 'AND' ) {
+                    foreach ($facet['search_terms'] as $key => $params) {
+                        $dt_id = $params['datatype_id'];
+                        $affected_datatypes[$dt_id] = 1;
+                    }
                 }
             }
         }
@@ -1348,11 +1374,31 @@ class SearchKeyService
      * Converts a search key for templates into a format usable by performTemplateSearch()
      *
      * @param string $search_key
+     * @param array $template_structure @see SearchAPIService::getSearchableTemplateDatafields()
      *
      * @return array
      */
-    public function convertSearchKeyToTemplateCriteria($search_key)
+    public function convertSearchKeyToTemplateCriteria($search_key, $template_structure)
     {
+        // ----------------------------------------
+        // Need to collapse the provided template structure somewhat...
+        $searchable_datafields = array();
+        foreach ($template_structure as $dt_uuid => $dt_data) {
+            // self::validateTemplateSearchKey() has already verified that the search key doesn't
+            //  contain template fields the user isn't allowed to view...so the arrays of both the
+            //  non-public and the public fields can be combined without risking the user being able
+            //  to see something they shouldn't be able to
+            if ( !isset($searchable_datafields[$dt_uuid]) )
+                $searchable_datafields[$dt_uuid] = array();
+
+            foreach ($dt_data['datafields'] as $df_id => $df_data ) {
+                $df_uuid = $df_data['field_uuid'];
+                $searchable_datafields[$dt_uuid][$df_uuid] = $df_data;
+            }
+        }
+
+
+        // ----------------------------------------
         // Want the search key in array format...
         $search_params = self::decodeSearchKey($search_key);
 
@@ -1361,6 +1407,10 @@ class SearchKeyService
             'search_type' => 'template',
             'template_uuid' => $template_uuid,
         );
+        // Each datatype with a searchable datafield gets its own entry in the criteria array
+        foreach ($searchable_datafields as $dt_uuid => $df_list)
+            $criteria[$dt_uuid] = array();
+
 
         foreach ($search_params as $key => $value) {
 
@@ -1373,7 +1423,8 @@ class SearchKeyService
                 //  a general search entry so SearchAPIService::performTemplateSearch() searches
                 //  for selected radio options or tags of the given field, but doesn't search for
                 //  anything else
-                $criteria['field_stats'] = array(
+                $criteria['field_stats'][0] = array(
+                    'facet_type' => 'field_stats',
                     'merge_type' => 'OR',
                     'search_terms' => array(
                         $value => array(
@@ -1399,55 +1450,63 @@ class SearchKeyService
                 if ($value === '')
                     continue;
 
-                // Going to need this array to be able to locate the datafields for a general search
-                $searchable_datafields = $this->search_service->getSearchableTemplateDatafields($template_uuid);
+                // ----------------------------------------
+                // Attempt to split the general search string into tokens
+                $tokens = self::tokenizeGeneralSearch($value);
 
-                // General search needs to be its own facet
-                $criteria['general'] = array(
-                    'facet_type' => 'general',
-                    'merge_type' => 'OR',
-                    'search_terms' => array()
-                );
+                // For each token in the search string...
+                foreach ($tokens as $token_num => $token) {
+                    // Need to find each datafield that qualifies for general search...
+                    // 0 - not searchable
+                    // 1 - searchable only through general search
+                    // 2 - searchable in both general and advanced search
+                    // 3 - searchable only in advanced search
+                    foreach ($searchable_datafields as $dt_uuid => $df_list) {
+                        // Each token in the general search string gets its own facet
+                        if ( !isset($criteria['general'][$token_num]) ) {
+                            $criteria['general'][$token_num] = array(
+                                'facet_type' => 'general',
+                                'merge_type' => 'OR',
+                                'search_terms' => array()
+                            );
+                        }
 
-                // Need to find each datafield that qualifies for general search...
-                // 0 - not searchable
-                // 1 - searchable only through general search
-                // 2 - searchable in both general and advanced search
-                // 3 - searchable only in advanced search
-                foreach ($searchable_datafields as $dt_uuid => $df_list) {
-                    foreach ($df_list as $df_uuid => $df_data) {
-                        // For general search, both the searchable flag and the typeclass are needed
-                        $searchable = $df_data['searchable'];
-                        $typeclass = $df_data['typeclass'];
+                        foreach ($df_list as $df_id => $df_data) {
+                            $field_uuid = $df_data['field_uuid'];
 
-                        if ( $searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH ) {
-                            switch ($typeclass) {
-                                case 'Boolean':
-                                    // Excluding because a Boolean's value has a different
-                                    //  meaning than the other fieldtypes
-                                case 'DatetimeValue':
-                                case 'File':
-                                case 'Image':
-                                    // A general search doesn't make sense for Files/Images/Datetime
-                                    //  fields...don't create a criteria entry to be searched on
-                                    break;
+                            // General search needs both the searchable flag and the typeclass
+                            $searchable = $df_data['searchable'];
+                            $typeclass = $df_data['typeclass'];
 
-                                case 'IntegerValue':
-                                case 'DecimalValue':
-                                case 'ShortVarchar':
-                                case 'MediumVarchar':
-                                case 'LongVarchar':
-                                case 'LongText':
-                                case 'Radio':
-                                case 'Tag':
-                                    // A general search makes sense for each of these
-                                    $criteria['general']['search_terms'][$df_uuid] = array(
-                                        'value' => $value,
-                                        'entity_type' => 'datafield',
-                                        'entity_id' => $df_uuid,
-                                        'datatype_id' => $template_uuid,
-                                    );
-                                    break;
+                            if ( $searchable == DataFields::GENERAL_SEARCH || $searchable == DataFields::ADVANCED_SEARCH ) {
+                                switch ($typeclass) {
+                                    case 'Boolean':
+                                        // Excluding because a Boolean's value has a different
+                                        //  meaning than the other fieldtypes
+                                    case 'DatetimeValue':
+                                    case 'File':
+                                    case 'Image':
+                                        // A general search doesn't make sense for these fieldtypes,
+                                        //  so don't create a criteria entry to be searched on
+                                        break;
+
+                                    case 'IntegerValue':
+                                    case 'DecimalValue':
+                                    case 'ShortVarchar':
+                                    case 'MediumVarchar':
+                                    case 'LongVarchar':
+                                    case 'LongText':
+                                    case 'Radio':
+                                    case 'Tag':
+                                        // A general search makes sense for these fieldtypes
+                                        $criteria['general'][$token_num]['search_terms'][$df_id] = array(
+                                            'value' => $token,
+                                            'entity_type' => 'datafield',
+                                            'entity_id' => $field_uuid,
+                                            'datatype_id' => $dt_uuid,
+                                        );
+                                        break;
+                                }
                             }
                         }
                     }
@@ -1458,16 +1517,27 @@ class SearchKeyService
                 if ( count($search_params['fields']) === 0 )
                     continue;
 
-                if ( !isset($criteria[$template_uuid]) ) {
-                    $criteria[$template_uuid] = array(
-                        'facet_type' => 'single',
-                        'merge_type' => 'AND',    // TODO - combine_by_AND/combine_by_OR
-                        'search_terms' => array()
-                    );
-                }
-
                 foreach ($value as $num => $df) {
                     $field_uuid = $df['template_field_uuid'];
+
+                    // All of these values are datafield entries...need to find the datatype_uuid
+                    $dt_uuid = null;
+                    foreach ($searchable_datafields as $dt_uuid => $df_list) {
+                        if ( isset($df_list[$field_uuid]) ) {
+                            break;
+                        }
+                    }
+
+                    // Every search except for the general search merges by AND, and so they can all
+                    //  go into the same facet...will label it 0 for convenience
+                    if ( !isset($criteria[$dt_uuid][0]) ) {
+                        $criteria[$dt_uuid][0] = array(
+                            'facet_type' => 'single',
+                            'merge_type' => 'AND',    // TODO - combine_by_AND/combine_by_OR
+                            'search_terms' => array()
+                        );
+                    }
+
 
                     if ( isset($df['selected_options']) ) {
                         // This is a radio datafield
@@ -1485,12 +1555,12 @@ class SearchKeyService
                         $combine_by_or = true;
 
 
-                        $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                        $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
                             'combine_by_OR' => $combine_by_or,
                             'selections' => $selections,
                             'entity_type' => 'datafield',
                             'entity_id' => $field_uuid,
-                            'datatype_id' => $template_uuid,
+                            'datatype_id' => $dt_uuid,
                         );
                     }
                     else if ( isset($df['selected_tags']) ) {
@@ -1509,23 +1579,23 @@ class SearchKeyService
                         $combine_by_or = true;
 
 
-                        $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                        $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
                             'combine_by_OR' => $combine_by_or,
                             'selections' => $selections,
                             'entity_type' => 'datafield',
                             'entity_id' => $field_uuid,
-                            'datatype_id' => $template_uuid,
+                            'datatype_id' => $dt_uuid,
                         );
                     }
                     else if ( isset($df['before']) || isset($df['after']) ) {
                         // Datetime datafields...ensure an entry exists
-                        if ( !isset($criteria[$template_uuid]['search_terms'][$field_uuid]) ) {
-                            $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                        if ( !isset($criteria[$dt_uuid][0]['search_terms'][$field_uuid]) ) {
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
                                 'after' => null,
                                 'before' => null,
                                 'entity_type' => 'datafield',
                                 'entity_id' => $field_uuid,
-                                'datatype_id' => $template_uuid,
+                                'datatype_id' => $dt_uuid,
                             );
                         }
 
@@ -1533,7 +1603,7 @@ class SearchKeyService
                         if ( isset($df['after']) ) {
                             // start date, aka "after this date"
                             $date = new \DateTime($df['after']);
-                            $criteria[$template_uuid]['search_terms'][$field_uuid]['after'] = $date;
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid]['after'] = $date;
                         }
 
                         if ( isset($df['before']) ) {
@@ -1551,7 +1621,7 @@ class SearchKeyService
                             }
 
                             // end date, aka "before this date"
-                            $criteria[$template_uuid]['search_terms'][$field_uuid]['before'] = $date;
+                            $criteria[$dt_uuid][0]['search_terms'][$field_uuid]['before'] = $date;
                         }
 
                     }
@@ -1570,12 +1640,12 @@ class SearchKeyService
 
                         // Create an entry in the criteria array for this datafield...there won't be any
                         //  duplicate entries
-                        $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                        $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
                             'filename' => $filename,
                             'has_files' => $has_files,
                             'entity_type' => 'datafield',
                             'entity_id' => $field_uuid,
-                            'datatype_id' => $template_uuid,
+                            'datatype_id' => $dt_uuid,
                         );
                     }
                     else if ( isset($df['value']) ) {
@@ -1583,19 +1653,38 @@ class SearchKeyService
 
                         // Create an entry in the criteria array for this datafield...there won't be
                         //  any duplicate entries
-                        $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                        $criteria[$dt_uuid][0]['search_terms'][$field_uuid] = array(
                             'value' => $df['value'],
                             'entity_type' => 'datafield',
                             'entity_id' => $field_uuid,
-                            'datatype_id' => $template_uuid,
+                            'datatype_id' => $dt_uuid,
                         );
                     }
                 }
             }
         }
 
-        // Also going to need a list of all datatypes this search could run on, for later hydration
-        $criteria['all_templates'] = $this->search_service->getRelatedTemplateDatatypesByUUID($template_uuid);
+        // ----------------------------------------
+        // Determine which datatypes have datafields that are being searched on...any datarecord of
+        //  that datatype must be marked as "needs to match", so that the latter parts of the search
+        //  process can correctly exclude records that don't match
+        $affected_datatypes = array();
+        foreach ($criteria as $key => $facet_list) {
+            if ( $key === 'search_type' || $key === 'template_uuid' || $key === 'general' )
+                continue;
+
+            foreach ($facet_list as $facet_num => $facet) {
+                // Currently, all criteria except for general search are merged by AND
+                if ( $facet['merge_type'] === 'AND' ) {
+                    foreach ($facet['search_terms'] as $key => $params) {
+                        $dt_id = $params['datatype_id'];
+                        $affected_datatypes[$dt_id] = 1;
+                    }
+                }
+            }
+        }
+        $affected_datatypes = array_keys($affected_datatypes);
+        $criteria['affected_datatypes'] = $affected_datatypes;
 
         return $criteria;
     }

@@ -44,6 +44,11 @@ ODR\AdminBundle\Entity\RenderPluginOptionsDef:
             fixed: false
             nullable: true
             column: description
+        display_order:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
 
         created:
             type: datetime
