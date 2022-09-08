@@ -171,7 +171,6 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $entity_creation_service: "@odr.entity_creation_service"
-            $permissions_service: "@odr.permissions_management_service"
             $logger: "@logger"
 
     odr.datatype_create_service:
