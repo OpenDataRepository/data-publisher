@@ -859,6 +859,7 @@ ul#wizardStatus li.completed:before{
     margin: 6px 6px 6px 6px;
 }
 .ODRThemeDesignSettings p {
+    font-size: 12px;
     padding-left: 10px;
 }
 
@@ -870,6 +871,7 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignForm {
+    font-size: 13px;
     min-height: 200px;
     margin-bottom: 8px;
 }
@@ -925,24 +927,28 @@ ul#wizardStatus li.completed:before{
     background: white;
     border-radius: 4px;
     width: 305px;
-    height: 1200px;
+    max-height: 1200px;
     overflow-y: visible;
     float: left;
     /* z-index needed to prevent overlap for some reason */
     z-index: 99;
 }
 
+.ThemeLeftColumnFixed {
+    position: fixed;
+    top: 10px;
+}
+
 #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
-    min-height: 1100px;
-    /* height: 100%; */
+    overflow-y: scroll;
+    max-height: calc(100vh - 30px) !important;
 }
 
 #ThemeDesignArea {
     width: 1366px;
-    margin-left: 15px;
+    margin-left: 315px;
     margin-right: 20px;
     margin-top: 8px;
-    float: left;
 }
 
 /*
@@ -1409,6 +1415,11 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     width: 90%;
 }
 
+#ODRDatatypeToolsBlock p {
+    margin-block-start: 4px;
+    margin-block-end: 4px;
+}
+
 #ODRDatatypeToolsBlock a {
     cursor: pointer;
 }
@@ -1428,31 +1439,37 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     padding-bottom: 6px;
 }
 
-.ODRDesignHeader {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-}
 .ODRDesignHeader > .ODRContentWrapper > .ODRThemeElement {
     padding: 0 0 8px 8px;
 }
 
 @media only screen and (min-height: 1240px) {
+    #ODRDatatypeToolsBlock p {
+        margin-block-start: 16px;
+        margin-block-end: 16px;
+    }
     .ODRDesignHeader > .ODRContentWrapper > .ODRThemeElement {
         padding: 0;
     }
 
-    .ODRDesignHeader,
     #ThemeDesignArea {
         width: 1366px;
         margin-left: 315px;
     }
 
-    #ThemeLeftColumn {
+    .ODRThemeDesignSettings p {
+        font-size: 16px;
+    }
+
+    #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
+        min-height: 1100px;
+    }
+
+
+    .ThemeLeftColumnFixed {
         position: fixed;
         top: 45px;
     }
-
 
     .ODRMenuWrapper {
         position: sticky;

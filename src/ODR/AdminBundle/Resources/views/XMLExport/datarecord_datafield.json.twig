@@ -58,12 +58,12 @@
 #}
 
 
-{% if version == 'v3' %}
+{% if version == 'v3' or version == 'v4' %}
 {
 {% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
 {% endif %}
-{% if version == 'v1' or version == 'v3' %}
+{% if version == 'v1' or version == 'v3' or version == 'v4' %}
     "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
     {% if datafield.dataField is defined %}
         "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
@@ -83,17 +83,7 @@
     {% endif %}
     "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 {% endif %}
-
         "id": {{ datafield.id }},
-
-
-
-
-
-
-
-
-
         {% if field_typename == "File" %}
 
         "files": [
@@ -104,19 +94,15 @@
                   "file_size": "{{ file.filesize }}",
                   "href": "{{ url('odr_file_download', {'file_id': file.id}) }}",
                   {% set file_meta = file.fileMeta %}
-                  "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
-                  {#
-                  "file_uuid": "{{ file.unique_id }}",
-
                   {% if using_metadata == true %}
                   "_file_metadata": {
                       "_external_id": "{{ file_meta.external_id }}",
                       "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
                       "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
                       "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
-                  }
+                  },
                   {% endif %}
-                  #}
+                  "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
             }{% if not loop.last %},{% endif %}
         {% endfor %}
         ]   {# end of files #}
@@ -207,10 +193,43 @@
 {% else %}
 
     {% if field_typename == "Boolean" %}
+        "_field_metadata": {
+            "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
+            "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
+            "_update_date": "{{ valuefield.updated|date('Y-m-d H:i:s') }}",
+            "_create_auth": "{% if valuefield.updatedBy != '' %}{{ valuefield.updatedBy|user_string|xml }}{% endif %}"
+            {#
+                        "_master_published_version": "{{ datafield_meta.master_published_revision }}",
+                        "_master_revision": "{{ datafield_meta.master_revision }}",
+                        "_tracking_master_version": "{{ datafield_meta.tracking_master_revision }}",
+             #}
+        },
         "selected": {% if valuefield_value == 1 %}1{% else %}0{% endif %}
     {% elseif field_typename == "DateTime" %}
+        "_field_metadata": {
+            "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
+            "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
+            "_update_date": "{{ valuefield.updated|date('Y-m-d H:i:s') }}",
+            "_create_auth": "{% if valuefield.updatedBy != '' %}{{ valuefield.updatedBy|user_string|xml }}{% endif %}"
+            {#
+                        "_master_published_version": "{{ datafield_meta.master_published_revision }}",
+                        "_master_revision": "{{ datafield_meta.master_revision }}",
+                        "_tracking_master_version": "{{ datafield_meta.tracking_master_revision }}",
+             #}
+        },
         "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
     {% else %}
+        "_field_metadata": {
+            "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
+            "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
+            "_update_date": "{{ valuefield.updated|date('Y-m-d H:i:s') }}",
+            "_create_auth": "{% if valuefield.updatedBy != '' %}{{ valuefield.updatedBy|user_string|xml }}{% endif %}"
+            {#
+                        "_master_published_version": "{{ datafield_meta.master_published_revision }}",
+                        "_master_revision": "{{ datafield_meta.master_revision }}",
+                        "_tracking_master_version": "{{ datafield_meta.tracking_master_revision }}",
+             #}
+        },
         "value": {{ valuefield_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
     {% endif %}
 

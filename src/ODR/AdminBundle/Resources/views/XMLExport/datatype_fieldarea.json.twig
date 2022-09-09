@@ -2,7 +2,7 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {# describe datafields first #}
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 "fields": {
 {% else %}
 "fields": [
@@ -37,7 +37,7 @@
 
 
 
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 },
 {% else %}
 ],
@@ -50,7 +50,7 @@
 
 
 {# describe child datarecords second #}
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 "child_databases": {
 {% else %}
 "related_databases": [
@@ -81,7 +81,7 @@
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
 
                     {% set show_records = 1 %}
-                    {% if version != 'v3' %}
+                    {% if version != 'v3' or version == 'v4' %}
                     {% set show_records = 0 %}
                     {% endif %}
 
@@ -115,7 +115,7 @@
 
 
 
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 },
 "linked_databases": {
 {% endif %}
@@ -148,7 +148,7 @@
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
 
                     {% set show_records = 1 %}
-                    {% if version != 'v3' %}
+                    {% if version != 'v3' or version == 'v4' %}
                     {% set show_records = 0 %}
                     {% endif %}
 
@@ -178,7 +178,7 @@
 
 
 
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 },
 {% else %}
 ]

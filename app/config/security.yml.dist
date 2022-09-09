@@ -22,7 +22,21 @@ security:
 #            id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
-        login:
+        login1:
+            pattern:  ^/api/v4/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path:               api_login_check_v4
+                success_handler:          lexik_jwt_authentication.handler.authentication_success
+                failure_handler:          lexik_jwt_authentication.handler.authentication_failure
+                #require_previous_session: false
+                #username_parameter: email
+                #password_parameter: password
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        login2:
             pattern:  ^/api/v3/token
             stateless: true
             anonymous: true

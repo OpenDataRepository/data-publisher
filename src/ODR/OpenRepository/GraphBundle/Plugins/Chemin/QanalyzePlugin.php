@@ -116,9 +116,9 @@ class QanalyzePlugin implements DatafieldPluginInterface
             }
 
             if ($label_field == '')
-                throw new \Exception("The \"Sample Label Datafield\" option in the plugin's configuration must have a value");
+                throw new \Exception("The \"Sample Label Datafield\" option in the plugin's configuration must have a value.");
             if ($xrd_field == '')
-                throw new \Exception("The \"XRD Pattern Datafield\" option in the plugin's configuration must have a value");
+                throw new \Exception("The \"XRD Pattern Datafield\" option in the plugin's configuration must have a value.");
 
 
             // ----------------------------------------

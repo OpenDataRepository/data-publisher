@@ -4,7 +4,7 @@
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
 {# describe datafields first #}
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 "fields": {
 {% else %}
 "fields": [
@@ -38,7 +38,7 @@
     {% endif %}
 {% endfor %}
 
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 },
 {% else %}
 ],
@@ -51,7 +51,7 @@
 
 
 {# describe child datarecords second #}
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 "child_records": {
 {% else %}
 "records": [
@@ -81,7 +81,7 @@
                     {# using macro on purpose to get the template as a string #}
                     {% import "ODRAdminBundle:XMLExport:search_datarecord_childtype.json.twig" as mychildform %}
                     {% set show_records = 0 %}
-                    {% if version != 'v3' %}
+                    {% if version != 'v3' or version == 'v4' %}
                         {% set show_records = 1 %}
                     {% endif %}
                     {% set content = mychildform.input(
@@ -100,7 +100,7 @@
                     ) %}
 
                     {% if "{" in content|trim %}
-                        {% if version != 'v3' %}
+                        {% if version != 'v3' or version == 'v4' %}
                             "database_{{ child_datatype_id }}":
                             {
                                 "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
@@ -113,7 +113,7 @@
                                 {% endif %}
                                 {{ content }}
                             },
-                        {% elseif version == 'v3' %}
+                        {% elseif version == 'v3' or version == 'v4' %}
                             {{ content }}
                             {% if not loop.last %},{% endif %}
                         {% endif %}
@@ -126,7 +126,7 @@
 
 
 
-{% if version != 'v3' %}
+{% if version != 'v3' or version == 'v4' %}
 },
 {% else %}
 ]

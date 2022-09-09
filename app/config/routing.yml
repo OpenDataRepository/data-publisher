@@ -2,6 +2,10 @@ api_login_check:
     path: /api/v3/token
     methods: [POST]
 
+api_login_check_v4:
+    path: /api/v4/token
+    methods: [POST]
+
 # ----------------------------------------
 # Internal routing configuration to handle ESI
 #_internal:

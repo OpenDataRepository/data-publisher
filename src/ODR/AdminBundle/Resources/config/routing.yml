@@ -1501,7 +1501,10 @@ odr_apply_theme:
 #-----------------------------------------
 
 #-----------------------------------------
+#
 # API Controller
+#
+#-----------------------------------------
 odr_api_userdata:
     path: /api/{version}/userdata.{_format}
     defaults: { _controller: ODRAdminBundle:API:userdata, _format: json }
@@ -1520,7 +1523,7 @@ odr_api_get_datatype_list:
 
 odr_api_get_template_list:
     path: /api/{version}/search/templates.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'templates', _format: json }
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'master_templates', _format: json }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
@@ -1535,9 +1538,37 @@ odr_api_get_datatype_single:
         datatype_uuid: '^[a-z0-9]+$'
         _format: '|json|xml'
 
+#
+# Gets master templates
+#
+odr_api_get_master_template:
+    path:  /api/{version}/master/{datatype_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        datatype_uuid: '^[a-z0-9]+$'
+        _format: '|json|xml'
+
+#
+# Gets dataset templates (non-master)
+#
+odr_api_get_dataset_template:
+    path:  /api/{version}/template/{datatype_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        datatype_uuid: '^[a-z0-9]+$'
+        _format: '|json|xml'
+
+#
+# DEPRECATED (old version for AHED Only)
+# Gets master templates
+#
 odr_api_get_template_single:
     path:  /api/{version}/search/template/{datatype_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'templates', _format: json }
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
@@ -1567,21 +1598,21 @@ odr_api_template_datatype_list:
         _format: '|json|xml'
 
 odr_api_get_datarecord_single_no_format:
-    path:  /api/{version}/search/record/{datarecord_uuid}
+    path:  /api/{version}/search/record/{record_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        datarecord_uuid: '^[a-z0-9]+$'
+        record_uuid: '^[a-z0-9]+$'
         format: 'json'
 
 odr_api_get_datarecord_single:
-    path:  /api/{version}/search/record/{datarecord_uuid}.{_format}
+    path:  /api/{version}/search/record/{record_uuid}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        datarecord_uuid: '^[a-z0-9]+$'
+        record_uuid: '^[a-z0-9]+$'
         format: '|xml|json'
 
 odr_api_get_field_stats:
@@ -1744,7 +1775,7 @@ odr_search_api_general_search_post:
         _format: '|json|xml'
 
 
-odr_api_record_public:
+odr_api_dataset_public:
     path: /api/{version}/dataset/publish
     defaults: { _controller: ODRAdminBundle:API:publish, _format: 'json', version: 'v3'}
     methods: [ POST ]
@@ -1754,21 +1785,34 @@ odr_api_record_public:
 
 odr_api_get_dataset_single_no_format:
     path:  /api/{version}/dataset/{dataset_uuid}
-    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
+    defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
         dataset_uuid: '^[a-z0-9]+$'
+        record_uuid: null,
         format: 'json'
 
 odr_api_get_dataset_single:
     path:  /api/{version}/dataset/{dataset_uuid}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
+    defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
         dataset_uuid: '^[a-z0-9]+$'
+        record_uuid: null,
         format: 'json'
+
+# TODO Should we restrict to version 4 only?
+#odr_api_get_metadata_dataset_record:
+#    path:  /api/{version}/dataset/{dataset_uuid}/{record_uuid}
+#    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
+#    methods: [ GET ]
+#    requirements:
+#        version: 'v\d+'
+#        dataset_uuid: '^[a-z0-9]+$'
+#        record_uuid: '^[a-z0-9]+$'
+#        format: 'json'
 
 odr_api_delete_dataset:
     path:  /api/{version}/dataset/{dataset_uuid}
@@ -1788,14 +1832,12 @@ odr_api_dataset_quota:
         dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
-odr_api_create_dataset_from_template:
-    path: /api/{version}/dataset
-    defaults: { _controller: ODRAdminBundle:API:createdataset, _format: 'json', version: 'v3'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        _format: '|json|xml'
-
+#
+# API Update dataset
+# PUT /api/vX/dataset
+#
+# Use version number to differentiate?
+#
 odr_api_update_dataset_metadata:
     path: /api/{version}/dataset
     defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v3'}
@@ -1826,6 +1868,75 @@ odr_api_dataset_get_file:
 odr_api_dataset_add_file:
     path: /api/{version}/file
     defaults: { _controller: ODRAdminBundle:API:addfile, _format: 'json', version: 'v3'}
+    methods: [ POST ]
+    requirements:
+        version: 'v\d+'
+        _format: '|json|xml'
+
+#
+# Creates a record in a dataset
+# Can contain a user_email POST variable to cause
+# system to 'act as' a specific user.
+#
+odr_api_create_dataset_record:
+    path: /api/{version}/dataset/{dataset_uuid}/record
+    defaults: { _controller: ODRAdminBundle:API:createrecord, _format: 'json', version: 'v3' }
+    methods: [ POST ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        _format: '|json|xml'
+
+#
+# Update an individual record
+#
+odr_api_update_dataset_record:
+    path: /api/{version}/dataset/record
+    defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v4' }
+    methods: [ POST ]
+    requirements:
+        version: 'v\d+'
+        _format: '|json|xml'
+
+
+#
+# API Create dataset
+# POST /api/vX/dataset
+#
+odr_api_create_dataset_from_template:
+    path: /api/{version}/dataset
+    defaults: { _controller: ODRAdminBundle:API:createdataset, _format: 'json', version: 'v3'}
+    methods: [ POST ]
+    requirements:
+        version: 'v\d+'
+        _format: '|json|xml'
+
+#
+# Make a record Public
+#
+odr_api_record_public:
+    path: /api/{version}/dataset/record/public
+    defaults: { _controller: ODRAdminBundle:API:publishRecord, _format: 'json', version: 'v3'}
+    methods: [ POST ]
+    requirements:
+        version: 'v\d+'
+        _format: '|json|xml'
+
+#
+# Get an individual dataset record
+#
+odr_api_get_dataset_record:
+    path: /api/{version}/dataset/record/{record_uuid}
+    defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        record_uuid: '^[a-z0-9]+$'
+        format: 'json'
+
+odr_api_user_permissions:
+    path: /api/{version}/user/permissions
+    defaults: { _controller: ODRAdminBundle:API:userPermissions, _format: json, version: 'v3' }
     methods: [ POST ]
     requirements:
         version: 'v\d+'

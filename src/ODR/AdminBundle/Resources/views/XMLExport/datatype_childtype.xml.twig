@@ -7,7 +7,7 @@
 
 {% set tag_start = '' %}
 {% set tag_end = '' %}
-{% if version == 'v1' or version == 'v3' %}
+{% if version == 'v1' or version == 'v3' or version == 'v4' %}
     {% set tag_start = '<database_' ~ datatype.id ~ '>' %}
     {% set tag_end = '</database_' ~ datatype.id ~ '>' %}
 {% elseif version == 'v2' %}
