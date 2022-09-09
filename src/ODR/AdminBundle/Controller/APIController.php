@@ -6729,7 +6729,7 @@ class APIController extends ODRCustomController
             // Grant
             /** @var ODRUserGroupMangementService $user_group_service */
             $user_group_service = $this->container->get('odr.user_group_management_service');
-            $user_group_service->addUserToDatatypeGroup(
+            $user_group_service->addUserToDefaultGroup(
                 $logged_in_user,
                 $user,
                 $datatype,
