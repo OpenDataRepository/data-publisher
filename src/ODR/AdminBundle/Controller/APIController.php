@@ -885,9 +885,9 @@ class APIController extends ODRCustomController
             }
 
             $response = new Response('Created', 201);
-            $url = $this->generateUrl('odr_api_get_datarecord_single', array(
+            $url = $this->generateUrl('odr_api_get_dataset_record', array(
                 'version' => $version,
-                'datarecord_uuid' => $dataset_record->getUniqueId()
+                'record_uuid' => $dataset_record->getUniqueId()
             ), false);
             $response->headers->set('Location', $url);
 
@@ -1269,9 +1269,9 @@ class APIController extends ODRCustomController
 //            }
 
             $response = new Response('Created', 201);
-            $url = $this->generateUrl('odr_api_get_datarecord_single', array(
+            $url = $this->generateUrl('odr_api_get_dataset_record', array(
                 'version' => $version,
-                'datarecord_uuid' => $metadata_record->getUniqueId()
+                'record_uuid' => $metadata_record->getUniqueId()
             ), false);
             $response->headers->set('Location', $url);
 
