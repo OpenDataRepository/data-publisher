@@ -2390,38 +2390,46 @@ class APIController extends ODRCustomController
             );
 
             // Check if record public date needs updating
-            if($data_record && isset($dataset['public_date'])) {
+            if($data_record && (
+                isset($dataset['public_date'])
+                || isset($dataset['created'])
+                )
+            ) {
                 if($data_record_meta = $data_record->getDataRecordMeta()) {
-                    if($data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $dataset['public_date']) {
-
+                    $new_data_record_meta = clone $data_record_meta;
+                    if(isset($dataset['public_date']) && $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $dataset['public_date']) {
                         print "Public Date Updated: " . $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") . " == " . $dataset['public_date'];
-                        $new_data_record_meta = clone $data_record_meta;
                         $new_data_record_meta->setPublicDate(new \DateTime($dataset['public_date']));
-                        $new_data_record_meta->setCreatedBy($user);
-                        $new_data_record_meta->setUpdatedBy($user);
-                        if(isset($dataset['created'])) {
-                            self::setDates($new_data_record_meta, $dataset['created']);
-                        }
-                        else {
-                            self::setDates($new_data_record_meta, null);
-                        }
 
-                        if (
-                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                            && !$pm_service->canAddDatarecord($user, $data_record->getDataType())
-                        ) {
-                            throw new ODRForbiddenException();
-                        }
-
-                        // Need to persist and flush
-                        $em->remove($data_record_meta);
-                        $em->persist($new_data_record_meta);
-                        $em->flush();
-
-                        // Set metadata
-                        $fields_updated = true;
+                        unset($dataset['public_date']);
                     }
-                    unset($dataset['public_date']);
+
+                    if(isset($dataset['created'])) {
+                        self::setDates($new_data_record_meta, $dataset['created']);
+                        self::setDates($data_record, $dataset['created']);
+                    }
+                    else {
+                        self::setDates($new_data_record_meta, null);
+                    }
+
+                    if (
+                        !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
+                        && !$pm_service->canAddDatarecord($user, $data_record->getDataType())
+                    ) {
+                        throw new ODRForbiddenException();
+                    }
+
+                    // Need to persist and flush
+                    $em->remove($data_record_meta);
+                    if(isset($dataset['created'])) {
+                        unset($dataset['created']);
+                        $em->persist($data_record);
+                    }
+                    $em->persist($new_data_record_meta);
+                    $em->flush();
+
+                    // Set metadata
+                    $fields_updated = true;
 
                 }
 
@@ -4367,7 +4375,7 @@ class APIController extends ODRCustomController
                 $dataset['_record_metadata']['_public_date'] = $data_record->getDataRecordMeta()->getPublicDate()->format('Y-m-d H:i:s');
                 $dataset['_record_metadata']['_create_auth'] = $data_record->getCreatedBy()->getEmailCanonical();
                 $dataset['_record_metadata']['_create_date'] = $data_record->getCreated()->format('Y-m-d H:i:s');
-                $dataset['_record_metadata']['_update_date'] = $data_record->getUpdated()->format('Y-m-d H:i:s');
+                $dataset['_record_metadata']['_update_date'] = $data_record->getDataRecordMeta()->getUpdated()->format('Y-m-d H:i:s');
 
                 /** @var ODRUser $api_user */  // Anon when nobody is logged in.
                 // $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
