@@ -861,9 +861,39 @@ class APIController extends ODRCustomController
             $dataset_record = $entity_create_service
                 ->createDatarecord($user, $dataset_datatype, $delay_flush);
 
-            // Datarecord is ready, remove provisioned flag
+            // Check if record public date needs updating
+            if($dataset_record && (
+                    isset($_POST['public_date'])
+                    || isset($_POST['created'])
+                )
+            ) {
+                if ($data_record_meta = $dataset_record->getDataRecordMeta()) {
+                    if (isset($_POST['public_date']) && $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $_POST['public_date']) {
+                        $data_record_meta->setPublicDate(new \DateTime($_POST['public_date']));
+                    }
+
+                    if (isset($_POST['created'])) {
+                        self::setDates($data_record_meta, $_POST['created']);
+                        self::setDates($dataset_record, $_POST['created']);
+                    } else {
+                        self::setDates($data_record_meta, null);
+                    }
+
+                    if (
+                        !$pm_service->isDatatypeAdmin($user, $dataset_record->getDataType())
+                        && !$pm_service->canAddDatarecord($user, $dataset_record->getDataType())
+                    ) {
+                        throw new ODRForbiddenException();
+                    }
+
+                    $em->persist($data_record_meta);
+                }
+            }
+
+                // Datarecord is ready, remove provisioned flag
             // TODO Naming is a little weird here
             $dataset_record->setProvisioned(false);
+            $em->persist($dataset_record);
             $em->flush();
 
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
