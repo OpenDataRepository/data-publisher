@@ -1368,6 +1368,19 @@ class APIController extends ODRCustomController
                 )
             );
 
+            if($data_record && (
+                    isset($dataset['public_date'])
+                    || isset($dataset['created'])
+                )
+            ) {
+                if (
+                    !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
+                    && !$pm_service->canAddDatarecord($user, $data_record->getDataType())
+                ) {
+                    return false;
+                }
+            }
+
             // TODO If Fields Updated, need to check if user can edit record
             if (isset($dataset['fields'])) {
                 for ($i = 0; $i < count($dataset['fields']); $i++) {
@@ -5618,7 +5631,12 @@ class APIController extends ODRCustomController
                         // If drf entry doesn't exist, create new
                         $drf = new DataRecordFields();
                         $drf->setCreatedBy($user);
-                        $drf->setCreated(new \DateTime());
+                        if(isset($data['created'])) {
+                            $drf->setCreated(new \DateTime($data['created']));
+                        }
+                        else {
+                            $drf->setCreated(new \DateTime());
+                        }
                         $drf->setDataField($data_field);
                         $drf->setDataRecord($data_record);
                         $em->persist($drf);
@@ -5680,9 +5698,10 @@ class APIController extends ODRCustomController
                                 $em->flush();
                             }
 
-                            /** @var  $odr_upload_service */
+                            /** @var ODRUploadService $odr_upload_service */
                             $odr_upload_service = $this->container->get('odr.upload_service');
 
+                            /** @var File $file_obj */
                             $file_obj = $odr_upload_service->uploadNewFile(
                                 $destination_file,
                                 $user,
@@ -5703,7 +5722,20 @@ class APIController extends ODRCustomController
                             // set file public status to match field public status
                             /** @var FileMeta $file_meta */
                             $file_meta = $file_obj->getFileMeta();
-                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            if(isset($data['created'])) {
+                                $file_obj->setCreated(new \DateTime($data['created']));
+                                $em->persist($file_obj);
+                                self::setDates($file_meta, $data['created']);
+                            }
+                            else {
+                                self::setDates($file_meta, null);
+                            }
+                            if(isset($data['public_date'])) {
+                                $file_meta->setPublicDate(new \DateTime($data['public_date']));
+                            }
+                            else {
+                                $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            }
                             $em->persist($file_meta);
 
                             break;
@@ -5761,7 +5793,20 @@ class APIController extends ODRCustomController
 
                             /** @var ImageMeta $file_meta */
                             $file_meta = $file_obj->getImageMeta();
-                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            if(isset($data['created'])) {
+                                $file_obj->setCreated(new \DateTime($data['created']));
+                                $em->persist($file_obj);
+                                self::setDates($file_meta, $data['created']);
+                            }
+                            else {
+                                self::setDates($file_meta, null);
+                            }
+                            if(isset($data['public_date'])) {
+                                $file_meta->setPublicDate(new \DateTime($data['public_date']));
+                            }
+                            else {
+                                $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            }
                             $em->persist($file_meta);
 
                             break;
