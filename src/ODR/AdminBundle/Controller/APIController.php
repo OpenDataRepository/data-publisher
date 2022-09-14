@@ -2411,9 +2411,7 @@ class APIController extends ODRCustomController
                 if($data_record_meta = $data_record->getDataRecordMeta()) {
                     $new_data_record_meta = clone $data_record_meta;
                     if(isset($dataset['public_date']) && $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $dataset['public_date']) {
-                        print "Public Date Updated: " . $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") . " == " . $dataset['public_date'];
                         $new_data_record_meta->setPublicDate(new \DateTime($dataset['public_date']));
-
                         unset($dataset['public_date']);
                     }
 
