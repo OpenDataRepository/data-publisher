@@ -914,6 +914,17 @@ class APIController extends ODRCustomController
                     throw $e;
             }
 
+            // ----------------------------------------
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            $search_cache_service->onDatarecordCreate($dataset_record->getDataType());
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service->delete('datatype_'.$dataset_record->getDataType()->getId().'_record_order');
+            // TODO - ...shouldn't there be something else here too?
+
+
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_dataset_record', array(
                 'version' => $version,
@@ -1203,6 +1214,16 @@ class APIController extends ODRCustomController
                     if ( $this->container->getParameter('kernel.environment') === 'dev' )
                         throw $e;
                 }
+
+                // ----------------------------------------
+                /** @var SearchCacheService $search_cache_service */
+                $search_cache_service = $this->container->get('odr.search_cache_service');
+                $search_cache_service->onDatarecordCreate($metadata_record->getDataType());
+
+                /** @var CacheService $cache_service */
+                $cache_service = $this->container->get('odr.cache_service');
+                $cache_service->delete('datatype_'.$metadata_record->getDataType()->getId().'_record_order');
+                // TODO - ...shouldn't there be something else here too?
             }
 
             // Retrieve first (and only) record ...
@@ -1243,6 +1264,16 @@ class APIController extends ODRCustomController
                         if ( $this->container->getParameter('kernel.environment') === 'dev' )
                             throw $e;
                     }
+
+                    // ----------------------------------------
+                    /** @var SearchCacheService $search_cache_service */
+                    $search_cache_service = $this->container->get('odr.search_cache_service');
+                    $search_cache_service->onDatarecordCreate($actual_data_record->getDataType());
+
+                    /** @var CacheService $cache_service */
+                    $cache_service = $this->container->get('odr.cache_service');
+                    $cache_service->delete('datatype_'.$actual_data_record->getDataType()->getId().'_record_order');
+                    // TODO - ...shouldn't there be something else here too?
                 }
 
             }
@@ -4576,6 +4607,26 @@ class APIController extends ODRCustomController
             // if the JSON had public/not-public as a field in all datapoints.
             $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
 
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                array('unique_id' => $record_uuid)
+            );
+
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            $search_cache_service->onDatatypeImport($datarecord->getDataType());
+
+            // Child datarecords don't have their own cached entries, it's all contained within the
+            //  cache entry for their top-level datarecord
+            $cache_service->delete('cached_datarecord_'.$datarecord->getId());
+
+            // Delete the filtered list of data meant specifically for table themes
+            $cache_service->delete('cached_table_data_'.$datarecord->getId());
+
+
             // Respond and redirect to record
             $response = new Response('Updated', 200);
 
@@ -5083,7 +5134,7 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x8a83ef88;
+            $source = 0x8a83ef89;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
