@@ -53,11 +53,11 @@
                         "_create_date": "",
                     {% endif %}
                     {% if datarecord.updated is defined and datarecord.updated %}
-                        "_updated_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
+                        "_update_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
                     {% elseif datarecord.dataRecordMeta is defined and datarecord.dataRecordMeta.created is defined and datarecord.dataRecordMeta.created %}
-                        "_updated_date": "{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}",
+                        "_update_date": "{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}",
                     {% else %}
-                        "_updated_date": "",
+                        "_update_date": "",
                     {% endif %}
                     {% if datarecord.createdBy is defined and datarecord.createdBy %}
                         "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
@@ -78,11 +78,11 @@
                     {% set comma = true %}
                     {% set found = false %}
                     {% for datafield in datarecord.dataRecordFields %}
-                        {% if datafield.id == dt_datafield.id  %}
-                            {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                        {% if datafield.dataField.id == dt_datafield.id  %}
+                            {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
                                 {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
                                     'datarecord': datarecord,
-                                    'datafield': datafield,
+                                    'datafield': datafield.dataField,
                                     'using_metadata': using_metadata,
                                     'baseurl': baseurl,
                                     'version': version,
@@ -94,7 +94,7 @@
                         {% endif %}
                     {% endfor %}
                     {% if not found %}
-                        {% if dt_datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                        {% if dt_datafied.dataFieldMeta is defined and dt_datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
                             {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': dt_datafield,

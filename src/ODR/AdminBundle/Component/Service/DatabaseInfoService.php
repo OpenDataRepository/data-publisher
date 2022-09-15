@@ -196,8 +196,11 @@ class DatabaseInfoService
         //  datafield with its master datafield...same deal with master datatypes
         $query = $this->em->createQuery(
            'SELECT
-                partial dt.{id}, partial mdt.{id, unique_id}, partial mdt_dtm.{id, shortName},
-                partial df.{id}, partial mdf.{id}
+                partial dt.{id}, 
+                partial mdt.{id, unique_id}, 
+                partial mdt_dtm.{id, shortName},
+                partial df.{id}, 
+                partial mdf.{id}
 
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.masterDataType AS mdt

@@ -6,7 +6,7 @@
 
 {% set tag_start = '' %}
 {% set tag_end = '' %}
-{% if version == 'v1' or version == 'v3' %}
+{% if version == 'v1' or version == 'v3' or version == 'v4' %}
     {% set tag_start = '<field_' ~ datafield.id ~ '><field_name>' ~ datafield_meta.fieldName|xml|raw ~ '</field_name>' %}
     {% set tag_end = '</field_' ~ datafield.id ~ '>' %}
 {% elseif version == 'v2' %}

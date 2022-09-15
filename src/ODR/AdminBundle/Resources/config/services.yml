@@ -165,6 +165,14 @@ services:
             $search_api_service: "@odr.search_api_service"
             $logger: "@logger"
 
+    odr.user_group_management_service:
+        class: ODR\AdminBundle\Component\Service\ODRUserGroupMangementService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $logger: "@logger"
+
     odr.datatype_create_service:
         class: ODR\AdminBundle\Component\Service\DatatypeCreateService
         arguments:

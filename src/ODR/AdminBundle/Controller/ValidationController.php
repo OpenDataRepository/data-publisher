@@ -2397,7 +2397,7 @@ class ValidationController extends ODRCustomController
 
             // Get the same set of data from the database...
             $query = $em->createQuery(
-                'SELECT ft.id, ft.typeName, ft.typeClass, ft.canBeUnique, ft.canBeSortField
+               'SELECT ft.id, ft.typeName, ft.typeClass, ft.canBeUnique, ft.canBeSortField
                 FROM ODRAdminBundle:FieldType AS ft
                 WHERE ft.deletedAt IS NULL'
             );
@@ -2406,6 +2406,13 @@ class ValidationController extends ODRCustomController
             // Check whether the two arrays are the same
             $changes = array();
             print '<pre>';
+
+            // These aren't strictly related to the fieldtype table...but they shouldn't exist either
+            print "DROP TABLE IF EXISTS odr_checkbox, odr_file_storage, odr_image_storage, odr_radio, odr_xyz_value;\n";
+            print "DROP TABLE IF EXISTS odr_user_layout_permissions, odr_user_layout_preferences, odr_layout_meta, odr_layout_data, odr_layout;\n";
+            print "DROP TABLE IF EXISTS odr_theme_element_field;\n";
+            print "DROP TABLE IF EXISTS odr_user_field_permissions, odr_user_permissions;\n";
+
             foreach ($results as $ft) {
                 $id = $ft['id'];
                 $typename = $ft['typeName'];

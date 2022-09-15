@@ -50,12 +50,12 @@
 {% endif %}
 
 
-{% if version == 'v3' %}
+{% if version == 'v3' or version == 'v4' %}
   {
 {% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
 {% endif %}
-{% if version == 'v1' or version == 'v3' %}
+{% if version == 'v1' or version == 'v3' or version == 'v4' %}
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
         "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
         "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
@@ -154,7 +154,7 @@
                     "selected": "1"
                 }
             },
-            {% elseif version == 'v3' %}
+            {% elseif version == 'v3' or version == 'v4' %}
             {
                 "name": "{{ radio_option_meta.optionName }}",
                 "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},

@@ -451,6 +451,22 @@ function ODRGraph_guessFileProperties(lines) {
         }
     }
 
+    // To counter the (hopefully) rare case where more than one "valid" delimiter character exists
+    //  in the file, count how many of the lines have each delimiter
+    var lines_with_delimiters = {};
+    for (var i = 0; i < valid_delimiters.length; i++) {
+        var delimiter = valid_delimiters[i];
+        // Ignore delimiters that the previous step believes aren't safe
+        if ( delimiter_count[delimiter] === null )
+            continue;
+
+        lines_with_delimiters[delimiter] = 0;
+        for (var j = 0; j < characters.length; j++) {
+            if ( characters[j] !== undefined && characters[j][delimiter] !== undefined )
+                lines_with_delimiters[delimiter] += 1;
+        }
+    }
+
     // Determine which of the remaining delimiters is most likely for the file
     var delimiter_guess = null;
     var columns_guess = null;
@@ -461,6 +477,18 @@ function ODRGraph_guessFileProperties(lines) {
                 // Ideally, the first delimiter found will be the only one...
                 delimiter_guess = delimiter;
                 columns_guess = delimiter_count[delimiter] + 1;
+            }
+            else {
+                // ...but if a second delimiter could be valid...
+                if ( lines_with_delimiters[delimiter_guess] !== undefined ) {
+                    var previous_guess_count = lines_with_delimiters[delimiter_guess];
+                    var current_guess_count = lines_with_delimiters[delimiter];
+                    // ...then try to use the delimiter that appears more often in the file
+                    if ( current_guess_count > previous_guess_count ) {
+                        delimiter_guess = delimiter;
+                        columns_guess = delimiter_count[delimiter] + 1;
+                    }
+                }
             }
 
             // Currently only consider tab and comma as valid delimiters...if for some reason both

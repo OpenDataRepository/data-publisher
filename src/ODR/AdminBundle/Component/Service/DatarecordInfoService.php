@@ -298,7 +298,7 @@ class DatarecordInfoService
                dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
                dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
-               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName}, partial ft.{id, typeClass, typeName},
+               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, publicDate, xml_fieldName}, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
@@ -395,7 +395,7 @@ class DatarecordInfoService
         //  subarrays...all but the following keys should be unset in order to reduce the amount of
         //  memory that php needs to allocate to store a cached datarecord entry...it adds up.
         $drf_keys_to_keep = array(
-//            'dataField',
+            'dataField',
             'id', 'created',
             'file', 'image',       // keeping these for now because multiple pieces of code assume they exist
             'child_tagSelections', // this property will only be created if 'tagSelection' exists
@@ -735,7 +735,6 @@ class DatarecordInfoService
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
-
 
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);

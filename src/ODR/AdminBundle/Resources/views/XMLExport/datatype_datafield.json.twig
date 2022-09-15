@@ -2,7 +2,7 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% if version == 'v3' %}
+{% if version == 'v3' or version == 'v4' %}
     {
 {% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
@@ -42,7 +42,7 @@
 
     {% if field_typeclass == 'Radio' %}
         {% if datafield.radioOptions is defined %}
-        {% if version == 'v3' %}
+        {% if version == 'v3' or version == 'v4' %}
         "radio_options": [
         {% else %}
         "radio_options": {
@@ -51,13 +51,13 @@
 
                 {% set radio_option_meta = radio_option.radioOptionMeta %}
 
-                {% if version == 'v3' %}
+                {% if version == 'v3' or version == 'v4' %}
                     {
                         "name": "{{ radio_option_meta.optionName }}",
                         "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
                         "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
                     },   {# end of radio option #}
-                {% elseif version == 'v1' or version == 'v3' %}
+                {% elseif version == 'v1' or version == 'v3' or version == 'v4' %}
                     "radio_option_{{ radio_option.id }}": {
                         "name": "{{ radio_option_meta.optionName }}",
                         "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
@@ -72,7 +72,7 @@
 
 
             {% endfor %}
-        {% if version == 'v3' %}
+        {% if version == 'v3' or version == 'v4' %}
             ]
         {% else %}
             }

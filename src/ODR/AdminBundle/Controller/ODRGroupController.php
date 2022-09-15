@@ -39,6 +39,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
+use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
@@ -851,10 +852,10 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRUserGroupMangementService $ugm_service */
+            $ugm_service = $this->container->get('odr.user_group_management_service');
 
 
             /** @var ODRUser $user */
@@ -900,73 +901,14 @@ class ODRGroupController extends ODRCustomController
             // ----------------------------------------
             $value = intval($value);
             if ($value == 1) {
-                // If user is supposed to be added to a default group...
-                if ($group->getPurpose() !== '') {
-                    // ...remove them from all other default groups for this datatype since users
-                    //  are only supposed to be a member of a single default group per datatype
-                    $query = $em->createQuery(
-                       'SELECT ug
-                        FROM ODRAdminBundle:Group AS g
-                        JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
-                        WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
-                        AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-                    )->setParameters( array('user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()) );
-                    $results = $query->getResult();
-
-                    // Only supposed to be in a single default group, but use foreach incase the
-                    //  database got messed up somehow...
-                    $changes_made = false;
-                    foreach ($results as $ug) {
-                        /** @var UserGroup $ug */
-
-                        // Don't remove the user from the group that they're supposed to be added to
-                        if ( $ug->getGroup()->getId() !== $group->getId() ) {
-                            // Can't just call $em->remove($ug)...that won't set deletedBy
-                            $ug->setDeletedBy($admin_user);
-                            $ug->setDeletedAt(new \DateTime());
-                            $em->persist($ug);
-
-                            $changes_made = true;
-                        }
-                    }
-
-                    // Flush now that all the updates have been made
-                    if ($changes_made)
-                        $em->flush();
-
-                    // Calling $em->remove($ug) on a $ug that's already soft-deleted completely
-                    //  deletes the $ug out of the backend database
-                }
-
-                // Add this user to the desired group
-                $ec_service->createUserGroup($user, $group, $admin_user);
+                // User is supposed to be added to the indicated group
+                $ugm_service->addUserToGroup($admin_user, $user, $group);
             }
             else {
                 // Otherwise, user is supposed to be removed from the indicated group
-                /** @var UserGroup $user_group */
-                $user_group = $repo_user_group->findOneBy(
-                    array(
-                        'user' => $user->getId(),
-                        'group' => $group->getId()
-                    )
-                );
-
-                if ( is_null($user_group) ) {
-                    /* user already doesn't belong to this group, do nothing */
-                }
-                else {
-                    // Delete the UserGroup entity so the user is no longer linked to the group
-                    // Can't just call $em->remove($ug)...that won't set deletedBy
-                    $user_group->setDeletedBy($admin_user);
-                    $user_group->setDeletedAt(new \DateTime());
-                    $em->persist($user_group);
-
-                    $em->flush();
-
-                    // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
-                    $em->detach($user_group);
-                }
+                $ugm_service->removeUserFromGroup($admin_user, $user, $group);
             }
+
 
             // ----------------------------------------
             // Notify the AJAX handler whether the user is still in a group for this datatype or not

@@ -21,7 +21,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\Group;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
@@ -41,6 +40,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
+use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
@@ -1412,6 +1412,8 @@ class DatatypeController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var ODRUserGroupMangementService $ugm_service */
+            $ugm_service = $this->container->get('odr.user_group_management_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
             /** @var EngineInterface $templating */
@@ -1705,19 +1707,8 @@ class DatatypeController extends ODRCustomController
 
                             // Ensure the user who created this datatype becomes a member of the new
                             //  datatype's "is_datatype_admin" group
-                            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
-                                /** @var Group $admin_group */
-                                $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy(
-                                    array(
-                                        'dataType' => $datatype->getId(),
-                                        'purpose' => 'admin'
-                                    )
-                                );
-                                $ec_service->createUserGroup($admin, $admin_group, $admin);
-
-                                // Delete cached version of this user's permissions
-                                $cache_service->delete('user_'.$admin->getId().'_permissions');
-                            }
+                            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
+                                $ugm_service->addUserToDefaultGroup($admin, $admin, $datatype, 'admin');
 
                             // This dataype is now fully created
                             $datatype->setSetupStep(DataType::STATE_OPERATIONAL);
@@ -1794,6 +1785,9 @@ class DatatypeController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var ODRUserGroupMangementService $ugm_service */
+            $ugm_service = $this->container->get('odr.user_group_management_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1834,19 +1828,8 @@ class DatatypeController extends ODRCustomController
 
             // Ensure the user who created this datatype becomes a member of the new
             //  datatype's "is_datatype_admin" group
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
-                /** @var Group $admin_group */
-                $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy(
-                    array(
-                        'dataType' => $datatype->getId(),
-                        'purpose' => 'admin'
-                    )
-                );
-                $ec_service->createUserGroup($admin, $admin_group, $admin);
-
-                // Delete cached version of this user's permissions
-                $cache_service->delete('user_'.$admin->getId().'_permissions');
-            }
+            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
+                $ugm_service->addUserToDefaultGroup($admin, $admin, $datatype, 'admin');
 
 
             // Ensure the datatype/template points to the new metadata datatype
