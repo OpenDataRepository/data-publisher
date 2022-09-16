@@ -1716,8 +1716,27 @@ class PluginsController extends ODRCustomController
                     }
 
                     $rpo->setUpdatedBy($user);
-
                     $em->persist($rpo);
+
+                    // If this is a new option...
+                    if ($creating) {
+                        // ...then unfortunately need to ensure the defaults mapping values exist,
+                        //  otherwise the plugin will likely throw errors
+
+                        // TODO - if doing it here, would need to locate all active RenderPluginInstance entities for this plugin...
+                        // TODO - ...then create a RenderPluginOptionMap for the current option for all the rpi entities
+
+                        // TODO - later on, need to run the PluginOptionsChangedEvent on all the RenderPluginInstances that were modified...
+                        // TODO - ...can't do it here because the database needs to be flushed first for that to work properly
+                        // TODO - might also need to do that when an option is deleted
+
+
+                        // TODO - bigger problem is that this only fixes half the issue...the plugin will likely throw errors if an update adds required fields...
+                        // TODO - ...and RenderPluginFields can't have defaults, so the datatype admins still have to manually update
+
+                        // TODO - so is it worthwhile to automatically assign default values to new options, even though new fields can't be fixed in a similar fashion?
+                        // TODO - ...or is it better to make some kind of "active issues" todo-list type of page for super admins to see issues at a glance?
+                    }
                 }
             }
 
@@ -2300,7 +2319,8 @@ class PluginsController extends ODRCustomController
                    'SELECT rpi, rp
                     FROM ODRAdminBundle:RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
-                    WHERE rpi.dataType = :dataType'
+                    WHERE rpi.dataType = :dataType
+                    ORDER BY rpi.id ASC'
                 )->setParameters(
                     array(
                         'dataType' => $datatype
@@ -2312,7 +2332,8 @@ class PluginsController extends ODRCustomController
                    'SELECT rpi, rp
                     FROM ODRAdminBundle:RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
-                    WHERE rpi.dataField = :dataField'
+                    WHERE rpi.dataField = :dataField
+                    ORDER BY rpi.id ASC'
                 )->setParameters(
                     array(
                         'dataField' => $datafield
