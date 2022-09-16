@@ -1498,24 +1498,25 @@ class APIController extends ODRCustomController
                             // TODO Permissions Check
                             $fields_updated = true;
                         }
+                        else {
+                            // Lookup Boolean by DRF & Field ID
+                            /** @var Boolean $bool */
+                            $bool = $em->getRepository('ODRAdminBundle:Boolean')->findOneBy(
+                                array(
+                                    'dataRecordFields' => $drf->getId()
+                                )
+                            );
 
-                        // Lookup Boolean by DRF & Field ID
-                        /** @var Boolean $bool */
-                        $bool = $em->getRepository('ODRAdminBundle:Boolean')->findOneBy(
-                            array(
-                                'dataRecordFields' => $drf->getId()
-                            )
-                        );
-
-                        if($bool) {
-                            // check if value matches field->selected
-                            if($bool->getValue() !== $field['selected']) {
-                                // remove old entity
+                            if($bool) {
+                                // check if value matches field->selected
+                                if($bool->getValue() !== $field['selected']) {
+                                    // remove old entity
+                                    $fields_updated = true;
+                                }
+                            }
+                            else {
                                 $fields_updated = true;
                             }
-                        }
-                        else {
-                            $fields_updated = true;
                         }
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
