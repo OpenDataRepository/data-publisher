@@ -862,6 +862,7 @@ class APIController extends ODRCustomController
                 ->createDatarecord($user, $dataset_datatype, $delay_flush);
 
             // Check if record public date needs updating
+            // TODO Check User or LoggedInUser is SuperAdmin
             if($dataset_record && (
                     isset($_POST['public_date'])
                     || isset($_POST['created'])
@@ -2312,32 +2313,61 @@ class APIController extends ODRCustomController
                         }
                     }
                     if (!$record_found) {
-                        // Use original data record to get datatype template group
-                        $template_group = $data_record->getDataType()->getTemplateGroup();
-
-                        // Find correct type in group by template_uuid
-                        /** @var DataType $master_data_type */
-                        $master_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                            array(
-                                'unique_id' => $record['template_uuid']
-                            )
-                        );
-
                         /** @var DataType $record_data_type */
                         $record_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                             array(
-                                'masterDataType' => $master_data_type->getId(),
-                                'template_group' => $template_group
+                                'unique_id' => $record['database_uuid']
                             )
                         );
 
-                        // Need to persist and flush
-                        if (
-                            !$pm_service->isDatatypeAdmin($user, $record_data_type)
-                            && !$pm_service->canAddDatarecord($user, $record_data_type)
-                        ) {
-                            return false;
+                        // Determine if datatype is a link
+                        $is_link = false;
+                        /** @var DataTree $datatree */
+                        $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                            array(
+                                'ancestor' => $data_record->getDataType()->getId(),
+                                'descendant' => $record_data_type->getId()
+                            )
+                        );
+                        if ($datatree == null)
+                            throw new ODRNotFoundException('Datatree');
+
+
+                        if ($datatree->getIsLink()) {
+                            $is_link = true;
                         }
+
+                        // If the record has a record_uuid, we just need to make the link
+                        if($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
+                            /** @var DataRecord $data_record */
+                            $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                                array(
+                                    'unique_id' => $record['record_uuid']
+                                )
+                            );
+
+                            if (is_null($linked_data_record))
+                                throw new ODRNotFoundException('DataRecord');
+
+                            // Need to persist and flush
+                            if (
+                                !$pm_service->isDatatypeAdmin($user, $linked_data_record->getDataType())
+                                && !$pm_service->canAddDatarecord($user, $linked_data_record->getDataType())
+                            ) {
+                                return false;
+                            }
+                        }
+                        else {
+                            // Need to persist and flush
+                            if (
+                                !$pm_service->isDatatypeAdmin($user, $record_data_type)
+                                && !$pm_service->canAddDatarecord($user, $record_data_type)
+                            ) {
+                                return false;
+                            }
+
+                        }
+
                     }
                 }
             }
@@ -2433,6 +2463,7 @@ class APIController extends ODRCustomController
             );
 
             // Check if record public date needs updating
+            // TODO Check User or LoggedInUser is SuperAdmin
             if($data_record && (
                 isset($dataset['public_date'])
                 || isset($dataset['created'])
@@ -4270,22 +4301,10 @@ class APIController extends ODRCustomController
                     }
                     if (!$record_found) {
 
-                        // Use original data record to get datatype template group
-                        $template_group = $data_record->getDataType()->getTemplateGroup();
-
-                        // Find correct type in group by template_uuid
-                        /** @var DataType $master_data_type */
-                        $master_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                            array(
-                                'unique_id' => $record['template_uuid']
-                            )
-                        );
-
                         /** @var DataType $record_data_type */
                         $record_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                             array(
-                                'masterDataType' => $master_data_type->getId(),
-                                'template_group' => $template_group
+                                'unique_id' => $record['database_uuid']
                             )
                         );
 
@@ -4313,83 +4332,107 @@ class APIController extends ODRCustomController
                             $is_link = true;
                         }
 
+                        // If the record has a record_uuid, we just need to make the link
+                        if($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
+                            print 'A LINK HAS BEEN ADDED';
+                            /** @var DataRecord $data_record */
+                            $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                                array(
+                                    'unique_id' => $record['record_uuid']
+                                )
+                            );
 
-                        /** @var UUIDService $uuid_service */
-                        $uuid_service = $this->container->get('odr.uuid_service');
+                            if (is_null($linked_data_record))
+                                throw new ODRNotFoundException('DataRecord');
 
-                        // TODO Check if user can create record in DataType
-                        /** @var DataRecord $new_record */
-                        $new_record = new DataRecord();
-                        $new_record->setDataType($record_data_type);
-                        if(isset($record['created'])) {
-                            $new_record->setCreated(new \DateTime($record['created']));
-                            $new_record->setUpdated(new \DateTime($record['created']));
-                        }
-                        else {
-                            $new_record->setCreated(new \DateTime());
-                            $new_record->setUpdated(new \DateTime());
-                        }
-                        $new_record->setCreatedBy($user);
-                        $new_record->setUpdatedBy($user);
-                        $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
-                        $new_record->setProvisioned(0);
-
-                        if ($is_link) {
-                            $new_record->setParent($new_record);
-                            $new_record->setGrandparent($new_record);
-                        } else {
-                            $new_record->setParent($data_record);
-                            $new_record->setGrandparent($data_record->getGrandparent());
-                        }
-
-                        /** @var DataRecordMeta $new_record_meta */
-                        $new_record_meta = new DataRecordMeta();
-                        $new_record_meta->setCreatedBy($user);
-                        $new_record_meta->setUpdatedBy($user);
-                        if(isset($record['created'])) {
-                            $new_record_meta->setCreated(new \DateTime($record['created']));
-                            $new_record_meta->setUpdated(new \DateTime($record['created']));
-                        }
-                        else {
-                            $new_record_meta->setCreated(new \DateTime());
-                            $new_record_meta->setUpdated(new \DateTime());
-                        }
-                        $new_record_meta->setDataRecord($new_record);
-                        // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
-                        if(isset($record['public_date'])) {
-                            $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
-                        }
-                        else {
-                            $new_record_meta->setPublicDate(new \DateTime());
-                        }
-
-                        // Need to persist and flush
-                        $em->persist($new_record);
-                        $em->persist($new_record_meta);
-                        $em->flush();
-                        $em->refresh($new_record);
-
-                        if ($is_link) {
                             /** @var EntityCreationService $ec_service */
                             $ec_service = $this->container->get('odr.entity_creation_service');
-                            $ec_service->createDatarecordLink($user, $data_record, $new_record);
+                            $ec_service->createDatarecordLink($user, $data_record, $linked_data_record);
+
+                            // TODO - Should we allow changes to the record here - not practical I think
+                            $dataset['records'][$i] = $record;
+
                         }
+                        else if(!$is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
+                            throw new ODRBadRequestException('New child records (non-linked) can not have pre-existing UUIDs.');
+                        } else {
+
+                            /** @var UUIDService $uuid_service */
+                            $uuid_service = $this->container->get('odr.uuid_service');
+
+                            // TODO Check if user can create record in DataType
+                            /** @var DataRecord $new_record */
+                            $new_record = new DataRecord();
+                            $new_record->setDataType($record_data_type);
+                            if (isset($record['created'])) {
+                                $new_record->setCreated(new \DateTime($record['created']));
+                                $new_record->setUpdated(new \DateTime($record['created']));
+                            } else {
+                                $new_record->setCreated(new \DateTime());
+                                $new_record->setUpdated(new \DateTime());
+                            }
+                            $new_record->setCreatedBy($user);
+                            $new_record->setUpdatedBy($user);
+                            $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
+                            $new_record->setProvisioned(0);
+
+                            if ($is_link) {
+                                $new_record->setParent($new_record);
+                                $new_record->setGrandparent($new_record);
+                            } else {
+                                $new_record->setParent($data_record);
+                                $new_record->setGrandparent($data_record->getGrandparent());
+                            }
+
+                            /** @var DataRecordMeta $new_record_meta */
+                            $new_record_meta = new DataRecordMeta();
+                            $new_record_meta->setCreatedBy($user);
+                            $new_record_meta->setUpdatedBy($user);
+                            if (isset($record['created'])) {
+                                $new_record_meta->setCreated(new \DateTime($record['created']));
+                                $new_record_meta->setUpdated(new \DateTime($record['created']));
+                            } else {
+                                $new_record_meta->setCreated(new \DateTime());
+                                $new_record_meta->setUpdated(new \DateTime());
+                            }
+                            $new_record_meta->setDataRecord($new_record);
+                            // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
+                            if (isset($record['public_date'])) {
+                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
+                            } else {
+                                $new_record_meta->setPublicDate(new \DateTime());
+                            }
+
+                            // Need to persist and flush
+                            $em->persist($new_record);
+                            $em->persist($new_record_meta);
+                            $em->flush();
+                            $em->refresh($new_record);
+
+                            if ($is_link) {
+                                /** @var EntityCreationService $ec_service */
+                                $ec_service = $this->container->get('odr.entity_creation_service');
+                                $ec_service->createDatarecordLink($user, $data_record, $new_record);
+                            }
+
+                            // Populate the UUID of the newly added record
+                            $record['record_uuid'] = $new_record->getUniqueId();
+                            $record['internal_id'] = $new_record->getId();
+                            $record['updated_at'] = $new_record->getUpdated()->format('Y-m-d H:i:s');
+                            $record['created_at'] = $new_record->getCreated()->format('Y-m-d H:i:s');
+                            if(!isset($record['database_uuid'])) {
+                                $record['database_uuid'] = $record_data_type->getUniqueId();
+                            }
+
+                            // Difference with null
+                            $null_record = false;
+                            $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
+                        }
+
 
                         // Mark Changed
                         $changed = true;
 
-                        // Populate the UUID of the newly added record
-                        $record['record_uuid'] = $new_record->getUniqueId();
-                        $record['internal_id'] = $new_record->getId();
-                        $record['updated_at'] = $new_record->getUpdated()->format('Y-m-d H:i:s');
-                        $record['created_at'] = $new_record->getCreated()->format('Y-m-d H:i:s');
-                        if(!isset($record['database_uuid'])) {
-                            $record['database_uuid'] = $record_data_type->getUniqueId();
-                        }
-
-                        // Difference with null
-                        $null_record = false;
-                        $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
 
                     }
                 }
