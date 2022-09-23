@@ -1450,7 +1450,7 @@ class APIController extends ODRCustomController
 
                     // Determine field type
                     $data_field = null;
-                    if($field['template_field_uuid'] !== null) {
+                    if(isset($field['template_field_uuid']) && $field['template_field_uuid'] !== null) {
                         /** @var DataFields $data_field */
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
@@ -2218,7 +2218,9 @@ class APIController extends ODRCustomController
                                 if (isset($o_field['value']) && !is_array($o_field['value'])
                                     && (
                                         (
-                                            $o_field['template_field_uuid'] !== null
+                                            isset($o_field['template_field_uuid'])
+                                            && isset($field['template_field_uuid'])
+                                            && $o_field['template_field_uuid'] !== null
                                             && $o_field['template_field_uuid'] == $field['template_field_uuid']
                                         )
                                         || (
@@ -2557,7 +2559,7 @@ class APIController extends ODRCustomController
 
                     // Determine field type
                     $data_field = null;
-                    if($field['template_field_uuid'] !== null) {
+                    if(isset($field['template_field_uuid']) && $field['template_field_uuid'] !== null) {
                         /** @var DataFields $data_field */
                         $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
@@ -2977,7 +2979,7 @@ class APIController extends ODRCustomController
                                 foreach ($selected_options as $option) {
                                     $found = false;
                                     foreach ($orig_selected_options as $o_option) {
-                                        if ($option == $o_option) {
+                                        if ($option['template_radio_option_uuid'] == $o_option['template_radio_option_uuid']) {
                                             $found = true;
                                         }
                                     }
@@ -2994,7 +2996,7 @@ class APIController extends ODRCustomController
                                 foreach ($orig_selected_options as $o_option) {
                                     $found = false;
                                     foreach ($selected_options as $option) {
-                                        if ($option == $o_option) {
+                                        if ($option['template_radio_option_uuid'] == $o_option['template_radio_option_uuid']) {
                                             $found = true;
                                         }
                                     }
@@ -3045,7 +3047,6 @@ class APIController extends ODRCustomController
                                         array(
                                             'radioOptionUuid' => $option_uuid,
                                             'dataField' => $data_field->getId()
-
                                         )
                                     );
 
@@ -3559,7 +3560,7 @@ class APIController extends ODRCustomController
                                 foreach ($selected_options as $option) {
                                     $found = false;
                                     foreach ($orig_selected_options as $o_option) {
-                                        if ($option == $o_option) {
+                                        if ($option['template_radio_option_uuid'] == $o_option['template_radio_option_uuid']) {
                                             $found = true;
                                         }
                                     }
@@ -3578,7 +3579,7 @@ class APIController extends ODRCustomController
                                 foreach ($orig_selected_options as $o_option) {
                                     $found = false;
                                     foreach ($selected_options as $option) {
-                                        if ($option == $o_option) {
+                                        if ($option['template_radio_option_uuid'] == $o_option['template_radio_option_uuid']) {
                                             $found = true;
                                         }
                                     }
@@ -3939,7 +3940,9 @@ class APIController extends ODRCustomController
                                 if (isset($o_field['value']) && !is_array($o_field['value'])
                                     && (
                                         (
-                                            $o_field['template_field_uuid'] !== null
+                                            isset($o_field['template_field_uuid'])
+                                            && isset($field['template_field_uuid'])
+                                            && $o_field['template_field_uuid'] !== null
                                             && $o_field['template_field_uuid'] == $field['template_field_uuid']
                                         )
                                         || (
@@ -4383,6 +4386,7 @@ class APIController extends ODRCustomController
 
                             // TODO - Should we allow changes to the record here - not practical I think
                             $dataset['records'][$i] = $record;
+                            // $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
 
                         }
                         else if(!$is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
@@ -4623,16 +4627,7 @@ class APIController extends ODRCustomController
                 $record = json_decode($record, true);
             }
 
-            // User to act as for changes
-            // Need to check permissions on each elemen
-            $user_manager = $this->container->get('fos_user.user_manager');
-            // TODO fix this to use API Credential
-            $user = $user_manager->findUserBy(array('email' => $user_email));
-            if (is_null($user))
-                throw new ODRNotFoundException('User');
-
             // Generate internal ids or database uuids as needed
-            // TODO Incorporate actual user here for permissions
             $changed = false;
 
             // datasetDiff Processes the record and adds updates, etc.
@@ -4679,7 +4674,7 @@ class APIController extends ODRCustomController
             return $response;
 
         } catch (\Exception $e) {
-            $source = 0x89adf33e;
+            $source = 0x388847de;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -5689,7 +5684,7 @@ class APIController extends ODRCustomController
             // Determine field type
             /** @var DataFields $data_field */
             $data_field = null;
-            if(!empty($data['template_field_uuid'])) {
+            if(isset($data['template_field_uuid']) && !empty($data['template_field_uuid'])) {
                 $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                     array(
                         'templateFieldUuid' => $data['template_field_uuid'],
