@@ -5792,8 +5792,6 @@ class APIController extends ODRCustomController
                         $tmp_path_prefix = $this->getParameter('uploaded_files_path').'/';
                         $tmp_file = $$tmp_path_prefix.$destination_folder.'/'.$tmp_filename;
                         $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
-
-
                     }
                     else {
                         $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
@@ -5826,15 +5824,14 @@ class APIController extends ODRCustomController
                                 $drf
                             );
 
-
                             /*
-                            $file_obj = parent::finishUpload(
-                                $em,
-                                $destination_folder,
-                                $original_filename,
-                                $user->getId(),
-                                $drf->getId()
-                            );
+                                $file_obj = parent::finishUpload(
+                                    $em,
+                                    $destination_folder,
+                                    $original_filename,
+                                    $user->getId(),
+                                    $drf->getId()
+                                );
                             */
 
                             // set file public status to match field public status
@@ -5924,6 +5921,9 @@ class APIController extends ODRCustomController
                             }
                             else {
                                 $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            }
+                            if(isset($data['display_order'])) {
+                                $file_meta->setDisplayorder($data['display_order']);
                             }
                             $em->persist($file_meta);
 
@@ -6963,17 +6963,14 @@ class APIController extends ODRCustomController
                 throw new ODRForbiddenException();
             }
 
-            // Users can create their own accounts, but cannot create accounts
-            // on behalf of other users unless super-admin
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
             // Check if user exists & throw user not found error
             // Save which user started this creation process
             // Any user can create a dataset as long as they exist
             // No need to do further permissions checks.
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
-            $user = $user_manager->findUserBy(array('email' => $user_email));
-
             /** @var FOSUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user)) {
@@ -6987,12 +6984,28 @@ class APIController extends ODRCustomController
                 $user->setEnabled(1);
                 $user_manager->updateUser($user);
 
-                // TODO - how to input first and last name
+            }
+            else {
+                // Undelete User if needed
+                $user->setEnabled(1);
+                $user_manager->updateUser($user);
 
+
+                $filter = $em->getFilters()->enable('softdeleteable');
+                $filter->disableForEntity(UserGroup::class);
+
+                $user_groups = $em->getRepository('ODRAdminBundle:UserGroup')
+                    ->findBy(array('user' => $user->getId()));
+
+                foreach($user_groups as $group) {
+                    $group->setDeletedAt(null);
+                    $group->setDeletedBy(null);
+                    $em->persist($group);
+                }
+
+                $em->flush();
             }
 
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
 
             /** @var DataType $datatype */
             /*
