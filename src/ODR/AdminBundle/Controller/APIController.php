@@ -2342,7 +2342,7 @@ class APIController extends ODRCustomController
                                 $record_found = true;
                                 // Check for differences
                                 // Permissions will be implicit here
-                                $dataset['records'][$i] = self::datasetDiff($record, $o_record, $user, false, $changed);
+                                $dataset['records'][$i] = self::checkUpdatePermissions($record, $o_record, $user, false, $changed);
                             }
                         }
                     }
