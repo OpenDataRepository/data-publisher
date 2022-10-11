@@ -153,15 +153,14 @@ class TagHelperService
 
 
     /**
-     * Takes the given array of tag selections and returns an array that is guaranteed to have only
-     * leaf tags in it...non-leaf tags pass their desired selection value down to their children. In
-     * the case that both an ancestor tag and any of its descendants are defined in the given array,
-     * the value defined for the descendant has priority.
+     * Takes the given array of tag selections and returns an array that also contains all children
+     * of the given tags.  Tags which aren't already bottom-level pass their currently "selected"
+     * value down to their children, but any defined values for the child tags take priority.
      *
-     * As an example, assume there's a tag structure of  Country => State/Provice => City.
+     * As an example, assume there's a tag structure of  Country => State/Province => City.
      * If the given array defined a value of 1 for a Country and a value of 0 for a City within that
-     * Country, then that City would still have a value of 0, while every other City would have a
-     * value of 1.
+     * Country...then in the returned array, that City would still have a value of 0, while every
+     * other City in the Country would have a value of 1.
      *
      * This theory works on both single datafield and template datafield searches.
      *
@@ -212,15 +211,7 @@ class TagHelperService
             }
         }
 
-        // Copy the values for just the leaf tags into another array, and return it
-        // Because $tag_tree isn't stacked, this will filter out top-level and mid-level tags
-        $leaf_selections = array();
-        foreach ($selections as $t_id => $val) {
-            if ( !isset($tag_tree[$t_id]) )
-                $leaf_selections[$t_id] = $val;
-        }
-
-        return $leaf_selections;
+        return $selections;
     }
 
 

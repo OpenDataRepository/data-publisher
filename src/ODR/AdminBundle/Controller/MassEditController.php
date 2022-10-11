@@ -52,7 +52,6 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
@@ -876,8 +875,6 @@ class MassEditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var TagHelperService $th_service */
-            $th_service = $this->container->get('odr.tag_helper_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -986,21 +983,33 @@ class MassEditController extends ODRCustomController
                     $tag_selections[ $ts->getTag()->getId() ] = $ts;
                 /** @var TagSelection[] $tag_selections */
 
-                // Ensure that the given array only contains leaf-level tags
-                $leaf_selections = $th_service->expandTagSelections($datafield, $value);
-
                 // Set tag_selection objects to the desired state
-                foreach ($leaf_selections as $tag_id => $selected) {
-                    // Ensure a TagSelection entity exists
-                    /** @var Tags $tag */
-                    $tag = $repo_tag->find($tag_id);
-                    $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+                foreach ($value as $tag_id => $selected) {
+                    if ( isset($tag_selections[$tag_id]) && $tag_selections[$tag_id]->getSelected() != $selected ) {
+                        // Ensure the TagSelection has the correct value
+                        $tag_selection = $tag_selections[$tag_id];
 
-                    // Ensure it has the correct selected value
-                    $properties = array('selected' => $selected);
-                    $emm_service->updateTagSelection($user, $tag_selection, $properties);
+                        $properties = array('selected' => $selected);
+                        $emm_service->updateTagSelection($user, $tag_selection, $properties);
 
-                    $ret .= 'setting tag_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', tag_id '.$tag_id.' to '.$selected."\n";
+                        $ret .= 'updated existing tag_selection object for tag '.$tag_id.' ("'.$tag_selection->getTag()->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
+                    }
+                    else if ( !isset($tag_selections[$tag_id]) && $selected != 0 ) {
+                        // Ensure a TagSelection entity exists
+                        /** @var Tags $tag */
+                        $tag = $repo_tag->find($tag_id);
+                        $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+
+                        // Ensure it has the correct selected value
+                        $properties = array('selected' => $selected);
+                        $emm_service->updateTagSelection($user, $tag_selection, $properties);
+
+                        $ret .= 'created new tag_selection object for tag '.$tag_id.' ("'.$tag->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
+                    }
+                    else {
+                        /* do nothing, current value in entity already matches desired value */
+                        $ret .= 'ignoring tag '.$tag_id.' of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...current value does not need to change'."\n";
+                    }
                 }
             }
             else if ($field_typeclass == 'File') {

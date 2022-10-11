@@ -256,7 +256,7 @@ class ValidUtility
 
 
     /**
-     * Flattens a stacked tag hierarchy, leaving only leaf tag ids in $available_tags
+     * Flattens a stacked tag hierarchy for areValidTags()
      *
      * @param array $tag_array
      * @param array $available_tags
@@ -264,9 +264,9 @@ class ValidUtility
     static private function getAvailableTags($tag_array, &$available_tags)
     {
         foreach ($tag_array as $tag_id => $tag) {
-            if ( !isset($tag['children']) )
-                $available_tags[$tag_id] = 0;
-            else
+            $available_tags[$tag_id] = 0;
+
+            if ( isset($tag['children']) )
                 self::getAvailableTags($tag['children'], $available_tags);
         }
     }

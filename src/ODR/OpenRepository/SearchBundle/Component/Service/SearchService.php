@@ -389,7 +389,7 @@ class SearchService
         // In order for caching to work, any non-leaf tags in the tag selections list need to get
         //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
         $use_tag_uuids = false;
-        $leaf_selections = $this->th_service->expandTagSelections($datafield, $selections, $use_tag_uuids);
+        $all_tag_selections = $this->th_service->expandTagSelections($datafield, $selections, $use_tag_uuids);
 
 
         // Otherwise, probably going to need to run searches again...
@@ -405,7 +405,7 @@ class SearchService
             $datarecord_list[$dr_id] = 1;
 
 
-        foreach ($leaf_selections as $tag_id => $value) {
+        foreach ($all_tag_selections as $tag_id => $value) {
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_tag_'.$tag_id);
             if ( !$result )
@@ -519,14 +519,14 @@ class SearchService
         // In order for caching to work, any non-leaf tags in the tag selections list need to get
         //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
         $use_tag_uuids = true;
-        $leaf_selections = $this->th_service->expandTagSelections($template_datafield, $selections, $use_tag_uuids);
+        $all_tag_selections = $this->th_service->expandTagSelections($template_datafield, $selections, $use_tag_uuids);
 
 
         // Otherwise, probably going to need to run searches again...
         $end_result = null;
         $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
 
-        if ( count($leaf_selections) === 0 ) {
+        if ( count($all_tag_selections) === 0 ) {
             // ...if no selections got passed into this function, then we need to create and return
             //  a result where nothing matched.  This works regardless of the reason behind the
             //  "no selections" being a general search that didn't match anything, or a search on
@@ -534,7 +534,7 @@ class SearchService
             return $this->search_query_service->searchEmptyTagTemplateDatafield($datarecord_list, $template_datafield->getId());
         }
 
-        foreach ($leaf_selections as $tag_uuid => $value) {
+        foreach ($all_tag_selections as $tag_uuid => $value) {
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_template_tag_'.$tag_uuid);
             if ( !$result )

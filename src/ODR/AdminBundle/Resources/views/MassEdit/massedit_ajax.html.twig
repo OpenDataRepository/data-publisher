@@ -214,87 +214,28 @@ function initPage() {
     // tag Tristate checkbox
     $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
         // Grab data about the tag being clicked
-        var tag_item = $(this).parent().parent();
+        var icon_div = $(this).children('i').first();
+        var input_div = $(this).children('input').first();
 
-        // If any item is clicked, it'll set all children to selected/unselected...so immediately
-        //  remove the partial class
-        $(this).children('i').first().removeClass('partial');
-
-        if ( $(this).children('i').first().hasClass('fa-check') ) {
-            // Currently selected, change this tag and all its children to deselected
-            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                // Don't change title attribute of a non-leaf tag
-                if ( !$(element).hasClass('ODRSearchParentTag') )
-                    $(element).attr('title', 'Search for Datarecords where this tag is unselected');
-
-                $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
-                $(element).children('input').first().val(0);
-            });
+        if ( $(icon_div).hasClass('fa-check') ) {
+            // Currently "selected", change this tag to "deselected"
+            $(this).attr('title', 'Deselect this tag in all records that match the search');
+            $(icon_div).removeClass('fa-check').addClass('fa-ban');
+            $(input_div).val(0);
         }
-        else if ( $(this).children('i').first().hasClass('fa-ban') ) {
-            // Currently deselected, change this tag and all its children to blank
-            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                $(element).removeAttr('title');
-
-                $(element).children('i').first().removeClass('fa-ban');
-                $(element).children('input').first().val('');
-            });
+        else if ( $(icon_div).hasClass('fa-ban') ) {
+            // Currently "deselected", change this tag to "blank"
+            $(this).removeAttr('title');
+            $(icon_div).removeClass('fa-ban');
+            $(input_div).val('');
         }
         else {
-            // Currently blank, change this tag and all its children to selected
-            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                // Don't change title attribute of a non-leaf tag
-                if ( !$(element).hasClass('ODRSearchParentTag') )
-                    $(element).attr('title', 'Search for Datarecords where this tag is selected');
-
-                $(element).children('i').first().addClass('fa-check');
-                $(element).children('input').first().val(1);
-            });
+            // Currently "blank", change this tag to "selected"
+            $(this).attr('title', 'Select this tag in all records that match the search');
+            $(icon_div).addClass('fa-check');
+            $(input_div).val(1);
         }
-
-        applyToTagParents( $(tag_item) );
     });
-}
-
-/**
- * Selections made to a tag element need to also trigger visual updates for parents of the tag.
- * @param {HTMLElement} source_element
- */
-function applyToTagParents(source_element) {
-    var parent_tag = $(source_element).parent().parent().not('div');
-    if ( $(parent_tag).length === 0)
-        return;
-
-    // $(parent_tag) should be a <li class="ODRTagItem"> element
-    var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
-
-    var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
-    var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
-    var total_count = $(parent_tag).children('ul').find('.fa').length;
-
-    if (selected_count === 0 && unselected_count === 0) {
-        // No children selected, so this one should be unselected too
-        $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
-    }
-    else if (selected_count === total_count) {
-        // All children selected, so this one should be selected too
-        $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
-    }
-    else if (unselected_count === total_count) {
-        // All children selected, so this one should be selected too
-        $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
-    }
-    else if (selected_count > 0) {
-        // Some children selected, so this one should be partially selected
-        $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
-    }
-    else if (unselected_count > 0) {
-        // No children are selected, but at least one child is unselected...so this one
-        //  should be partially unselected
-        $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
-    }
-
-    applyToTagParents( $(parent_tag) );
 }
 
 /**
@@ -392,7 +333,7 @@ function doMassUpdate() {
         var datafield_id = $(this).attr('name');
         var item_id = $(this).attr('rel');
 
-        if ( $(this).is(':disabled') || $(this).hasClass('ODRSearchParentTag') )
+        if ( $(this).is(':disabled') /*|| $(this).hasClass('ODRSearchParentTag') */)
             return;
 
         // Remove any value for this datafield currently stored in the form

@@ -54,43 +54,6 @@
         }
     });
 
-    function applyToTagParents(source_element) {
-        var parent_tag = $(source_element).parent().parent().not('div');
-        if ( $(parent_tag).length === 0)
-            return;
-
-        // $(parent_tag) should be a <li class="ODRTagItem"> element
-        var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
-
-        var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
-        var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
-        var total_count = $(parent_tag).children('ul').find('.fa').length;
-
-        if (selected_count === 0 && unselected_count === 0) {
-            // No children selected, so this one should be unselected too
-            $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
-        }
-        else if (selected_count === total_count) {
-            // All children selected, so this one should be selected too
-            $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
-        }
-        else if (unselected_count === total_count) {
-            // All children selected, so this one should be selected too
-            $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
-        }
-        else if (selected_count > 0) {
-            // Some children selected, so this one should be partially selected
-            $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
-        }
-        else if (unselected_count > 0) {
-            // No children are selected, but at least one child is unselected...so this one
-            //  should be partially unselected
-            $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
-        }
-
-        applyToTagParents( $(parent_tag) );
-    }
-
     function changeSearch() {
         if ($("#search_type").val() === 'basic') {
             // Show all advanced search datafields
@@ -171,7 +134,7 @@
             var first_selection = true;
             var has_selections = false;
 
-            $(this).find('input').not('.ODRSearchParentTag').each(function () {
+            $(this).find('input')/*.not('.ODRSearchParentTag')*/.each(function () {
                 // Grab the tag
                 var value = $(this).val().trim();
                 if (value == '')
