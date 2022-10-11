@@ -1274,15 +1274,21 @@ class ReportsController extends ODRCustomController
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
             // Don't need to check user's permissions
+
+            // Need a user id for the temp directory to work...
+            $user_id = null;
+            if ($user == null || $user === 'anon.')
+                $user_id = 0;
+            else
+                $user_id = $user->getId();
             // ----------------------------------------
 
             // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
             if ( file_exists($archive_filepath) ) {
                 // Load the number of files currently in the archive
                 $zip_archive = new \ZipArchive();
