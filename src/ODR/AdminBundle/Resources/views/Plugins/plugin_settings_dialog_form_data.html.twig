@@ -40,9 +40,9 @@
                         <td>{{ rpf.description }}</td>
                         <td>
                             <select id="plugin_fieldtype_{{ rpf_id }}" class="ODRRenderPluginFieldtype" name="plugin_fieldtypes[{{ rpf_id }}]">
-                                {% for ft_id,typeClass in all_fieldtypes %}
+                                {% for typeClass,ft_id in all_fieldtypes %}
                                     {% if ft_id in allowed_fieldtypes[rpf_id] %}
-                                        <option value="{{ ft_id }}">{{ typeClass }}</option>
+                                        <option value="{{ ft_id }}">{{ typeClass }}</option>    {# TODO - something to prefer a specific fieldtype? #}
                                     {% endif %}
                                 {% endfor %}
                             </select>

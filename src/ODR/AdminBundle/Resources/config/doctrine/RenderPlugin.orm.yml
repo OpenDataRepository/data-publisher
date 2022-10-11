@@ -16,7 +16,7 @@ ODR\AdminBundle\Entity\RenderPlugin:
 
         pluginName:
             type: string
-            length: 32
+            length: 64
             fixed: false
             nullable: false
             column: plugin_name

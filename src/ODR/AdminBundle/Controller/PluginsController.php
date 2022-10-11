@@ -101,6 +101,13 @@ class PluginsController extends ODRCustomController
             if ( $can_be_unique )
                 $unique_fieldtypes[$typeclass] = 1;
         }
+        // Also need better differentiation of the Radio typeclass...
+        unset( $all_fieldtypes['Radio'] );
+        $all_fieldtypes['Single Radio'] = 1;
+        $all_fieldtypes['Single Select'] = 1;
+        $all_fieldtypes['Multiple Radio'] = 1;
+        $all_fieldtypes['Multiple Select'] = 1;
+
         $all_fieldtypes = array_keys($all_fieldtypes);
         $unique_fieldtypes = array_keys($unique_fieldtypes);
 
@@ -526,14 +533,39 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         // Going to need to be able to convert typeclasses into fieldtype ids
         $query = $em->createQuery(
-           'SELECT ft.id AS ft_id, ft.typeClass AS type_class
-            FROM ODRAdminBundle:FieldType AS ft'
+           'SELECT ft.id, ft.typeName, ft.typeClass
+            FROM ODRAdminBundle:FieldType AS ft
+            WHERE ft.deletedAt IS NULL'
         );
         $results = $query->getArrayResult();
 
+        // In addition to needing the fieldtype id for all fieldtypes...
         $all_fieldtypes = array();
-        foreach ($results as $result)
-            $all_fieldtypes[ $result['ft_id'] ] = $result['type_class'];
+
+        $single_select_fieldtypes = array();
+        $multiple_select_fieldtypes = array();
+
+        foreach ($results as $result) {
+            $ft_id = $result['id'];
+            $typename = $result['typeName'];
+            $typeclass = $result['typeClass'];
+
+            if ( $typeclass !== 'Radio' ) {
+                // This is not a "radio" fieldtype
+                $all_fieldtypes[$ft_id] = $typeclass;
+            }
+            else {
+                // This is a "radio" fieldtype...
+                $all_fieldtypes[$ft_id] = $typename;
+
+                // ...also need to consider "Single Radio" as equivalent to "Single Select", and the
+                //  same thing for the "Multiple" radio/select fieldtypes
+                if ( strpos($typename, 'Single') !== false )
+                    $single_select_fieldtypes[$ft_id] = $typename;
+                else
+                    $multiple_select_fieldtypes[$ft_id] = $typename;
+            }
+        }
 
 
         // ----------------------------------------
@@ -592,11 +624,23 @@ class PluginsController extends ODRCustomController
 
                 // allowedFieldtypes are stored as a comma-separated list in the database
                 $ft_ids = explode(',', $rpf['allowedFieldtypes']);
-                foreach ($ft_ids as $ft_id)
-                    $allowed_fieldtypes[] = $all_fieldtypes[$ft_id];
-                sort($allowed_fieldtypes);
+                foreach ($ft_ids as $ft_id) {
+                    if ( isset($single_select_fieldtypes[$ft_id]) ) {
+                        foreach ($single_select_fieldtypes as $num => $typename)
+                            $allowed_fieldtypes[$typename] = 1;
+                    }
+                    else if ( isset($multiple_select_fieldtypes[$ft_id]) ) {
+                        foreach ($multiple_select_fieldtypes as $num => $typename)
+                            $allowed_fieldtypes[$typename] = 1;
+                    }
+                    else {
+                        $allowed_fieldtypes[ $all_fieldtypes[$ft_id] ] = 1;
+                    }
+                }
+                $allowed_fieldtypes = array_keys($allowed_fieldtypes);
 
                 // properties are stored in individual database fields, but need to be in an array
+                //  for the diff check to work
                 if ( $rpf['must_be_unique'] )
                     $properties[] = 'must_be_unique';
                 if ( $rpf['single_uploads_only'] )
@@ -620,6 +664,19 @@ class PluginsController extends ODRCustomController
                 foreach ($plugin_config['required_fields'] as $key => $data) {
                     $fieldname = $data['name'];
                     $config_fieldtypes = explode('|', $data['type']);
+
+                    // Need to ensure that "Single Radio" also means "Single Select", and vice versa
+                    // ...and the same for the "Multiple" flavors of those fieldtypes
+                    $config_fieldtypes = array_flip($config_fieldtypes);
+                    if ( isset($config_fieldtypes['Single Radio']) || isset($config_fieldtypes['Single Select']) ) {
+                        $config_fieldtypes['Single Radio'] = 1;
+                        $config_fieldtypes['Single Select'] = 1;
+                    }
+                    else if ( isset($config_fieldtypes['Multiple Radio']) || isset($config_fieldtypes['Multiple Select']) ) {
+                        $config_fieldtypes['Multiple Radio'] = 1;
+                        $config_fieldtypes['Multiple Select'] = 1;
+                    }
+                    $config_fieldtypes = array_keys($config_fieldtypes);
 
                     // rpf entries aren't required to have these additional restrictions
                     $config_properties = array();
@@ -852,7 +909,8 @@ class PluginsController extends ODRCustomController
         $query = $em->createQuery(
            'SELECT partial rp.{id, pluginName, pluginClassName, plugin_type},
                 partial rpi.{id}, partial rpm.{id}, partial rpf.{id, fieldName},
-                partial df.{id}, partial dfm.{id, fieldName, is_unique, allow_multiple_uploads}, partial ft.{id, typeClass},
+                partial df.{id}, partial dfm.{id, fieldName, is_unique, allow_multiple_uploads},
+                partial ft.{id, typeClass, typeName},
                 partial dt.{id}, partial dtm.{id, shortName}, partial gdt.{id}
 
             FROM ODRAdminBundle:RenderPlugin rp
@@ -1066,8 +1124,13 @@ class PluginsController extends ODRCustomController
                         'fieldName' => $dfm['fieldName'],
                         'is_unique' => $dfm['is_unique'],
                         'allow_multiple_uploads' => $dfm['allow_multiple_uploads'],
-                        'typeClass' => $dfm['fieldType']['typeClass'],
                     );
+
+                    // Need to differentiate between the four different types of Radio fields...
+                    if ( $dfm['fieldType']['typeClass'] === 'Radio' )
+                        $mapped_datafields[$df_id]['typeClass'] = $dfm['fieldType']['typeName'];
+                    else
+                        $mapped_datafields[$df_id]['typeClass'] = $dfm['fieldType']['typeClass'];
                 }
             }
         }
@@ -1127,6 +1190,41 @@ class PluginsController extends ODRCustomController
             $available_plugins = self::getAvailablePlugins($em, $plugin_classname);
             if ( !isset($available_plugins[$plugin_classname]) )
                 throw new ODRBadRequestException('Unable to install a non-existant RenderPlugin');
+
+
+            // ----------------------------------------
+            // Most plugins have required fields, so most likely going to need a list of fieldtypes
+            $query = $em->createQuery(
+               'SELECT ft.id, ft.typeName, ft.typeClass
+                FROM ODRAdminBundle:FieldType AS ft
+                WHERE ft.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $all_fieldtypes = array();
+            $single_select_fieldtypes = array();
+            $multiple_select_fieldtypes = array();
+            foreach ($results as $result) {
+                $ft_id = $result['id'];
+                $typename = $result['typeName'];
+                $typeclass = $result['typeClass'];
+
+                if ( $typeclass !== 'Radio' ) {
+                    // This is not a "radio" fieldtype
+                    $all_fieldtypes[$typeclass] = $ft_id;
+                }
+                else {
+                    // This is a "radio" fieldtype...
+                    $all_fieldtypes[$typename] = $ft_id;
+
+                    // ...also need to consider "Single Radio" as equivalent to "Single Select", and the
+                    //  same thing for the "Multiple" radio/select fieldtypes
+                    if ( strpos($typename, 'Single') !== false )
+                        $single_select_fieldtypes[$ft_id] = $typename;
+                    else
+                        $multiple_select_fieldtypes[$ft_id] = $typename;
+                }
+            }
 
 
             // ----------------------------------------
@@ -1203,18 +1301,29 @@ class PluginsController extends ODRCustomController
                             $rpf->setIsDerived(true);
                     }
 
-                    $allowed_fieldtypes = array();
-                    $typeclasses = explode('|', $data['type']);
-                    foreach ($typeclasses as $typeclass) {
-                        $query = $em->createQuery(
-                           'SELECT ft.id AS fieldtype_id
-                            FROM ODRAdminBundle:FieldType AS ft
-                            WHERE ft.typeClass = :type_class'
-                        )->setParameters(array('type_class' => $typeclass));
-                        $sub_result = $query->getArrayResult();
+                    // Convert the fieldtypes listed in the plugin's config file into fieldtype ids
+                    $config_fieldtypes = explode('|', $data['type']);
 
-                        $allowed_fieldtypes[] = $sub_result[0]['fieldtype_id'];
+                    $allowed_fieldtypes = array();
+                    foreach ($config_fieldtypes as $config_fieldtype) {
+                        $ft_id = $all_fieldtypes[$config_fieldtype];
+
+                        if ( isset($single_select_fieldtypes[$ft_id]) ) {
+                            // Need to ensure "Single Radio" === "Single Select"
+                            foreach ($single_select_fieldtypes as $id => $name)
+                                $allowed_fieldtypes[$id] = 1;
+                        }
+                        else if ( isset($multiple_select_fieldtypes[$ft_id]) ) {
+                            // Need to ensure "Multiple Radio" === "Multiple Select"
+                            foreach ($multiple_select_fieldtypes as $id => $name)
+                                $allowed_fieldtypes[$id] = 1;
+                        }
+                        else {
+                            // All other entries in the config file only apply to a single fieldtype
+                            $allowed_fieldtypes[$ft_id] = 1;
+                        }
                     }
+                    $allowed_fieldtypes = array_keys($allowed_fieldtypes);
                     $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes) );
 
                     $render_plugin->addRenderPluginField($rpf);
@@ -1509,6 +1618,41 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Most plugins have required fields, so most likely going to need a list of fieldtypes
+            $query = $em->createQuery(
+                'SELECT ft.id, ft.typeName, ft.typeClass
+                FROM ODRAdminBundle:FieldType AS ft
+                WHERE ft.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $all_fieldtypes = array();
+            $single_select_fieldtypes = array();
+            $multiple_select_fieldtypes = array();
+            foreach ($results as $result) {
+                $ft_id = $result['id'];
+                $typename = $result['typeName'];
+                $typeclass = $result['typeClass'];
+
+                if ( $typeclass !== 'Radio' ) {
+                    // This is not a "radio" fieldtype
+                    $all_fieldtypes[$typeclass] = $ft_id;
+                }
+                else {
+                    // This is a "radio" fieldtype...
+                    $all_fieldtypes[$typename] = $ft_id;
+
+                    // ...also need to consider "Single Radio" as equivalent to "Single Select", and the
+                    //  same thing for the "Multiple" radio/select fieldtypes
+                    if ( strpos($typename, 'Single') !== false )
+                        $single_select_fieldtypes[$ft_id] = $typename;
+                    else
+                        $multiple_select_fieldtypes[$ft_id] = $typename;
+                }
+            }
+
+
+            // ----------------------------------------
             // Update the existing RenderPlugin entry from the config file data
             $render_plugin->setPluginName( $plugin_data['name'] );
             $render_plugin->setDescription( $plugin_data['description'] );
@@ -1613,18 +1757,29 @@ class PluginsController extends ODRCustomController
                             $rpf->setIsDerived(true);
                     }
 
-                    $allowed_fieldtypes = array();
-                    $typeclasses = explode('|', $data['type']);
-                    foreach ($typeclasses as $typeclass) {
-                        $query = $em->createQuery(
-                           'SELECT ft.id AS fieldtype_id
-                            FROM ODRAdminBundle:FieldType AS ft
-                            WHERE ft.typeClass = :type_class'
-                        )->setParameters(array('type_class' => $typeclass));
-                        $sub_result = $query->getArrayResult();
+                    // Convert the fieldtypes listed in the plugin's config file into fieldtype ids
+                    $config_fieldtypes = explode('|', $data['type']);
 
-                        $allowed_fieldtypes[] = $sub_result[0]['fieldtype_id'];
+                    $allowed_fieldtypes = array();
+                    foreach ($config_fieldtypes as $config_fieldtype) {
+                        $ft_id = $all_fieldtypes[$config_fieldtype];
+
+                        if ( isset($single_select_fieldtypes[$ft_id]) ) {
+                            // Need to ensure "Single Radio" === "Single Select"
+                            foreach ($single_select_fieldtypes as $id => $name)
+                                $allowed_fieldtypes[$id] = 1;
+                        }
+                        else if ( isset($multiple_select_fieldtypes[$ft_id]) ) {
+                            // Need to ensure "Multiple Radio" === "Multiple Select"
+                            foreach ($multiple_select_fieldtypes as $id => $name)
+                                $allowed_fieldtypes[$id] = 1;
+                        }
+                        else {
+                            // All other entries in the config file only apply to a single fieldtype
+                            $allowed_fieldtypes[$ft_id] = 1;
+                        }
                     }
+                    $allowed_fieldtypes = array_keys($allowed_fieldtypes);
                     $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes) );
 
                     // TODO - how to handle changes to allowed_fieldtypes (and other options) when the plugin is already in use?
@@ -2223,14 +2378,36 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Going to need an array of all fieldtype entries to perform verification
             $query = $em->createQuery(
-               'SELECT ft.id, ft.typeClass
-                FROM ODRAdminBundle:FieldType ft'
+               'SELECT ft.id, ft.typeName, ft.typeClass
+                FROM ODRAdminBundle:FieldType ft
+                WHERE ft.deletedAt IS NULL'
             );
             $results = $query->getArrayResult();
 
             $all_fieldtypes = array();
-            foreach ($results as $ft)
-                $all_fieldtypes[ $ft['id'] ] = $ft['typeClass'];
+            $single_select_fieldtypes = array();
+            $multiple_select_fieldtypes = array();
+            foreach ($results as $result) {
+                $ft_id = $result['id'];
+                $typename = $result['typeName'];
+                $typeclass = $result['typeClass'];
+
+                if ( $typeclass !== 'Radio' ) {
+                    // This is not a "radio" fieldtype
+                    $all_fieldtypes[$typeclass] = $ft_id;
+                }
+                else {
+                    // This is a "radio" fieldtype...
+                    $all_fieldtypes[$typename] = $ft_id;
+
+                    // ...also need to consider "Single Radio" as equivalent to "Single Select", and the
+                    //  same thing for the "Multiple" radio/select fieldtypes
+                    if ( strpos($typename, 'Single') !== false )
+                        $single_select_fieldtypes[$ft_id] = $typename;
+                    else
+                        $multiple_select_fieldtypes[$ft_id] = $typename;
+                }
+            }
 
 
             // ----------------------------------------
@@ -2266,11 +2443,26 @@ class PluginsController extends ODRCustomController
             // Make a list of which fieldtypes each renderPluginField entry is allowed to have
             $allowed_fieldtypes = array();
             foreach ($render_plugin['renderPluginFields'] as $rpf_id => $rpf) {
-                $allowed_fieldtypes[$rpf_id] = array();
+                $config_fieldtypes = explode(',', $rpf['allowedFieldtypes']);
 
-                $tmp = explode(',', $rpf['allowedFieldtypes']);
-                foreach ($tmp as $ft_id)
-                    $allowed_fieldtypes[$rpf_id][] = intval($ft_id);
+                $tmp = array();
+                foreach ($config_fieldtypes as $config_fieldtype) {
+                    if ( isset($single_select_fieldtypes[$config_fieldtype]) ) {
+                        // Need to ensure "Single Radio" === "Single Select"
+                        foreach ($single_select_fieldtypes as $ft_id => $ft)
+                            $tmp[$ft_id] = 1;
+                    }
+                    else if ( isset($multiple_select_fieldtypes[$config_fieldtype]) ) {
+                        // Need to ensure "Multiple Radio" === "Multiple Select"
+                        foreach ($multiple_select_fieldtypes as $ft_id => $ft)
+                            $tmp[$ft_id] = 1;
+                    }
+                    else {
+                        // All other entries in the config file only apply to a single fieldtype
+                        $tmp[$config_fieldtype] = 1;
+                    }
+                }
+                $allowed_fieldtypes[$rpf_id] = array_keys($tmp);
             }
 
             // Convert the renderPluginOption choices from a string into an array
@@ -2405,7 +2597,11 @@ class PluginsController extends ODRCustomController
                 foreach ($render_plugin['renderPluginFields'] as $rpf_id => $rpf) {
                     if ( !in_array($ft_id, $allowed_fieldtypes[$rpf_id]) ) {
                         $is_illegal_render_plugin = true;
-                        $illegal_render_plugin_message = 'This Render Plugin is not compatible with a "'.$datafield->getFieldType()->getTypeClass().'" Datafield';
+
+                        if ( $datafield->getFieldType()->getTypeClass() !== 'Radio' )
+                            $illegal_render_plugin_message = 'This Render Plugin is not compatible with a "'.$datafield->getFieldType()->getTypeClass().'" Datafield';
+                        else
+                            $illegal_render_plugin_message = 'This Render Plugin is not compatible with a "'.$datafield->getFieldType()->getTypeName().'" Datafield';
                     }
                 }
             }
