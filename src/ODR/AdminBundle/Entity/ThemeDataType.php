@@ -34,8 +34,8 @@ class ThemeDataType
     // Child/linked datatype is rendered with a prepended header, and all child/linked datarecords
     //  are always visible
     const LIST_HEADER = 3;
-    // Child/linked datatype is rendered with a prepended header, followed by a row of buttons to
-    //  select the desired child/linked datarecord...
+    // Child/linked datatype is rendered without a prepended header, and just goes straight into
+    //  the themeElements.  Only allowed with single child/linked datarecords
     const NO_HEADER = 4;
 
 

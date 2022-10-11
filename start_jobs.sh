@@ -2,8 +2,10 @@
 
 #export ODR_PATH=/home/planetary
 # export XDEBUG_CONFIG="idekey=phpstorm_xdebug"
-
 #cd $ODR_PATH
+
+cd /home/odr/data-publisher
+
 php app/console odr_record:migrate >> app/logs/migrate.log 2>&1 &
 php app/console odr_record:mass_edit >> app/logs/mass_edit.log 2>&1 &
 
@@ -28,3 +30,7 @@ php app/console odr_datatype:clone_and_link_monitor >> app/logs/clone_and_link_m
 #php app/console odr_datatype:clone_datatype_preloader_monitor >> app/logs/clone_datatype_preloader_monitor.log 2>&1 &
 
 php app/console odr_datatype:sync_template >> app/logs/sync_template.log 2>&1 &
+
+cd /home/odr/data-publisher/phantomjs_server
+phantomjs phantomjs_svg_server.js >> ../app/logs/phantom.log 2>&1 &
+
