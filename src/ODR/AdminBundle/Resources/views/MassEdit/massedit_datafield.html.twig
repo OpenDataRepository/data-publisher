@@ -24,6 +24,9 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            {% if override_mass_edit_field %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% endif %}
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
             <option value="-1">&lt;&lt;No change&gt;&gt;</option>
@@ -34,7 +37,10 @@
 
     {% elseif field_typename == "File" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {#pure-u-1#}" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        {% if override_mass_edit_field %}
+        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% endif %}
         <div class="pure-u-1">
             <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Files non-public</option>
@@ -42,11 +48,15 @@
                 <option value="1">Make all Files public</option>
             </select>
         </div>
+
     </fieldset>
 
     {% elseif field_typename == "Image" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {#pure-u-1#}" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        {% if override_mass_edit_field %}
+        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% endif %}
         <div class="pure-u-1">
             <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Images non-public</option>
@@ -60,6 +70,9 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRParagraphField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
+        {% if override_mass_edit_field %}
+        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% endif %}
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <textarea class="ODRParagraphField pure-u-1" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}></textarea>
         </div>
@@ -69,6 +82,9 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
+        {% if override_mass_edit_field %}
+        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% endif %}
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <input id="Form_{{ datafield.id }}" type="text" class="ODRField pure-u-1" name="{{ input_name }}" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
@@ -78,6 +94,9 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            {% if override_mass_edit_field %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% endif %}
         </span>
         <div class="ODRSingleRadio pure-u-1" rel="{{ datafield.id }}">
             <div style="margin-left: 10px;">
@@ -110,6 +129,9 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            {% if override_mass_edit_field %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% endif %}
         </span>
 
         <select class="ODRSingleSelect" rel="{{ datafield.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
@@ -131,6 +153,9 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            {% if override_mass_edit_field %}
+            <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+            {% endif %}
 
             {% if datafield.radioOptions is defined %}
                 <div style="margin-left: 10px;">
@@ -162,6 +187,9 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>
+        {% if override_mass_edit_field %}
+        <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
+        {% endif %}
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>

@@ -277,7 +277,8 @@ class DatabaseInfoService
                 partial df_rpi.{id}, df_rpi_rp,
                 partial df_rpom.{id, value}, partial df_rpo.{id, name},
                 partial df_rpm.{id},
-                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived}
+                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived},
+                df_rpm_df
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -316,6 +317,7 @@ class DatabaseInfoService
             LEFT JOIN df_rpom.renderPluginOptionsDef AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
             LEFT JOIN df_rpm.renderPluginFields AS df_rpf
+            LEFT JOIN df_rpm.dataField AS df_rpm_df
 
             WHERE
                 dt.grandparent = :grandparent_datatype_id

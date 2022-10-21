@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Twig;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
 
 class PlugExtension extends \Twig_Extension
 {
@@ -49,6 +50,8 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('can_execute_datafield_plugin', array($this, 'canExecuteDatafieldPluginFilter')),
             new \Twig\TwigFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
             new \Twig\TwigFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
+            new \Twig\TwigFilter('get_mass_edit_override_fields', array($this, 'getMassEditOverideFieldsFilter')),
+
             new \Twig\TwigFilter('comma', array($this, 'commaFilter')),
             new \Twig\TwigFilter('xml', array($this, 'xmlFilter')),
             new \Twig\TwigFilter('is_public', array($this, 'isPublicFilter')),
@@ -200,6 +203,42 @@ class PlugExtension extends \Twig_Extension
     }
 
 
+    /**
+     * Returns an array of the fields that the RenderPlugin would like to to have the option to
+     * trigger the PostMassEditEvent on, even if values in that datafield aren't being changed.
+     *
+     * @param array $render_plugin_instance
+     *
+     * @return array
+     * @throws \Exception
+     */
+    public function getMassEditOverideFieldsFilter($render_plugin_instance)
+    {
+        try {
+            // This particular filter works with both datatype and datafield plugins
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+
+            // Load and execute the render plugin
+            /** @var PostMassEditEventInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->getMassEditOverrideFields($render_plugin_instance);
+        }
+        catch (\Exception $e) {
+            // Since this is only being called from MassEdit, throwing an error here should be acceptable
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+        }
+    }
+
+
+    /**
+     * Cleans up the json produced by the API export options.
+     *
+     * @param string $str
+     *
+     * @return string
+     * @throws \Exception
+     */
     public function commaFilter($str)
     {
         try {

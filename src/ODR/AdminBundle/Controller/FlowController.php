@@ -404,6 +404,7 @@ class FlowController extends ODRCustomController
         }
         catch (\Exception $e) {
             // TODO - this will let flow.js continue trying to upload...should it abort instead?
+            // TODO - if there's an unrecoverable error, then this means flow will try to "upload" up to four times...
             return self::flowError( $e->getMessage() );
         }
     }

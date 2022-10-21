@@ -50,9 +50,15 @@ class CommentPlugin implements DatatypePluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // This render plugin is only allowed to work in display mode
-        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'display' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
+
+            // This render plugin is only allowed to work in display mode
+            if ( $context === 'display' )
+                return true;
+        }
+
+        // TODO - should this have an option to work in edit mode?  would need some shennanigans so that the edit fields don't get clobbered
 
         return false;
     }

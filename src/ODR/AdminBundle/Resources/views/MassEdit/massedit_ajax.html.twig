@@ -436,6 +436,17 @@ function doMassUpdate() {
         }
     });
 
+    // Ensure no event triggers are in the form...
+    $(".massedit_form_event_trigger").remove();
+    // ...and add selected triggers back in
+    $("#MassEditForm .ODRMassEdit_EventTrigger").each(function() {
+        var datafield_id = $(this).attr('rel');
+        if ( $(this).find('input').is(':checked') ) {
+            var element = $("<input>", {"id": "EventTrigger_" + datafield_id, "class": "massedit_form_event_trigger", "type": "hidden", "value": 1, "name": "event_triggers[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
     if ( $("#massedit_form").children().length <= 2 ) {
         alert('No changes made on page, aborting');
         return;

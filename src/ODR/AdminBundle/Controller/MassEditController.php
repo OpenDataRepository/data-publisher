@@ -37,6 +37,8 @@ use ODR\AdminBundle\Entity\TagSelection;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\PostMassEditEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -61,6 +63,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use FOS\UserBundle\Doctrine\UserManager;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -254,20 +257,30 @@ class MassEditController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
-            // Need to have 'odr_tab_id', 'datatype_id', and either 'datafields' or 'public_status'
-            // Otherwise, throw an exception
-            if ( !(isset($post['odr_tab_id']) && isset($post['datatype_id']) && (isset($post['datafields']) || isset($post['public_status'])) ) )
+            // Need both of these fields in the post...
+            if ( !isset($post['odr_tab_id']) || !isset($post['datatype_id']) )
+                throw new ODRBadRequestException();
+
+            // Need at least one of these fields in the post...
+            if ( !isset($post['datafields']) && !isset($post['public_status']) && !isset($post['event_triggers']) )
                 throw new ODRBadRequestException();
 
             $odr_tab_id = $post['odr_tab_id'];
+            $datatype_id = $post['datatype_id'];
+
+            // The rest of these are optional
             $datafields = array();
             if ( isset($post['datafields']) )
                 $datafields = $post['datafields'];
-            $datatype_id = $post['datatype_id'];
 
             $public_status = array();
             if ( isset($post['public_status']) )
                 $public_status = $post['public_status'];
+
+            $event_triggers = array();
+            if ( isset($post['event_triggers']) )
+                $event_triggers = $post['event_triggers'];
+
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -444,6 +457,27 @@ class MassEditController extends ODRCustomController
                 }
             }
 
+            // If the user wants to trigger the PostMassEditEvent, then just need to ensure the
+            //  datafield belongs to this datatype
+            foreach ($event_triggers as $df_id => $val) {
+                /** @var DataFields $df */
+                $df = $repo_datafield->find($df_id);
+
+                // Ensure the datafield belongs to the top-level datatype or one of its descendants
+                $df_array = self::getDatafieldArray($dt_array, $df_id);
+
+                // Since a render plugin will be making the changes, it doesn't actually matter
+                //  whether the user has edit permissions to this field or not
+
+                // Could technically validate whether this field uses a plugin with event, but it
+                //  doesn't really matter...just store which datatype this datafield belongs to
+                $dt_id = $df->getDataType()->getId();
+                if ( !isset($datatype_list[$dt_id]) )
+                    $datatype_list[$dt_id] = 1;
+
+                $datafield_list[$df_id] = $dt_id;
+            }
+
 
             // If the user attempted to mass update public status of datarecords, verify that they're
             //  allowed to do that
@@ -466,7 +500,7 @@ class MassEditController extends ODRCustomController
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
             // Don't create a TrackedJob if this mass_edit just changes public status
             $tracked_job_id = -1;
-            if ( count($public_status) > 0 || (count($datafields) > 0 && count($datarecords) > 0) ) {
+            if ( count($public_status) > 0 || (count($datafield_list) > 0 && count($datarecords) > 0) ) {
                 $job_type = 'mass_edit';
                 $target_entity = 'datatype_'.$datatype_id;
                 $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
@@ -486,7 +520,7 @@ class MassEditController extends ODRCustomController
 
             $job_count = 0;
 
-            // Deal with datarecord public status first, if needed
+            // Create background jobs for changes to datarecord public status first, if needed
             $updated = false;
             foreach ($public_status as $dt_id => $status) {
                 // Get all datarecords of this datatype
@@ -537,7 +571,7 @@ class MassEditController extends ODRCustomController
             // Set the url for mass updating datarecord values
             $url = $this->generateUrl('odr_mass_update_worker_values', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
-            foreach ($datafields as $df_id => $value) {
+            foreach ($datafield_list as $df_id => $dt_id) {
                 // Ensure user has the permisions to modify values of this datafield
                 $can_edit_datafield = false;
                 if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id][ 'edit' ]) )
@@ -547,7 +581,6 @@ class MassEditController extends ODRCustomController
                     continue;
 
                 // Determine whether user can view non-public datarecords for this datatype
-                $dt_id = $datafield_list[$df_id];
                 $can_view_datarecord = false;
                 if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id][ 'dr_view' ]) )
                     $can_view_datarecord = true;
@@ -592,21 +625,34 @@ class MassEditController extends ODRCustomController
                     $job_count++;
 
                     $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "job_type" => 'value_change',
-                            "tracked_job_id" => $tracked_job_id,
-                            "user_id" => $user->getId(),
+                    $payload = array(
+                        "job_type" => 'value_change',
+                        "tracked_job_id" => $tracked_job_id,
+                        "user_id" => $user->getId(),
 
-                            "datarecord_id" => $dr_id,
-                            "datafield_id" => $df_id,
-                            "value" => $value,
+                        "datarecord_id" => $dr_id,
+                        "datafield_id" => $df_id,
 
-                            "redis_prefix" => $redis_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
                     );
+
+
+                    if ( isset($datafields[$df_id]) ) {
+                        // If the user wants to change the value of a datafield...
+                        $payload['value'] = $datafields[$df_id];
+                    }
+                    else if ( isset($event_triggers[$df_id]) ) {
+                        // If the user just wants to trigger an event on this field...
+                        $payload['event_trigger'] = 1;
+                    }
+                    else {
+                        // ...the datafield should've had a value in one or the other
+                        throw new ODRException('missing data for datafield '.$df_id.', to submit for mass edit');
+                    }
+
+                    $payload = json_encode($payload);
 
                     $delay = 15;    // TODO - delay set rather high because unable to determine how many jobs need to be created beforehand...better way of dealing with this?
                     $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
@@ -638,8 +684,8 @@ class MassEditController extends ODRCustomController
 
 
     /**
-     * Locates and returns the array version of the requested datafield from the given cached datatype array, throwing
-     * an error if it doesn't exist.
+     * Locates and returns the array version of the requested datafield from the given cached
+     * datatype array, throwing an error if it doesn't exist.
      *
      * @param array $dt_array
      * @param int $df_id
@@ -832,32 +878,40 @@ class MassEditController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
-
+            // These parameters are required
             if ( !isset($post['tracked_job_id'])
                 || !isset($post['user_id'])
                 || !isset($post['datarecord_id'])
                 || !isset($post['datafield_id'])
-                || !isset($post['value'])
                 || !isset($post['api_key'])
             ) {
                 throw new ODRBadRequestException();
             }
+
+            // At least one of these parameters is required
+            if ( !isset($post['value']) && !isset($post['event_trigger']) )
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
             $datarecord_id = $post['datarecord_id'];
             $datafield_id = $post['datafield_id'];
-            $value = $post['value'];
             $api_key = $post['api_key'];
+
+            $value = null;
+            if ( isset($post['value']) )
+                $value = $post['value'];
+
+            $event_trigger = false;
+            if ( isset($post['event_trigger']) )
+                $event_trigger = true;
 
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $logger = $this->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
             $repo_tag = $em->getRepository('ODRAdminBundle:Tags');
@@ -919,188 +973,292 @@ class MassEditController extends ODRCustomController
                 // Ensure a datarecordfield entity exists...
                 $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
-                // Load all selection objects attached to this radio object
-                $radio_selections = array();
-                /** @var RadioSelection[] $tmp */
-                $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
-                foreach ($tmp as $rs)
-                    $radio_selections[ $rs->getRadioOption()->getId() ] = $rs;
-                /** @var RadioSelection[] $radio_selections */
+                if ( !is_null($value) ) {
+                    // Load all selection objects attached to this radio object
+                    $radio_selections = array();
+                    /** @var RadioSelection[] $tmp */
+                    $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
+                    foreach ($tmp as $rs)
+                        $radio_selections[ $rs->getRadioOption()->getId() ] = $rs;
+                    /** @var RadioSelection[] $radio_selections */
 
-                // Set radio_selection objects to the desired state
-                foreach ($value as $radio_option_id => $selected) {
-                    // Single Select/Radio can have an id of "none", indicating that nothing
-                    //  should be selected
-                    if ($radio_option_id !== 'none') {
-                        // Ensure a RadioSelection entity exists
-                        /** @var RadioOptions $radio_option */
-                        $radio_option = $repo_radio_option->find($radio_option_id);
-                        $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                    // Set radio_selection objects to the desired state
+                    foreach ($value as $radio_option_id => $selected) {
+                        // Single Select/Radio can have an id of "none", indicating that nothing
+                        //  should be selected
+                        if ($radio_option_id !== 'none') {
+                            // Ensure a RadioSelection entity exists
+                            /** @var RadioOptions $radio_option */
+                            $radio_option = $repo_radio_option->find($radio_option_id);
+                            $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
 
-                        // Ensure it has the correct selected value
-                        $properties = array('selected' => $selected);
-                        $emm_service->updateRadioSelection($user, $radio_selection, $properties);
+                            // Ensure it has the correct selected value
+                            $properties = array('selected' => $selected);
+                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);
 
-                        $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
+                            $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
 
-                        // If this datafield is a Single Radio/Select datafield, then the correct
-                        //  radio option just got selected...remove it from the $radio_selections
-                        //  array so the subsequent block can't modify it
-                        unset( $radio_selections[$radio_option_id] );
-                    }
-                }
-
-                // If only a single selection is allowed, deselect the other existing radio_selection objects
-                if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
-                    // All radio options remaining in this array need to be marked as unselected
-                    // The radio option id of "none" won't affect anything here
-                    $changes_made = false;
-                    foreach ($radio_selections as $radio_option_id => $rs) {
-                        if ( $rs->getSelected() == 1 ) {
-                            // Ensure this RadioSelection is deselected
-                            $properties = array('selected' => 0);
-                            $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
-                            $changes_made = true;
-
-                            $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
+                            // If this datafield is a Single Radio/Select datafield, then the correct
+                            //  radio option just got selected...remove it from the $radio_selections
+                            //  array so the subsequent block can't modify it
+                            unset( $radio_selections[$radio_option_id] );
                         }
                     }
 
-                    if ($changes_made)
-                        $em->flush();
+                    // If only a single selection is allowed, deselect the other existing radio_selection objects
+                    if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
+                        // All radio options remaining in this array need to be marked as unselected
+                        // The radio option id of "none" won't affect anything here
+                        $changes_made = false;
+                        foreach ($radio_selections as $radio_option_id => $rs) {
+                            if ( $rs->getSelected() == 1 ) {
+                                // Ensure this RadioSelection is deselected
+                                $properties = array('selected' => 0);
+                                $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
+                                $changes_made = true;
+
+                                $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
+                            }
+                        }
+
+                        if ($changes_made)
+                            $em->flush();
+                    }
                 }
 
+                if ( !is_null($value) || $event_trigger ) {
+                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                    //  by the event subscribers will prevent further progress...
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new PostMassEditEvent($drf, $user);
+                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
+                    }
+                }
             }
             else if ($field_typeclass == 'Tag') {
                 // Ensure a datarecordfield entity exists...
                 $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
-                // Load all selection objects attached to this tag object
-                $tag_selections = array();
-                /** @var TagSelection[] $tmp */
-                $tmp = $repo_tag_selection->findBy( array('dataRecordFields' => $drf->getId()) );
-                foreach ($tmp as $ts)
-                    $tag_selections[ $ts->getTag()->getId() ] = $ts;
-                /** @var TagSelection[] $tag_selections */
+                if ( !is_null($value) ) {
+                    // Load all selection objects attached to this tag object
+                    $tag_selections = array();
+                    /** @var TagSelection[] $tmp */
+                    $tmp = $repo_tag_selection->findBy( array('dataRecordFields' => $drf->getId()) );
+                    foreach ($tmp as $ts)
+                        $tag_selections[ $ts->getTag()->getId() ] = $ts;
+                    /** @var TagSelection[] $tag_selections */
 
-                // Set tag_selection objects to the desired state
-                foreach ($value as $tag_id => $selected) {
-                    if ( isset($tag_selections[$tag_id]) && $tag_selections[$tag_id]->getSelected() != $selected ) {
-                        // Ensure the TagSelection has the correct value
-                        $tag_selection = $tag_selections[$tag_id];
+                    // Set tag_selection objects to the desired state
+                    foreach ($value as $tag_id => $selected) {
+                        if ( isset($tag_selections[$tag_id]) && $tag_selections[$tag_id]->getSelected() != $selected ) {
+                            // Ensure the TagSelection has the correct value
+                            $tag_selection = $tag_selections[$tag_id];
 
-                        $properties = array('selected' => $selected);
-                        $emm_service->updateTagSelection($user, $tag_selection, $properties);
+                            $properties = array('selected' => $selected);
+                            $emm_service->updateTagSelection($user, $tag_selection, $properties);
 
-                        $ret .= 'updated existing tag_selection object for tag '.$tag_id.' ("'.$tag_selection->getTag()->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
+                            $ret .= 'updated existing tag_selection object for tag '.$tag_id.' ("'.$tag_selection->getTag()->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
+                        }
+                        else if ( !isset($tag_selections[$tag_id]) && $selected != 0 ) {
+                            // Ensure a TagSelection entity exists
+                            /** @var Tags $tag */
+                            $tag = $repo_tag->find($tag_id);
+                            $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+
+                            // Ensure it has the correct selected value
+                            $properties = array('selected' => $selected);
+                            $emm_service->updateTagSelection($user, $tag_selection, $properties);
+
+                            $ret .= 'created new tag_selection object for tag '.$tag_id.' ("'.$tag->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
+                        }
+                        else {
+                            // Do nothing...current tag selections in entity already match desired
+                            //  values
+                            $ret .= 'ignoring tag '.$tag_id.' of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...current value does not need to change'."\n";
+                        }
                     }
-                    else if ( !isset($tag_selections[$tag_id]) && $selected != 0 ) {
-                        // Ensure a TagSelection entity exists
-                        /** @var Tags $tag */
-                        $tag = $repo_tag->find($tag_id);
-                        $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+                }
 
-                        // Ensure it has the correct selected value
-                        $properties = array('selected' => $selected);
-                        $emm_service->updateTagSelection($user, $tag_selection, $properties);
-
-                        $ret .= 'created new tag_selection object for tag '.$tag_id.' ("'.$tag->getTagName().'") of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...set to '.$selected."\n";
+                if ( !is_null($value) || $event_trigger ) {
+                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                    //  by the event subscribers will prevent further progress...
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new PostMassEditEvent($drf, $user);
+                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
                     }
-                    else {
-                        /* do nothing, current value in entity already matches desired value */
-                        $ret .= 'ignoring tag '.$tag_id.' of datafield '.$datafield->getId().' ('.$field_typename.'), datarecord '.$datarecord->getId().'...current value does not need to change'."\n";
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
                     }
                 }
             }
             else if ($field_typeclass == 'File') {
                 // Load all files associated with this entity
-                if ($value !== 0) {
-                    $query = $em->createQuery(
-                       'SELECT file
-                        FROM ODRAdminBundle:File AS file
-                        WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
-                        AND file.deletedAt IS NULL'
-                    )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
-                    $results = $query->getResult();
+                $query = $em->createQuery(
+                   'SELECT file
+                    FROM ODRAdminBundle:File AS file
+                    WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
+                    AND file.deletedAt IS NULL'
+                )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
+                $results = $query->getResult();
 
-                    if ( count($results) > 0 ) {
-                        foreach ($results as $num => $file) {
-                            /** @var File $file */
-                            if ( $file->isPublic() && $value == -1 ) {
-                                // File is public, but needs to be non-public
-                                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                                $emm_service->updateFileMeta($user, $file, $properties);
+                $has_files = false;
+                if ( count($results) > 0 )
+                    $has_files = true;
 
-                                // Delete the decrypted version of the file, if it exists
-                                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
-                                $filename = 'File_'.$file->getId().'.'.$file->getExt();
-                                $absolute_path = realpath($file_upload_path).'/'.$filename;
+                if ( !is_null($value) && $value !== 0 && $has_files ) {
+                    // Only makes sense to do stuff if there's at least one file uploaded
+                    $changes_made = false;
 
-                                if ( file_exists($absolute_path) )
-                                    unlink($absolute_path);
+                    foreach ($results as $num => $file) {
+                        /** @var File $file */
+                        if ( $file->isPublic() && $value == -1 ) {
+                            // File is public, but needs to be non-public
+                            $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                            $emm_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
-                                $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
-                            }
-                            else if ( !$file->isPublic() && $value == 1 ) {
-                                // File is non-public, but needs to be public
-                                $properties = array('publicDate' => new \DateTime());
-                                $emm_service->updateFileMeta($user, $file, $properties);
+                            // Delete the decrypted version of the file, if it exists
+                            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+                            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+                            $absolute_path = realpath($file_upload_path).'/'.$filename;
 
-                                // Immediately decrypt the file...don't need to specify a
-                                //  filename because the file is guaranteed to be public
-                                $crypto_service->decryptFile($file->getId());
+                            if ( file_exists($absolute_path) )
+                                unlink($absolute_path);
 
-                                $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
-                            }
+                            $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                            $changes_made = true;
                         }
+                        else if ( !$file->isPublic() && $value == 1 ) {
+                            // File is non-public, but needs to be public
+                            $properties = array('publicDate' => new \DateTime());
+                            $emm_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
+                            // Immediately decrypt the file...don't need to specify a
+                            //  filename because the file is guaranteed to be public
+                            $crypto_service->decryptFile($file->getId());
+
+                            $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                            $changes_made = true;
+                        }
+                    }
+
+                    if ( $changes_made )
                         $em->flush();
+                }
+
+                if ( $has_files && (!is_null($value) || $event_trigger) ) {
+                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                    //  by the event subscribers will prevent further progress...
+                    try {
+                        $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new PostMassEditEvent($drf, $user);
+                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
                     }
                 }
             }
             else if ($field_typeclass == 'Image') {
                 // Load all images associated with this entity
-                if ($value !== 0) {
-                    $query = $em->createQuery(
-                       'SELECT image
-                        FROM ODRAdminBundle:Image AS image
-                        WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
-                        AND image.original = 1 AND image.deletedAt IS NULL'
-                    )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
-                    $results = $query->getResult();
+                $query = $em->createQuery(
+                   'SELECT image
+                    FROM ODRAdminBundle:Image AS image
+                    WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
+                    AND image.original = 1 AND image.deletedAt IS NULL'
+                )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
+                $results = $query->getResult();
 
-                    if ( count($results) > 0 ) {
-                        foreach ($results as $num => $image) {
-                            /** @var Image $image */
-                            if ( $image->isPublic() && $value == -1 ) {
-                                // Image is public, but needs to be non-public
-                                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                                $emm_service->updateImageMeta($user, $image, $properties);
+                $has_images = false;
+                if ( count($results) > 0 )
+                    $has_images = true;
 
-                                // Delete the decrypted version of the file, if it exists
-                                $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
-                                $filename = 'Image_'.$image->getId().'.'.$image->getExt();
-                                $absolute_path = realpath($image_upload_path).'/'.$filename;
+                if ( !is_null($value) && $value !== 0 && $has_images ) {
+                    // Only makes sense to do stuff if there's at least one image uploaded
+                    $changes_made = false;
 
-                                if ( file_exists($absolute_path) )
-                                    unlink($absolute_path);
+                    foreach ($results as $num => $image) {
+                        /** @var Image $image */
+                        if ( $image->isPublic() && $value == -1 ) {
+                            // Image is public, but needs to be non-public
+                            $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                            $emm_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
-                                $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
-                            }
-                            else if ( !$image->isPublic() && $value == 1 ) {
-                                // Image is non-public, but needs to be public
-                                $properties = array('publicDate' => new \DateTime());
-                                $emm_service->updateImageMeta($user, $image, $properties);
+                            // Delete the decrypted version of the file, if it exists
+                            $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
+                            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+                            $absolute_path = realpath($image_upload_path).'/'.$filename;
 
-                                // Immediately decrypt the image...don't need to specify a
-                                //  filename because the image is guaranteed to be public
-                                $crypto_service->decryptImage($image->getId());
+                            if ( file_exists($absolute_path) )
+                                unlink($absolute_path);
 
-                                $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
-                            }
+                            $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                            $changes_made = true;
                         }
+                        else if ( !$image->isPublic() && $value == 1 ) {
+                            // Image is non-public, but needs to be public
+                            $properties = array('publicDate' => new \DateTime());
+                            $emm_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
+                            // Immediately decrypt the image...don't need to specify a
+                            //  filename because the image is guaranteed to be public
+                            $crypto_service->decryptImage($image->getId());
+
+                            $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                            $changes_made = true;
+                        }
+                    }
+
+                    if ( $changes_made )
                         $em->flush();
+                }
+
+                if ( $has_images && (!is_null($value) || $event_trigger) ) {
+                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                    //  by the event subscribers will prevent further progress...
+                    try {
+                        $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new PostMassEditEvent($drf, $user);
+                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                            throw $e;
                     }
                 }
             }
@@ -1110,15 +1268,45 @@ class MassEditController extends ODRCustomController
                 $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getStringValue();
 
-                if ($old_value !== $value) {
-                    // Make the change to the value stored in the storage entity
-                    $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
+                // Currently, there's no situation where the PostMassEdit event will do anything
+                //  different than the PostUpdate event that updateStorageEntity() fires, so want
+                //  to ensure only one of the events fires
+                $changes_made = false;
 
-                    $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                if ( !is_null($value) ) {
+                    if ($old_value !== $value) {
+                        // Make the change to the value stored in the storage entity
+                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
+
+                        $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                        $changes_made = true;
+                    }
+                    else {
+                        /* do nothing, current value in entity already matches desired value */
+                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
+                    }
                 }
-                else {
-                    /* do nothing, current value in entity already matches desired value */
-                    $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
+
+                if ( !$changes_made && $event_trigger ) {
+                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                    //  by the event subscribers will prevent further progress...
+                    try {
+                        $drf = $storage_entity->getDataRecordFields();
+
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new PostMassEditEvent($drf, $user);
+                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ($this->container->getParameter('kernel.environment') === 'dev')
+                            throw $e;
+                    }
                 }
             }
             else {
@@ -1127,15 +1315,45 @@ class MassEditController extends ODRCustomController
                 $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getValue();
 
-                if ($old_value !== $value) {
-                    // Make the change to the value stored in the storage entity
-                    $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
+                // Currently, there's no situation where the PostMassEdit event will do anything
+                //  different than the PostUpdate event that updateStorageEntity() fires, so want
+                //  to ensure only one of the events fires
+                $changes_made = false;
 
-                    $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                if ( !is_null($value) ) {
+                    if ($old_value !== $value) {
+                        // Make the change to the value stored in the storage entity
+                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
+
+                        $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                        $changes_made = true;
+                    }
+                    else {
+                        /* do nothing, current value in entity already matches desired value */
+                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
+                    }
                 }
-                else {
-                    /* do nothing, current value in entity already matches desired value */
-                    $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
+
+                if ( !$changes_made && $event_trigger ) {
+                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
+                    //  by the event subscribers will prevent further progress...
+                    try {
+                        $drf = $storage_entity->getDataRecordFields();
+
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new PostMassEditEvent($drf, $user);
+                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't particularly want to rethrow the error since it'll interrupt
+                        //  everything downstream of the event (such as file encryption...), but
+                        //  having the error disappear is less ideal on the dev environment...
+                        if ($this->container->getParameter('kernel.environment') === 'dev')
+                            throw $e;
+                    }
                 }
             }
 

@@ -121,9 +121,13 @@ class CheminAnalogPlugin implements DatatypePluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // This render plugin is only allowed to work when in fake_edit mode
-        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'fake_edit' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
+
+            // This render plugin is only allowed to work when in fake_edit mode
+            if ( $context === 'fake_edit' )
+                return true;
+        }
 
         return false;
     }

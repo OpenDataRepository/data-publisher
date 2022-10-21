@@ -63,9 +63,13 @@ class CurrencyPlugin implements DatafieldPluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
-        // The Currency Plugin should work in the 'text' and 'display' contexts
-        if ( $rendering_options['context'] === 'text' || $rendering_options['context'] === 'display' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
+
+            // The Currency Plugin should work in the 'text' and 'display' contexts
+            if ( $context === 'text' || $context === 'display' )
+                return true;
+        }
 
         return false;
     }

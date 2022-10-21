@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * Datafield Reload Override Interface Interface
+ * Datafield Reload Override Interface
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -10,6 +10,9 @@
  * Certain render plugins end up completely overriding a rendered datafield and any associated
  * javascript...as such, they also need to override situations where ODR reloads the datafield on
  * the page.
+ *
+ * This only makes sense for datatype plugins...the reloading process for a regular datafield will
+ * automatically call the datafield render plugin if one is attached.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;

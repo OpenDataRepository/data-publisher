@@ -65,10 +65,13 @@ class ChemistryPlugin implements DatafieldPluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
-        // The Chemistry Plugin should work in the 'text', 'display', and 'edit' contexts
-        $context = $rendering_options['context'];
-        if ( $context === 'text' || $context === 'display' || $context === 'edit' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
+
+            // The Chemistry Plugin should work in the 'text', 'display', and 'edit' contexts
+            if ($context === 'text' || $context === 'display' || $context === 'edit')
+                return true;
+        }
 
         return false;
     }

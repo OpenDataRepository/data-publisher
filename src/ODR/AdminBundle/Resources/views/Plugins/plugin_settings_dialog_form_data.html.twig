@@ -14,7 +14,7 @@
     {% endif %}
     </fieldset>
 
-    <fieldset>
+    <fieldset style="text-align: left; text-indent: 15px;">
         {{ render_plugin.description }}
     </fieldset>
 
@@ -158,11 +158,12 @@
 {% endif %}
 
     <fieldset style="text-align: left;">
-        {# Determine if the rendering plugin has any available options #}
-        {% if render_plugin['renderPluginOptions']|length == 0 %}
-            <div style="text-align: center;">This Render Plugin has no options.</div>
-        {% else %}
-            {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+    {# Determine if the rendering plugin has any available options #}
+    {% if render_plugin['renderPluginOptions']|length == 0 %}
+        <div style="text-align: center;">This Render Plugin has no options.</div>
+    {% else %}
+        {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+            {% if custom_render_plugin_options_html[rpo_id] is not defined %}
                 {# Save the default value for the RenderPluginOption #}
                 {% set default_value = '' %}
                 {% if rpo['defaultValue'] is defined %}
@@ -193,12 +194,26 @@
                     <input id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" size="32" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
                 {% endif %}
                 </div>
-            {% endfor %}
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    </fieldset>
+
+    <fieldset id="custom_renderpluginoptions" style="display: none;">
+    {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+        {% if custom_render_plugin_options_html[rpo_id] is defined %}
+            {{ custom_render_plugin_options_html[rpo_id]|raw }}
         {% endif %}
+    {% endfor %}
     </fieldset>
 
     <script>
         $(function() {
+        {% if custom_render_plugin_options_html|length > 0 %}
+            $("#custom_renderpluginoptions").show();
+        {% endif %}
+
         {% if is_datatype_admin %}
             $(".ODRDetachPlugin").unbind('click').click(function(event) {
                 // Don't submit the form

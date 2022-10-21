@@ -55,6 +55,11 @@ class RenderPluginOptionsDef
     private $display_order;
 
     /**
+     * @var bool
+     */
+    private $uses_custom_render;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -249,6 +254,30 @@ class RenderPluginOptionsDef
     public function getDisplayOrder()
     {
         return $this->display_order;
+    }
+
+    /**
+     * Set usesCustomRender.
+     *
+     * @param bool $usesCustomRender
+     *
+     * @return RenderPluginOptionsDef
+     */
+    public function setUsesCustomRender($usesCustomRender)
+    {
+        $this->uses_custom_render = $usesCustomRender;
+
+        return $this;
+    }
+
+    /**
+     * Get usesCustomRender.
+     *
+     * @return bool
+     */
+    public function getUsesCustomRender()
+    {
+        return $this->uses_custom_render;
     }
 
     /**

@@ -21,7 +21,7 @@ ODR\AdminBundle\Entity\FileMeta:
 
         originalFileName:
             type: string
-            length: 128
+            length: 255
             fixed: false
             nullable: true
             column: original_file_name

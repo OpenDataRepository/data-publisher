@@ -50,6 +50,8 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
 // Symphony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -362,9 +364,17 @@ class PluginsController extends ODRCustomController
         }
 
 
-        // Datafield plugins can't implement DatafieldDerivationInterface
+        // Datafield plugins can't implement DatafieldDerivationInterface...they only reference a
+        //  single datafield, so there's no way to determine what to derive from
         if ( !$is_datatype_plugin && ($plugin_service instanceof DatafieldDerivationInterface))
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
+        // Datafield plugins also don't need to implement DatafieldReloadOverrideInterface...the
+        //  render plugin will be executed as part of the regular datafield reloading in Edit mode,
+        //  assuming the plugin is allowed to execute there
+        if ( !$is_datatype_plugin && $plugin_config['override_field_reload'] )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to have override_field_reload set to true');
+        if ( !$is_datatype_plugin && ($plugin_service instanceof DatafieldReloadOverrideInterface))
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
 
         // A plugin must implement DatafieldDerivationInterface if and only if it has at least
         //  one derived field
@@ -373,7 +383,7 @@ class PluginsController extends ODRCustomController
         if ( !$has_derived_field && ($plugin_service instanceof DatafieldDerivationInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement DatafieldDerivationInterface since it has no derived fields');
 
-        // If a plugin must implement DatafieldReloadOverrideInterface if and only if it claims to
+        // A plugin must implement DatafieldReloadOverrideInterface if and only if it claims to
         //  override datafield reloading
         if ( $plugin_config['override_field_reload'] && !($plugin_service instanceof DatafieldReloadOverrideInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement DatafieldReloadOverrideInterface to match its config file');
@@ -390,7 +400,11 @@ class PluginsController extends ODRCustomController
 //            'choices',    // this is optional
             'description',
 //            'display_order',    // this is optional
+
+//            'uses_custom_render',    // this is optional
         );
+
+        $uses_custom_render = false;
 
         if ( is_array($plugin_config['config_options']) ) {
             // Need to ensure that no RenderPluginOption entries share a name, since that is used
@@ -410,8 +424,18 @@ class PluginsController extends ODRCustomController
                     $option_names[$option_displayname] = 1;
 
                 // TODO - validate the optional 'choices' config value?
+
+                if ( array_key_exists('uses_custom_render', $option_data) )
+                    $uses_custom_render = true;
             }
         }
+
+        // A plugin must implement PluginSettingsDialogOverrideInterface if and only if at least one of
+        //  its options needs to override the renderPluginSettings dialog
+        if ( $uses_custom_render && !($plugin_service instanceof PluginSettingsDialogOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must implement PluginSettingsDialogOverrideInterface to match its config file');
+        if ( !$uses_custom_render && ($plugin_service instanceof PluginSettingsDialogOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the plugin must not implement PluginSettingsDialogOverrideInterface to match its config file');
 
 
         // ----------------------------------------
@@ -425,6 +449,12 @@ class PluginsController extends ODRCustomController
                 // ...and ensure the callables attached to the events also exist
                 if ( !method_exists($plugin_service, $callable) )
                     throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Event "'.$event.'" does not reference a callable function');
+            }
+
+            // The use of the "PostMassEditEvent" requires an additional interface
+            if ( isset($plugin_config['registered_events']['PostMassEditEvent']) ) {
+                if ( !($plugin_service instanceof PostMassEditEventInterface) )
+                    throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must implement PostMassEditEventInterface to be able to use the PostMassEdit Event');
             }
         }
     }
@@ -761,6 +791,8 @@ class PluginsController extends ODRCustomController
                     $tmp[ $rpo['name'] ]['choices'] = $rpo['choices'];
                 if ( !is_null($rpo['display_order']) )
                     $tmp[ $rpo['name'] ]['display_order'] = $rpo['display_order'];
+                if ( !is_null($rpo['uses_custom_render']) )
+                    $tmp[ $rpo['name'] ]['uses_custom_render'] = $rpo['uses_custom_render'];
             }
 
             if ( is_array($plugin_config['config_options']) ) {
@@ -779,6 +811,8 @@ class PluginsController extends ODRCustomController
                             $tmp[$option_key]['choices'] = $data['choices'];
                         if ( isset($data['display_order']) )
                             $tmp[$option_key]['display_order'] = $data['display_order'];
+                        if ( isset($data['uses_custom_render']) )
+                            $tmp[$option_key]['uses_custom_render'] = $data['uses_custom_render'];
                     }
                     else {
                         // This option exists in the database...
@@ -821,6 +855,15 @@ class PluginsController extends ODRCustomController
                         if ( isset($data['display_order']) ) {
                             if ( $existing_data['display_order'] === $data['display_order'] )
                                 unset( $tmp[$option_key]['display_order'] );
+                        }
+
+                        // It will do the same thing for the "uses_custom_render" key
+                        if ( !isset($data['uses_custom_render']) )
+                            $data['uses_custom_render'] = false;
+
+                        if ( isset($data['uses_custom_render']) ) {
+                            if ( $existing_data['uses_custom_render'] === $data['uses_custom_render'] )
+                                unset( $tmp[$option_key]['uses_custom_render'] );
                         }
 
                         // If there are no differences, remove the entry
@@ -1357,10 +1400,16 @@ class PluginsController extends ODRCustomController
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
                     if ( isset($data['display_order']) )
                         $rpo->setDisplayOrder($data['display_order']);
+
+                    // ...same deal with the "uses_custom_render" key needing to be set to false
+                    $rpo->setUsesCustomRender(false);
+                    if ( isset($data['uses_custom_render']) )
+                        $rpo->setUsesCustomRender($data['uses_custom_render']);
 
                     $rpo->setCreatedBy($user);
                     $rpo->setUpdatedBy($user);
@@ -1860,10 +1909,16 @@ class PluginsController extends ODRCustomController
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
                         $rpo->setChoices($data['choices']);
+
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
                     if ( isset($data['display_order']) )
                         $rpo->setDisplayOrder($data['display_order']);
+
+                    // ...same deal with the "uses_custom_render" key needing to be set to false
+                    $rpo->setUsesCustomRender(false);
+                    if ( isset($data['uses_custom_render']) )
+                        $rpo->setUsesCustomRender($data['uses_custom_render']);
 
                     if ($creating) {
                         $rpo->setCreatedBy($user);
@@ -2633,6 +2688,34 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Determine whether any of the options in the render plugin need custom HTML...
+            $uses_custom_render = false;
+            foreach ($render_plugin['renderPluginOptions'] as $rpo_id => $rpo) {
+                if ( $rpo['uses_custom_render'] ) {
+                    $uses_custom_render = true;
+                    break;
+                }
+            }
+
+            $custom_render_plugin_options_html = array();
+            if ( $uses_custom_render ) {
+                // If any of them do, then call the relevant function defined in the render plugin
+                /** @var PluginSettingsDialogOverrideInterface $plugin */
+                $plugin = $this->container->get( $target_render_plugin->getPluginClassName() );
+
+                $custom_render_plugin_options_html =
+                    $plugin->getRenderPluginOptionsOverride(
+                        $user,
+                        $is_datatype_admin,
+                        $target_render_plugin,
+                        $datatype,
+                        $datafield,
+                        $render_plugin_instance
+                    );
+            }
+
+
+            // ----------------------------------------
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form_data.html.twig',
@@ -2650,6 +2733,8 @@ class PluginsController extends ODRCustomController
 
                         'is_illegal_render_plugin' => $is_illegal_render_plugin,
                         'illegal_render_plugin_message' => $illegal_render_plugin_message,
+
+                        'custom_render_plugin_options_html' => $custom_render_plugin_options_html,
                     )
                 )
             );

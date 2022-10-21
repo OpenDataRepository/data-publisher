@@ -83,6 +83,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             PluginAttachEvent::NAME => 'onPluginAttach',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
             PluginPreRemoveEvent::NAME => 'onPluginPreRemove',
+            PostMassEditEvent::NAME => 'onPostMassEdit',
             PostUpdateEvent::NAME => 'onPostUpdate',
         );
     }
@@ -224,8 +225,9 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datarecord = $event->getDatarecord();
+            $datatype = $datarecord->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datarecord->getDataType(), null);
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -261,8 +263,9 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datafield = $event->getDatafield();
+            $datatype = $datafield->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datafield->getDataType(), $datafield);
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -298,8 +301,9 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datafield = $event->getDatafield();
+            $datatype = $datafield->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datafield->getDataType(), $datafield);
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -420,6 +424,45 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datatype = $rpi->getDataType();
 
             $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
+            if ( !empty($relevant_plugins) ) {
+                // If any plugins remain, then load each plugin and call their required function
+                self::relayEvent($relevant_plugins, $event);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched PostMassEdit events
+     *
+     * @param PostMassEditEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onPostMassEdit(PostMassEditEvent $event)
+    {
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $drf = $event->getDataRecordFields();
+            $datafield = $drf->getDataField();
+            $datatype = $datafield->getDataType();
+
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);

@@ -1,0 +1,446 @@
+{% spaceless %}
+<div class="pure-u-1">
+    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;"></textarea>
+
+    <div class="pure-u-1 ODRRenderPlugin_FileRenamer_header">
+        <div class="pure-u-1">
+            Renaming files/images based on the contents of other fields is not something ODR can easily do.
+            The options in this box enumerate all the databases the plugin can search in for these fields...
+            generally, you should try to select the fewest amount of databases as possible to get the fields you want.
+            <br>
+            IMPORTANT: This plugin won't work properly unless your database correctly follows several hard-to-explain design concepts.
+            If you're not already familiar with relational database design, it'll likely be faster and easier to ask for help.
+        </div>
+        <div class="ODRRenderPlugin_FileRenamer_prefix_list">
+        {% for key,value in available_prefixes %}
+            <span class="ODRRenderPlugin_FileRenamer_label" rel="{{ key }}"><i class="fa {% if key == current_prefix %}fa-check-square-o{% else %}fa-square-o{% endif %}"></i>&nbsp;{{ value }}</span><br>
+        {% endfor %}
+        </div>
+    </div>
+
+    <div class="pure-u-1 ODRRenderPlugin_FileRenamer_header">
+        <div class="pure-u-11-24">
+            The left side allows you to select which fields the plugin will attempt to find values from.
+            Clicking the "Add constant value" button will create an entry that doesn't depend on the value of a field, and will be the same for every file/image this plugin will affect.
+        </div>
+        <div class="pure-u-1-24"></div>
+        <div class="pure-u-11-24">
+            The right side shows the order the fields/constants will be applied in...the first is at the top.
+            Their position can be changed with the arrow icons, and the string constants can be deleted with the trash icon.
+            Removing a field is done through the left side.
+            <br>
+        </div>
+    </div>
+
+    <div class="pure-u-1-2 ODRRenderPlugin_FileRenamer_source">
+{#        <div class="pure-u-1-24"></div>#}
+        <div class="pure-u-23-24">
+            <div class="ODRRenderPlugin_FileRenamer_addField ODRHidden">
+                <span><i class="fa fa-plus-square"></i></span>
+                <span class="ODRRenderPlugin_FileRenamer_df_name">Add constant value</span>
+            </div>
+            <ul>
+            {% for dt_id,dt_data in available_fields %}
+                <li id="ODRRenderPlugin_FileRenamer_dt_{{ dt_id }}" class="ODRRenderPlugin_FileRenamer_dt_container ODRHidden">
+                    <div class="ODRRenderPlugin_FileRenamer_dt_header">
+                        <span class="ODRRenderPlugin_FileRenamer_dt_name">{{ dt_data['name'] }}</span>
+                        <span class="FRight"><i class="fa fa-caret-right"></i></span>
+                    </div>
+                    <ul class="{# ODRHidden #} ODRRenderPlugin_FileRenamer_df_list">
+                    {% for df_id,df_data in dt_data['fields'] %}
+                        {% set matches_uuid = false %}
+                        {% if uuid_mapping[ df_data['uuid'] ] is defined %}
+                            {% set matches_uuid = true %}
+                        {% endif %}
+
+                        <li>
+                            <span class="ODRRenderPlugin_FileRenamer ODRTristateCheckbox binary" rel="{{ df_data['uuid'] }}">
+                            {% if matches_uuid %}
+                                <i class="fa fa-check"></i>
+                            {% else %}
+                                <i class="fa"></i>
+                            {% endif %}
+                            </span>
+                            <span class="Cursor">{{ df_data['name'] }}</span>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="pure-u-1-2 ODRRenderPlugin_FileRenamer_dest">
+        <div class="pure-u-1-24"></div>
+        <div class="pure-u-22-24">
+            <div class="pure-u-1" style="min-height: 10px;"></div>
+            <ul class="ODRRenderPlugin_FileRenamer_config">
+            {% for value,num in current_config %}
+                {% if uuid_mapping[value] is defined %}
+                <li class="ODRRenderPlugin_FileRenamer_config_container" rel="{{ value }}">
+                    <div class="ODRRenderPlugin_FileRenamer_config_item">
+                        <span class="ODRRenderPlugin_FileRenamer_warn ODRRenderPlugin_FileRenamer_hide_warn" title="This field isn't available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>
+                        <span style="visibility: hidden;"><i class="fa fa-lg fa-trash-o"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_config_item_name">{{ uuid_mapping[value] }}</span>
+                    </div>
+                </li>
+                {% else %}
+                <li class="ODRRenderPlugin_FileRenamer_config_container">
+                    <div class="ODRRenderPlugin_FileRenamer_config_item">
+                        <span style="visibility: hidden;"><i class="fa fa-lg fa-warning"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_trash" title="Delete this item"><i class="fa fa-lg fa-trash-o"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
+                        <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
+                        <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value }}" />
+                    </div>
+                </li>
+                {% endif %}
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+    .ODRRenderPlugin_FileRenamer_header {
+        text-align: left;
+        text-indent: 15px;
+        font-size: 16px;
+        /*color: #555;*/
+
+        border-color: #6fa5c7;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+    .ODRRenderPlugin_FileRenamer_prefix_list {
+        text-indent: 0px;
+    }
+    .ODRRenderPlugin_FileRenamer_label {
+        cursor: pointer;
+
+        font-size: 16px;
+        color: #555;
+    }
+
+    .ODRRenderPlugin_FileRenamer_source,
+    .ODRRenderPlugin_FileRenamer_dest {
+        min-height: 500px;
+        overflow-y: scroll;
+
+        text-align: left;
+        font-size: 16px;
+        color: #555;
+    }
+    .ODRRenderPlugin_FileRenamer_source ul,
+    .ODRRenderPlugin_FileRenamer_config {
+        list-style: none;
+        padding-left: 0px;
+        margin-top: 0px;
+        margin-bottom: 0px;
+    }
+    ul.ODRRenderPlugin_FileRenamer_df_list {
+        padding-left: 25px;
+    }
+    .ODRRenderPlugin_FileRenamer_source li,
+    .ODRRenderPlugin_FileRenamer_config li {
+        list-style-type: none;
+        margin: 3px;
+    }
+    .ODRRenderPlugin_FileRenamer_dt_header,
+    .ODRRenderPlugin_FileRenamer_dt_container {
+        /*padding: 7px;*/
+        border-color: #6fa5c7;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+    }
+    .ODRRenderPlugin_FileRenamer_dt_header {
+        padding: 7px;
+        cursor: Pointer;
+        background-color: #6fa5c7;
+        color: #ffffff;
+    }
+
+    .ODRRenderPlugin_FileRenamer_addField {
+        padding: 7px;
+        cursor: Pointer;
+        background-color: #6fa5c7;
+        color: #ffffff;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+    }
+    .ODRRenderPlugin_FileRenamer_config_container {
+        margin: 3px;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+
+        height: 36px;
+    }
+    .ODRRenderPlugin_FileRenamer_config_item span {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+    span.ODRRenderPlugin_FileRenamer_config_item_name {
+        cursor: default;
+        padding-left: 5px;
+    }
+    input.ODRRenderPlugin_FileRenamer_config_item_name {
+        background-color: #aaaaaa !important;
+        color: white;
+    }
+
+    .ODRRenderPlugin_FileRenamer_warn {
+        color: red;
+    }
+    .ODRRenderPlugin_FileRenamer_hide_warn {
+        visibility: hidden;
+    }
+</style>
+
+<script>
+    var FileRenamer_timeout = null;
+    var FileRenamer_SaveTimeout = 500;
+
+    $(function() {
+        // Since the resizing apparently refuses to pick up the actual height of the items inside
+        //  it for this particular application, force the modal to use the entire screen.
+        resetRemodalInnerHeight(true);
+
+        $(".ODRRenderPlugin_FileRenamer_label").unbind('click').click(function() {
+            var selected = $(this).attr('rel');
+            $(".ODRRenderPlugin_FileRenamer_label").each(function(index,elem) {
+                if ( $(elem).attr('rel') == selected )
+                    $(elem).children('i').first().removeClass('fa-square-o').addClass('fa-check-square-o');
+                else
+                    $(elem).children('i').first().removeClass('fa-check-square-o').addClass('fa-square-o');
+            });
+
+            $(".ODRRenderPlugin_FileRenamer_addField").removeClass('ODRHidden');
+            FileRenamer_updateVisibleDatatypes();
+        });
+
+        $(".ODRRenderPlugin_FileRenamer_dt_header").unbind('click').click(function() {
+            if ( $(this).next().hasClass('ODRHidden') ) {
+                $(this).next().removeClass('ODRHidden');
+                $(this).children('span.FRight').children('i').removeClass('fa-caret-right').addClass('fa-caret-down');
+            }
+            else {
+                $(this).next().addClass('ODRHidden');
+                $(this).children('span.FRight').children('i').removeClass('fa-caret-down').addClass('fa-caret-right');
+            }
+        });
+
+        $(".ODRRenderPlugin_FileRenamer.ODRTristateCheckbox").unbind('click').click(function() {
+            var icon_div = $(this).children('.fa').first();
+            var df_name = $(this).next().html();
+            var df_uuid = $(this).attr('rel');
+
+            if ( $(icon_div).hasClass('fa-check') ) {
+                // Datafield currently selected, mark as unselected
+                $(icon_div).removeClass('fa-check');
+
+                // Remove from the right side
+                $(".ODRRenderPlugin_FileRenamer_config_container").each(function(index, elem) {
+                    if ( df_uuid === $(elem).attr('rel') ) {
+                        $(elem).remove();
+
+                        // Since something got removed, need to keep the backend values up to date
+                        clearTimeout( FileRenamer_timeout );
+                        FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+                    }
+                });
+            }
+            else {
+                // Datafield currently unselected, mark as selected
+                $(icon_div).addClass('fa-check');
+
+                // Add to the right side
+                FileRenamer_addDatafield(df_name, df_uuid);
+            }
+        });
+
+        $(".ODRRenderPlugin_FileRenamer_addField").unbind('click').click(function() {
+            FileRenamer_addStringConstant();
+        });
+
+        // Attach the handlers to any existing items
+        FileRenamer_attachHandlers();
+
+        // Show the left/right sides if a prefix is already selected
+        $(".ODRRenderPlugin_FileRenamer_prefix_list > .ODRRenderPlugin_FileRenamer_label").each(function(index,elem) {
+            if ( $(elem).find('i.fa-check-square-o').length > 0 )
+                $(elem).trigger('click');
+        });
+    });
+
+    /**
+     * Reattaches the jquery handlers to the list of datafields on the right side
+     */
+    function FileRenamer_attachHandlers() {
+        $(".ODRRenderPlugin_FileRenamer_up").unbind('click').click(function() {
+            var parent = $(this).parents('li');
+
+            if ( $(parent).prev().length > 0 ) {
+                var copy = $(parent).clone();
+                $(parent).prev().before(copy);
+                $(parent).remove();
+
+                // Need to attach handlers to the cloned block of HTML
+                FileRenamer_attachHandlers();
+            }
+        });
+        $(".ODRRenderPlugin_FileRenamer_down").unbind('click').click(function() {
+            var parent = $(this).parents('li');
+
+            if ( $(parent).next().length > 0 ) {
+                var copy = $(parent).clone();
+                $(parent).next().after(copy);
+                $(parent).remove();
+
+                // Need to attach handlers to the cloned block of HTML
+                FileRenamer_attachHandlers();
+            }
+        });
+        $(".ODRRenderPlugin_FileRenamer_trash").unbind('click').click(function() {
+            var parent = $(this).parents('li');
+            $(parent).remove();
+
+            // Don't need to add new handlers, but need to ensure stuff is up to date
+            clearTimeout( FileRenamer_timeout );
+            FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+        });
+
+        $("input.ODRRenderPlugin_FileRenamer_config_item_name").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( FileRenamer_timeout );
+            FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+        });
+
+        // This function gets called when something is added, so might as well run these to keep
+        //  stuff up to date
+        clearTimeout( FileRenamer_timeout );
+        FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+    }
+
+    /**
+     * Updates which datatypes on the left side are visible...this also flags fields on the right
+     * side if they're coming from a datatype which is no longer visible
+     */
+    function FileRenamer_updateVisibleDatatypes() {
+        var prefix = $(".ODRRenderPlugin_FileRenamer_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
+        $(".ODRRenderPlugin_FileRenamer_dt_container").addClass('ODRHidden');
+
+        // Locate which datatypes should be visible as a result of the selected prefix
+    {% for prefix,data in allowed_datatypes %}
+        if ( prefix === '{{ prefix }}' ) {
+        {% for dt_id,num in data %}
+            $("#ODRRenderPlugin_FileRenamer_dt_{{ dt_id }}").removeClass('ODRHidden');
+        {% endfor %}
+        }
+    {% endfor %}
+
+        // Want a list of the fields already on the right side
+        var selected_fields = [];
+        $(".ODRRenderPlugin_FileRenamer_config_container").each(function(index,field) {
+            if ( $(field).attr('rel') ) {
+                var uuid = $(field).attr('rel');
+                selected_fields[uuid] = $(field);
+
+                // Might as well hide the warnings for the moment, they'll be reactivated again shortly if needed
+                $(field).find('.ODRRenderPlugin_FileRenamer_warn').addClass('ODRRenderPlugin_FileRenamer_hide_warn');
+            }
+        });
+
+        // For each of the invisible datatypes...
+        $(".ODRRenderPlugin_FileRenamer_dt_container.ODRHidden").each(function(index,container) {
+            // ...for each of their selected fields...
+            $(container).find('i.fa-check').each(function(index,icon_div) {
+                var uuid = $(icon_div).parent().attr('rel');
+
+                // ...activate the warning icon for this field
+                var field = selected_fields[uuid];
+                $(field).find('.ODRRenderPlugin_FileRenamer_warn').removeClass('ODRRenderPlugin_FileRenamer_hide_warn');
+            });
+        });
+
+        // Update the hidden textarea
+        clearTimeout( FileRenamer_timeout );
+        FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+    }
+
+    /**
+     * Updates the hidden textarea with the current value of the block on the right side
+     */
+    function FileRenamer_updateValue() {
+        var text = $(".ODRRenderPlugin_FileRenamer_prefix_list").find(".fa-check-square-o").first().parent().attr('rel') + "\n";
+
+        $(".ODRRenderPlugin_FileRenamer_config_container").each(function(index, elem) {
+            if ( $(elem).attr('rel') ) {
+                // This is a datafield...determine whether it has a warning active...
+                if ( $(elem).find('.ODRRenderPlugin_FileRenamer_hide_warn').length > 0 ) {
+                    // ...and only save if it doesn't
+                    text += $(elem).attr('rel') + "\n";
+                }
+            }
+            else {
+                // This is a string constant, find and save the text
+                var value = $(elem).find('input.ODRRenderPlugin_FileRenamer_config_item_name').val();
+                text += value + "\n";
+            }
+        });
+
+        $("#plugin_option_{{ rpo_id }}").html(text);
+    }
+
+    /**
+     * Adds an existing datafield to the list of datafields on the right side
+     *
+     * @param {string} df_name
+     * @param {string} df_uuid
+     */
+    function FileRenamer_addDatafield(df_name, df_uuid) {
+        var str =
+        '<li class="ODRRenderPlugin_FileRenamer_config_container" rel="' + df_uuid + '">' +
+            '<div class="ODRRenderPlugin_FileRenamer_config_item">' +
+                '<span class="ODRRenderPlugin_FileRenamer_warn ODRRenderPlugin_FileRenamer_hide_warn" title="This field is not available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>' +
+                '<span style="visibility: hidden;"><i class="fa fa-lg fa-trash-o"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_config_item_name">' + df_name + '</span>' +
+            '</div>' +
+        '</li>';
+
+        // Append the block of HTML and attach handlers to it
+        $(".ODRRenderPlugin_FileRenamer_config").append(str);
+        FileRenamer_attachHandlers();
+    }
+
+    /**
+     * Adds a container for a string constant to the list of datafields on the right side
+     */
+    function FileRenamer_addStringConstant() {
+        var str =
+        '<li class="ODRRenderPlugin_FileRenamer_config_container">' +
+            '<div class="ODRRenderPlugin_FileRenamer_config_item">' +
+                '<span style="visibility: hidden;"><i class="fa fa-lg fa-warning"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_trash" title="Delete this item"><i class="fa fa-lg fa-trash-o"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>' +
+                '<span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
+                '<input class="ODRRenderPlugin_FileRenamer_config_item_name" value="<<new>>" />' +
+            '</div>' +
+        '</li>';
+
+        // Append the block of HTML and attach handlers to it
+        $(".ODRRenderPlugin_FileRenamer_config").append(str);
+        FileRenamer_attachHandlers();
+    }
+</script>
+{% endspaceless %}

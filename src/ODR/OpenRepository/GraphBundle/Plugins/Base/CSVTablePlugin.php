@@ -70,10 +70,15 @@ class CSVTablePlugin implements DatafieldPluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
-        // The CSVTable Plugin can't work in the 'text' context, since it's based off a file field
-        // The CSVTable Plugin should work in the 'display' context
-        if ( $rendering_options['context'] === 'display' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
+
+            // The CSVTable Plugin should work in the 'display' context
+            if ( $context === 'display' )
+                return true;
+
+            // The CSVTable Plugin can't work in the 'text' context, since it's based off a file field
+        }
 
         return false;
     }
