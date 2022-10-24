@@ -103,7 +103,8 @@
                         // Check if there is a CSV file
                         if(ele.html().match(/^{{ label_field }}$/)) {
                             var inp = $(ele).parent().find("input");
-                            sample_name += inp.val()
+                            if ( sample_name === '' )
+                                sample_name += inp.val()
                         }
                         {% if use_wavelength %}
                         // Check if there is a wavelength value
@@ -476,8 +477,11 @@
                     if (undefined !== data[0] && undefined !== data[1]) {
                         var xval = 0 + Number(data[0].trim());
                         var yval = 0 + Number(data[1].trim());
-                        x_values.push(xval);
-                        y_values.push(yval);
+
+                        if ( !(Number.isNaN(xval) || Number.isNaN(yval)) ) {
+                            x_values.push(xval);
+                            y_values.push(yval);
+                        }
                     }
                 }
             }
