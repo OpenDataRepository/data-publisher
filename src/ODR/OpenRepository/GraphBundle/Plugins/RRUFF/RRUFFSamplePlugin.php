@@ -235,6 +235,11 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
 
         foreach ($datatype['descendants'] as $dt_id => $tdt) {
 //            $parent_datatype_id = $datatype['id'];
+
+            // If the datatype is not public, then it might not be in the array
+            if ( !isset($dt['datatype'][$dt_id]) )
+                continue;
+
             $dt = $tdt['datatype'][$dt_id];
 
             if ( strpos($dt['dataTypeMeta']['shortName'], $options['ima_datatype']) !== false ) {

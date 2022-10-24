@@ -1,0 +1,111 @@
+odr_plugins.rruff.powder_diffraction:
+    name: RRUFF Powder Diffraction Plugin
+    category: RRUFF
+    datatype: true
+    render: false
+    version: 0.0.1
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    description: TODO
+    registered_events:
+    required_fields:
+
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
+#        child_rruff_id:
+#            name: Child RRUFF ID
+#            description:
+#            type: ShortVarchar
+
+        description:
+            name: Description
+            description:
+            type: LongText
+        exposure_time:
+            name: Exposure Time
+            description:
+            type: ShortVarchar
+        wavelength:
+            name: Wavelength
+            description:
+            type: ShortVarchar
+        power:
+            name: Power
+            description:
+            type: ShortVarchar
+
+        a:
+            name: a
+            description:
+            type: ShortVarchar
+        b:
+            name: b
+            description:
+            type: ShortVarchar
+        c:
+            name: c
+            description:
+            type: ShortVarchar
+        alpha:
+            name: alpha
+            description:
+            type: ShortVarchar
+        beta:
+            name: beta
+            description:
+            type: ShortVarchar
+        gamma:
+            name: gamma
+            description:
+            type: ShortVarchar
+        volume:
+            name: volume
+            description:
+            type: ShortVarchar
+        crystal_system:
+            name: Crystal System
+            description:
+            type: ShortVarchar
+
+        instrument:
+            name: Instrument
+            description:
+            type: LongVarchar
+        operator:
+            name: Operator
+            description:
+            type: ShortVarchar
+
+        cell_refinement_file:
+            name: Cell Refinement Data
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+        cell_refinement_output_file:
+            name: Cell Refinement Output Data
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+        dif_file:
+            name: DIF File
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+        processed_file:
+            name: X-ray Data (XY - Processed)
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+        raw_file:
+            name: X-ray Data (XY - RAW)
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+
+    config_options:

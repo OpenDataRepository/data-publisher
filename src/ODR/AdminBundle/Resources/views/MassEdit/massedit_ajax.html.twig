@@ -75,6 +75,9 @@ $(function() {
     disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
     window.scrollTo(0,0);
 
+    // Attach click handlers to tags
+    setupTagTree();
+
     // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
     // The overlay divs need this transition to finish before they can get the correct width
     setTimeout("initPage()", 350);
@@ -113,19 +116,26 @@ function initPage() {
             $(this).hide();
     });
 
-    // Attach an overlay div of sorts over each datafield
-    $(".ODROverlayDiv").each(function() {
-        // Need dimensions of parent div...
-        var height = $(this).parent().css('height');
-        var width = $(this).parent().css('width');
+    $(".ODRMassEdit_block").each(function() {
+        var df_data = $(this).attr('id').split(/_/);
+        var df_id = df_data[1];
 
-        // Apply dimensions of parent div to loading div
-        $(this).css({"height": height, "line-height": height, "width": width});
+        var inputs = [];
+        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRField_clearAll').first() );
+        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRField').first() );
+        inputs.push( $('#Form_DataField_' + df_id).find('textarea.ODRParagraphField').first() );
+        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRDatePicker').first() );
 
-        if ( $(this).hasClass('ODRUniqueField') )
-            $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
-        else if ( $(this).hasClass('ODRBlockedField') )
-            $(this).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+        if ( $(this).hasClass('ODRUniqueField') ) {
+            $.each(inputs, function (index, elem) {
+                $(elem).prop('disabled', true).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
+            });
+        }
+        else if ( $(this).hasClass('ODRBlockedField') ) {
+            $.each(inputs, function (index, elem) {
+                $(elem).prop('disabled', true).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+            });
+        }
     });
 
     $(".ODRDatePicker").datepicker({
@@ -143,36 +153,54 @@ function initPage() {
     });
 
     $(".ODRDatePicker_clear").unbind('click').click(function() {
+        var blocked = false;
+        if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
+            blocked = true;
+
         var input = $(this).closest('fieldset').find(".ODRDatePicker");
         $(input).datepicker('setDate', null);
 
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
+        if ( !blocked ) {
+            // Disable the input if the checkbox says to clear all values
+            if ( $(this).children('input').first().is(':checked') )
+                $(input).prop("disabled", true);
+            else
+                $(input).prop("disabled", false);
+        }
     });
 
     $(".ODRParagraphField_clear").unbind('click').click(function() {
+        var blocked = false;
+        if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
+            blocked = true;
+
         var input = $(this).closest('fieldset').find(".ODRParagraphField");
         $(input).val('');
 
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
+        if ( !blocked ) {
+            // Disable the input if the checkbox says to clear all values
+            if ( $(this).children('input').first().is(':checked') )
+                $(input).prop("disabled", true);
+            else
+                $(input).prop("disabled", false);
+        }
     });
 
     $(".ODRField_clear").unbind('click').click(function() {
+        var blocked = false;
+        if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
+            blocked = true;
+
         var input = $(this).closest('fieldset').find(".ODRField");
         $(input).val('');
 
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
+        if ( !blocked ) {
+            // Disable the input if the checkbox says to clear all values
+            if ( $(this).children('input').first().is(':checked') )
+                $(input).prop("disabled", true);
+            else
+                $(input).prop("disabled", false);
+        }
     });
 
     // Tristate checkbox
@@ -381,7 +409,7 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
-        var clear_all = $(this).parent().parent().find('input.ODRDatePicker_clearAll').prop('checked');
+        var clear_all = $(this).parent().parent().find('input.ODRField_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
@@ -403,7 +431,7 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
-        var clear_all = $(this).parent().parent().find('input.ODRParagraphField_clearAll').prop('checked');
+        var clear_all = $(this).parent().parent().find('input.ODRField_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});

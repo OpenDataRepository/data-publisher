@@ -5,7 +5,7 @@
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
 {% if datafield_meta.is_unique or datafield_meta.prevent_user_edits %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRReloadDiv {% if datafield_meta.is_unique %}ODRUniqueField{% elseif datafield_meta.prevent_user_edits %}ODRBlockedField{% endif %}"></div>
+    <input id="Field_{{ datafield.id }}_block" class="ODRMassEdit_block {% if datafield_meta.is_unique %}ODRUniqueField{% elseif datafield_meta.prevent_user_edits %}ODRBlockedField{% endif %}" type="hidden" />
 {% endif %}
 
 {% set max_length = '' %}
@@ -69,7 +69,7 @@
     {% elseif field_typename == "Paragraph Text" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-        <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRParagraphField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
+        <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
         {% if override_mass_edit_field %}
         <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
         {% endif %}
@@ -186,7 +186,7 @@
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
-        <span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>
+        <span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>
         {% if override_mass_edit_field %}
         <span class="ODRMassEdit_EventTrigger" rel="{{ datafield.id }}"><label class="Pointer"><input type="checkbox" class="ODRField_{{ field_typename|replace({' ': '_'}) }}_EventTrigger" name="" value="1" />&nbsp;Activate the {{ override_mass_edit_field_label }} for this field</label></span>
         {% endif %}

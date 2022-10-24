@@ -48,3 +48,44 @@ services:
         arguments:
             $templating: "@templating"
             $logger: "@logger"
+
+    # ----------------------------------------
+    odr_plugins.rruff.chemistry_analysis:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFChemistryAnalysisPlugin'
+        arguments:
+            $logger: "@logger"
+
+    odr_plugins.rruff.raman_spectra:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFRamanSpectraPlugin'
+        arguments:
+            $logger: "@logger"
+
+    odr_plugins.rruff.pin_data:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
+        arguments:
+            $logger: "@logger"
+    odr_plugins.rruff.oriented_raman_spectra:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFOrientedRamanSpectraPlugin'
+        arguments:
+            $logger: "@logger"
+
+    odr_plugins.rruff.raman_full_spectra:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFRamanFullSpectraPlugin'
+        arguments:
+            $logger: "@logger"
+
+    odr_plugins.rruff.infrared_spectra:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFInfraredSpectraPlugin'
+        arguments:
+            $logger: "@logger"
+
+    odr_plugins.rruff.powder_diffraction:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPowderDiffractionPlugin'
+        arguments:
+            $logger: "@logger"
+
+    # ----------------------------------------
+    odr_plugins.rruff.cell_parameters:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFCellParametersPlugin'
+        arguments:
+            $logger: "@logger"

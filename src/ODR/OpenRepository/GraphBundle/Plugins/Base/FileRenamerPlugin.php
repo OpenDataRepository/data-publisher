@@ -1100,7 +1100,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
 
     /**
-     * Does the work of renaming files/images as part of a MassEdit event TODO - doesn't this need to happen on an Edit event too?
+     * Does the work of renaming files/images as part of a MassEdit event
      *
      * @param PostMassEditEvent $event
      *
@@ -1120,43 +1120,42 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $datarecord = $drf->getDataRecord();
             $user = $event->getUser();
 
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ( !($typeclass === 'File' || $typeclass === 'Image') )
-                throw new ODRBadRequestException('onPostMassEdit() called with '.$typeclass.' field', 0x08fc0ad3);
-
-            $tmp = null;
-            if ( $typeclass === 'File' ) {
-                $query = $this->em->createQuery(
-                   'SELECT f
-                    FROM ODRAdminBundle:File f
-                    WHERE f.dataRecordFields = :drf
-                    AND f.deletedAt IS NULL'
-                )->setParameters( array('drf' => $drf->getId()) );
-                $tmp = $query->getResult();
-            }
-            else {
-                $query = $this->em->createQuery(
-                   'SELECT i
-                    FROM ODRAdminBundle:Image i
-                    WHERE i.dataRecordFields = :drf AND i.original = 1
-                    AND i.deletedAt IS NULL'
-                )->setParameters( array('drf' => $drf->getId()) );
-                $tmp = $query->getResult();
-            }
-
-            // There could be nothing uploaded to the field, or there could be multiple files/images
-            /** @var File[]|Image[] $tmp */
-            $entities = array();
-            foreach ($tmp as $num => $entity)
-                $entities[ $entity->getId() ] = $entity;
-            /** @var File[]|Image[] $entities */
-
-
             // Only care about a file that get changed in a field using this plugin...
             $is_event_relevant = self::isEventRelevant($datafield);
             if ( $is_event_relevant ) {
+                // Load all files/images uploaded to this field
+                $typeclass = $datafield->getFieldType()->getTypeClass();
+
+                $tmp = null;
+                if ( $typeclass === 'File' ) {
+                    $query = $this->em->createQuery(
+                       'SELECT f
+                        FROM ODRAdminBundle:File f
+                        WHERE f.dataRecordFields = :drf
+                        AND f.deletedAt IS NULL'
+                    )->setParameters( array('drf' => $drf->getId()) );
+                    $tmp = $query->getResult();
+                }
+                else {
+                    $query = $this->em->createQuery(
+                       'SELECT i
+                        FROM ODRAdminBundle:Image i
+                        WHERE i.dataRecordFields = :drf AND i.original = 1
+                        AND i.deletedAt IS NULL'
+                    )->setParameters( array('drf' => $drf->getId()) );
+                    $tmp = $query->getResult();
+                }
+
+                // There could be nothing uploaded to the field, or there could be multiple files/images
+                /** @var File[]|Image[] $tmp */
+                $entities = array();
+                foreach ($tmp as $num => $entity)
+                    $entities[ $entity->getId() ] = $entity;
+                /** @var File[]|Image[] $entities */
+
                 // This file was uploaded to the correct field, so it now needs to be processed
                 $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'onPostMassEdit()', 'drf '.$drf->getId()));
+
 
                 // ----------------------------------------
                 // Like the FilePreEncrypt Event, need to figure out the relevant information to be
@@ -1305,5 +1304,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 'fields' => array($rpf['id'] => 1)
             );
         }
+
+        return array();
     }
 }

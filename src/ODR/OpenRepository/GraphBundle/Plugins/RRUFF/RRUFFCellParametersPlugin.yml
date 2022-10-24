@@ -1,0 +1,104 @@
+odr_plugins.rruff.cell_parameters:
+    name: RRUFF Cell Parameters Plugin
+    category: RRUFF
+    datatype: true
+    render: true
+    version: 1.0.0
+    override_fields: true
+    override_field_reload: false    # TODO - should this be true?
+    override_child: false
+    description: TODO
+    registered_events:
+        #PostUpdateEvent: onPostUpdate    # TODO - is this needed?
+
+    ##### IMPORTANT #####
+    # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
+    # The php and twig files for this plugin use them to match renderplugin fields to actual datafields
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE FILES AS WELL
+    #####################
+
+    required_fields:
+        # So there's a grand total of 6 "official" crystal systems...
+        # (technically 8, if you could "amorphous" and "unknown")
+        # (additionally, euros tended to use "hexagonal" for point groups starting with 6, and tended
+        #   to use "rhombohedral" or "trigonal" for those starting with 3...but RRUFF just uses the
+        #   "hexagonal" crystal system for all of them)
+        crystal_system:
+            name: Crystal System
+            description:
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+        # ...a grand total of 32 point groups...
+        point_group:
+            name: Point Group
+            description:
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+        # ...and a grand total of 230 "official" space groups
+        space_group:
+            name: Space Group
+            description:
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+        # The lattice is derived from the first letter of the space group
+        lattice:
+            name: Lattice
+            description:
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+
+        a:
+            name: a
+            description:
+            type: ShortVarchar
+        b:
+            name: b
+            description:
+            type: ShortVarchar
+        c:
+            name: c
+            description:
+            type: ShortVarchar
+        alpha:
+            name: alpha
+            description:
+            type: ShortVarchar
+        beta:
+            name: beta
+            description:
+            type: ShortVarchar
+        gamma:
+            name: gamma
+            description:
+            type: ShortVarchar
+        # RRUFF also had a feature where it made an attempt to calculate volume based on the values
+        #  in the a/b/c/alpha/beta/gamma fields, but allowed you to override if needed
+        volume:
+            name: Volume
+            description:
+            type: ShortVarchar
+
+        # ----------------------------------------
+        # These fields only exist to make the data easier to import
+        chemistry:
+            name: Chemistry
+            description:
+            type: LongVarchar
+        pressure:
+            name: Pressure
+            description:
+            type: ShortVarchar
+        temperature:
+            name: Temperature
+            description:
+            type: ShortVarchar
+        notes:
+            name: Notes
+            description:
+            type: LongText
+
+    config_options:

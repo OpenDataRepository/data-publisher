@@ -11,6 +11,60 @@ odr_plugins.rruff.rruff_sample:
     registered_events:
     required_fields:
 
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
+#        sample_id:
+#            name: Sample ID
+#            description:
+#            type: ShortVarchar
+#            properties:
+#                - must_be_unique
+        rruff_id:
+            name: RRUFF ID
+            description:
+            type: ShortVarchar
+            properties:
+                - must_be_unique
+
+        sample_status:
+            name: Sample Status
+            description:
+            type: Single Select
+        origin:
+            name: Origin
+            description:
+            type: LongVarchar
+        origin_number:
+            name: Origin Number
+            description:
+            type: MediumVarchar
+        owner:
+            name: Owner
+            description:
+            type: LongVarchar
+        sample_description:
+            name: Sample Description
+            description:
+            type: LongText
+        locality:
+            name: Sample Locality
+            description:
+            type: LongText
+        rruff_owned:
+            name: Owned by RRUFF
+            description:
+            type: Boolean
+
+        sample_images:
+            name: Sample Images
+            description:
+            type: Image
+        sample_files:
+            name: Sample Files
+            description:
+            type: File
+
+
     config_options:
         # NOTE - instead of "correctly" implementing methods for a render plugin to identify a
         #  datatype like it can a datafield (via the "required_fields") key...it's faster to use
