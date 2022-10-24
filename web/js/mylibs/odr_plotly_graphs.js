@@ -73,6 +73,12 @@
  * @property {number} time_column
  * @property {number} amu_column
  * @property {number} counts_column
+ * @property {string} upper_x_axis_caption
+ * @property {string} lower_x_axis_caption
+ * @property {string} upper_y_axis_caption
+ * @property {string} lower_y_axis_caption
+ * @property {string} upper_y_axis_log
+ * @property {string} upper_y_axis_log
  */
 
 // !!! IMPORTANT: you MUST use 'var' instead of 'let' in this file...phantomJS will break !!!

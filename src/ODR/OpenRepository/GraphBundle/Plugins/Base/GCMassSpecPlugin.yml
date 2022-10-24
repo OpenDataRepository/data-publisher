@@ -3,7 +3,7 @@ odr_plugins.base.gcms:
     category: Base
     datatype: true
     render: true
-    version: 1.2.0
+    version: 1.3.0
     override_fields: false
     override_field_reload: false
     override_child: true
@@ -60,3 +60,44 @@ odr_plugins.base.gcms:
             choices: full_width||Graphs and Fields are full width.,13_23||Data is 1/3. Graph is 2/3.,23_13||Data is 2/3. Graph is 1/3.,14_34||Data is 1/4. Graph is 3/4.,34_14||Data is 3/4. Graph is 1/4.
             description: Choose the layout of the graph area.
             display_order: 6
+
+        upper_x_axis_caption:
+            name: Upper X-Axis Caption
+            type: string
+            default: Time (sec)
+            description: Enter a caption to display on the X axis of the upper graph.
+            display_order: 7
+        lower_x_axis_caption:
+            name: Lower X-Axis Caption
+            type: string
+            default: AMU (m/z) or Band Number
+            description: Enter a caption to display on the X axis of the lower graph.
+            display_order: 8
+
+        upper_y_axis_caption:
+            name: Upper Y-Axis Caption
+            type: string
+            default: Counts per second
+            description: Enter a caption to display on the Y axis of the upper graph.
+            display_order: 9
+        lower_y_axis_caption:
+            name: Lower Y-Axis Caption
+            type: string
+            default: Counts per second
+            description: Enter a caption to display on the Y axis of the lower graph.
+            display_order: 10
+
+        upper_y_axis_log:
+            name: Upper Graph Y-Axis Log
+            type: string
+            default: yes
+            choices: yes||no
+            description: Whether the upper graph uses a log scale.
+            display_order: 11
+        lower_y_axis_log:
+            name: Lower Graph Y-Axis Log
+            type: string
+            default: yes
+            choices: yes||no
+            description: Whether the upper graph uses a log scale.
+            display_order: 12
