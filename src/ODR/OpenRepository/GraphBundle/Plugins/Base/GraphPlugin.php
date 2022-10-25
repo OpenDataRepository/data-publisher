@@ -94,6 +94,105 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
 
     /**
+     * Locates the value for the given renderPluginFields entry in the datarecord array, if it exists.
+     * Returns null if the rpf isn't mapped to a datafield, or the datarecord doesn't have an entry
+     * for the datafield.
+     *
+     * @param array $datarecord
+     * @param array $datafield_mapping
+     * @param string $rpf_name
+     * @return string|null
+     */
+    private function getPivotValue($datarecord, $datafield_mapping, $rpf_name)
+    {
+        // Extract the renderPluginFields entry out of the $datafield_mapping array
+        if ( !isset($datafield_mapping[$rpf_name]) )
+            return null;
+        $rpf = $datafield_mapping[$rpf_name];
+
+        // Determine the id and typeclass of the related datafield, if possible
+        $df_id = null;
+        $typeclass = null;
+        if ( !is_null($rpf['datafield']) ) {
+            $df_id = $rpf['datafield']['id'];
+            $typeclass = $rpf['datafield']['dataFieldMeta']['fieldType']['typeClass'];
+        }
+
+        // If the datafield id is null, then the field is an optional one that hasn't been mapped
+        if ( is_null($df_id) )
+            return null;
+        // If the datarecord doesn't have an entry for this datafield, then there's no value to return
+        if ( !isset($datarecord['dataRecordFields'][$df_id]) )
+            return null;
+
+        // Otherwise, use the typeclass to locate the data from the cached datarecord array
+        $drf = $datarecord['dataRecordFields'][$df_id];
+        switch ($typeclass) {
+            case 'IntegerValue':
+            case 'DecimalValue':
+            case 'ShortVarchar':
+            case 'MediumVarchar':
+            case 'LongVarchar':
+                $drf_typeclass = lcfirst($typeclass);
+                if ( isset($drf[$drf_typeclass]) && isset($drf[$drf_typeclass][0]['value']) )
+                    return $drf[$drf_typeclass][0]['value'];
+                break;
+
+            case 'Radio':
+                if ( isset($drf['radioSelection']) ) {
+                    foreach ($drf['radioSelection'] as $ro_id => $rs) {
+                        if ( $rs['selected'] === 1 )
+                            return $rs['radioOption']['optionName'];
+                    }
+                }
+                break;
+
+            case 'default':
+                throw new \Exception('Invalid Fieldtype for '.$rpf_name);
+        }
+
+        // Otherwise, no value was found
+        return null;
+    }
+
+
+    /**
+     * Locates and returns the array for the correct file to graph.  It prefers a file uploaded to
+     * the primary graph field, but if that doesn't exist then it'll try the secondary graph field.
+     * If neither field has a file, then it'll return an empty array.
+     *
+     * @param array $datarecord
+     * @param array $datafield_mapping
+     * @return array
+     */
+    private function getGraphFile($datarecord, $datafield_mapping)
+    {
+        $primary_graph_df_id = null;
+        if ( isset($datafield_mapping['graph_file']) && !is_null($datafield_mapping['graph_file']['datafield']) )
+            $primary_graph_df_id = $datafield_mapping['graph_file']['datafield']['id'];
+        $secondary_graph_df_id = null;
+        if ( isset($datafield_mapping['secondary_graph_file']) && !is_null($datafield_mapping['secondary_graph_file']['datafield']) )
+            $secondary_graph_df_id = $datafield_mapping['secondary_graph_file']['datafield']['id'];
+
+        // Prefer the file(s) uploaded to the primary graph datafield...
+        if ( isset($datarecord['dataRecordFields'][$primary_graph_df_id]) ) {
+            if ( !empty($datarecord['dataRecordFields'][$primary_graph_df_id]['file']) )
+                return array($primary_graph_df_id => $datarecord['dataRecordFields'][$primary_graph_df_id]['file']);
+        }
+
+        // ...fallback to the file(s) uploaded to the secondary graph datafield, if it is mapped and
+        //  any exist...
+        if ( !is_null($secondary_graph_df_id) && isset($datarecord['dataRecordFields'][$secondary_graph_df_id]) ) {
+            if ( !empty($datarecord['dataRecordFields'][$secondary_graph_df_id]['file']) )
+                return array($secondary_graph_df_id => $datarecord['dataRecordFields'][$secondary_graph_df_id]['file']);
+        }
+
+        // ...but if both fail, then return an empty array
+        return array();
+    }
+
+
+    /**
      * Executes the Graph Plugin on the provided datarecords
      *
      * @param array $datarecords
@@ -111,7 +210,6 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
-
         try {
             // ----------------------------------------
             // Extract various properties from the render plugin array
@@ -123,12 +221,16 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
+                // This plugin allows some of the fields to be optional, so the df entries could be null
+                $is_optional = false;
+                if ( isset($rpf_df['properties']['is_optional']) )
+                    $is_optional = true;
 
                 $df = null;
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ($df == null)
+                if ( $df == null && !$is_optional )
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                 // Grab the field name specified in the plugin's config file to use as an array key
@@ -146,52 +248,22 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 $datarecord_sortvalues[$dr_id] = $dr['sortField_value'];
                 $sort_typeclass = $dr['sortField_typeclass'];
 
-                // Locate the value for the Pivot Field if possible
-                $legend_datafield_id = $datafield_mapping['pivot_field']['datafield']['id'];
-                $legend_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
+                // Locate the values for the Pivot fields if possible
+                $pivot_df_value = null;
+                if ( isset($datafield_mapping['pivot_field']) )
+                    $pivot_df_value = self::getPivotValue($dr, $datafield_mapping, 'pivot_field');
+                $secondary_pivot_df_value = null;
+                if ( isset($datafield_mapping['secondary_pivot_field']) )
+                    $secondary_pivot_df_value = self::getPivotValue($dr, $datafield_mapping, 'secondary_pivot_field');
 
-                $entity = array();
-                if ( isset($dr['dataRecordFields'][$legend_datafield_id]) ) {
-
-                    $drf = $dr['dataRecordFields'][$legend_datafield_id];
-                    switch ($legend_datafield_typeclass) {
-                        case 'IntegerValue':
-                            if (isset($drf['integerValue'])) {
-                                $entity = $drf['integerValue'];
-                            }
-                            break;
-                        case 'DecimalValue':
-                            if (isset($drf['decimalValue'])) {
-                                $entity = $drf['decimalValue'];
-                            }
-                            break;
-                        case 'ShortVarchar':
-                            if (isset($drf['shortVarchar'])) {
-                                $entity = $drf['shortVarchar'];
-                            }
-                            break;
-                        case 'MediumVarchar':
-                            if (isset($drf['mediumVarchar'])) {
-                                $entity = $drf['mediumVarchar'];
-                            }
-                            break;
-                        case 'LongVarchar':
-                            if (isset($drf['longVarchar'])) {
-                                $entity = $drf['longVarchar'];
-                            }
-                            break;
-
-                        default:
-                            throw new \Exception('Invalid Fieldtype for pivot_field');
-                            break;
-                    }
-
-                    $legend_values[$dr_id] = $entity[0]['value'];
-                }
-                else {
-                    // Use Datafield ID as Pivot Value
-                    $legend_values[$dr_id] = $legend_datafield_id;
-                }
+                if ( is_null($pivot_df_value) && is_null($secondary_pivot_df_value) )
+                    $legend_values[$dr_id] = $dr['nameField_value'];
+                else if ( !is_null($pivot_df_value) && is_null($secondary_pivot_df_value) )
+                    $legend_values[$dr_id] = $pivot_df_value;
+                else if ( is_null($pivot_df_value) && !is_null($secondary_pivot_df_value) )
+                    $legend_values[$dr_id] = $secondary_pivot_df_value;
+                else
+                    $legend_values[$dr_id] = $pivot_df_value.' '.$secondary_pivot_df_value;
             }
 
             // Sort datarecords by their sortvalue
@@ -219,10 +291,9 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
             // Or create rollup name for rollup chart
             foreach ($datarecords as $dr_id => $dr) {
-                $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                if ( isset($dr['dataRecordFields'][$graph_datafield_id]) ) {
-                    foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
-
+                $graph_file_data = self::getGraphFile($dr, $datafield_mapping);
+                foreach ($graph_file_data as $graph_datafield_id => $files) {
+                    foreach ($files as $file_num => $file) {
                         if ( $file_num > 0 ) {
                             $df_name = $datafield_mapping['graph_file']['datafield']['dataFieldMeta']['fieldName'];
                             $file_count = count( $dr['dataRecordFields'][$graph_datafield_id]['file'] );
@@ -453,11 +524,17 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
         $plugin_df = null;
         foreach ($event->getRenderPluginInstance()->getRenderPluginMap() as $rpm) {
             /** @var RenderPluginMap $rpm */
-            if ($rpm->getRenderPluginFields()->getFieldName() === "Graph File")
+            if ($rpm->getRenderPluginFields()->getFieldName() === "Graph File") {
                 $plugin_df = $rpm->getDataField();
+                parent::deleteCachedGraphs(0, $plugin_df);
+            }
+            else if ($rpm->getRenderPluginFields()->getFieldName() === "Secondary Graph File") {
+                $plugin_df = $rpm->getDataField();
+                // This field might be null, so only delete graphs if it is mapped
+                if ( !is_null($plugin_df) )
+                    parent::deleteCachedGraphs(0, $plugin_df);
+            }
         }
-
-        parent::deleteCachedGraphs(0, $plugin_df);
     }
 
 

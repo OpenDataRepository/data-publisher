@@ -238,6 +238,7 @@ class DatafieldInfoService
             // These have no bearing on datafield properties TODO - right?
 //            'autogenerate_values' => false,
 //            'is_derived' => false,
+//            'is_optional' => false,
         );
 
         // ...but the datafield isn't guaranteed to be used by a render plugin

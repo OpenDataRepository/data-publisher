@@ -208,7 +208,7 @@ class DatabaseInfoService
                 partial dt_rpi.{id}, dt_rpi_rp,
                 partial dt_rpom.{id, value}, partial dt_rpo.{id, name},
                 partial dt_rpm.{id},
-                partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived},
+                partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
                 dt_rpm_df,
 
                 df, dfm, partial ft.{id, typeClass, typeName},
@@ -217,7 +217,7 @@ class DatabaseInfoService
                 partial df_rpi.{id}, df_rpi_rp,
                 partial df_rpom.{id, value}, partial df_rpo.{id, name},
                 partial df_rpm.{id},
-                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived},
+                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
                 df_rpm_df
 
             FROM ODRAdminBundle:DataType AS dt
@@ -601,8 +601,18 @@ class DatabaseInfoService
                 // ...and will have a single dataField entry if it's a datatype plugin (but won't
                 //  if it's a datafield plugin)
                 $rpf_df = array();
-                if ( isset($rpm['dataField']) )
+                if ( !isset($rpm['dataField']) ) {
+                    // ...but it might not be set due to the existence of "optional" renderPluginFields
+
+                    // Unfortunately, ODR was originally written following the idea that "an rpf entry
+                    //  MUST have a df entry"...but putting a null value in here for the id neatly
+                    //  handles most of those places
+                    $rpf_df = array('id' => null);
+                }
+                else {
+                    // ...if it is set though, don't want to make any changes here
                     $rpf_df = $rpm['dataField'];
+                }
 
                 // The datafield entry in here should also have the rpf's allowedFieldtype values
                 $rpf_df['allowedFieldtypes'] = $rpf_allowedFieldtypes;
@@ -619,6 +629,8 @@ class DatabaseInfoService
                     $rpf_df['properties']['autogenerate_values'] = 1;
                 if ( $rpf['is_derived'] )
                     $rpf_df['properties']['is_derived'] = 1;
+                if ( $rpf['is_optional'] )
+                    $rpf_df['properties']['is_optional'] = 1;
 
                 // ...so the label of the renderPluginField can just point to the datafield that's
                 //  fulfilling the role defined by the rendrPluginField

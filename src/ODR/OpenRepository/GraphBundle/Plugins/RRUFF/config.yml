@@ -4,6 +4,7 @@ services:
         class: '%odr_plugin_base_classpath%\RRUFF\AMCSDPlugin'
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $crypto_service: "@odr.crypto_service"
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
             $entity_creation_service: "@odr.entity_creation_service"

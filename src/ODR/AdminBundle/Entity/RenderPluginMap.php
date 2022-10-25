@@ -234,7 +234,7 @@ class RenderPluginMap
     /**
      * Get dataField
      *
-     * @return \ODR\AdminBundle\Entity\DataFields 
+     * @return \ODR\AdminBundle\Entity\DataFields|null
      */
     public function getDataField()
     {

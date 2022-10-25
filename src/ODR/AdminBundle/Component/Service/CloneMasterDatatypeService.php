@@ -234,7 +234,7 @@ class CloneMasterDatatypeService
             // https://stackoverflow.com/questions/16233835/refresh-the-database-connection-if-connection-drops-or-times-out
             if(FALSE == $this->em->getConnection()->ping()){
                 $this->logger->debug('----------------------------------------');
-                $this->logger->debug('MySQL connection was closed: ' . $template_group . ' - reconnecting.');
+                $this->logger->debug('MySQL connection was closed: '.$template_group.' - reconnecting.');
                 $this->em->getConnection()->close();
                 $this->em->getConnection()->connect();
                 $this->logger->debug('----------------------------------------');
@@ -257,9 +257,9 @@ class CloneMasterDatatypeService
 
             $this->logger->debug('----------------------------------------');
             if ( $datatype->getIsMasterType() )
-                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(' . $template_group . '), user '.$user_id.' is attempting to copy from the template "'.$datatype->getShortName().'"');
+                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster('.$template_group.'), user '.$user_id.' is attempting to copy from the template "'.$datatype->getShortName().'"');
             else
-                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(' . $template_group . '), user '.$user_id.' is attempting to clone the datatype "'.$datatype->getShortName().'"');
+                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster('.$template_group.'), user '.$user_id.' is attempting to clone the datatype "'.$datatype->getShortName().'"');
             if ( $preserve_template_uuids )
                 $this->logger->debug('CloneDatatypeService: -- the new datatype WILL keep references to uuids of its source');
             else
@@ -268,7 +268,7 @@ class CloneMasterDatatypeService
 
             // Check if datatype is not in "initial" mode
             if ($datatype->getSetupStep() != DataType::STATE_INITIAL)
-                throw new ODRException("Datatype " . $datatype->getId() . " is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
+                throw new ODRException("Datatype ".$datatype->getId()." is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
 
             if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 ) {
                 throw new ODRException("Invalid master template id");
@@ -283,7 +283,7 @@ class CloneMasterDatatypeService
 
             // Get all grandparent datatype ids that need cloning...
             $this->master_datatype = $datatype->getMasterDataType();
-            $this->logger->debug('CloneDatatypeService: Master Datatype ID:' . $this->master_datatype->getId());
+            $this->logger->debug('CloneDatatypeService: Master Datatype ID:'.$this->master_datatype->getId());
 
             $include_links = true;
             $datatype_data = $this->dbi_service->getDatatypeArray($this->master_datatype->getId(), $include_links);
@@ -1372,13 +1372,18 @@ class CloneMasterDatatypeService
             if ( !is_null($derived_datatype) )
                 $new_rpfm->setDataType($derived_datatype);       // TODO - if null, then a datafield plugin...but why does it work like that in the first place again?
 
-            // Find the analogous datafield in the derived datatype
-            /** @var DataFields $matching_df */
-            $matching_df = $this->df_mapping[ $parent_rpfm->getDataField()->getId() ];
-            $new_rpfm->setDataField($matching_df);
+            // Find the analogous datafield in the derived datatype, if it exists
+            if ( !is_null($parent_rpfm->getDataField()) ) {
+                /** @var DataFields $matching_df */
+                $matching_df = $this->df_mapping[$parent_rpfm->getDataField()->getId()];
+                $new_rpfm->setDataField($matching_df);
 
-            self::persistObject($new_rpfm, true);    // These don't need to be flushed/refreshed immediately...
-            $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
+                self::persistObject($new_rpfm, true);    // These don't need to be flushed/refreshed immediately...
+                $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
+            }
+            else {
+                $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
+            }
         }
     }
 }

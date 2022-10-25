@@ -70,6 +70,11 @@ class RenderPluginFields
     private $is_derived;
 
     /**
+     * @var bool
+     */
+    private $is_optional;
+
+    /**
      * @var \DateTime
      */
     private $deletedAt;
@@ -320,6 +325,30 @@ class RenderPluginFields
     public function getIsDerived()
     {
         return $this->is_derived;
+    }
+
+    /**
+     * Set isOptional.
+     *
+     * @param bool $isOptional
+     *
+     * @return RenderPluginFields
+     */
+    public function setIsOptional($isOptional)
+    {
+        $this->is_optional = $isOptional;
+
+        return $this;
+    }
+
+    /**
+     * Get isOptional.
+     *
+     * @return bool
+     */
+    public function getIsOptional()
+    {
+        return $this->is_optional;
     }
 
     /**

@@ -1890,7 +1890,7 @@ class EntityCreationService
      * @param RenderPluginInstance $rpi
      * @param RenderPluginFields $rpf
      * @param DataType|null $dt
-     * @param DataFields $df
+     * @param DataFields|null $df
      * @param bool $delay_flush
      *
      * @return RenderPluginMap
