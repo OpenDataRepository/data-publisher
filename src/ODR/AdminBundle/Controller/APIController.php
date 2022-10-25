@@ -74,6 +74,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -1523,8 +1524,8 @@ class APIController extends ODRCustomController
 
                         switch ($data_field->getFieldType()->getId()) {
 
+                            // Tag field - need to difference hierarchy
                             case '18':
-                                // Tag field - need to difference hierarchy
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -1637,9 +1638,8 @@ class APIController extends ODRCustomController
 
                                 break;
 
+                            // Single Radio
                             case '8':
-                                // Single Radio
-
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1750,121 +1750,8 @@ class APIController extends ODRCustomController
 
                                 break;
 
-                            case '12':
-                                // Checkbox
-                                // Determine selected options in original dataset
-                                // Determine selected options in current
-                                $selected_options = $field['value'];
-
-                                $orig_selected_options = array();
-                                if ($orig_dataset) {
-                                    foreach ($orig_dataset['fields'] as $o_field) {
-                                        if (
-                                            isset($o_field['value']) &&
-                                            isset($field['field_uuid']) &&
-                                            $o_field['field_uuid'] == $field['field_uuid']
-                                        ) {
-                                            $orig_selected_options = $o_field['value'];
-                                        }
-                                    }
-                                }
-
-                                $new_options = array();
-                                $deleted_options = array();
-
-                                // check for new options
-                                foreach ($selected_options as $option) {
-                                    $found = false;
-                                    foreach ($orig_selected_options as $o_option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($new_options, $option['template_radio_option_uuid']);
-                                    }
-                                }
-
-                                /*
-                                if(count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
-                                }
-                                */
-
-                                // Check for deleted options
-                                foreach ($orig_selected_options as $o_option) {
-                                    $found = false;
-                                    foreach ($selected_options as $option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($deleted_options, $o_option['template_radio_option_uuid']);
-                                    }
-                                }
-
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                    array(
-                                        'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
-                                    )
-                                );
-
-                                // Delete deleted options
-                                foreach ($deleted_options as $option_uuid) {
-                                    /** @var RadioOptions $option */
-                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                        array(
-                                            'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-                                    /** @var RadioSelection $option_selection */
-                                    $option_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
-                                        array(
-                                            'radioOption' => $option->getId(),
-                                            'dataRecordFields' => $drf->getId()
-                                        )
-                                    );
-
-                                    if ($option_selection) {
-                                        $fields_updated = true;
-                                    }
-                                }
-
-
-                                // Add or delete options as needed
-                                // Check if new option exists in template
-                                // Add to template if not exists
-                                foreach ($new_options as $option_uuid) {
-                                    // Lookup Option by UUID
-                                    /** @var RadioOptions $option */
-                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                        array(
-                                            'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-
-                                    if(!$option) {
-                                        // We need Datatype Admin Perms
-                                        if (
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
-                                        ) {
-                                            return false;
-                                        }
-                                    }
-
-                                    $fields_updated = true;
-
-                                }
-                                break;
-
+                            // Multiple Radio
                             case '13':
-                                // Multiple Radio
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1977,8 +1864,8 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
+                            // Single Select
                             case '14':
-                                // Single Select
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2090,8 +1977,8 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
+                            // Multiple Select
                             case '15':
-                                // Multiple Select
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2475,6 +2362,9 @@ class APIController extends ODRCustomController
 
         // Check if fields are added or updated
         $fields_updated = false;
+        $radio_option_created = false;
+        $tag_created = false;
+
         try {
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
@@ -2712,8 +2602,8 @@ class APIController extends ODRCustomController
 
                         switch ($data_field->getFieldType()->getId()) {
 
+                            // Tag field - need to difference hierarchy
                             case '18':
-                                // Tag field - need to difference hierarchy
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -2824,6 +2714,7 @@ class APIController extends ODRCustomController
                                         }
                                         // Create tag and set as user created
                                         $tag = new Tags();
+                                        $tag_created = true;
 
                                         // Option UUID gets overloaded with the name if a user created tag
                                         $tag->setTagName($tag_uuid);
@@ -2859,7 +2750,7 @@ class APIController extends ODRCustomController
                                         );
 
                                         if(!$tag_parent)
-                                            throw new \Exception('The parent tag is invalid or not found.');
+                                            throw new \Exception('The parent tag is invalid or not found.');    // TODO - not all tags will have parents...
 
                                         /** @var TagTree $tag_tree */
                                         $tag_tree = new TagTree();
@@ -2927,12 +2818,14 @@ class APIController extends ODRCustomController
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
-                                            if($tag->getUserCreated()) {
+
+                                            if ($tag_created) {
                                                 $field['value'][$j]['name'] = $tag_uuid;
                                                 $field['value'][$j]['user_created'] = 1;
                                             }
                                             else {
                                                 $field['value'][$j]['name'] = $tag->getTagName();
+                                                $field['value'][$j]['user_created'] = $tag->getUserCreated();
                                             }
                                         }
                                     }
@@ -2952,9 +2845,8 @@ class APIController extends ODRCustomController
 
                                 break;
 
+                            // Single Radio
                             case '8':
-                                // Single Radio
-
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2989,7 +2881,7 @@ class APIController extends ODRCustomController
                                 }
 
                                 if (count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
+                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);    // TODO - the stuff that saves really can't be throwing errors
                                 }
 
                                 // Check for deleted options
@@ -3061,6 +2953,7 @@ class APIController extends ODRCustomController
 
                                         // Create option and set as user created
                                         $option = new RadioOptions();
+                                        $radio_option_created = true;
 
                                         // Option UUID gets overloaded with the name if a user created option
                                         $option->setOptionName($option_uuid);
@@ -3081,8 +2974,8 @@ class APIController extends ODRCustomController
                                         $option_meta->setCreatedBy($user);
                                         self::setDates($option_meta, $field['created']);
                                         $option_meta->setDisplayOrder(0);
-                                        $option_meta->setXmlOptionName($option->getOptionName());
-                                        $option_meta->setOptionName($option->getOptionName());
+                                        $option_meta->setXmlOptionName('');
+                                        $option_meta->setOptionName($option_uuid);
                                         $em->persist($option_meta);
                                     }
 
@@ -3131,12 +3024,14 @@ class APIController extends ODRCustomController
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
-                                            if($option->getUserCreated()) {
+
+                                            if ($radio_option_created) {
                                                 $field['value'][$j]['name'] = $option_uuid;
                                                 $field['value'][$j]['user_created'] = 1;
                                             }
                                             else {
                                                 $field['value'][$j]['name'] = $option->getOptionName();
+                                                $field['value'][$j]['user_created'] = $option->getUserCreated();
                                             }
                                         }
                                     }
@@ -3146,202 +3041,8 @@ class APIController extends ODRCustomController
 
                                 break;
 
-                            case '12':
-                                // Checkbox
-                                // Determine selected options in original dataset
-                                // Determine selected options in current
-                                $selected_options = $field['value'];
-
-                                $orig_selected_options = array();
-                                if ($orig_dataset) {
-                                    foreach ($orig_dataset['fields'] as $o_field) {
-                                        if (
-                                            isset($o_field['value']) &&
-                                            isset($field['field_uuid']) &&
-                                            $o_field['field_uuid'] == $field['field_uuid']
-                                        ) {
-                                            $orig_selected_options = $o_field['value'];
-                                        }
-                                    }
-                                }
-
-                                $new_options = array();
-                                $deleted_options = array();
-
-                                // check for new options
-                                foreach ($selected_options as $option) {
-                                    $found = false;
-                                    foreach ($orig_selected_options as $o_option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($new_options, $option['template_radio_option_uuid']);
-                                    }
-                                }
-
-                                /*
-                                if(count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
-                                }
-                                */
-
-                                // Check for deleted options
-                                foreach ($orig_selected_options as $o_option) {
-                                    $found = false;
-                                    foreach ($selected_options as $option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($deleted_options, $o_option['template_radio_option_uuid']);
-                                    }
-                                }
-
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                    array(
-                                        'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
-                                    )
-                                );
-
-                                // Delete deleted options
-                                foreach ($deleted_options as $option_uuid) {
-                                    /** @var RadioOptions $option */
-                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                        array(
-                                            'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-                                    /** @var RadioSelection $option_selection */
-                                    $option_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
-                                        array(
-                                            'radioOption' => $option->getId(),
-                                            'dataRecordFields' => $drf->getId()
-                                        )
-                                    );
-
-                                    if ($option_selection) {
-                                        $em->remove($option_selection);
-                                        $fields_updated = true;
-                                    }
-                                }
-
-
-                                // Add or delete options as needed
-                                // Check if new option exists in template
-                                // Add to template if not exists
-                                foreach ($new_options as $option_uuid) {
-                                    // Lookup Option by UUID
-                                    /** @var RadioOptions $option */
-                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                        array(
-                                            'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-
-                                        )
-                                    );
-
-                                    // User Added Options
-                                    if(!$option) {
-                                        if (
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
-                                        ) {
-                                            throw new ODRForbiddenException();
-                                        }
-
-                                        // Create option and set as user created
-                                        $option = new RadioOptions();
-
-                                        // Option UUID gets overloaded with the name if a user created option
-                                        $option->setOptionName($option_uuid);
-
-                                        /** @var UUIDService $uuid_service */
-                                        $uuid_service = $this->container->get('odr.uuid_service');
-                                        $option->setRadioOptionUuid($uuid_service->generateTagUniqueId());
-                                        $option->setCreatedBy($user);
-                                        self::setDates($option, $field['created']);
-                                        $option->setUserCreated(1);
-                                        $option->setDataField($data_field);
-                                        $em->persist($option);
-
-                                        /** @var RadioOptionsMeta $option_meta */
-                                        $option_meta = new RadioOptionsMeta();
-                                        $option_meta->setRadioOption($option);
-                                        $option_meta->setIsDefault(false);
-                                        $option_meta->setCreatedBy($user);
-                                        self::setDates($option_meta, $field['created']);
-                                        $option_meta->setDisplayOrder(0);
-                                        $option_meta->setXmlOptionName($option->getOptionName());
-                                        $option_meta->setOptionName($option->getOptionName());
-                                        $em->persist($option_meta);
-                                    }
-
-                                    if (!$drf) {
-                                        // If drf entry doesn't exist, create new
-                                        $drf = new DataRecordFields();
-                                        $drf->setCreatedBy($user);
-                                        self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
-                                        $em->persist($drf);
-                                    }
-
-                                    /** @var RadioSelection $new_field */
-                                    $new_field = new RadioSelection();
-                                    $new_field->setRadioOption($option);
-                                    $new_field->setDataRecord($data_record);
-                                    $new_field->setDataRecordFields($drf);
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setSelected(1);
-                                    $em->persist($new_field);
-
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    // Maybe the references will be stored in the variable anyway?
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Added tags need to replace their value in the array
-                                    for($j=0;$j < count($field['value']);$j++) {
-                                        if(
-                                            $field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
-                                            || (
-                                                $option->getUserCreated()
-                                                && $field['value'][$j]['template_radio_option_uuid'] == $option_uuid
-                                            )
-                                        ) {
-                                            // replace this block
-                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['id'] = $new_field->getId();
-                                            $field['value'][$j]['selected'] = 1;
-                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
-                                            if($option->getUserCreated()) {
-                                                $field['value'][$j]['name'] = $option_uuid;
-                                                $field['value'][$j]['user_created'] = 1;
-                                            }
-                                            else {
-                                                $field['value'][$j]['name'] = $option->getOptionName();
-                                            }
-                                        }
-                                    }
-                                    // Assign the updated field back to the dataset.
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                }
-                                break;
-
+                            // Multiple Radio
                             case '13':
-                                // Multiple Radio
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3451,6 +3152,7 @@ class APIController extends ODRCustomController
 
                                         // Create option and set as user created
                                         $option = new RadioOptions();
+                                        $radio_option_created = true;
 
                                         // Option UUID gets overloaded with the name if a user created option
                                         $option->setOptionName($option_uuid);
@@ -3534,8 +3236,8 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
+                            // Single Select
                             case '14':
-                                // Single Select
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3645,6 +3347,7 @@ class APIController extends ODRCustomController
 
                                         // Create option and set as user created
                                         $option = new RadioOptions();
+                                        $radio_option_created = true;
 
                                         // Option UUID gets overloaded with the name if a user created option
                                         $option->setOptionName($option_uuid);
@@ -3728,8 +3431,8 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
+                            // Multiple Select
                             case '15':
-                                // Multiple Select
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3845,6 +3548,7 @@ class APIController extends ODRCustomController
                                         // Create option and set as user created
                                         /** @var RadioOptions $option */
                                         $option = new RadioOptions();
+                                        $radio_option_created = true;
 
                                         // Option UUID gets overloaded with the name if a user created option
                                         $option->setOptionName($option_uuid);
@@ -4370,7 +4074,7 @@ class APIController extends ODRCustomController
                         // If the record has a record_uuid, we just need to make the link
                         if($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
                             print 'A LINK HAS BEEN ADDED';
-                            /** @var DataRecord $data_record */
+                            /** @var DataRecord $linked_data_record */
                             $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                                 array(
                                     'unique_id' => $record['record_uuid']
@@ -4386,13 +4090,14 @@ class APIController extends ODRCustomController
 
                             // TODO - Should we allow changes to the record here - not practical I think
                             $dataset['records'][$i] = $record;
-                            // $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
+
+                            // TODO - need to clear the correct cache entries
 
                         }
                         else if(!$is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
                             throw new ODRBadRequestException('New child records (non-linked) can not have pre-existing UUIDs.');
                         } else {
-
+                            // TODO - this should be using entitycreationservice
                             /** @var UUIDService $uuid_service */
                             $uuid_service = $this->container->get('odr.uuid_service');
 
@@ -4449,6 +4154,8 @@ class APIController extends ODRCustomController
                                 /** @var EntityCreationService $ec_service */
                                 $ec_service = $this->container->get('odr.entity_creation_service');
                                 $ec_service->createDatarecordLink($user, $data_record, $new_record);
+
+                                // TODO - need to clear the correct cache entries
                             }
 
                             // Populate the UUID of the newly added record
@@ -4505,7 +4212,13 @@ class APIController extends ODRCustomController
                 // with API until a user queries a record.
 
                 // $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-                // $dri_service->updateDatarecordCacheEntry($data_record, $user);
+                 $dri_service->updateDatarecordCacheEntry($data_record, $user);
+            }
+
+            if ( $radio_option_created || $tag_created ) {
+                /** @var DatabaseInfoService $dbi_service */
+                $dbi_service = $this->container->get('odr.database_info_service');
+                $dbi_service->updateDatatypeCacheEntry($data_record->getDataType(), $user);
             }
 
             // Check Related datatypes
@@ -5772,7 +5485,7 @@ class APIController extends ODRCustomController
                         }
                     }
 
-                    // Move file to web directory (really?)
+                    // Move file to web directory (really?)    // TODO - this needs to be using ODR's temp directory
                     if($using_local_files) {
                         $tmp_filename = $file['local_file_name'];
                         $original_filename = $file['original_file_name'];
