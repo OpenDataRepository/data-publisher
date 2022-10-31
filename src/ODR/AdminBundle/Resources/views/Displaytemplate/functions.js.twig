@@ -353,4 +353,67 @@ function setupSortableDatafields(elem) {
     });
 }
 
+/**
+ * Deletes all resizable/sortable instances off the page.
+ *
+ * @param {boolean} reset_opacity
+ */
+function clearAllFields(reset_opacity) {
+    // Default is to reset opacity
+    if(reset_opacity === undefined)
+        reset_opacity = true;
+
+    // console.log('Clear all fields');
+    // Remove Existing Selectors and Highlights
+    $(".ODRFieldSelected").removeClass('ODRFieldSelected').each(function(elem) {
+        clearResizeable(elem);
+    });
+    $(".ODRDragHandle").remove();
+    $(".ODRSortHandle").remove();
+
+    // Kill existing sortables
+    $('.ODRFieldArea').each(function(elem) {
+        clearSortable(elem);
+    });
+    $(".ODRThemeElement .ODRInnerBox").each(function(elem) {
+        clearSortable(elem);
+    });
+
+    if (reset_opacity)
+        resetOpacity();
+}
+
+/**
+ * Destroys a jQuery resizable instance on the given element
+ *
+ * @param {HTMLElement} elem
+ */
+function clearResizeable(elem) {
+    if ( $(elem).resizable('instance') !== undefined )
+        $(elem).resizable('destroy');
+
+    return true;
+}
+
+/**
+ * Destroys a jQuery sortable instance on the given element
+ *
+ * @param {HTMLElement} elem
+ */
+function clearSortable(elem) {
+    if ( $(elem).sortable('instance') !== undefined )
+        $(elem).sortable('destroy');
+
+    return true;
+}
+
+/**
+ * Removes the fade effect from all theme elements
+ */
+function resetOpacity() {
+    $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea > .ODRThemeElement").each(function() {
+        $(this).fadeTo(200, '1.0');
+    });
+}
+
 {% endspaceless %}
