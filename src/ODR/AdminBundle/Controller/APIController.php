@@ -2423,6 +2423,7 @@ class APIController extends ODRCustomController
                     }
                     $em->persist($new_data_record_meta);
                     $em->flush();
+                    $em->refresh($data_record);
 
                     // Set metadata
                     $fields_updated = true;
@@ -5485,8 +5486,8 @@ class APIController extends ODRCustomController
                         }
                     }
 
-                    // Move file to web directory (really?)    // TODO - this needs to be using ODR's temp directory
-                    if($using_local_files) {
+                    // Move file to tmp directory
+                    if ($using_local_files) {
                         $tmp_filename = $file['local_file_name'];
                         $original_filename = $file['original_file_name'];
                     }
@@ -5494,14 +5495,15 @@ class APIController extends ODRCustomController
                         $tmp_filename = $file->getFileName();
                         $original_filename = $file->getClientOriginalName();
                     }
+
                     // Check whether file is uploaded completely and properly
-                    $path_prefix = $this->getParameter('odr_web_directory').'/';
-                    $destination_folder = 'uploads/files/chunks/user_'.$user->getId().'/completed';
+                    $path_prefix = $this->getParameter('odr_tmp_directory').'/';
+                    $destination_folder = 'user_'.$user->getId().'/chunks/completed';
                     if ( !file_exists($path_prefix.$destination_folder) )
                         mkdir( $path_prefix.$destination_folder, 0777, true );
 
 
-                    if($using_local_files) {
+                    if ($using_local_files) {
                         $tmp_path_prefix = $this->getParameter('uploaded_files_path').'/';
                         $tmp_file = $$tmp_path_prefix.$destination_folder.'/'.$tmp_filename;
                         $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
@@ -5510,7 +5512,7 @@ class APIController extends ODRCustomController
                         $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
                         $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
                         // Download file to temp folder
-                        $file->move($destination_folder);
+                        $file->move($path_prefix.$destination_folder);
                     }
 
                     // TODO Need to also check file size here

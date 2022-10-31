@@ -338,7 +338,7 @@ class FlowController extends ODRCustomController
             $path_prefix = $this->getParameter('odr_tmp_directory').'/';
             $destination_folder = 'user_'.$user_id.'/chunks/completed';
             if ( !file_exists($path_prefix.$destination_folder) )
-                mkdir( $path_prefix.$destination_folder );
+                mkdir( $path_prefix.$destination_folder, 0777, true );
 
             $destination = $path_prefix.$destination_folder.'/'.$original_filename;
 
