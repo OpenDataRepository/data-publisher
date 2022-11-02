@@ -128,26 +128,33 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                $drf = $datarecord['dataRecordFields'][$rpf_df_id];
 
-                switch ($typeclass) {
-                    case 'ShortVarchar':
-                        $data = $drf['shortVarchar'];
-                        if ( !isset($data[0]) || !isset($data[0]['value']) )
-                            $datafield_mapping[$rpf_name] = '';
-                        else
-                            $datafield_mapping[$rpf_name] = $data[0]['value'];
-                        break;
+                if ( !isset($datarecord['dataRecordFields'][$rpf_df_id]) ) {
+                    // If a drf entry doesn't exist, then use the empty string instead
+                    $datafield_mapping[$rpf_name] = '';
+                }
+                else {
+                    // Otherwise, attempt to extract the value from the drf entry
+                    $drf = $datarecord['dataRecordFields'][$rpf_df_id];
+                    switch ($typeclass) {
+                        case 'ShortVarchar':
+                            $data = $drf['shortVarchar'];
+                            if ( !isset($data[0]) || !isset($data[0]['value']) )
+                                $datafield_mapping[$rpf_name] = '';
+                            else
+                                $datafield_mapping[$rpf_name] = $data[0]['value'];
+                            break;
 
-                    case 'Radio':
-                        foreach ($drf['radioSelection'] as $ro_id => $rs) {
-                            if ( $rs['selected'] === 1 )
-                                $datafield_mapping[$rpf_name] = $rs['radioOption']['optionName'];
-                        }
-                        break;
+                        case 'Radio':
+                            foreach ($drf['radioSelection'] as $ro_id => $rs) {
+                                if ( $rs['selected'] === 1 )
+                                    $datafield_mapping[$rpf_name] = $rs['radioOption']['optionName'];
+                            }
+                            break;
 
-                    default:
-                        throw new ODRException('Unexpected fieldtype');
+                        default:
+                            throw new ODRException('Unexpected fieldtype');
+                    }
                 }
 
                 $plugin_fields[$rpf_df_id] = $rpf_df;

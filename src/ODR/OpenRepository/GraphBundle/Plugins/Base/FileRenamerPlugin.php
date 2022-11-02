@@ -297,8 +297,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             // The datafield could have more than one renderPluginInstance
             foreach ($df['renderPluginInstances'] as $num => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
-                    // Need to know both the value for the separator...
+                    // Need to know both the value for the separator and the period substitute...
                     $separator = trim($rpi['renderPluginOptionsMap']['separator']);
+                    $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
                     // ...and the semi-encoded value for the list of fields
                     $field_list_value = trim($rpi['renderPluginOptionsMap']['field_list']);
 
@@ -311,6 +312,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                         'prefix' => $tmp[0],               // first index is always the prefix
                         'config' => array_slice($tmp, 1),  // everything else is the actual config
                         'separator' => $separator,
+                        'period_substitute' => $period_substitute,
                     );
                 }
             }
@@ -937,8 +939,9 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         foreach ($mapping as $df_id => $data) {
             if ( empty($data) ) {
                 // If no datarecord had a value for this datafield, then the filename will be missing
-                //  a required part...rather than build an incomplete filename, refuse to do anything
-                return "Unable to find a value for the \"".$datafield_names[$df_id]."\" datafield to use for renaming purposes...most likely, the field has no value or an expected record hasn't been linked to.";
+                //  a required part...since the data could legitimately be blank, provide the empty string
+//                return "Unable to find a value for the \"".$datafield_names[$df_id]."\" datafield to use for renaming purposes...most likely, the field has no value or an expected record hasn't been linked to.";
+                $mapping[$df_id] = array(0 => '');
 
                 // This typically happens when the field hasn't been filled out, or when the config
                 //  tries to pull a value from a linked datarecord...that hasn't actually been linked
@@ -974,9 +977,11 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             $values[$display_order] = $value;
         }
 
-        // The base of the new filename is found by imploding all the various pieces together
+        // The base of the new filename is found by imploding all the various pieces together...
         $separator = $config_info['separator'];
         $base_filename = implode($separator, $values);
+        // ...and then replacing any period characters with the substitute sequence
+        $base_filename = str_replace(".", $config_info['period_substitute'], $base_filename);
 
 
         // ----------------------------------------
