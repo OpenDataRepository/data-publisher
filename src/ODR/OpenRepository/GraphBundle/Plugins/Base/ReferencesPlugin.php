@@ -113,8 +113,9 @@ class ReferencesPlugin implements DatatypePluginInterface
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
 
-                // The datafield may have a render plugin that should be executed...
-                if ( !empty($df['renderPluginInstances']) ) {
+                // The datafield may have a render plugin that should be executed, but only if
+                //  it's not a file field...
+                if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
                     foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
                         if ( $rpi['renderPlugin']['render'] === true ) {
                             // ...if it does, then create an array entry for it
