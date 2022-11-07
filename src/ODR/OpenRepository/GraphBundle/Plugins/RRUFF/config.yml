@@ -44,12 +44,6 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
-    odr_plugins.rruff.rruff_sample:
-        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
-        arguments:
-            $templating: "@templating"
-            $logger: "@logger"
-
     # ----------------------------------------
     odr_plugins.rruff.pin_data:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
@@ -63,6 +57,11 @@ services:
             $logger: "@logger"
 
     # ----------------------------------------
+    odr_plugins.rruff.rruff_sample:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
+        arguments:
+            $logger: "@logger"
+
     odr_plugins.rruff.chemistry_analysis:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFChemistryAnalysisPlugin'
         arguments:

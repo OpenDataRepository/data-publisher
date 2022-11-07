@@ -35,6 +35,13 @@ services:
             $templating: '@templating'
             $tokenGenerator: '@fos_user.util.token_generator'
 
+    odr_plugins.base.linked_descendant_merger:
+        class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
+        arguments:
+            $database_info_service: "@odr.database_info_service"
+            $sort_service: "@odr.sort_service"
+            $templating: '@templating'
+            $logger: "@logger"
 
     # Datafield plugins
     odr_plugins.base.chemistry:
