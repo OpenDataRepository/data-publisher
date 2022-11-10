@@ -58,12 +58,16 @@ class QanalyzePlugin implements DatafieldPluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
-        // The Qanalyze Plugin should work in the 'display' context
-        if ( $rendering_options['context'] === 'display' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
 
-        // TODO - make it work in edit mode by replacing the field with a boolean?
-        // TODO - ...or change the required field to be a boolean in the first place?
+            // The QAnalyze plugin is only allowed to work in display mode
+            if ( $context === 'display' )
+                return true;
+
+            // TODO - make it work in edit mode by replacing the field with a boolean?
+            // TODO - ...or change the required field to be a boolean in the first place?
+        }
 
         return false;
     }

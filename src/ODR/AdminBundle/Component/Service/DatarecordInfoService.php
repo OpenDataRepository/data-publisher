@@ -16,7 +16,6 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -363,9 +362,11 @@ class DatarecordInfoService
             LEFT JOIN e_svc.updatedBy AS e_svc_ub
             LEFT JOIN drf.datetimeValue AS e_dtv
             LEFT JOIN e_dtv.updatedBy AS e_dtv_ub
+
             LEFT JOIN drf.radioSelection AS rs
             LEFT JOIN rs.updatedBy AS rs_ub
             LEFT JOIN rs.radioOption AS ro
+
             LEFT JOIN drf.tagSelection AS ts
             LEFT JOIN ts.updatedBy AS ts_ub
             LEFT JOIN ts.tag AS t
@@ -404,7 +405,11 @@ class DatarecordInfoService
         // If this datarecord has tag datafields, then a list of "child tag selections" needs to be
         //  stored with the cached data...Display mode can't follow "display_unselected_radio_options"
         //  otherwise
-        $tag_hierarchy = null;
+        $tag_id_hierarchy = null;
+        // ...and since the hierarchy doesn't change from datarecord to datarecord, the inverted
+        //  version doesn't change either
+        $inversed_tag_id_tree = null;
+        $inversed_tag_uuid_tree = null;
 
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
@@ -455,9 +460,35 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['sortField_value'] = '';
 
             // Only want to load the tag hierarchy for this grandparent datatype once
-            if ( is_null($tag_hierarchy) ) {
+            if ( is_null($tag_id_hierarchy) ) {
                 $gp_dt_id = $datarecord_data[$dr_num]['dataType']['grandparent']['id'];
-                $tag_hierarchy = $this->th_service->getTagHierarchy($gp_dt_id);
+
+                // Need to invert the provided hierarchies so that the code can look up the parent
+                //  tag when given a child tag
+                // Despite technically having four levels of foreach loops, only the deepest two
+                //  loops really do anything
+                $tag_id_hierarchy = $this->th_service->getTagHierarchy($gp_dt_id);
+                foreach ($tag_id_hierarchy as $dt_id => $df_list) {
+                    foreach ($df_list as $df_id => $tag_tree) {
+                        foreach ($tag_tree as $parent_tag_id => $children) {
+                            foreach ($children as $child_tag_id => $tmp)
+                                $inversed_tag_id_tree[$child_tag_id] = $parent_tag_id;
+                        }
+                    }
+                }
+
+                // Need to do the same thing with tag uuids too
+                // Despite technically having four levels of foreach loops, only the deepest two
+                //  loops really do anything
+                $tag_uuid_hierarchy = $this->th_service->getTagHierarchy($gp_dt_id, true);
+                foreach ($tag_uuid_hierarchy as $dt_id => $df_list) {
+                    foreach ($df_list as $df_id => $tag_tree) {
+                        foreach ($tag_tree as $parent_tag_uuid => $children) {
+                            foreach ($children as $child_tag_uuid => $tmp)
+                                $inversed_tag_uuid_tree[$child_tag_uuid] = $parent_tag_uuid;
+                        }
+                    }
+                }
             }
 
             // Don't want to store the datatype's meta entry
@@ -643,15 +674,15 @@ class DatarecordInfoService
                 foreach ($drf['tagSelection'] as $ts_num => $ts) {
                     $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
-                    $t_id = $ts['tag']['id'];
-                    if($ts['tag']['userCreated'] > 0) {
-                        /** @var TagTree $tag_tree */
-                        $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')
-                            ->findOneBy(array(
-                                'child' => $ts['tag']['id']
-                            ));
-                        $ts['tag_parent_uuid'] = $tag_tree->getParent()->getTagUuid();
+                    if ( $ts['tag']['userCreated'] > 0 ) {
+                        // TODO - shouldn't this 'tag_parent_uuid' entry always be in the array?
+                        // TODO - ...and in the tag data, not the tagSelection data?
+                        $tag_uuid = $ts['tag']['tagUuid'];
+                        if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
+                            $ts['tag_parent_uuid'] = $inversed_tag_uuid_tree[$tag_uuid];
                     }
+
+                    $t_id = $ts['tag']['id'];
                     $new_ts_array[$t_id] = $ts;
                 }
                 $drf['tagSelection'] = $new_ts_array;
@@ -667,38 +698,18 @@ class DatarecordInfoService
 
                 // If tag selections exist for this drf entry...
                 if ( isset($drf['tagSelection']) ) {
-                    // ...then a list of which non-leaf tags have selected child/grandchild/etc tags
-                    //  needs to be created and stored
-                    $tag_tree = array();
-                    $inversed_tag_tree = array();
-                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) ) {
-                        $tag_tree = $tag_hierarchy[$dt_id][$df_id];
-
-                        // Building the list of which tags have selected child tags is easier if
-                        //  the tag tree is inverted first
-                        foreach ($tag_tree as $parent_tag_id => $children) {
-                            foreach ($children as $child_tag_id => $tmp)
-                                $inversed_tag_tree[$child_tag_id] = $parent_tag_id;
-                        }
-                    }
-
-                    // For each tag that is selected...
+                    // ...then for each tag that is selected...
                     $selections = array();
                     foreach ($drf['tagSelection'] as $t_id => $ts) {
-                        if ( isset($tag_tree[$t_id]) ) {
-                            // ...if it's a tag with children, it shouldn't have a tagSelection entry
-                            unset( $drf['tagSelection'][$t_id] );
-                        }
-                        else if ( $ts['selected'] === 1 ) {
-                            // ...otherwise, it's a tag without children and is selected...
+                        if ( $ts['selected'] === 1 ) {
+                            // ...ODR needs to find all ancestors of the selected tag...
                             $current_tag_id = $t_id;
-                            // ...then for every ancestor of this tag...
-                            while ( isset($inversed_tag_tree[$current_tag_id]) ) {
-                                // ...store that they have a descendant tag that is selected
-                                $parent_tag_id = $inversed_tag_tree[$current_tag_id];
+                            while ( isset($inversed_tag_id_tree[$current_tag_id]) ) {
+                                // ...so it can store that they have a descendant tag that is selected
+                                $parent_tag_id = $inversed_tag_id_tree[$current_tag_id];
                                 $selections[$parent_tag_id] = '';
 
-                                // ...continue looking for parent tags
+                                // Continue looking for parent tags
                                 $current_tag_id = $parent_tag_id;
                             }
                         }

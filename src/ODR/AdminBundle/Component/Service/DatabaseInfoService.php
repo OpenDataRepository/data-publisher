@@ -148,7 +148,8 @@ class DatabaseInfoService
             $associated_datatypes[] = $grandparent_datatype_id;
         }
 
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        // Load the cached versions of each associated datatype, and store them all at the same
+        //  level in a single array
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
@@ -183,78 +184,18 @@ class DatabaseInfoService
 
 
         // ----------------------------------------
-        // Assume there's two datafields, a "master" df and another df "derived" from the master,
-        //  then delete the "master" datafield.  After that, reload the derived datafield $df...
-
-        // Full hydration will result in  is_null($df->getMasterDatafield()) === false, because
-        //  doctrine returns some sort of proxy object for the deleted master datafield
-        // However, array hydration in the same situation will say  $df['masterDataField'] === null,
-        //  which has a different meaning...so this subquery is required to make array hydration
-        //  have the same behavior as full hydration
-
-        // This is primarily needed so template synchronization can be guaranteed to match a derived
-        //  datafield with its master datafield...same deal with master datatypes
-        $query = $this->em->createQuery(
-           'SELECT
-                partial dt.{id}, 
-                partial mdt.{id, unique_id}, 
-                partial mdt_dtm.{id, shortName},
-                partial df.{id}, 
-                partial mdf.{id}
-
-                FROM ODRAdminBundle:DataType AS dt
-                LEFT JOIN dt.masterDataType AS mdt
-                LEFT JOIN mdt.dataTypeMeta AS mdt_dtm
-                LEFT JOIN dt.dataFields AS df
-                LEFT JOIN df.masterDataField AS mdf
-
-                WHERE dt.grandparent = :grandparent_datatype_id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
-        // AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
-
-        // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
-        //  datafield entries
-        $this->em->getFilters()->disable('softdeleteable');
-        $master_data = $query->getArrayResult();
-        $this->em->getFilters()->enable('softdeleteable');
-
+        // Need to perform an adjustment so that array hydration of "master" datafields/datatypes
+        //  matches full hydration of the same entities...
         $derived_dt_data = array();
         $derived_df_data = array();
-        foreach ($master_data as $dt_num => $dt) {
-            // Store the potentially deleted master datatype
-            $dt_id = $dt['id'];
-            $mdt_data = null;
-            if ( isset($dt['masterDataType']) && !is_null($dt['masterDataType']) ) {
-                // Due to loading deleted entries, need to find the most recent dataTypeMeta entry
-                $short_name = '';
-                foreach ($dt['masterDataType']['dataTypeMeta'] as $mdt_dtm_num => $mdt_dtm)
-                    $short_name = $mdt_dtm['shortName'];
+        self::getDerivedData($grandparent_datatype_id, $derived_dt_data, $derived_df_data);
 
-                $mdt_data = array(
-                    'id' => $dt['masterDataType']['id'],
-                    'unique_id' => $dt['masterDataType']['unique_id'],
-                    'shortName' => $short_name,
-                );
-            }
-            $derived_dt_data[$dt_id] = $mdt_data;
+        // These two are kept separate from the primary query because mysql does not like having
+        //  to potentially load hundreds of either of these entities in the main query
+        $radio_options = self::getRadioOptionData($grandparent_datatype_id);
+        $tags = self::getTagData($grandparent_datatype_id);
 
-            // Store the potentially deleted master datafield
-            foreach ($dt['dataFields'] as $df_num => $df) {
-                $df_id = $df['id'];
-                $mdf_data = null;
-                if ( isset($df['masterDataField']) && !is_null($df['masterDataField']) ) {
-                    $mdf_data = array(
-                        'id' => $df['masterDataField']['id']
-                    );
-                }
-
-                $derived_df_data[$df_id] = $mdf_data;
-            }
-        }
-
-
-        // ----------------------------------------
-        // Get all non-layout data for the requested datatype
+        // Get all the rest of the non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
                 dt, dtm,
@@ -267,17 +208,17 @@ class DatabaseInfoService
                 partial dt_rpi.{id}, dt_rpi_rp,
                 partial dt_rpom.{id, value}, partial dt_rpo.{id, name},
                 partial dt_rpm.{id},
-                partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived},
+                partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
                 dt_rpm_df,
 
                 df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
 
-                ro, rom, t, tm,
                 partial df_rpi.{id}, df_rpi_rp,
                 partial df_rpom.{id, value}, partial df_rpo.{id, name},
                 partial df_rpm.{id},
-                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived}
+                partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
+                df_rpm_df
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
@@ -304,23 +245,18 @@ class DatabaseInfoService
             LEFT JOIN df.createdBy AS df_cb
             LEFT JOIN dfm.fieldType AS ft
 
-            LEFT JOIN df.radioOptions AS ro
-            LEFT JOIN ro.radioOptionMeta AS rom
-
-            LEFT JOIN df.tags AS t
-            LEFT JOIN t.tagMeta AS tm
-
             LEFT JOIN df.renderPluginInstances AS df_rpi
             LEFT JOIN df_rpi.renderPlugin AS df_rpi_rp
             LEFT JOIN df_rpi.renderPluginOptionsMap AS df_rpom
             LEFT JOIN df_rpom.renderPluginOptionsDef AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
             LEFT JOIN df_rpm.renderPluginFields AS df_rpf
+            LEFT JOIN df_rpm.dataField AS df_rpm_df
 
             WHERE
                 dt.grandparent = :grandparent_datatype_id
                 AND dt.deletedAt IS NULL
-            ORDER BY dt.id, df.id, rom.displayOrder, ro.id'
+            ORDER BY dt.id, df.id'
         )->setParameters(
             array(
                 'grandparent_datatype_id' => $grandparent_datatype_id
@@ -389,55 +325,32 @@ class DatabaseInfoService
                 // Attach the id of this datafield's masterDatafield if it exists
                 $df['masterDataField'] = $derived_df_data[$df_id];
 
-                // Flatten radio options if they exist
-                // They're ordered by displayOrder, so preserve $ro_num
-                foreach ($df['radioOptions'] as $ro_num => $ro) {
-                    if ( count($ro['radioOptionMeta']) == 0 ) {
-                        // ...throwing an exception here because this shouldn't ever happen, and
-                        //  also requires manual intervention to fix...
-                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for radio option '.$ro['id']);
+                // Attach radio options if they exist
+                if ( isset($radio_options[$df_id]) )
+                    $df['radioOptions'] = $radio_options[$df_id];
+
+                // Attach tags if they exist
+                if ( $typeclass === 'Tag' ) {
+                    // This is supposed to be a tag field...
+                    if ( !isset($tags[$df_id]) ) {
+                        // ...but it has no tags...ensure blank arrays exist
+                        $df['tags'] = array();
+                        $df['tagTree'] = array();
                     }
+                    else {
+                        // Tags exist, attempt to locate any tag hierarchy data
+                        $tag_tree = array();
+                        if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
+                            $tag_tree = $tag_hierarchy[$dt_id][$df_id];
 
-                    $rom = $ro['radioOptionMeta'][0];
-                    $df['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
-                }
-                if ( count($df['radioOptions']) == 0 )
-                    unset( $df['radioOptions'] );
+                        // Stack/order the tags before saving them in the array
+                        $tag_list = $this->th_service->stackTagArray($tags[$df_id], $tag_tree);
+                        $this->th_service->orderStackedTagArray($tag_list);
 
-                // Flatten tags if they exist
-                $tag_list = array();
-                foreach ($df['tags'] as $t_num => $t) {
-                    if ( count($t['tagMeta']) == 0 ) {
-                        // ...throwing an exception here because this shouldn't ever happen, and
-                        //  also requires manual intervention to fix...
-                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for tag '.$t['id']);
+                        // Also save the tag hierarchy in here for convenience
+                        $df['tags'] = $tag_list;
+                        $df['tagTree'] = $tag_tree;
                     }
-
-                    $tag_id = $t['id'];
-                    $tag_list[$tag_id] = $t;
-                    $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
-                }
-                if ($typeclass !== 'Tag') {
-                    unset( $df['tags'] );
-                }
-                else if ( count($tag_list) == 0 ) {
-                    // No tags, ensure blank arrays exist
-                    $df['tags'] = array();
-                    $df['tagTree'] = array();
-                }
-                else {
-                    // Tags exist, attempt to locate any tag hierarchy data
-                    $tag_tree = array();
-                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
-                        $tag_tree = $tag_hierarchy[$dt_id][$df_id];
-
-                    // Stack/order the tags before saving them in the array
-                    $tag_list = $this->th_service->stackTagArray($tag_list, $tag_tree);
-                    $this->th_service->orderStackedTagArray($tag_list);
-
-                    // Also save the tag hierarchy in here for convenience
-                    $df['tags'] = $tag_list;
-                    $df['tagTree'] = $tag_tree;
                 }
 
                 $new_datafield_array[$df_id] = $df;
@@ -487,6 +400,179 @@ class DatabaseInfoService
 
 
     /**
+     * There is an edge case when a datafield is "derived" from a "master" datafield, but then the
+     * "master" datafield is deleted...because of how doctrine operates, using full hydration will
+     * result in  is_null( $df->getMasterDatafield() ) === false...but running array hydration on
+     * the same entity will result in  $df['masterDataField'] === null.  The exact same thing happens
+     * with datatypes.
+     *
+     * Since those two results are clearly contradictory, this function forces array hydration
+     * (which is mostly performed here) to match the results of full hydration (which is typically
+     * used elsewhere).
+     *
+     * This is primarily needed so template synchronization can be guaranteed to match a derived
+     * datafield with its master datafield...same deal with master datatypes.
+     *
+     * @param int $grandparent_datatype_id
+     * @param array $derived_dt_data
+     * @param array $derived_df_data
+     * @return void
+     */
+    private function getDerivedData($grandparent_datatype_id, &$derived_dt_data, &$derived_df_data)
+    {
+        $query = $this->em->createQuery(
+           'SELECT
+                partial dt.{id}, partial mdt.{id, unique_id}, partial mdt_dtm.{id, shortName},
+                partial df.{id}, partial mdf.{id}
+            FROM ODRAdminBundle:DataType AS dt
+            LEFT JOIN dt.masterDataType AS mdt
+            LEFT JOIN mdt.dataTypeMeta AS mdt_dtm
+            LEFT JOIN dt.dataFields AS df
+            LEFT JOIN df.masterDataField AS mdf
+            WHERE dt.grandparent = :grandparent_datatype_id'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+
+        // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
+        //  datafield entries
+        $this->em->getFilters()->disable('softdeleteable');
+        $master_data = $query->getArrayResult();
+        $this->em->getFilters()->enable('softdeleteable');
+
+        foreach ($master_data as $dt_num => $dt) {
+            // Store the potentially deleted master datatype
+            $dt_id = $dt['id'];
+            $mdt_data = null;
+            if ( isset($dt['masterDataType']) && !is_null($dt['masterDataType']) ) {
+                // Due to loading deleted entries, need to find the most recent dataTypeMeta entry
+                $short_name = '';
+                foreach ($dt['masterDataType']['dataTypeMeta'] as $mdt_dtm_num => $mdt_dtm)
+                    $short_name = $mdt_dtm['shortName'];
+
+                $mdt_data = array(
+                    'id' => $dt['masterDataType']['id'],
+                    'unique_id' => $dt['masterDataType']['unique_id'],
+                    'shortName' => $short_name,
+                );
+            }
+            $derived_dt_data[$dt_id] = $mdt_data;
+
+            // Store the potentially deleted master datafield
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                $df_id = $df['id'];
+                $mdf_data = null;
+                if ( isset($df['masterDataField']) && !is_null($df['masterDataField']) ) {
+                    $mdf_data = array(
+                        'id' => $df['masterDataField']['id']
+                    );
+                }
+
+                $derived_df_data[$df_id] = $mdf_data;
+            }
+        }
+    }
+
+
+    /**
+     * Because of the complexity/depth of the main query in buildDatatypeData(), it's a lot harder
+     * for mysql if the database also has hundreds of radio options...so it's better to get radio
+     * options in a separate query.
+     *
+     * @param int $grandparent_datatype_id
+     *
+     * @return array
+     */
+    private function getRadioOptionData($grandparent_datatype_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT partial dt.{id}, partial df.{id}, ro, rom
+            FROM ODRAdminBundle:DataType AS dt
+            LEFT JOIN dt.dataFields AS df
+            LEFT JOIN df.radioOptions AS ro
+            LEFT JOIN ro.radioOptionMeta AS rom
+            WHERE dt.grandparent = :grandparent_datatype_id
+            AND dt.deletedAt IS NULL
+            ORDER BY df.id, rom.displayOrder, ro.id'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        $datatype_data = $query->getArrayResult();
+
+        $radio_options = array();
+        foreach ($datatype_data as $dt_num => $dt) {
+            $dt_id = $dt['id'];
+
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                if ( !empty($df['radioOptions']) ) {
+                    $df_id = $df['id'];
+                    $radio_options[$df_id] = array();
+
+                    foreach ($df['radioOptions'] as $ro_num => $ro) {
+                        if ( count($ro['radioOptionMeta']) == 0 ) {
+                            // ...throwing an exception here because this shouldn't ever happen, and
+                            //  also requires manual intervention to fix...
+                            throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for radio option '.$ro['id']);
+                        }
+
+                        $ro['radioOptionMeta'] = $ro['radioOptionMeta'][0];
+                        $radio_options[$df_id][$ro_num] = $ro;
+                    }
+                }
+            }
+        }
+
+        return $radio_options;
+    }
+
+
+    /**
+     * Because of the complexity/depth of the main query in buildDatatypeData(), it's a lot harder
+     * for mysql if the database also has hundreds of tags...so it's better to get all the tags in
+     * in a separate query.
+     *
+     * @param int $grandparent_datatype_id
+     *
+     * @return array
+     */
+    private function getTagData($grandparent_datatype_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT partial dt.{id}, partial df.{id}, t, tm
+            FROM ODRAdminBundle:DataType AS dt
+            LEFT JOIN dt.dataFields AS df
+            LEFT JOIN df.tags AS t
+            LEFT JOIN t.tagMeta AS tm
+            WHERE dt.grandparent = :grandparent_datatype_id
+            AND dt.deletedAt IS NULL'    // tags have a display order, but it only makes sense when they're being stacked
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        $datatype_data = $query->getArrayResult();
+
+        $tags = array();
+        foreach ($datatype_data as $dt_num => $dt) {
+            $dt_id = $dt['id'];
+
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                if ( !empty($df['tags']) ) {
+                    $df_id = $df['id'];
+                    $tags[$df_id] = array();
+
+                    foreach ($df['tags'] as $t_num => $t) {
+                        if ( count($t['tagMeta']) == 0 ) {
+                            // ...throwing an exception here because this shouldn't ever happen, and
+                            //  also requires manual intervention to fix...
+                            throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for tag '.$t['id']);
+                        }
+
+                        $tag_id = $t['id'];
+                        $t['tagMeta'] = $t['tagMeta'][0];
+                        $tags[$df_id][$tag_id] = $t;
+                    }
+                }
+            }
+        }
+
+        return $tags;
+    }
+
+
+    /**
      * The renderPluginFields and renderPluginOptions sections of the datatype array have their
      * labels at a deeper level of the array because they're loaded via the renderPluginInstance...
      * this is kind of "backwards", and these sections of the array are easier to understand and
@@ -515,8 +601,18 @@ class DatabaseInfoService
                 // ...and will have a single dataField entry if it's a datatype plugin (but won't
                 //  if it's a datafield plugin)
                 $rpf_df = array();
-                if ( isset($rpm['dataField']) )
+                if ( !isset($rpm['dataField']) ) {
+                    // ...but it might not be set due to the existence of "optional" renderPluginFields
+
+                    // Unfortunately, ODR was originally written following the idea that "an rpf entry
+                    //  MUST have a df entry"...but putting a null value in here for the id neatly
+                    //  handles most of those places
+                    $rpf_df = array('id' => null);
+                }
+                else {
+                    // ...if it is set though, don't want to make any changes here
                     $rpf_df = $rpm['dataField'];
+                }
 
                 // The datafield entry in here should also have the rpf's allowedFieldtype values
                 $rpf_df['allowedFieldtypes'] = $rpf_allowedFieldtypes;
@@ -533,6 +629,8 @@ class DatabaseInfoService
                     $rpf_df['properties']['autogenerate_values'] = 1;
                 if ( $rpf['is_derived'] )
                     $rpf_df['properties']['is_derived'] = 1;
+                if ( $rpf['is_optional'] )
+                    $rpf_df['properties']['is_optional'] = 1;
 
                 // ...so the label of the renderPluginField can just point to the datafield that's
                 //  fulfilling the role defined by the rendrPluginField

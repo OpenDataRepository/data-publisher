@@ -223,18 +223,17 @@ function ODRGraph_GCMSlineChartPlotly(chart_obj, onComplete) {
             xaxis_settings.showline = true;
             xaxis_settings.showgrid = true;
             xaxis_settings.zeroline = false;
-            // // xaxis_settings.title = chart_obj.x_axis_caption;
-            xaxis_settings.title = "TODO";
+            xaxis_settings.title = chart_obj.upper_x_axis_caption;
             xaxis_settings.autottick = true;
 
             var yaxis_settings = {};
             yaxis_settings.showline = true;
             yaxis_settings.showgrid = true;
             yaxis_settings.zeroline = false;
-            // // yaxis_settings.title = chart_obj.y_axis_caption;
-            yaxis_settings.title = "TODO";
+            yaxis_settings.title = chart_obj.upper_y_axis_caption;
             yaxis_settings.autottick = true;
-            yaxis_settings.type = "log";
+            if ( chart_obj.upper_y_axis_log == "yes" )
+                yaxis_settings.type = "log";
 
             var layout = {
                 // title: 'Title of the Graph',
@@ -358,18 +357,17 @@ function ODRGraph_GCMSbarChartPlotly(x_value, chart_obj) {
             xaxis_settings.showline = true;
             xaxis_settings.showgrid = true;
             xaxis_settings.zeroline = false;
-            // // xaxis_settings.title = chart_obj.x_axis_caption;
-            xaxis_settings.title = "TODO";
+            xaxis_settings.title = chart_obj.lower_x_axis_caption;
             xaxis_settings.autottick = true;
 
             var yaxis_settings = {};
             yaxis_settings.showline = true;
             yaxis_settings.showgrid = true;
             yaxis_settings.zeroline = false;
-            // // yaxis_settings.title = chart_obj.y_axis_caption;
-            yaxis_settings.title = "TODO";
+            yaxis_settings.title = chart_obj.lower_y_axis_caption;
             yaxis_settings.autottick = true;
-            yaxis_settings.type = "log";
+            if ( chart_obj.lower_y_axis_log == "yes" )
+                yaxis_settings.type = "log";
 
             var layout = {
                 // title: 'Title of the Graph',

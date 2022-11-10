@@ -405,50 +405,28 @@
         // tag Tristate checkbox
         $("#ODRSearchSidebar .ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
             // Grab data about the tag being clicked
-            var tag_item = $(this).parent().parent();
+            var icon_div = $(this).children('i').first();
+            var input_div = $(this).children('input').first();
+            var tag_id = $(input_div).attr('rel');
 
-            // If any item is clicked, it'll set all children to selected/unselected...so
-            //  immediately remove the partial class
-            $(this).children('i').first().removeClass('partial');
-
-            if ( $(this).children('i').first().hasClass('fa-check') ) {
-                // Currently selected, change this tag and all its children to deselected
-                $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                    // Don't change title attribute of a non-leaf tag
-                    if ( !$(element).hasClass('ODRSearchParentTag') )
-                        $(element).attr('title', 'Search for Datarecords where this tag is unselected');
-
-                    $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
-
-                    var tag_id = $(element).children('input').first().attr('rel');
-                    $(element).children('input').first().val('-' + tag_id);
-                });
+            if ( $(icon_div).hasClass('fa-check') ) {
+                // Currently "selected", change this tag to "deselected"
+                $(this).attr('title', 'Search for Datarecords where this tag is unselected');
+                $(icon_div).removeClass('fa-check').addClass('fa-ban');
+                $(input_div).val('-' + tag_id);
             }
-            else if ( $(this).children('i').first().hasClass('fa-ban') ) {
-                // Currently deselected, change this tag and all its children to blank
-                $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                    $(element).removeAttr('title');
-                    $(element).children('i').first().removeClass('fa-ban');
-
-                    var tag_id = $(element).children('input').first().attr('rel');
-                    $(element).children('input').first().val('');
-                });
+            else if ( $(icon_div).hasClass('fa-ban') ) {
+                // Currently "deselected", change this tag to "blank"
+                $(this).removeAttr('title');
+                $(icon_div).removeClass('fa-ban');
+                $(input_div).val('');
             }
             else {
-                // Currently blank, change this tag and all its children to selected
-                $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                    // Don't change title attribute of a non-leaf tag
-                    if ( !$(element).hasClass('ODRSearchParentTag') )
-                        $(element).attr('title', 'Search for Datarecords where this tag is selected');
-
-                    $(element).children('i').first().addClass('fa-check');
-
-                    var tag_id = $(element).children('input').first().attr('rel');
-                    $(element).children('input').first().val(tag_id);
-                });
+                // Currently "blank", change this tag to "selected"
+                $(this).attr('title', 'Search for Datarecords where this tag is selected');
+                $(icon_div).addClass('fa-check');
+                $(input_div).val(tag_id);
             }
-
-            applyToTagParents( $(tag_item) );
         });
 
 

@@ -35,6 +35,13 @@ services:
             $templating: '@templating'
             $tokenGenerator: '@fos_user.util.token_generator'
 
+    odr_plugins.base.linked_descendant_merger:
+        class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
+        arguments:
+            $database_info_service: "@odr.database_info_service"
+            $sort_service: "@odr.sort_service"
+            $templating: '@templating'
+            $logger: "@logger"
 
     # Datafield plugins
     odr_plugins.base.chemistry:
@@ -59,3 +66,14 @@ services:
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
             $odr_web_directory: '%odr_web_directory%'
+
+    odr_plugins.base.file_renamer:
+        class: '%odr_plugin_base_classpath%\Base\FileRenamerPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $templating: '@templating'
+            $logger: "@logger"

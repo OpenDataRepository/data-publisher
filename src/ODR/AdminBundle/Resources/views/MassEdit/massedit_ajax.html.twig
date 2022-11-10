@@ -75,6 +75,9 @@ $(function() {
     disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
     window.scrollTo(0,0);
 
+    // Attach click handlers to tags
+    setupTagTree();
+
     // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
     // The overlay divs need this transition to finish before they can get the correct width
     setTimeout("initPage()", 350);
@@ -113,19 +116,26 @@ function initPage() {
             $(this).hide();
     });
 
-    // Attach an overlay div of sorts over each datafield
-    $(".ODROverlayDiv").each(function() {
-        // Need dimensions of parent div...
-        var height = $(this).parent().css('height');
-        var width = $(this).parent().css('width');
+    $(".ODRMassEdit_block").each(function() {
+        var df_data = $(this).attr('id').split(/_/);
+        var df_id = df_data[1];
 
-        // Apply dimensions of parent div to loading div
-        $(this).css({"height": height, "line-height": height, "width": width});
+        var inputs = [];
+        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRField_clearAll').first() );
+        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRField').first() );
+        inputs.push( $('#Form_DataField_' + df_id).find('textarea.ODRParagraphField').first() );
+        inputs.push( $('#Form_DataField_' + df_id).find('input.ODRDatePicker').first() );
 
-        if ( $(this).hasClass('ODRUniqueField') )
-            $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
-        else if ( $(this).hasClass('ODRBlockedField') )
-            $(this).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+        if ( $(this).hasClass('ODRUniqueField') ) {
+            $.each(inputs, function (index, elem) {
+                $(elem).prop('disabled', true).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
+            });
+        }
+        else if ( $(this).hasClass('ODRBlockedField') ) {
+            $.each(inputs, function (index, elem) {
+                $(elem).prop('disabled', true).attr('title', "The Datatype's administrator has blocked changes to this Datafield.");
+            });
+        }
     });
 
     $(".ODRDatePicker").datepicker({
@@ -143,36 +153,54 @@ function initPage() {
     });
 
     $(".ODRDatePicker_clear").unbind('click').click(function() {
+        var blocked = false;
+        if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
+            blocked = true;
+
         var input = $(this).closest('fieldset').find(".ODRDatePicker");
         $(input).datepicker('setDate', null);
 
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
+        if ( !blocked ) {
+            // Disable the input if the checkbox says to clear all values
+            if ( $(this).children('input').first().is(':checked') )
+                $(input).prop("disabled", true);
+            else
+                $(input).prop("disabled", false);
+        }
     });
 
     $(".ODRParagraphField_clear").unbind('click').click(function() {
+        var blocked = false;
+        if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
+            blocked = true;
+
         var input = $(this).closest('fieldset').find(".ODRParagraphField");
         $(input).val('');
 
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
+        if ( !blocked ) {
+            // Disable the input if the checkbox says to clear all values
+            if ( $(this).children('input').first().is(':checked') )
+                $(input).prop("disabled", true);
+            else
+                $(input).prop("disabled", false);
+        }
     });
 
     $(".ODRField_clear").unbind('click').click(function() {
+        var blocked = false;
+        if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
+            blocked = true;
+
         var input = $(this).closest('fieldset').find(".ODRField");
         $(input).val('');
 
-        // Disable the input if the checkbox says to clear all values
-        if ( $(this).children('input').first().is(':checked') )
-            $(input).prop("disabled", true);
-        else
-            $(input).prop("disabled", false);
+        if ( !blocked ) {
+            // Disable the input if the checkbox says to clear all values
+            if ( $(this).children('input').first().is(':checked') )
+                $(input).prop("disabled", true);
+            else
+                $(input).prop("disabled", false);
+        }
     });
 
     // Tristate checkbox
@@ -214,87 +242,28 @@ function initPage() {
     // tag Tristate checkbox
     $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
         // Grab data about the tag being clicked
-        var tag_item = $(this).parent().parent();
+        var icon_div = $(this).children('i').first();
+        var input_div = $(this).children('input').first();
 
-        // If any item is clicked, it'll set all children to selected/unselected...so immediately
-        //  remove the partial class
-        $(this).children('i').first().removeClass('partial');
-
-        if ( $(this).children('i').first().hasClass('fa-check') ) {
-            // Currently selected, change this tag and all its children to deselected
-            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                // Don't change title attribute of a non-leaf tag
-                if ( !$(element).hasClass('ODRSearchParentTag') )
-                    $(element).attr('title', 'Search for Datarecords where this tag is unselected');
-
-                $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
-                $(element).children('input').first().val(0);
-            });
+        if ( $(icon_div).hasClass('fa-check') ) {
+            // Currently "selected", change this tag to "deselected"
+            $(this).attr('title', 'Deselect this tag in all records that match the search');
+            $(icon_div).removeClass('fa-check').addClass('fa-ban');
+            $(input_div).val(0);
         }
-        else if ( $(this).children('i').first().hasClass('fa-ban') ) {
-            // Currently deselected, change this tag and all its children to blank
-            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                $(element).removeAttr('title');
-
-                $(element).children('i').first().removeClass('fa-ban');
-                $(element).children('input').first().val('');
-            });
+        else if ( $(icon_div).hasClass('fa-ban') ) {
+            // Currently "deselected", change this tag to "blank"
+            $(this).removeAttr('title');
+            $(icon_div).removeClass('fa-ban');
+            $(input_div).val('');
         }
         else {
-            // Currently blank, change this tag and all its children to selected
-            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                // Don't change title attribute of a non-leaf tag
-                if ( !$(element).hasClass('ODRSearchParentTag') )
-                    $(element).attr('title', 'Search for Datarecords where this tag is selected');
-
-                $(element).children('i').first().addClass('fa-check');
-                $(element).children('input').first().val(1);
-            });
+            // Currently "blank", change this tag to "selected"
+            $(this).attr('title', 'Select this tag in all records that match the search');
+            $(icon_div).addClass('fa-check');
+            $(input_div).val(1);
         }
-
-        applyToTagParents( $(tag_item) );
     });
-}
-
-/**
- * Selections made to a tag element need to also trigger visual updates for parents of the tag.
- * @param {HTMLElement} source_element
- */
-function applyToTagParents(source_element) {
-    var parent_tag = $(source_element).parent().parent().not('div');
-    if ( $(parent_tag).length === 0)
-        return;
-
-    // $(parent_tag) should be a <li class="ODRTagItem"> element
-    var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
-
-    var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
-    var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
-    var total_count = $(parent_tag).children('ul').find('.fa').length;
-
-    if (selected_count === 0 && unselected_count === 0) {
-        // No children selected, so this one should be unselected too
-        $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
-    }
-    else if (selected_count === total_count) {
-        // All children selected, so this one should be selected too
-        $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
-    }
-    else if (unselected_count === total_count) {
-        // All children selected, so this one should be selected too
-        $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
-    }
-    else if (selected_count > 0) {
-        // Some children selected, so this one should be partially selected
-        $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
-    }
-    else if (unselected_count > 0) {
-        // No children are selected, but at least one child is unselected...so this one
-        //  should be partially unselected
-        $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
-    }
-
-    applyToTagParents( $(parent_tag) );
 }
 
 /**
@@ -392,7 +361,7 @@ function doMassUpdate() {
         var datafield_id = $(this).attr('name');
         var item_id = $(this).attr('rel');
 
-        if ( $(this).is(':disabled') || $(this).hasClass('ODRSearchParentTag') )
+        if ( $(this).is(':disabled') /*|| $(this).hasClass('ODRSearchParentTag') */)
             return;
 
         // Remove any value for this datafield currently stored in the form
@@ -440,7 +409,7 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
-        var clear_all = $(this).parent().parent().find('input.ODRDatePicker_clearAll').prop('checked');
+        var clear_all = $(this).parent().parent().find('input.ODRField_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
@@ -462,7 +431,7 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
-        var clear_all = $(this).parent().parent().find('input.ODRParagraphField_clearAll').prop('checked');
+        var clear_all = $(this).parent().parent().find('input.ODRField_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
@@ -491,6 +460,17 @@ function doMassUpdate() {
             $("#massedit_form").append(element);
         } else if (clear_all == true) {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": '', "name": "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+    // Ensure no event triggers are in the form...
+    $(".massedit_form_event_trigger").remove();
+    // ...and add selected triggers back in
+    $("#MassEditForm .ODRMassEdit_EventTrigger").each(function() {
+        var datafield_id = $(this).attr('rel');
+        if ( $(this).find('input').is(':checked') ) {
+            var element = $("<input>", {"id": "EventTrigger_" + datafield_id, "class": "massedit_form_event_trigger", "type": "hidden", "value": 1, "name": "event_triggers[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });

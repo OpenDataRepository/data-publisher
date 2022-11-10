@@ -1110,7 +1110,7 @@ $ret .= '  Set current to '.$count."\n";
             if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
-            $source = 0x5e17488a;
+            $source = 0x5e17488b;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

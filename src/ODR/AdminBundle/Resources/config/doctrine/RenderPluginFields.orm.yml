@@ -23,7 +23,7 @@ ODR\AdminBundle\Entity\RenderPluginFields:
 
         fieldName:
             type: string
-            length: 32
+            length: 64
             fixed: false
             nullable: false
             column: field_name
@@ -63,6 +63,11 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             nullable: false
             default: false
             column: is_derived
+        is_optional:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_optional
 
         deletedAt:
             type: datetime

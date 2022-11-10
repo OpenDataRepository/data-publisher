@@ -2629,6 +2629,10 @@ class DisplaytemplateController extends ODRCustomController
             // All other conversions are performed with a single background job
             $top_level_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
 
+            // NOTE - while technically running this should only do something when the datatype has
+            //  records...there are a pair of maintenance UPDATEs in WorkerController that could
+            //  be beneficial to run if the datatype is somehow screwed up
+
             // Get/create an entity to track the progress of this datafield migration
             $job_type = 'migrate';
             $target_entity = 'datafield_'.$datafield->getId();
@@ -2644,7 +2648,7 @@ class DisplaytemplateController extends ODRCustomController
                 array(
                     "tracked_job_id" => $tracked_job_id,
                     "user_id" => $user->getId(),
-                    "datarecord_id" => 0,
+                    "datarecord_id" => 0,    // NOTE - the background job uses a combination of SELECT/CAST/INSERT INTO to run...technically no individual datarecords are involved
                     "datafield_id" => $datafield->getId(),
                     "old_fieldtype_id" => $old_fieldtype->getId(),
                     "new_fieldtype_id" => $new_fieldtype->getId(),

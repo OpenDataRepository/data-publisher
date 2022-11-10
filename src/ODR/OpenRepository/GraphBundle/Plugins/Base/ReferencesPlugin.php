@@ -50,15 +50,14 @@ class ReferencesPlugin implements DatatypePluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // TODO - make changes so it can actually run in Edit mode?
         if ( isset($rendering_options['context']) ) {
-            // This render plugin is only allowed to work in display mode
-            if ( $rendering_options['context'] === 'display' )
+            $context = $rendering_options['context'];
+
+            // This render plugin is only allowed to work in 'display' or 'text' modes
+            if ( $context === 'display' || $context === 'text' )
                 return true;
 
-            // Also need a "text" mode
-            if ( $rendering_options['context'] === 'text' )
-                return true;
+            // TODO - make changes so it can actually run in Edit mode?
         }
 
         return false;
@@ -114,8 +113,9 @@ class ReferencesPlugin implements DatatypePluginInterface
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
 
-                // The datafield may have a render plugin that should be executed...
-                if ( !empty($df['renderPluginInstances']) ) {
+                // The datafield may have a render plugin that should be executed, but only if
+                //  it's not a file field...
+                if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
                     foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
                         if ( $rpi['renderPlugin']['render'] === true ) {
                             // ...if it does, then create an array entry for it

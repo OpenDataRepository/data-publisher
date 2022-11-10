@@ -307,47 +307,6 @@
         });
     }
 
-    function clearAllFields(reset_opacity) {
-        // Default is to reset opacity
-        if(reset_opacity === undefined)
-            reset_opacity = true;
-
-        // console.log('Clear all fields');
-        // Remove Existing Selectors and Highlights
-        $(".ODRFieldSelected").removeClass('ODRFieldSelected').each(function(elem) {
-            clearResizeable(elem);
-        });
-
-        $(".ODRDragHandle").remove();
-        $(".ODRSortHandle").remove();
-
-        // Kill existing sortables
-        $('.ODRFieldArea').each(function() {
-            if ($(this).sortable('instance') !== undefined)
-                $(this).sortable('destroy');
-        });
-
-        $(".ODRThemeElement .ODRInnerBox").each(function() {
-            if ($(this).sortable('instance') !== undefined)
-                $(this).sortable('destroy');
-        });
-
-        if (reset_opacity)
-            resetOpacity();
-    }
-
-    function clearResizeable(elem) {
-        if ( $(elem).resizable('instance') !== undefined ) {
-            $(elem).resizable('destroy');
-        }
-        return true;
-    }
-
-    function resetOpacity() {
-        $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea > .ODRThemeElement").each(function() {
-            $(this).fadeTo(200, '1.0');
-        });
-    }
 
     /**
      * Initializes the resizeable and sortable handles for a field, TED, or child datatype.
@@ -1170,7 +1129,7 @@
             return;
         }
 
-        {# defined in Displaytemplate::plugin_settings_dialog.html.twig #}
+        {# defined in Plugins::plugin_settings_dialog.html.twig #}
         openPluginSettingsDialog(datafield_id, datatype_id);
     }
 
@@ -1762,7 +1721,7 @@
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         // Click handler to Reset Opacity
-        $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea").click(function(e) {
+        $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1770,7 +1729,7 @@
             ResetToolSet();
         });
 
-        $("#left-spacer").click(function(e) {
+        $("#left-spacer").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1778,7 +1737,7 @@
             ResetToolSet();
         });
 
-        $("#ODRDatatypeToolsBlock p").click(function(e) {
+        $("#ODRDatatypeToolsBlock p").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1786,7 +1745,7 @@
             ResetToolSet();
         });
 
-        $("#ThemeDesignForm").click(function(e) {
+        $("#ThemeDesignForm").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1794,7 +1753,7 @@
             ResetToolSet();
         });
 
-        $("#ThemeDesignWrapper").click(function(e) {
+        $("#ThemeDesignWrapper").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1802,7 +1761,7 @@
             ResetToolSet();
         });
 
-        $("#ThemeLeftColumn .ODRInnerBox").click(function(e) {
+        $("#ThemeLeftColumn .ODRInnerBox").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1810,7 +1769,7 @@
             ResetToolSet();
         });
 
-        $(".ODRDesignTitle").click(function(e) {
+        $(".ODRDesignTitle").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1818,7 +1777,7 @@
             ResetToolSet();
         });
 
-        $("#right-spacer").click(function(e) {
+        $("#right-spacer").unbind('click').click(function(e) {
             if (e.target !== this)
                 return;
 
@@ -1985,6 +1944,8 @@
         var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';
         url = url.substring(0, url.length-3);
         url += theme_element_id + '/' + datafield_id;
+
+        // console.log('SaveThemeDatafieldProperties(), theme_element_id: ' + theme_element_id + ' datafield_id: ' + datafield_id);
 
         var form_element = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id);
         var post_data = $(form_element).serialize();
@@ -2638,6 +2599,17 @@
             var key = datafield_id + '_' + ending_theme_element_id;
             load_themeDatafield_delay[key] = 1;
             // console.log('need themeDatafield delay', load_themeDatafield_delay);
+
+            // Remove the UI elements that indicate this datafield is selected
+            $(".ODRDragHandle").remove();
+            $(".ODRSortHandle").remove();
+            $(".ODRFieldSelected").removeClass('ODRFieldSelected').each(function(elem) {
+                clearResizeable(elem);
+            });
+            resetOpacity();
+
+            // Wipe the form stuff to ensure the rest of the page don't think it's selected either
+            $("#ThemeDesignForm").find("form.ODRDatafieldPropertiesForm").remove();
 
             // Also throw up an overlay so the user can't attempt to resize a datafield until the
             //  themeDatafield entry exists

@@ -1,0 +1,228 @@
+{% spaceless %}
+<div class="pure-u-1">
+    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;"></textarea>
+
+    <div class="pure-u-1 ODRRenderPlugin_LinkedMerger_header">
+        In order for this plugin to know which records to move around, you need to select two things:<br>
+        1) At least two "sources" of records from the same database.<br>
+        2) A destination for the records to be moved to.
+    </div>
+    <div class="pure-u-1 ODRRenderPlugin_LinkedMerger_header">
+        If you don't see any sources to select, then your database has absolutely no reason to use this plugin.
+        If you see sources, but don't see a selectable destination...then your database isn't following some hard-to-describe design concepts, and it'll likely be faster and easier to ask for help.
+    </div>
+
+    <div class="pure-u-1 ODRRenderPlugin_LinkedMerger_config">
+    {% for dt_id,dt_group in available_config %}
+        <div id="" class="ODRRenderPlugin_LinkedMerger_wrapper">
+            <table id="ODRRenderPlugin_LinkedMerger_table_{{ dt_id }}" class="ODRRenderPlugin_LinkedMerger_table">
+                <tr>
+                    <th>Source<i class="ODRRenderPlugin_LinkedMerger_src_warn fa fa-exclamation-triangle" title="At least two sources must be selected for the plugin to work"></i></th>
+                    <th>Destination<i class="ODRRenderPlugin_LinkedMerger_dest_warn fa fa-exclamation-triangle" title="A destination must be selected for the plugin to work"></i></th>
+                    <th><span class="ODRRenderPlugin_LinkedMerger_clear">Clear all selections</span></th>
+                </tr>
+
+                {% for prefix,label in dt_group['src'] %}
+                <tr rel="{{ prefix }}">
+                    <td class="ODRRenderPlugin_LinkedMerger_src"><i class="fa fa-square-o"></i></td>
+                    {% if dt_group['dest'][prefix] is defined %}
+                        <td class="ODRRenderPlugin_LinkedMerger_dest"><i class="fa fa-square-o"></i></td>
+                    {% else %}
+                        <td class="ODRRenderPlugin_LinkedMerger_invalid" title="This is not a valid destination"><i class="fa"></i></td>
+                    {% endif %}
+                    <td class="ODRRenderPlugin_LinkedMerger_label">{{ label }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% endfor %}
+    </div>
+</div>
+
+<style>
+    .ODRRenderPlugin_LinkedMerger_header {
+        text-align: left;
+        text-indent: 15px;
+        font-size: 16px;
+        /*color: #555;*/
+
+        border-color: #6fa5c7;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+
+        margin-top: 5px;
+        margin-bottom: 5px;
+        padding: 5px;
+    }
+
+    .ODRRenderPlugin_LinkedMerger_table {
+
+    }
+    .ODRRenderPlugin_LinkedMerger_table th {
+        padding: 3px 5px;
+        cursor: default;
+
+        font-size: 16px;
+        color: #555;
+    }
+
+    .ODRRenderPlugin_LinkedMerger_src_warn,
+    .ODRRenderPlugin_LinkedMerger_dest_warn {
+        color: red;
+        cursor: help;
+    }
+    .ODRRenderPlugin_LinkedMerger_clear {
+        padding: 5px 7px;
+        float: left;
+        cursor: pointer;
+
+        border-color: #6fa5c7;
+        border-radius: 4px;
+        border-width: 3px;
+        border-style: solid;
+    }
+
+    .ODRRenderPlugin_LinkedMerger_src,
+    .ODRRenderPlugin_LinkedMerger_dest {
+        cursor: pointer;
+
+        font-size: 16px;
+        color: #555;
+    }
+
+    .ODRRenderPlugin_LinkedMerger_label {
+        text-align: left;
+        cursor: default;
+
+        font-size: 16px;
+        color: #555;
+    }
+
+    .ODRRenderPlugin_LinkedMerger_invalid {
+        cursor: help;
+    }
+</style>
+
+<script>
+    var LinkedMerger_timeout = null;
+    var LinkedMerger_SaveTimeout = 500;
+
+    $(function() {
+        // Since the resizing apparently refuses to pick up the actual height of the items inside
+        //  it for this particular application, force the modal to use the entire screen.
+        resetRemodalInnerHeight(true);
+
+        // Want all the warnings hidden initially
+        $(".ODRRenderPlugin_LinkedMerger_src_warn").hide();
+        $(".ODRRenderPlugin_LinkedMerger_dest_warn").hide();
+
+        // If the plugin has a config, then select the correct checkboxes
+        {% for num,dt_group in current_config %}
+            {% for num,prefix in dt_group['src'] %}
+        $('tr[rel="{{ prefix }}"]').children('.ODRRenderPlugin_LinkedMerger_src').children('i.fa').removeClass('fa-square-o').addClass('fa-check-square-o');
+            {% endfor %}
+        $('tr[rel="{{ dt_group['dest'] }}"]').children('.ODRRenderPlugin_LinkedMerger_dest').children('i.fa').removeClass('fa-square-o').addClass('fa-check-square-o');
+        {% endfor %}
+
+        $(".ODRRenderPlugin_LinkedMerger_src").unbind('click').click(function() {
+            var icon_div = $(this).children('i.fa').first();
+
+            // The src has to be selected if the dest is
+            if ( $(this).next().children('i.fa').first().hasClass('fa-check-square-o') )
+                $(icon_div).removeClass('fa-square-o').addClass('fa-check-square-o');
+            else if ( $(icon_div).hasClass('fa-square-o') )
+                $(icon_div).removeClass('fa-square-o').addClass('fa-check-square-o');
+            else
+                $(icon_div).removeClass('fa-check-square-o').addClass('fa-square-o');
+
+            // Since something got changed, need to keep the backend values up to date
+            clearTimeout( LinkedMerger_timeout );
+            LinkedMerger_timeout = setTimeout(LinkedMerger_updateValue, LinkedMerger_SaveTimeout);
+        });
+
+        $(".ODRRenderPlugin_LinkedMerger_dest").unbind('click').click(function() {
+            // Only want one destination, so uncheck everything for this group
+            var table = $(this).closest('table');
+            $(table).find('.ODRRenderPlugin_LinkedMerger_dest').each(function(index, elem) {
+                $(elem).children('i.fa').first().removeClass('fa-check-square-o').addClass('fa-square-o');
+            });
+
+            // Ensure this destination is checked
+            var icon_div = $(this).children('i.fa').first();
+            $(icon_div).removeClass('fa-square-o').addClass('fa-check-square-o');
+
+            // Also ensure the related source checkbox is checked
+            $(this).prev().children('i.fa').first().removeClass('fa-square-o').addClass('fa-check-square-o');
+
+            // Since something got changed, need to keep the backend values up to date
+            clearTimeout( LinkedMerger_timeout );
+            LinkedMerger_timeout = setTimeout(LinkedMerger_updateValue, LinkedMerger_SaveTimeout);
+        });
+
+        $(".ODRRenderPlugin_LinkedMerger_clear").unbind('click').click(function() {
+            var table = $(this).closest('table');
+
+            // Deselect everything from the src and the dest
+            $(table).find('.ODRRenderPlugin_LinkedMerger_src').each(function(index, elem) {
+                $(elem).children('i.fa').first().removeClass('fa-check-square-o').addClass('fa-square-o');
+            });
+            $(table).find('.ODRRenderPlugin_LinkedMerger_dest').each(function(index, elem) {
+                $(elem).children('i.fa').first().removeClass('fa-check-square-o').addClass('fa-square-o');
+            });
+
+            // Since something got changed, need to keep the backend values up to date
+            clearTimeout( LinkedMerger_timeout );
+            LinkedMerger_timeout = setTimeout(LinkedMerger_updateValue, LinkedMerger_SaveTimeout);
+        });
+
+        // Ensure the hidden field and the warnings match the selections
+        LinkedMerger_updateValue();
+    });
+
+    /**
+     * Updates the hidden textarea with the current value of the block on the right side
+     */
+    function LinkedMerger_updateValue() {
+        var pieces = [];
+
+        $(".ODRRenderPlugin_LinkedMerger_table").each(function(index, elem) {
+            var tmp = [];
+
+            // Will be multiple source entries...
+            $(elem).find('.ODRRenderPlugin_LinkedMerger_src').each(function(index,elem) {
+                if ( $(elem).children('i.fa').hasClass('fa-check-square-o') ) {
+                    var prefix = $(elem).parent().attr('rel');
+                    tmp.push(prefix);
+                }
+            });
+
+            // Should only be one dest entry, but have to find it
+            var dest_prefix = '';
+            $(elem).find('.ODRRenderPlugin_LinkedMerger_dest').each(function(index,elem) {
+                if ( $(elem).children('i.fa').hasClass('fa-check-square-o') )
+                     dest_prefix = $(elem).parent().attr('rel');
+            });
+
+            // Warn when only one source is selected, or when a destination is selected without a source
+            if ( tmp.length === 1 || (tmp.length === 0 && dest_prefix !== '') )
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_src_warn').show();
+            else
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_src_warn').hide();
+
+            // Warn when a destination isn't selected
+            if ( tmp.length > 0 && dest_prefix === '' )
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_dest_warn').show();
+            else
+                $(elem).find('.ODRRenderPlugin_LinkedMerger_dest_warn').hide();
+
+            // Finish up the config for this group
+            pieces.push( tmp.join(',') + ':' + dest_prefix );
+        });
+
+        // Combine all groups
+        var text = pieces.join('|');
+        $("#plugin_option_{{ rpo_id }}").html(text);
+    }
+</script>
+{% endspaceless %}

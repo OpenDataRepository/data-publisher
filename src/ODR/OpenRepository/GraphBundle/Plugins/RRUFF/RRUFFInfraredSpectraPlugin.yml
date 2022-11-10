@@ -1,0 +1,55 @@
+odr_plugins.rruff.infrared_spectra:
+    name: RRUFF Infrared Spectra Plugin
+    category: RRUFF
+    datatype: true
+    render: false
+    version: 0.0.1
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    description: TODO
+    registered_events:
+    required_fields:
+
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
+#        child_rruff_id:
+#            name: Child RRUFF ID
+#            description:
+#            type: ShortVarchar
+
+        description:
+            name: Description
+            description:
+            type: LongText
+        wavelength:
+            name: Wavelength
+            description:
+            type: ShortVarchar
+        accumulations:
+            name: Accumulations
+            description:
+            type: IntegerValue
+        instrument:
+            name: Instrument
+            description:
+            type: LongVarchar
+        operator:
+            name: Operator
+            description:
+            type: ShortVarchar
+
+        raw_file:
+            name: Infrared Data (RAW)
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+        processed_file:
+            name: Infrared Data (Processed)
+            description:
+            type: File
+            properties:
+                - single_uploads_only
+
+    config_options:

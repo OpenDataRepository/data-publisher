@@ -7,9 +7,16 @@
 {% endif %}
 
 <li class="ODRTagItem">
-    {#<span class="ODRTagSpacer"></span>#}
+{% if has_children %}
+    {#<span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>#}
 
-    <label id="Label_{{ tag.id }}" for="Input_{{ tag.id }}" class="ODRTagLabel pure-u-1">
+    {# Have the tag tree start out collapsed #}
+    <span class="{#ODRTagSpacer#} ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+{% else %}
+{#    <span class="ODRTagSpacer"></span>#}
+{% endif %}
+
+    <label id="Label_{{ tag.id }}" for="Input_{{ tag.id }}" class="ODRTagLabel {# pure-u-1#}">
         <span class="ODRTristateCheckbox">
             <i class="fa"></i>
             <input type="hidden" name="{{ datafield.id }}" rel="{{ tag.id }}" value="" {% if has_children %}class="ODRSearchParentTag"{% endif %} />
@@ -18,7 +25,7 @@
     </label>
 
 {% if has_children %}
-    <ul class="ODRTagGroup">
+    <ul class="ODRTagGroup" style="display: none;">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:MassEdit:tag.html.twig' with {
                 'tag': child_tag,

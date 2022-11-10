@@ -1586,6 +1586,7 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+/*
             // Don't allow changing a selection if the tag has a child
             $query = $em->createQuery(
                'SELECT c_t
@@ -1599,6 +1600,14 @@ class TagsController extends ODRCustomController
 
             if ( !empty($results) )
                 throw new ODRBadRequestException('Not allowed to select/deselect a non-leaf tag');
+*/
+
+            // This restriction would've been convenient to have...but it's technically not 100%
+            //  accurate, so the idea goes into the trash.
+            // TODO - allow user to specify non-bottom-level tags CAN'T be selected?
+            // TODO - e.g. if tag structure has array("State" => array("Alaska", "Arizona", etc)...then it never makes sense for "State" to be selected
+            // TODO - ...in other words, tags that exist as "logical containers" shouldn't be selectable...
+            // TODO - ...but tags that are both "containers" and "values" should be
 
 
             // ----------------------------------------

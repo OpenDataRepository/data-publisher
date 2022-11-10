@@ -50,6 +50,11 @@ ODR\AdminBundle\Entity\RenderPluginOptionsDef:
             nullable: false
             default: 0
 
+        uses_custom_render:
+            type: boolean
+            nullable: false
+            default: false
+
         created:
             type: datetime
             gedmo:

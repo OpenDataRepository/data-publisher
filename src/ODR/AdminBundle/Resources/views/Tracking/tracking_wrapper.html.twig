@@ -130,7 +130,7 @@
             changeMonth: true,
             changeYear: true,
             dateFormat: 'yy-mm-dd',
-            yearRange: '2010:+0',
+            yearRange: '1950:+0',
 
             onSelect: function (dateText, inst) {
                 var start_date = $("#start_date");
@@ -181,7 +181,7 @@
         });
 
         $("#ODRTrackingForm_all_changes").unbind('click').click(function() {
-            $("#start_date").val("2010-01-01");
+            $("#start_date").val("1950-01-01");
             $("#end_date").val("{{ today }}");
             reloadTrackingData();
         });

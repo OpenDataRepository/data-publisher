@@ -1235,8 +1235,14 @@ class DisplayController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
-
             // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
+
+            // Need a user id for the temp directory to work...
+            $user_id = null;
+            if ($user == null || $user === 'anon.')
+                $user_id = 0;
+            else
+                $user_id = $user->getId();
             // ----------------------------------------
 
 
@@ -1313,7 +1319,7 @@ class DisplayController extends ODRCustomController
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -1323,7 +1329,8 @@ class DisplayController extends ODRCustomController
                     $local_filename = '';
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
                         // non-public files need to be decrypted to something difficult to guess
-                        $local_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
+                        // This won't ever be run when $user_id == 0, since users that aren't logged in can't see non-public files
+                        $local_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user_id);
                         $local_filename .= '.'.$file['ext'];
                     }
                     else {
@@ -1343,7 +1350,8 @@ class DisplayController extends ODRCustomController
                     $local_filename = '';
                     if ( $image['imageMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
                         // non-public images need to be decrypted to something difficult to guess
-                        $local_filename = md5($image['original_checksum'].'_'.$image['id'].'_'.$user->getId());
+                        // This won't ever be run when $user_id == 0, since users that aren't logged in can't see non-public files
+                        $local_filename = md5($image['original_checksum'].'_'.$image['id'].'_'.$user_id);
                         $local_filename .= '.'.$image['ext'];
                     }
                     else {
@@ -1926,8 +1934,14 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
             // Don't need to check user's permissions
+
+            // Need a user id for the temp directory to work...
+            $user_id = null;
+            if ($user == null || $user === 'anon.')
+                $user_id = 0;
+            else
+                $user_id = $user->getId();
             // ----------------------------------------
 
 
@@ -1935,7 +1949,7 @@ class DisplayController extends ODRCustomController
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
                 throw new FileNotFoundException($archive_filename);
 

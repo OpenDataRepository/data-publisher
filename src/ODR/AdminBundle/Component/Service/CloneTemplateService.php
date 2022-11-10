@@ -2221,13 +2221,18 @@ class CloneTemplateService
             if ( !is_null($derived_datatype) )
                 $new_rpfm->setDataType($derived_datatype);       // TODO - if null, then a datafield plugin...but why does it work like that in the first place again?
 
-            // Find the analogous datafield in the derived datatype
-            /** @var DataFields $matching_df */
-            $matching_df = $this->created_datafields[ $parent_rpfm->getDataField()->getId() ];
-            $new_rpfm->setDataField($matching_df);
+            // Find the analogous datafield in the derived datatype, if it exists
+            if ( !is_null($parent_rpfm->getDataField()) ) {
+                /** @var DataFields $matching_df */
+                $matching_df = $this->created_datafields[ $parent_rpfm->getDataField()->getId() ];
+                $new_rpfm->setDataField($matching_df);
 
-            self::persistObject($new_rpfm, $user, true);    // These don't need to be flushed/refreshed immediately...
-            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'"');
+                self::persistObject($new_rpfm, $user, true);    // These don't need to be flushed/refreshed immediately...
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().', attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
+            }
+            else {
+                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
+            }
         }
     }
 

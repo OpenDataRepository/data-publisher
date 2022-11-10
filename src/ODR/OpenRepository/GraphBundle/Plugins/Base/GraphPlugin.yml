@@ -18,12 +18,27 @@ odr_plugins.base.graph:
             type: File
 #            properties:
 #                - single_uploads_only    # TODO - several dozen databases on ODR need tweaked prior to enabling this
+        secondary_graph_file:
+            name: Secondary Graph File
+            description: A file containing XY values for plotting, only used when the main "Graph File" field is empty.  This is most useful when you want to do something like plot raw data only when any processed data doesn't exist.
+            type: File
+            properties:
+#                - single_uploads_only    # TODO - several dozen databases on ODR need tweaked prior to enabling this
+                - is_optional
 
         # TODO - this is being used as a "label" field, despite being named as a "pivot" field
         pivot:
             name: Pivot Field
-            description: If multiple data sets are plotted, the contents of the pivot field will be displayed to allow the user to differentiate between them.
-            type: IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar
+            description: If multiple data sets are plotted, the contents of the pivot field will be displayed to allow the user to differentiate between them.  If this is not mapped to a field, then it will default to the datarecord id.
+            type: IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|Single Select
+            properties:
+                - is_optional
+        secondary_pivot:
+            name: Secondary Pivot Field
+            description: The contents of this field will be appended after the value of the primary "Pivot Field", if a value exists.
+            type: IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|Single Select
+            properties:
+                - is_optional
 
     config_options:
         graph_type:

@@ -40,6 +40,11 @@
  * got dispatched...but that would also require the Edit page to get rewritten to track the progress
  * of these event subscribers after it finishes tracking the file encryption progress...I have zero
  * desire to do either of those requirements.
+ *
+ * The exact same theory works for Images.
+ *
+ * Any place that fires off this event should refresh the File/Image before continuing with the
+ * encryption process, because the properties (and where to find it, see getFile()) might have changed.
  */
 
 namespace ODR\AdminBundle\Component\Event;
@@ -47,6 +52,7 @@ namespace ODR\AdminBundle\Component\Event;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
 // Symfony
 use Symfony\Component\EventDispatcher\Event;
 
@@ -57,7 +63,7 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
     const NAME = 'odr.event.file_pre_encrypt_event';
 
     /**
-     * @var File
+     * @var File|Image
      */
     private $file;
 
@@ -75,11 +81,11 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
      * TODO     - ...not that that helps when uploading files through API or CSVImport, there's still no way to notify the user
      * TODO - Or, modify to treat all file encryptions as a TrackedJob so they could be tied to a TrackedError somehow?
      *
-     * @param File $file
+     * @param File|Image $file
      * @param DataFields $datafield
      */
     public function __construct(
-        File $file,
+        $file,
         DataFields $datafield
     ) {
         $this->file = $file;
@@ -88,13 +94,13 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the file that has been uploaded, BUT NOT ENCRYPTED YET.
+     * Returns the file or image that has been uploaded, BUT NOT ENCRYPTED YET.
      *
      * Unlike fully encrypted files, the originalChecksum and encryptKey properties are not set. Use
      *  $file->getLocalFileName().'/'.$file->getOriginalFileName(); to get the full path to the file
      *  on the server.
      *
-     * @return File
+     * @return File|Image
      */
     public function getFile()
     {

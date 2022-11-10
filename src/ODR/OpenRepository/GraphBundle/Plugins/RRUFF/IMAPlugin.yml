@@ -11,6 +11,7 @@ odr_plugins.rruff.ima:
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
         PostUpdateEvent: onPostUpdate
+        PostMassEditEvent: onPostMassEdit
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
@@ -93,5 +94,38 @@ odr_plugins.rruff.ima:
             name: Reference B    # TODO - this is like the "most recent redefinition" reference, right?
             description:
             type: IntegerValue
+
+
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
+        mineral_aliases:
+            name: Mineral Aliases
+            description:
+            type: LongText
+        ima_number:
+            name: IMA Number
+            description:
+            type: ShortVarchar
+        locality_country:
+            name: Locality Country
+            description:
+            type: LongVarchar
+        year_first_published:
+            name: Year First Published
+            description:
+            type: ShortVarchar
+        notes:
+            name: Notes
+            description:
+            type: LongText
+        status_notes:
+            name: Status Notes
+            description:
+            type: LongText
+
+        tags:
+            name: Tags
+            description:
+            type: Tag
 
     config_options:

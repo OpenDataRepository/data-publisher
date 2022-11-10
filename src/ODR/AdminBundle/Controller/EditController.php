@@ -69,7 +69,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -1857,6 +1857,7 @@ class EditController extends ODRCustomController
 
                         // Delete any cached search results involving this datafield
                         $search_cache_service->onDatafieldModify($datafield);
+                        $search_cache_service->onDatarecordModify($datarecord);
                     }
                 }
                 else {
@@ -2069,8 +2070,10 @@ class EditController extends ODRCustomController
 
             $output = '';
 
-            // Check whether the datafield is using a render plugin that wants to override the
+            // Check whether the datatype is using a render plugin that wants to override the
             //  regular edit datafield reloading
+            // NOTE: don't need to perform the same check for a datafield plugin, since rendering
+            //  the default template will automatically trigger execution of said datafield plugin
             $query = $em->createQuery(
                'SELECT rpi
                 FROM ODRAdminBundle:RenderPluginFields rpf
@@ -2096,7 +2099,7 @@ class EditController extends ODRCustomController
 
                 // Load the render plugin as a service
                 $render_plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
-                /** @var DatafieldDerivationInterface $render_plugin */
+                /** @var DatafieldReloadOverrideInterface $render_plugin */
                 $render_plugin = $this->container->get($render_plugin_classname);
 
                 // Request a set of parameters from the render plugin for ODRRenderService to use

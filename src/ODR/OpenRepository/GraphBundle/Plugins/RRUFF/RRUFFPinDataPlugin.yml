@@ -1,0 +1,60 @@
+odr_plugins.rruff.pin_data:
+    name: RRUFF Pin Data Plugin
+    category: RRUFF
+    datatype: true
+    render: true
+    version: 1.0.0
+    override_fields: true
+    override_field_reload: false
+    override_child: false
+    description: This plugin converts the orientation data from RRUFF into a more readable format.
+    registered_events:
+    required_fields:
+
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
+#        child_rruff_id:
+#            name: Child RRUFF ID
+#            description:
+#            type: ShortVarchar
+
+        pin_label:
+            name: Pin Label
+            description:
+            type: ShortVarchar
+
+        vector_parallel_x:
+            name: Vector Parallel X
+            description:
+            type: Single Select
+        vector_parallel_y:
+            name: Vector Parallel Y
+            description:
+            type: Single Select
+        vector_parallel_z:
+            name: Vector Parallel Z
+            description:
+            type: Single Select
+        vector_parallel_reference_space:
+            name: Vector Parallel Reference Space
+            description:
+            type: Single Select
+
+        vector_perpendicular_x:
+            name: Vector Perpendicular X
+            description:
+            type: Single Select
+        vector_perpendicular_y:
+            name: Vector Perpendicular Y
+            description:
+            type: Single Select
+        vector_perpendicular_z:
+            name: Vector Perpendicular Z
+            description:
+            type: Single Select
+        vector_perpendicular_reference_space:
+            name: Vector Perpendicular Reference Space
+            description:
+            type: Single Select
+
+    config_options:

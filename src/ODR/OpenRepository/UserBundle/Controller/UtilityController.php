@@ -58,8 +58,16 @@ class UtilityController extends Controller
         $site_baseurl = $this->container->getParameter('site_baseurl').'/';    // need to add a trailing slash...
 
         $pos = strpos($url, $site_baseurl);
-        if ( !($pos === 5 || $pos === 6) )    // protocol could be either 'http:' or 'https:'...
-            throw new ODRBadRequestException('Invalid query string', 0xed466573);
+        if ( !($pos === 5 || $pos === 6) ) {    // protocol could be either 'http:' or 'https:'...
+            // The baseurl is assumed to be of the format "//odr.io", but technically
+            //  "//www.odr.io" is supposed to work too...
+            $site_baseurl = '//www.' . substr($site_baseurl, 2);
+            $pos = strpos($url, $site_baseurl);
+            if ( !($pos === 5 || $pos === 6) ) {
+                // Only throw an exception if neither format matches
+                throw new ODRBadRequestException('Invalid query string', 0xed466573);
+            }
+        }
 
         // Ensure all target paths are cleared before saving
         /** @var TrackedPathService $tracked_path_service */

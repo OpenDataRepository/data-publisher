@@ -173,6 +173,13 @@ class ODRUploadService
 
         // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
 
+        // ----------------------------------------
+        // Reload the file incase the FilePreEncryptEvent screwed with the filepath
+        $this->em->refresh($file);
+        $file_meta = $file->getFileMeta();
+        $this->em->refresh($file_meta);
+
+        $filepath = $file->getLocalFileName().'/'.$file_meta->getOriginalFileName();
 
         // ----------------------------------------
 //        $this->crypto_service->encryptFile($file->getId(), $filepath);
@@ -231,6 +238,42 @@ class ODRUploadService
 
         // The user uplaoded an Image...create a database entry with as much info as possible
         $image = $this->ec_service->createImage($user, $drf, $filepath);
+
+
+        // ----------------------------------------
+        // Now that the Image (mostly) exists, should fire off the FilePreEncrypt event
+        // Since the Image isn't encrypted, several properties don't exactly work the same as they
+        //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+
+        // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+        //  event subscribers will prevent file encryption otherwise...
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new FilePreEncryptEvent($image, $drf->getDataField());
+            $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't particularly want to rethrow the error since it'll interrupt
+            //  everything downstream of the event...having file encryption interrupted is not
+            //  acceptable though, so any errors need to disappear
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+        }
+
+        // NOTE - the event is dispatched prior to the image encryption so that image encryption
+        //  doesn't have to become a TrackedJob...which would also require the page would to
+        //  check for and handle the event dispatching completion...
+
+        // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+
+        // ----------------------------------------
+        // Reload the image incase the FilePreEncryptEvent screwed with the filepath
+        $this->em->refresh($image);
+        $image_meta = $image->getImageMeta();
+        $this->em->refresh($image_meta);
+
+        $filepath = $image->getLocalFileName().'/'.$image_meta->getOriginalFileName();
 
         // Create thumbnails (and any other reiszed versions) of the original image before it gets
         //  encrypted

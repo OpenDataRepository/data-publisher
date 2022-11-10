@@ -49,10 +49,15 @@ class AHEDPropertiesCorePlugin implements DatatypePluginInterface
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
-        // This render plugin is only allowed to work when in Edit mode
-        // TODO - pass in stuff so the plugin is only executed when in wizard mode?
-        if ( isset($rendering_options['context']) && $rendering_options['context'] === 'edit' )
-            return true;
+        if ( isset($rendering_options['context']) ) {
+            $context = $rendering_options['context'];
+
+            // This render plugin is only allowed to work when in Edit mode
+            if ( $context === 'edit' )
+                return true;
+
+            // TODO - pass in stuff so the plugin is only executed when in wizard mode?
+        }
 
         return false;
     }

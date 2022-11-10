@@ -84,13 +84,19 @@ class MassEditCommand extends ContainerAwareCommand
 
                         'datarecord_id' => $data->datarecord_id,
                         'datafield_id' => $data->datafield_id,
-                        'value' => $data->value,
 
                         'api_key' => $data->api_key
                     );
+
+                    if ( property_exists($data, 'value') )
+                        $parameters['value'] = $data->value;
+                    else if ( property_exists($data, 'event_trigger') )
+                        $parameters['event_trigger'] = $data->event_trigger;
+                    else
+                        throw new \Exception('Invalid job data');
                 }
                 else {
-                    throw new \Exception('Invalid job');
+                    throw new \Exception('Invalid job type');
                 }
 
                 // Need to use cURL to send a POST request...thanks symfony

@@ -1555,6 +1555,8 @@ class EntityMetaModifyService
         if (!$changes_made)
             return $radio_selection;
 
+        // TODO - should changing radio/tag selections also trigger postUpdate events?  The Event itself isn't set up for it...
+        // TODO - ...if so, then MassEditController needs to be modified so it doesn't always trigger postMassEdit events
 
         // Determine whether to create a new entry or modify the previous one
         $remove_old_entry = false;
@@ -1611,8 +1613,13 @@ class EntityMetaModifyService
     {
         // ----------------------------------------
         // Verify that changes to certain properties are given as Doctrine entities instead of ids
-        if ( isset($properties['dataField']) && !($properties['dataField'] instanceof DataFields) )
-            throw new ODRException('EntityMetaModifyService::updateRenderPluginMap():  $properties["dataField"] is not an instanceof DataFields', 500, 0xa190c481);
+        // These properties are allowed to be null, so need to use array_key_exists() instead of isset()
+        if ( array_key_exists('dataField', $properties)
+            && !is_null($properties['dataField'])
+            && !($properties['dataField'] instanceof DataFields)
+        ) {
+            throw new ODRException('EntityMetaModifyService::updateRenderPluginMap(): $properties["dataField"] is not an instanceof DataFields', 500, 0xa190c481);
+        }
 
 
         // ----------------------------------------
@@ -1621,14 +1628,28 @@ class EntityMetaModifyService
         $existing_values = array(
             'dataField' => $render_plugin_map->getDataField(),
         );
+
+        // This entry could be null to begin with
+        if ( !is_null($render_plugin_map->getDataField()) )
+            $existing_values['dataField'] = $render_plugin_map->getDataField();
+
+
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            // array_key_exists() is used because the datafield entry could legitimately be null
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
                 $changes_made = true;
         }
+
+        // Need to do an additional check incase the mapped datafield was originally null, but got
+        //  changed to point to a datafield.  Can use isset() here because the value in $properties
+        //  won't be null in this case
+        if ( !isset($existing_values['dataField']) && isset($properties['dataField']) )
+            $changes_made = true;
 
         if (!$changes_made)
 //            return $render_plugin_map;
             return false;
+
 
         // Determine whether to create a new meta entry or modify the previous one
         $remove_old_entry = false;
@@ -1651,8 +1672,13 @@ class EntityMetaModifyService
         }
 
         // Set any new properties
-        if (isset($properties['dataField']))
-            $new_rpm->setDataField( $properties['dataField'] );
+        // isset() will return false when ('dataField' => null), so need to use array_key_exists() instead
+        if ( array_key_exists('dataField', $properties) ) {
+            if ( is_null($properties['dataField']) )
+                $new_rpm->setDataField(null);
+            else
+                $new_rpm->setDataField( $properties['dataField'] );
+        }
 
         $new_rpm->setUpdatedBy($user);
         $this->em->persist($new_rpm);
@@ -2013,6 +2039,8 @@ class EntityMetaModifyService
         if (!$changes_made)
             return $tag_selection;
 
+        // TODO - should changing radio/tag selections also trigger postUpdate events?  The Event itself isn't set up for it...
+        // TODO - ...if so, then MassEditController needs to be modified so it doesn't always trigger postMassEdit events
 
         // Determine whether to create a new entry or modify the previous one
         $remove_old_entry = false;

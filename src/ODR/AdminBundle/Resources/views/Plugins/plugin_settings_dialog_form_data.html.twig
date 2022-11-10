@@ -14,7 +14,7 @@
     {% endif %}
     </fieldset>
 
-    <fieldset>
+    <fieldset style="text-align: left; text-indent: 15px;">
         {{ render_plugin.description }}
     </fieldset>
 
@@ -39,10 +39,10 @@
                         <td><strong>{{ rpf.fieldName }}: </strong></td>
                         <td>{{ rpf.description }}</td>
                         <td>
-                            <select id="plugin_fieldtype_{{ rpf_id }}" class="ODRRenderPluginFieldtype" name="plugin_fieldtypes[{{ rpf_id }}]">
-                                {% for ft_id,typeClass in all_fieldtypes %}
+                            <select id="new_df_fieldtype_{{ rpf_id }}" class="ODRRenderPluginFieldtype" name="new_df_fieldtypes[{{ rpf_id }}]">
+                                {% for typeClass,ft_id in all_fieldtypes %}
                                     {% if ft_id in allowed_fieldtypes[rpf_id] %}
-                                        <option value="{{ ft_id }}">{{ typeClass }}</option>
+                                        <option value="{{ ft_id }}">{{ typeClass }}</option>    {# TODO - something to prefer a specific fieldtype? #}
                                     {% endif %}
                                 {% endfor %}
                             </select>
@@ -50,7 +50,13 @@
                         <td>
                             {# Print out a dropdown of fields in this datatype that match the fieldtype of the required field #}
                             <select id="plugin_map_{{ rpf_id }}" class="ODRRenderPluginMap" name="plugin_map[{{ rpf_id }}]" rel="{{ rpf_id }}">
-                                <option value="-1" selected>Create new datafield...</option>
+                                {% if rpf.is_optional %}
+                                <option value="-2" selected>&lt;&lt;Ignore this field &gt;&gt;</option>
+                                <option value="-1">&lt;&lt; Create new datafield &gt;&gt;</option>
+                                {% else %}
+                                <option value="-1" selected>&lt;&lt; Create new datafield &gt;&gt;</option>
+                                {% endif %}
+
                                 {% for df in datafields %}
                                     {% if df.fieldtype.id in allowed_fieldtypes[rpf_id] %}
                                         <option value="{{ df.id }}" rel="{{ df.fieldtype.id }}">{{ df.fieldName }}</option>
@@ -87,25 +93,27 @@
                 var fieldtype_id = $(this).children(':selected').attr('rel');
                 var rpf_warning = $("#rpf_" + render_plugin_field_id + "_warning");
 
-                if (datafield_id != '-1') {
+                if (datafield_id == '-2') {
+                    // Prevent user from changing fieldtype when no datafield is selected
+                    $("#new_df_fieldtype_" + render_plugin_field_id).prop('disabled', true);
+
+                    // Hide warnings about required properties
+                    if ( $(rpf_warning).length > 0 )
+                        $(rpf_warning).hide();
+                }
+                else if (datafield_id == '-1') {
+                    // Let user select fieldtype of new datafield
+                    $("#new_df_fieldtype_" + render_plugin_field_id).prop('disabled', false);
+
+                    // Hide warnings about required properties
+                    if ( $(rpf_warning).length > 0 )
+                        $(rpf_warning).hide();
+                }
+                else {
                     // Prevent user from changing fieldtype of existing datafield
-                    $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', true);
+                    $("#new_df_fieldtype_" + render_plugin_field_id).prop('disabled', true);
                     // Select fieldtype of selected datafield, for consistency
-                    $("#plugin_fieldtype_" + render_plugin_field_id).val(fieldtype_id);
-
-                    // Show warning about creating new datafields if needed
-                    var show_warning = false;
-                    $(".ODRRenderPluginMap").each(function() {
-                        if ( $(this).val() == '-1' ) {
-                            show_warning = true;
-                            return false;
-                        }
-                    });
-
-                    if (show_warning)
-                        $("#plugin_datafield_creation_warn").show();
-                    else
-                        $("#plugin_datafield_creation_warn").hide();
+                    $("#new_df_fieldtype_" + render_plugin_field_id).val(fieldtype_id);
 
                     // Show required property warnings if needed
                     if ( $(rpf_warning).length > 0 ) {
@@ -124,24 +132,32 @@
                         }
                     }
                 }
-                else {
-                    // Let user select fieldtype of new datafield
-                    $("#plugin_fieldtype_" + render_plugin_field_id).prop('disabled', false);
-                     // Show warning about creating new datafields
-                    $("#plugin_datafield_creation_warn").show();
 
-                    // Hide warnings about required properties
-                    if ( $(rpf_warning).length > 0 )
-                        $(rpf_warning).hide();
-                }
+                // Show warning about creating new datafields if needed
+                var show_warning = false;
+                $(".ODRRenderPluginMap").each(function() {
+                    if ( $(this).val() == '-1' ) {
+                        show_warning = true;
+                        return false;
+                    }
+                });
+
+                if (show_warning)
+                    $("#plugin_datafield_creation_warn").show();
+                else
+                    $("#plugin_datafield_creation_warn").hide();
             });
 
         {% if render_plugin_instance != null %}
             // Pre-select any existing datafield mappings
             {% for num,rpm in render_plugin_instance['renderPluginMap'] %}
-            $("#plugin_map_{{ rpm['renderPluginFields']['id'] }}").val("{{ rpm['dataField']['id'] }}").trigger('change');
+                {% if rpm['renderPluginFields']['id'] is defined and rpm['dataField']['id'] is defined %}
+                $("#plugin_map_{{ rpm['renderPluginFields']['id'] }}").val("{{ rpm['dataField']['id'] }}");
+                {% endif %}
             {% endfor %}
         {% endif %}
+
+            $(".ODRRenderPluginMap").trigger('change');
 
         {% if not is_datatype_admin %}
             // Not strictly needed, but don't allow modification if the user isn't allowed to
@@ -158,11 +174,12 @@
 {% endif %}
 
     <fieldset style="text-align: left;">
-        {# Determine if the rendering plugin has any available options #}
-        {% if render_plugin['renderPluginOptions']|length == 0 %}
-            <div style="text-align: center;">This Render Plugin has no options.</div>
-        {% else %}
-            {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+    {# Determine if the rendering plugin has any available options #}
+    {% if render_plugin['renderPluginOptions']|length == 0 %}
+        <div style="text-align: center;">This Render Plugin has no options.</div>
+    {% else %}
+        {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+            {% if custom_render_plugin_options_html[rpo_id] is not defined %}
                 {# Save the default value for the RenderPluginOption #}
                 {% set default_value = '' %}
                 {% if rpo['defaultValue'] is defined %}
@@ -193,12 +210,26 @@
                     <input id="plugin_option_{{ rpo_id }}" class="ODRRenderPluginOptionsMap" size="32" type="text" name="plugin_options[{{ rpo_id }}]" value="{{ current_value }}" />
                 {% endif %}
                 </div>
-            {% endfor %}
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    </fieldset>
+
+    <fieldset id="custom_renderpluginoptions" style="display: none;">
+    {% for rpo_id,rpo in render_plugin['renderPluginOptions'] %}
+        {% if custom_render_plugin_options_html[rpo_id] is defined %}
+            {{ custom_render_plugin_options_html[rpo_id]|raw }}
         {% endif %}
+    {% endfor %}
     </fieldset>
 
     <script>
         $(function() {
+        {% if custom_render_plugin_options_html|length > 0 %}
+            $("#custom_renderpluginoptions").show();
+        {% endif %}
+
         {% if is_datatype_admin %}
             $(".ODRDetachPlugin").unbind('click').click(function(event) {
                 // Don't submit the form
