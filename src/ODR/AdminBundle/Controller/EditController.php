@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
@@ -69,6 +70,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -502,6 +504,34 @@ class EditController extends ODRCustomController
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
 
+
+            // If the datarecord contains any datafields that are being used as a sortfield for
+            //  other datatypes, then need to clear the default sort order for those datatypes
+            $query = $em->createQuery(
+               'SELECT DISTINCT(l_dt.id) AS dt_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
+                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datarecords_to_delete' => $datarecords_to_delete,
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_reset_order = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_reset_order[] = $dt_id;
+            }
+
+
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
             $conn = $em->getConnection();
@@ -582,6 +612,15 @@ class EditController extends ODRCustomController
                 $cache_service->delete('cached_datarecord_'.$dr_id);
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
+
+
+            // ----------------------------------------
+            // Reset sort order for the datatypes found earlier
+            foreach ($datatypes_to_reset_order as $num => $dt_id)
+                $cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
+            //  plugins will end up requesting new graphs without the files for the deleted records
 
 
             // ----------------------------------------
@@ -1851,13 +1890,44 @@ class EditController extends ODRCustomController
                         // Mark this datarecord as updated
                         $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                        // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
-                        if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $dbi_service->resetDatatypeSortOrder($datatype->getId());
-
                         // Delete any cached search results involving this datafield
                         $search_cache_service->onDatafieldModify($datafield);
                         $search_cache_service->onDatarecordModify($datarecord);
+
+
+                        // Unfortunately, need to determine whether derived datafield shennanigans
+                        //  were involved...
+                        $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links...
+                        $derived_datafields = self::findDerivedDatafields($dt_array);
+
+                        $all_datafields = array($datafield->getId() => 1);
+                        if ( !empty($derived_datafields) ) {
+                            foreach ($derived_datafields as $derived_df_id => $source_df_ids) {
+                                if ( in_array($datafield->getId(), $source_df_ids) )
+                                    $all_datafields[$derived_df_id] = 1;
+                            }
+                        }
+                        $all_datafields = array_keys($all_datafields);
+
+                        $query = $em->createQuery(
+                           'SELECT dtsf
+                            FROM ODRAdminBundle:DataTypeSpecialFields dtsf
+                            WHERE dtsf.dataField IN (:datafield_list) AND dtsf.field_purpose = :field_purpose
+                            AND dtsf.deletedAt IS NULL'
+                        )->setParameters(
+                            array(
+                                'datafield_list' => $all_datafields,
+                                'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                            )
+                        );
+                        $dtsf_list = $query->getResult();
+                        /** @var DataTypeSpecialFields[] $dtsf_list */
+
+                        foreach ($dtsf_list as $dtsf) {
+                            // Delete the default ordering of any datatype that relies on these
+                            //  datafields
+                            $cache_service->delete('datatype_'.$dtsf->getDataType()->getId().'_record_order');
+                        }
                     }
                 }
                 else {
@@ -1878,6 +1948,56 @@ class EditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * TODO - move this to a service?  but it would have to import the symfony container...
+     * Looks through the cached datatype array to determine whether any of the used render plugins
+     * derive values for any of their datafields.
+     *
+     * @param array $datatype_array
+     *
+     * @return array
+     */
+    private function findDerivedDatafields($datatype_array)
+    {
+        $derived_datafields = array();
+
+        foreach ($datatype_array as $dt_id => $dt) {
+            // For each render plugin this datatype is using...
+            foreach ($dt['renderPluginInstances'] as $num => $rpi) {
+                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+
+                // Check whether any of the renderPluginField entries are derived prior to attempting to
+                //  load the renderPlugin itself
+                $load_render_plugin = false;
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                    if ( isset($rpf['properties']['is_derived']) ) {
+                        $load_render_plugin = true;
+                        break;
+                    }
+                }
+
+                // If a datafield from this plugin is derived...
+                if ($load_render_plugin) {
+                    /** @var DatafieldDerivationInterface $render_plugin */
+                    $render_plugin = $this->container->get($plugin_classname);
+
+                    if ($render_plugin instanceof DatafieldDerivationInterface) {
+                        // ...then request an array of the datafields that are derived from some other
+                        //  field so the rest of FakeEdit can use it
+                        $tmp = $render_plugin->getDerivationMap($rpi);
+                        foreach ($tmp as $derived_df_id => $source_datafields)
+                            $derived_datafields[$derived_df_id] = $source_datafields;
+
+                        // TODO - multiple plugins attempting to derive the value in the same datafield?
+                    }
+                }
+            }
+        }
+
+        return $derived_datafields;
     }
 
 
@@ -2392,31 +2512,32 @@ class EditController extends ODRCustomController
 
                 // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
                 //  will display stuff in a different order
-                $sort_df_id = 0;
-                $sort_ascending = true;
+                $sort_datafields = array();
+                $sort_directions = array();
 
                 $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
                 if ( is_null($sort_criteria) ) {
-                    if (is_null($datatype->getSortField())) {
-                        // ...this datarecord list is currently ordered by id
-                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
+                    // No criteria set...get this datatype's current list of sort fields, and convert
+                    //  into a list of datafield ids for storing this tab's criteria
+                    foreach ($datatype->getSortFields() as $display_order => $df) {
+                        $sort_datafields[$display_order] = $df->getId();
+                        $sort_directions[$display_order] = 'asc';
                     }
-                    else {
-                        // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
-                        $sort_df_id = $datatype->getSortField()->getId();
-                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
-                    }
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
                 }
                 else {
                     // Load the criteria from the user's session
-                    $sort_df_id = $sort_criteria['datafield_id'];
-                    if ($sort_criteria['sort_direction'] === 'desc')
-                        $sort_ascending = false;
+                    $sort_datafields = $sort_criteria['datafield_ids'];
+                    $sort_directions = $sort_criteria['sort_directions'];
                 }
 
                 // No problems, so get the datarecords that match the search
-                $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
-                $original_datarecord_list = $search_results['grandparent_datarecord_list'];
+                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($cached_search_results) ) {
+                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
+                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                }
+                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------

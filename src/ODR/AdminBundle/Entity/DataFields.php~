@@ -107,6 +107,11 @@ class DataFields
     private $renderPluginInstances;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataTypeSpecialFields;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $masterDataField;
@@ -140,6 +145,7 @@ class DataFields
         $this->groupDatafieldPermissions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->imageSizes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginInstances = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->dataTypeSpecialFields = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -610,6 +616,42 @@ class DataFields
     }
 
     /**
+     * Add dataTypeSpecialField.
+     *
+     * @param \ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField
+     *
+     * @return DataFields
+     */
+    public function addDataTypeSpecialField(\ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField)
+    {
+        $this->dataTypeSpecialFields[] = $dataTypeSpecialField;
+
+        return $this;
+    }
+
+    /**
+     * Remove dataTypeSpecialField.
+     *
+     * @param \ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeDataTypeSpecialField(\ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField)
+    {
+        return $this->dataTypeSpecialFields->removeElement($dataTypeSpecialField);
+    }
+
+    /**
+     * Get dataTypeSpecialFields.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDataTypeSpecialFields()
+    {
+        return $this->dataTypeSpecialFields;
+    }
+
+    /**
      * Set masterDataField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $masterDataField
@@ -954,5 +996,39 @@ class DataFields
     public function getFieldType()
     {
         return $this->getDataFieldMeta()->getFieldType();
+    }
+
+    /**
+     * Get all datatypes that use this field as a name field.
+     * @return DataType[]
+     */
+    public function getNameDatatypes()
+    {
+        $name_datatypes = array();
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
+                    $name_datatypes[] = $dtsf->getDataType();
+            }
+        }
+        return $name_datatypes;
+    }
+
+    /**
+     * Get all datatypes that use this field as a sort field.
+     * @return DataType[]
+     */
+    public function getSortDatatypes()
+    {
+        $sort_datatypes = array();
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
+                    $sort_datatypes[] = $dtsf->getDataType();
+            }
+        }
+        return $sort_datatypes;
     }
 }

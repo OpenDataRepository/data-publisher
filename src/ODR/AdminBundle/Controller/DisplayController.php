@@ -254,31 +254,32 @@ class DisplayController extends ODRCustomController
 
                 // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
                 //  will display stuff in a different order
-                $sort_df_id = 0;
-                $sort_ascending = true;
+                $sort_datafields = array();
+                $sort_directions = array();
 
                 $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
                 if ( is_null($sort_criteria) ) {
-                    if (is_null($datatype->getSortField())) {
-                        // ...this datarecord list is currently ordered by id
-                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
+                    // No criteria set...get this datatype's current list of sort fields, and convert
+                    //  into a list of datafield ids for storing this tab's criteria
+                    foreach ($datatype->getSortFields() as $display_order => $df) {
+                        $sort_datafields[$display_order] = $df->getId();
+                        $sort_directions[$display_order] = 'asc';
                     }
-                    else {
-                        // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
-                        $sort_df_id = $datatype->getSortField()->getId();
-                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
-                    }
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
                 }
                 else {
                     // Load the criteria from the user's session
-                    $sort_df_id = $sort_criteria['datafield_id'];
-                    if ($sort_criteria['sort_direction'] === 'desc')
-                        $sort_ascending = false;
+                    $sort_datafields = $sort_criteria['datafield_ids'];
+                    $sort_directions = $sort_criteria['sort_directions'];
                 }
 
                 // No problems, so get the datarecords that match the search
-                $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
-                $original_datarecord_list = $search_results['grandparent_datarecord_list'];
+                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($cached_search_results) ) {
+                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
+                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                }
+                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------

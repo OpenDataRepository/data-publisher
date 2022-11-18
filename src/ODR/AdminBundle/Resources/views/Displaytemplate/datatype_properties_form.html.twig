@@ -84,7 +84,7 @@
                 </span>
             </div>
         </div>
-
+{#
         <div class="pure-control-group">
             <label for="{{ datatype_form.nameField.vars.id }}">
                 {{ datatype_form.nameField.vars.label }}
@@ -107,7 +107,18 @@
                 </span>
             </div>
         </div>
+#}
+        <div class="pure-control-group">
+            <label style="display: inline;">{{ datatype_form.nameField.vars.label }}</label>
+            <span>&nbsp;
+                <a target="_blank" class="address" style="color:black;"
+                   onclick="openSpecialFieldsSelectionDialog({{ datatype.id }}, 'name');"
+                   title="Manage Group permissions for this Datatype..."><i class="fa fa-external-link fa-lg"></i>
+                </a>
+            </span>
+        </div>
 
+{#
         <div class="pure-control-group">
             <label for="{{ datatype_form.sortField.vars.id }}">
                 {{ datatype_form.sortField.vars.label }}
@@ -130,8 +141,19 @@
                 </span>
             </div>
         </div>
+#}
+        <div class="pure-control-group">
+            <label style="display: inline;">{{ datatype_form.sortField.vars.label }}</label>
+            <span>&nbsp;
+                <a target="_blank" class="address" style="color:black;"
+                   onclick="openSpecialFieldsSelectionDialog({{ datatype.id }}, 'sort');"
+                   title="Manage Group permissions for this Datatype..."><i class="fa fa-external-link fa-lg"></i>
+                </a>
+            </span>
+        </div>
 
         {% if is_top_level == true %}
+{#
         <div class="pure-control-group">
             <label for="{{ datatype_form.backgroundImageField.vars.id }}">
                 {{ datatype_form.backgroundImageField.vars.label }}
@@ -154,7 +176,7 @@
                 </span>
             </div>
         </div>
-
+#}
         <div class="pure-control-group">
             <label for="{{ datatype_form.searchSlug.vars.id }}">
                 {{ datatype_form.searchSlug.vars.label }}
@@ -185,7 +207,7 @@
         <span>&nbsp;
             <a target="_blank" class="address"
                href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;"
-               title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i>
+               title="Manage Group permissions for this Datatype..."><i class="fa fa-external-link fa-lg"></i>
             </a>
         </span>
     </div>
@@ -197,7 +219,7 @@
         <span>&nbsp;
             <a target="_blank" class="address" style="color:black;"
                onclick="openMultipleDatafieldPropertiesDialog({{ datatype.id }});"
-               title="Manage Datafield properties for this Datatype..."><i class="fa fa-cog fa-lg"></i>
+               title="Manage Datafield properties for this Datatype..."><i class="fa fa-external-link fa-lg"></i>
             </a>
         </span>
     </div>

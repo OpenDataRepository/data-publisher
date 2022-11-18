@@ -398,7 +398,7 @@ class SearchCacheService
         //  is modified
         self::onDatafieldModify($datafield);
 
-        // Also need to delete this entry
+        // Also need to delete these entries
         $datatype = $datafield->getDataType();
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
         $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');

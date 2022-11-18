@@ -180,10 +180,10 @@ class DefaultController extends Controller
             $target_datatype_id = $target_datatype->getId();
             if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
                 if (!$logged_in) {
-                    // Can't just throw a 401 error here and have Symfony auto-redirect to login
-                    // So, in order to get the user to login and then return them back to this page...
+                    // Can't just throw a 401 error here...Symfony would redirect the user to the
+                    //  list of datatypes, instead of back to this search page.
 
-                    // ...need to clear existing session redirect paths
+                    // So, need to clear existing session redirect paths...
                     /** @var TrackedPathService $tracked_path_service */
                     $tracked_path_service = $this->container->get('odr.tracked_path_service');
                     $tracked_path_service->clearTargetPaths();
@@ -193,14 +193,13 @@ class DefaultController extends Controller
                     $session = $request->getSession();
                     $session->set('_security.main.target_path', $url);
 
-                    // ...then finally we can redirect to the login page
+                    // ...so they can get redirected to the login page
                     return $this->redirectToRoute('fos_user_security_login');
                 }
                 else {
                     throw new ODRForbiddenException();
                 }
             }
-
 
 
             // ----------------------------------------
@@ -270,11 +269,6 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
-            /*
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $site_baseurl .= '/app_dev.php';
-            */
-
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Default:index.html.twig',
                 array(
@@ -377,7 +371,9 @@ class DefaultController extends Controller
 
 
     /**
-     * Called when the user performs a search from the search page.
+     * This gets called when the user clicks the "Search" button...it converts the POST with the
+     * search values into an ODR search key, and returns it so the searching javascript can trigger
+     * a search results page render.
      *
      * @param Request $request
      *
@@ -508,7 +504,7 @@ class DefaultController extends Controller
      * Renders a Short/Textresults list of all datarecords that match the given search key
      *
      * @param integer $search_theme_id If non-zero, which theme to use to render this list
-     * @param string $search_key The terms the user is searching for
+     * @param string $search_key The terms the user is searching on
      * @param integer $offset Which page of the search results to render
      * @param string $intent "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param Request $request
@@ -578,9 +574,9 @@ class DefaultController extends Controller
             // Check whether the search key needs to be filtered or not
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
             if ($filtered_search_key !== $search_key) {
+                // The search key got changed...determine whether it's because something was out of
+                //  order, or the user tried to search on a field they can't view...
                 if ($intent === 'searching') {
-                    // The search key got changed...determine whether it's because something was out of
-                    //  order, or the user tried to search on a field they can't view
                     $decoded_original = $search_key_service->decodeSearchKey($search_key);
                     $decoded_modified = $search_key_service->decodeSearchKey($filtered_search_key);
 
@@ -646,40 +642,36 @@ class DefaultController extends Controller
 
             // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
             //  will display stuff in a different order
-            $sort_df_id = 0;
-            $sort_ascending = true;
+            $sort_datafields = array();
+            $sort_directions = array();
 
-            // TODO - provide some method for non-table search result pages to change order of results
             $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
             if ( $theme->getThemeType() === 'table' && !is_null($sort_criteria) ) {
                 // This is a table layout and it already has sort criteria
 
                 // Load the criteria from the user's session
-                $sort_df_id = $sort_criteria['datafield_id'];
-                if ($sort_criteria['sort_direction'] === 'desc')
-                    $sort_ascending = false;
+                $sort_datafields = $sort_criteria['datafield_ids'];
+                $sort_directions = $sort_criteria['sort_directions'];
             }
             else {
-                // Otherwise, reset the sort order for now...having some arbitrary sort order that
-                //  can't be changed doesn't work
+                // Otherwise, this is not a table layout, or no sort criteria is defined...in either
+                //  case, force the default sort order
+                foreach ($datatype->getSortFields() as $display_order => $df) {
+                    $sort_datafields[$display_order] = $df->getId();
+                    $sort_directions[$display_order] = 'asc';
+                }
+                $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
 
-                if ( is_null($datatype->getSortField()) ) {
-                    // ...this datarecord list is currently ordered by id
-                    $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
-                }
-                else {
-                    // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
-                    $sort_df_id = $datatype->getSortField()->getId();
-                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
-                }
+                // TODO - provide some method for non-table search result pages to change order of results
             }
 
-
             // Run the search specified by the search key
-            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
+            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
             $datarecords = $search_results['grandparent_datarecord_list'];
+            // Want to store this so it isn't being re-run constantly...    // TODO - should this work exactly the same way as the Display/Edit controllers?
+            $odr_tab_service->setSearchResults($odr_tab_id, $search_results);
 
-            // Bypass list entirely if only one datarecord...
+            // Bypass search results list entirely if only one datarecord...
             if ( count($datarecords) == 1 && $intent === 'searching') {
                 $datarecord_id = $datarecords[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
@@ -924,10 +916,8 @@ class DefaultController extends Controller
                         $drf_typeclass = $typeclasses[$field_typeclass];
 
                         foreach ($dr_array as $dr_id => $dr) {
-                            // ...entries for each datafield aren't guaranteed to exist in the
-                            //  datarecord array...
+                            // Entries for each datafield aren't guaranteed to exist in the array...
                             if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                                // Only save the value if it's not empty
                                 $field_value = trim($dr['dataRecordFields'][$df_id][$drf_typeclass][0]['value']);
                                 if ($field_value !== '')
                                     $output[$dr_id][$df_id] = $field_value;
@@ -1043,7 +1033,7 @@ class DefaultController extends Controller
             else {
                 // Datafield is in advanced search, so it has an HTML element on the sidebar
                 // Need the datafield's array entry in order to re-render it
-                $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 $templating = $this->get('templating');

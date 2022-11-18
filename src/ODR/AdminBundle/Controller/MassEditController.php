@@ -15,12 +15,14 @@
 
 namespace ODR\AdminBundle\Controller;
 
+
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
@@ -57,12 +59,14 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use FOS\UserBundle\Doctrine\UserManager;
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -503,7 +507,7 @@ class MassEditController extends ODRCustomController
             if ( count($public_status) > 0 || (count($datafield_list) > 0 && count($datarecords) > 0) ) {
                 $job_type = 'mass_edit';
                 $target_entity = 'datatype_'.$datatype_id;
-                $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
+                $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id, 'datafield_list' => array_keys($datafield_list));
                 $restrictions = '';
                 $total = -1;    // TODO - better way of dealing with this?
                 $reuse_existing = false;
@@ -931,6 +935,8 @@ class MassEditController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var Logger $logger */
+//            $logger = $this->get('logger');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -1359,8 +1365,15 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Mark this datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
+            // Delete the search cache entries that relate to datarecord modification
+            $search_cache_service->onDatarecordModify($datarecord);
+
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -1370,26 +1383,69 @@ class MassEditController extends ODRCustomController
                     $tracked_job->setCompleted( new \DateTime() );
 
                     // TODO - really want a better system than this...
-                    // In theory, this means the job is done, so delete all search cache entries
+                    // In theory, being here means the job is done, so delete all search cache entries
                     //  relevant to this datatype
                     $search_cache_service->onDatatypeImport($datatype);
+
+                    // This includes search cache entries of the datafields that got modified...
+                    $additional_data = $tracked_job->getAdditionalData();
+                    $datafield_list = $additional_data['datafield_list'];
+
+                    // ...but due to render plugin shennanigans, more fields than just those that
+                    //  were selected might've been modified...
+                    /** @var DatabaseInfoService $dbi_service */
+                    $dbi_service = $this->container->get('odr.database_info_service');
+                    $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links...
+                    $derived_datafields = self::findDerivedDatafields($dt_array);
+
+                    // If derived datafield shennanigans were involved...
+                    $extra_datafields = array();
+                    if ( !empty($derived_datafields) ) {
+                        // ...then determine whether any of the datafields modified by this mass
+                        //  edit job caused derivation jobs for other datafields
+                        foreach ($datafield_list as $num => $df_id) {
+                            foreach ($derived_datafields as $derived_df_id => $source_df_ids) {
+                                if ( in_array($df_id, $source_df_ids) )
+                                    $extra_datafields[] = $derived_df_id;
+                            }
+                        }
+                    }
+
+                    // Merge the list of datafields directly modified by this mass edit job with
+                    //  the list of datafields that also got modified due to render plugins
+                    $all_datafields = array();
+                    foreach ($datafield_list as $num => $df_id)
+                        $all_datafields[$df_id] = 1;
+                    foreach ($extra_datafields as $num => $df_id)
+                        $all_datafields[$df_id] = 1;
+                    $all_datafields = array_keys($all_datafields);
+
+                    $query = $em->createQuery(
+                       'SELECT df
+                        FROM ODRAdminBundle:DataFields df
+                        WHERE df IN (:datafield_list)
+                        AND df.deletedAt IS NULL'
+                    )->setParameters( array('datafield_list' => $all_datafields) );
+                    $datafields = $query->getResult();
+                    /** @var DataFields[] $datafields */
+
+                    /** @var CacheService $cache_service */
+                    $cache_service = $this->container->get('odr.cache_service');
+                    foreach ($datafields as $df) {
+                        // Delete cached search results for each datafield...
+                        $search_cache_service->onDatafieldModify($df);
+                        // ...and the default ordering of any datatype that relies on the datafield
+                        foreach ($df->getSortDatatypes() as $num => $dt)
+                            $cache_service->delete('datatype_'.$dt->getId().'_record_order');
+                    }
                 }
 
                 $em->persist($tracked_job);
-//                    $em->flush();
                 $ret .= '  Set current to '.$count."\n";
             }
 
             // Save all the changes that were made
             $em->flush();
-
-
-            // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // Delete the search cache entries that relate to datarecord modification
-            $search_cache_service->onDatarecordModify($datarecord);
 
             $ret .=  "---------------\n";
             $return['d'] = $ret;
@@ -1405,6 +1461,56 @@ class MassEditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * TODO - move this to a service?  but it would have to import the symfony container...
+     * Looks through the cached datatype array to determine whether any of the used render plugins
+     * derive values for any of their datafields.
+     *
+     * @param array $datatype_array
+     *
+     * @return array
+     */
+    private function findDerivedDatafields($datatype_array)
+    {
+        $derived_datafields = array();
+
+        foreach ($datatype_array as $dt_id => $dt) {
+            // For each render plugin this datatype is using...
+            foreach ($dt['renderPluginInstances'] as $num => $rpi) {
+                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+
+                // Check whether any of the renderPluginField entries are derived prior to attempting to
+                //  load the renderPlugin itself
+                $load_render_plugin = false;
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                    if ( isset($rpf['properties']['is_derived']) ) {
+                        $load_render_plugin = true;
+                        break;
+                    }
+                }
+
+                // If a datafield from this plugin is derived...
+                if ($load_render_plugin) {
+                    /** @var DatafieldDerivationInterface $render_plugin */
+                    $render_plugin = $this->container->get($plugin_classname);
+
+                    if ($render_plugin instanceof DatafieldDerivationInterface) {
+                        // ...then request an array of the datafields that are derived from some other
+                        //  field so the rest of FakeEdit can use it
+                        $tmp = $render_plugin->getDerivationMap($rpi);
+                        foreach ($tmp as $derived_df_id => $source_datafields)
+                            $derived_datafields[$derived_df_id] = $source_datafields;
+
+                        // TODO - multiple plugins attempting to derive the value in the same datafield?
+                    }
+                }
+            }
+        }
+
+        return $derived_datafields;
     }
 
 
@@ -1581,6 +1687,33 @@ class MassEditController extends ODRCustomController
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  //exit();
 
+            // If the datarecord contains any datafields that are being used as a sortfield for
+            //  other datatypes, then need to clear the default sort order for those datatypes
+            $query = $em->createQuery(
+               'SELECT DISTINCT(l_dt.id) AS dt_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
+                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datarecords_to_delete' => $datarecords_to_delete,
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_reset_order = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_reset_order[] = $dt_id;
+            }
+
+
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
             $conn = $em->getConnection();
@@ -1657,6 +1790,15 @@ class MassEditController extends ODRCustomController
                 $cache_service->delete('cached_datarecord_'.$dr_id);
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
+
+
+            // ----------------------------------------
+            // Reset sort order for the datatypes found earlier
+            foreach ($datatypes_to_reset_order as $num => $dt_id)
+                $cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
+            //  plugins will end up requesting new graphs without the files for the deleted records
 
 
             // ----------------------------------------

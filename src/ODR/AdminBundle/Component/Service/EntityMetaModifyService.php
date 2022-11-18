@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\FieldType;
@@ -986,6 +987,76 @@ class EntityMetaModifyService
 
         // Return the new entry
         return $new_datatype_meta;
+    }
+
+
+    /**
+     * Copies the contents of the given ThemeDatafield entity into a new ThemeDatafield entity if
+     * something was changed
+     *
+     * @param ODRUser $user
+     * @param DataTypeSpecialFields $dtsf
+     * @param array $properties
+     * @param bool $delay_flush
+     *
+     * @return DataTypeSpecialFields
+     */
+    public function updateDatatypeSpecialField($user, $dtsf, $properties, $delay_flush = false)
+    {
+        // ----------------------------------------
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            // Not allowed to change datatype/datafield, or purpose
+            'displayOrder' => $dtsf->getDisplayOrder(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $dtsf;
+
+
+        // Determine whether to create a new entry or modify the previous one
+        $remove_old_entry = false;
+        $new_dtsf = null;
+        if ( self::createNewMetaEntry($user, $dtsf) ) {
+            // Clone the old ThemeDatafield entry
+            $remove_old_entry = true;
+
+            $new_dtsf = clone $dtsf;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_dtsf->setCreated(new \DateTime());
+            $new_dtsf->setUpdated(new \DateTime());
+            $new_dtsf->setCreatedBy($user);
+            $new_dtsf->setUpdatedBy($user);
+        }
+        else {
+            // Update the existing entry
+            $new_dtsf = $dtsf;
+        }
+
+
+        // Set any new properties
+        if (isset($properties['displayOrder']))
+            $new_dtsf->setDisplayOrder( $properties['displayOrder'] );
+
+        $new_dtsf->setUpdatedBy($user);
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($dtsf);
+
+        // Save the new meta entry
+        $this->em->persist($new_dtsf);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        // Return the new entry
+        return $new_dtsf;
     }
 
 

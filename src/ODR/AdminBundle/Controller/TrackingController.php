@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -2061,11 +2062,16 @@ class TrackingController extends ODRCustomController
         // datarecords are more involved...need to figure out the nameFields first
         $query = $em->createQuery(
            'SELECT df.id AS df_id
-            FROM ODRAdminBundle:DataTypeMeta AS dtm
-            JOIN ODRAdminBundle:DataFields AS df WITH dtm.nameField = df
-            WHERE dtm.dataType IN (:datatype_ids)
-            AND dtm.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => array_keys($ids['dt_ids'])) );
+            FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
+            JOIN ODRAdminBundle:DataFields AS df WITH dtsf.dataField = df
+            WHERE dtsf.dataType IN (:datatype_ids) AND dtsf.field_purpose = :field_purpose
+            AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_ids' => array_keys($ids['dt_ids']),
+                'field_purpose' => DataTypeSpecialFields::NAME_FIELD
+            )
+        );
         $results = $query->getArrayResult();
 
         $namefield_ids = array();
@@ -2076,13 +2082,16 @@ class TrackingController extends ODRCustomController
         $query =
            'SELECT drf.data_record_id AS dr_id, drf.data_field_id AS df_id,
 	            iv.value AS iv_value, dv.value AS dv_value,
-	            sv.value AS sv_value, mv.value AS mv_value, lv.value AS lv_value
+	            sv.value AS sv_value, mv.value AS mv_value, lv.value AS lv_value,
+	            ro.option_name AS ro_name
             FROM odr_data_record_fields drf
             LEFT JOIN odr_integer_value iv ON (iv.data_record_fields_id = drf.id AND iv.deletedAt IS NULL)
             LEFT JOIN odr_decimal_value dv ON (dv.data_record_fields_id = drf.id AND dv.deletedAt IS NULL)
             LEFT JOIN odr_short_varchar sv ON (sv.data_record_fields_id = drf.id AND sv.deletedAt IS NULL)
             LEFT JOIN odr_medium_varchar mv ON (mv.data_record_fields_id = drf.id AND mv.deletedAt IS NULL)
             LEFT JOIN odr_long_varchar lv ON (lv.data_record_fields_id = drf.id AND lv.deletedAt IS NULL)
+            LEFT JOIN odr_radio_selection rs ON (rs.data_record_fields_id = drf.id AND rs.deletedAt IS NULL AND rs.selected = 1)
+            LEFT JOIN odr_radio_options ro ON (rs.radio_option_id = ro.id AND ro.deletedAt IS NULL)
             WHERE drf.data_record_id IN (:datarecord_ids) AND drf.data_field_id IN (:namefield_ids)
             AND drf.deletedAt IS NULL';
         $params = array(
@@ -2098,16 +2107,24 @@ class TrackingController extends ODRCustomController
         $results = $conn->executeQuery($query, $params, $types);
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
+            $value = null;
             if ( !is_null($result['iv_value']) )
-                $names['datarecords'][$dr_id] = $result['iv_value'];
+                $value = $result['iv_value'];
             else if ( !is_null($result['dv_value']) )
-                $names['datarecords'][$dr_id] = $result['dv_value'];
+                $value = $result['dv_value'];
             else if ( !is_null($result['sv_value']) )
-                $names['datarecords'][$dr_id] = $result['sv_value'];
+                $value = $result['sv_value'];
             else if ( !is_null($result['mv_value']) )
-                $names['datarecords'][$dr_id] = $result['mv_value'];
+                $value = $result['mv_value'];
             else if ( !is_null($result['lv_value']) )
-                $names['datarecords'][$dr_id] = $result['lv_value'];
+                $value = $result['lv_value'];
+            else if ( !is_null($result['ro_name']) )
+                $value = $result['ro_name'];
+
+            if ( !isset($names['datarecords'][$dr_id]) )
+                $names['datarecords'][$dr_id] = $value;
+            else
+                $names['datarecords'][$dr_id] .= ' '.$value;
         }
 
         return $names;

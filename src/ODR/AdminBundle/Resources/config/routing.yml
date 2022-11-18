@@ -518,6 +518,19 @@ odr_design_save_multi_datafield_properties:
     requirements:
         datatype_id:  \d+
 
+odr_design_get_special_datafield_properties:
+    path:  /design/displaytemplate/special_datafields/get/{datatype_id}/{type}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getspecialdatafields }
+    requirements:
+        datatype_id:  \d+
+        type: '|name|sort'
+
+odr_design_save_special_datafield_properties:
+    path:  /design/displaytemplate/special_datafields/save/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savespecialdatafields }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }
@@ -2022,3 +2035,10 @@ odr_track_get_user_selector:
     path: /admin/track/user_list
     defaults: { _controller: ODRAdminBundle:Tracking:getuserselector }
 #-----------------------------------------
+
+
+odr_asdf:
+    path: /admin/asdf/{field_purpose}
+    defaults: { _controller: ODRAdminBundle:Worker:asdf }
+    requirements:
+        field_purpose: \d+

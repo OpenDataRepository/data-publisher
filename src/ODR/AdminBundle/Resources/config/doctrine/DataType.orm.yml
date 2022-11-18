@@ -160,6 +160,13 @@ ODR\AdminBundle\Entity\DataType:
             inversedBy: null
             orphanRemoval: false
 
+        dataTypeSpecialFields:
+            targetEntity: DataTypeSpecialFields
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            orphanRemoval: false
+
     oneToOne:
         metadata_datatype:
             targetEntity: DataType

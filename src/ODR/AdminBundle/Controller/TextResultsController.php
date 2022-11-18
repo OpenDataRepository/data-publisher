@@ -7,9 +7,9 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The textresults controller handles the selection of Datafields that are
- * displayed by the jQuery Datatables plugin, in addition to ajax
- * communication with the Datatables plugin for display of data and state storage.
+ * The textresults controller handles the selection of Datafields that are displayed by the jQuery
+ * Datatables plugin, in addition to ajax communication with the Datatables plugin for display of
+ * data and state storage.
  *
  * @see https://www.datatables.net/
  *
@@ -22,7 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -79,11 +79,13 @@ class TextResultsController extends ODRCustomController
             $search_key = $post['search_key'];
 
             // Need to also deal with requests for a sorted table...
-            $sort_column = 0;
-            $sort_dir = 'asc';
-            if ( isset($post['order']) && isset($post['order']['0']) ) {
-                $sort_column = intval( $post['order']['0']['column'] );
-                $sort_dir = strtolower( $post['order']['0']['dir'] );
+            $sort_cols = array();
+            $sort_dirs = array();
+            if ( isset($post['order']) ) {
+                foreach ($post['order'] as $num => $data) {
+                    $sort_cols[$num] = intval($data['column']);
+                    $sort_dirs[$num] = strtolower($data['dir']);
+                }
             }
 
 
@@ -130,7 +132,7 @@ class TextResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine whether user is logged in or not
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
@@ -143,31 +145,47 @@ class TextResultsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Save changes to the page_length unless viewing a search results table meant for
-            //  linking datarecords...
-            if ($odr_tab_id !== '')
-                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+            // Search result pages display all datarecords that the user can see which match matched
+            //  a search they did...
+            $original_datarecord_list = array();
 
-            // Determine whether the user has a restriction on which datarecords they can edit
+            // While it's only rarely used, ODR does provide the ability for users to filter search
+            //  results down from "all records the user can view"...
+            $viewable_datarecord_list = array();
+
+            // ...to "only records the user can edit".  This only happens when the user has a
+            //  "datarecord restriction" in place...
+            $editable_datarecord_list = array();
+
+            // ...so determine whether the user has such a restriction
             $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
             $has_search_restriction = false;
             if ( !is_null($restricted_datarecord_list) )
                 $has_search_restriction = true;
 
-            // Determine whether the user wants to only display datarecords they can edit
+            // ...then determine whether the user wants to only display datarecords they can edit
             $cookies = $request->cookies;
             $only_display_editable_datarecords = true;
             if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
                 $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
-            // If a datarecord restriction exists, and the user only wants to display editable datarecords...
+            // If a datarecord restriction exists, and the user only wants to display records they
+            //  can edit, then save that preference
             $editable_only = false;
             if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
                 $editable_only = true;
 
 
-            $original_datarecord_list = array();
+            // The list of datarecords to actually display on the page is based off these preferences
             $datarecord_list = array();
+
+
+            // ----------------------------------------
+            // Save changes to the page_length unless viewing a search results table meant for
+            //  linking datarecords...
+            if ($odr_tab_id !== '')
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+
             if ( $search_key == '' ) {
                 // Theoretically this won't happen during regular operation of ODR anymore, but
                 //  keeping around just in case
@@ -196,76 +214,75 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // If the datarecord lists don't exist in the user's session, then they need to get created
             // If the sorting criteria changed, then the datarecord lists need to get rebuilt
-            $sort_df_id = 0;
-            if ( !is_null($datatype->getSortField()) )
-                $sort_df_id = $datatype->getSortField()->getId();
+            $sort_datafields = array();
+            $sort_directions = array();
 
-            if ($sort_column >= 2) {    // column 0 is datarecord id, column 1 is default sort column...
-                // Locate the datafield pointed to by $sort_column
-                $sort_column -= 2;
-                $df = $tth_service->getDatafieldAtColumn($user, $datatype->getId(), $theme->getId(), $sort_column);
-                $sort_df_id = $df['id'];
+            if ( empty($sort_cols) || ( count($sort_cols) === 1 && $sort_cols[0] < 2 ) ) {
+                // datatables.js isn't using a sort column, or is using the default sort column
+                //  ...column 0 being datarecord id, column 1 being the default sort column
+
+                /* do nothing so the rest of ODR uses the datatype's default sorting */
             }
+            else {
+                // Determine which datafield(s) datatables.js is currently using as its sort column(s)
+                foreach ($sort_cols as $display_order => $col) {
+                    $col -= 2;
+                    $df = $tth_service->getDatafieldAtColumn($user, $datatype->getId(), $theme->getId(), $col);
 
-            // Convert sort direction into a boolean for later...
-            $sort_ascending = true;
-            if ($sort_dir == 'desc')
-                $sort_ascending = false;
-
-
-            // If linking, this array should be empty
-            $editable_datarecord_list = array();
+                    $sort_datafields[$display_order] = $df['id'];
+                    $sort_directions[$display_order] = $sort_dirs[$display_order];
+                }
+            }
 
             if ($odr_tab_id !== '') {
                 // This is for a search page
 
                 // ----------------------------------------
                 // If the sorting criteria has changed for the lists of datarecord ids...
-                if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_df_id, $sort_dir) ) {
+                if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_datafields, $sort_directions) ) {
                     // ...then store the new criteria they will be using here
-                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, $sort_dir);
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
+                    $odr_tab_service->clearSearchResults($odr_tab_id);
                 }
 
-                // Get an array of datarecord ids sorted by the given datafield in the given sort
-                //  direction, filtered to include only the datarecord ids in $datarecord_list
+                // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
+                //  will display stuff in a different order
                 $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
                 if ( is_null($sort_criteria) ) {
-                    if (is_null($datatype->getSortField())) {
-                        // ...this datarecord list is currently ordered by id
-                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
+                    // No criteria set...get this datatype's current list of sort fields, and convert
+                    //  into a list of datafield ids for storing this tab's criteria
+                    foreach ($datatype->getSortFields() as $display_order => $df) {
+                        $sort_datafields[$display_order] = $df->getId();
+                        $sort_directions[$display_order] = 'asc';
                     }
-                    else {
-                        // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
-                        $sort_df_id = $datatype->getSortField()->getId();
-                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
-                    }
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
                 }
                 else {
                     // Load the criteria from the user's session
-                    $sort_df_id = $sort_criteria['datafield_id'];
-                    if ($sort_criteria['sort_direction'] === 'desc')
-                        $sort_ascending = false;
+                    $sort_datafields = $sort_criteria['datafield_ids'];
+                    $sort_directions = $sort_criteria['sort_directions'];
                 }
 
-                $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
-                $original_datarecord_list = $search_results['grandparent_datarecord_list'];
+                // No problems, so get the datarecords that match the search
+                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($cached_search_results) ) {
+                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
+                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                }
+                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------
-                // Determine the correct lists of datarecords to use for rendering...
-                $viewable_datarecord_list = array();
-                // The editable list needs to be in ($dr_id => $num) format for twig
-                $editable_datarecord_list = array();
                 if ($can_edit_datatype) {
                     if (!$has_search_restriction) {
-                        // ...user doesn't have a restriction list, so the editable list is the same as the
-                        //  viewable list
+                        // ...user doesn't have a restriction list, so the editable list is the same
+                        //  as the viewable list
                         $viewable_datarecord_list = $original_datarecord_list;
                         $editable_datarecord_list = array_flip($original_datarecord_list);
                     }
                     else if (!$editable_only) {
-                        // ...user has a restriction list, but wants to see all datarecords that match the
-                        //  search
+                        // ...user has a restriction list, but wants to see all datarecords that
+                        //  match the search
                         $viewable_datarecord_list = $original_datarecord_list;
 
                         // Doesn't matter if the editable list of datarecords has more than the
@@ -273,19 +290,20 @@ class TextResultsController extends ODRCustomController
                         $editable_datarecord_list = array_flip($restricted_datarecord_list);
                     }
                     else {
-                        // ...user has a restriction list, and only wants to see the datarecords they are
-                        //  allowed to edit
+                        // ...user has a restriction list, and only wants to see the datarecords
+                        //  they are allowed to edit
                         $datarecord_list = $original_datarecord_list;
 
-                        // array_flip() + isset() is orders of magnitude faster than repeated calls to in_array()
+                        // array_flip() + isset() is orders of magnitude faster than repeated calls
+                        //  to in_array()
                         $editable_datarecord_list = array_flip($restricted_datarecord_list);
                         foreach ($datarecord_list as $num => $dr_id) {
-                            if (!isset($editable_datarecord_list[$dr_id]))
-                                unset($datarecord_list[$num]);
+                            if ( !isset($editable_datarecord_list[$dr_id]) )
+                                unset( $datarecord_list[$num] );
                         }
 
-                        // Both the viewable and the editable lists are based off the intersection of the
-                        //  search results and the restriction list
+                        // Both the viewable and the editable lists are based off the intersection
+                        //  of the search results and the restriction list
                         $viewable_datarecord_list = array_values($datarecord_list);
                         $editable_datarecord_list = array_flip($viewable_datarecord_list);
                     }
@@ -294,7 +312,7 @@ class TextResultsController extends ODRCustomController
                     // ...otherwise, just use the list of datarecords that was passed in
                     $viewable_datarecord_list = $original_datarecord_list;
 
-                    // User can't edit anything in the datatype, leave the editable datarecord list empty
+                    // User can't edit anything in the datatype, leave the editable record list empty
                 }
             }
             else {

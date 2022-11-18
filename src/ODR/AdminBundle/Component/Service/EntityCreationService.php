@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\FieldType;
@@ -671,6 +672,49 @@ class EntityCreationService
             $this->em->flush();
 
         return $datatype;
+    }
+
+
+    /**
+     * Creates and persists a new DatatypeSpecialFields entity, used for specifying the "name" or
+     * "sort" fields of a Datatype, and what order to read them in.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param DataFields $datafield
+     * @param int $field_purpose
+     * @param int $display_order
+     * @param bool $delay_flush
+     *
+     * @return DataTypeSpecialFields
+     */
+    public function createDatatypeSpecialField($user, $datatype, $datafield, $field_purpose, $display_order = 999, $delay_flush = false)
+    {
+        // ----------------------------------------
+        // Have some verification to do first...
+        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD && $field_purpose !== DataTypeSpecialFields::SORT_FIELD )
+            throw new ODRBadRequestException('Invalid field_purpose for special Datatype field');
+
+
+        // ----------------------------------------
+        // Initial create
+        $dtsf = new DataTypeSpecialFields();
+        $dtsf->setDataType($datatype);
+        $dtsf->setDataField($datafield);
+        $dtsf->setFieldPurpose($field_purpose);
+        $dtsf->setDisplayOrder($display_order);
+
+        $dtsf->setCreatedBy($user);
+        $dtsf->setUpdatedBy($user);
+
+        $datatype->addDataTypeSpecialField($dtsf);
+        $datafield->addDataTypeSpecialField($dtsf);
+        $this->em->persist($dtsf);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $dtsf;
     }
 
 

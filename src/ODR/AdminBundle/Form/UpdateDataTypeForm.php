@@ -113,6 +113,9 @@ class UpdateDataTypeForm extends AbstractType
                 'expanded' => false,
                 'multiple' => false,
                 'placeholder' => 'NONE',
+
+                // Don't want to lose this entirely for the moment, but don't want to use it either
+                'disabled' => true,
             )
         );
 
@@ -139,6 +142,9 @@ class UpdateDataTypeForm extends AbstractType
                 'expanded' => false,
                 'multiple' => false,
                 'placeholder' => 'NONE',
+
+                // Don't want to lose this entirely for the moment, but don't want to use it either
+                'disabled' => true,
             )
         );
 
@@ -163,6 +169,9 @@ class UpdateDataTypeForm extends AbstractType
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => 'NONE',
+
+                    // Don't want to lose this entirely for the moment, but don't want to use it either
+                    'disabled' => true,
                 )
             );
 

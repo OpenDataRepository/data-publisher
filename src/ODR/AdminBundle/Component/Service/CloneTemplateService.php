@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
@@ -41,7 +42,7 @@ class CloneTemplateService
 {
 
     /**
-     * @var EntityManager $em
+     * @var EntityManager
      */
     private $em;
 
@@ -160,6 +161,11 @@ class CloneTemplateService
      */
     private $created_datafields;
 
+    /**
+     * @var DataTypeSpecialFields[]
+     */
+    private $created_dtsf_entries;
+
 
     /**
      * CloneTemplateService constructor.
@@ -221,6 +227,7 @@ class CloneTemplateService
         $this->modified_linked_datatypes = array();
 
         $this->created_datafields = array();
+        $this->created_dtsf_entries = array();
     }
 
 
@@ -386,6 +393,7 @@ class CloneTemplateService
             'masterDataType' => 1,
             'dataFields' => 1,
             'descendants' => 1,
+//            'dataTypeSpecialFields' => 1,
 
             'copy_theme_structure' => 1,
         );
@@ -969,16 +977,6 @@ class CloneTemplateService
         // Also need to get a list of all top-level datatypes associated with the derived datatype
         $derived_grandparents = $this->dti_service->getAssociatedDatatypes($datatype->getId());
 
-//        // TODO - this looks weird...
-//        $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
-//        if ($derived_grandparents == false) {
-//            $derived_grandparents = $this->dbi_service->getAssociatedDatatypes( array($datatype->getId()) );
-//
-//            // Save the list of associated datatypes back into the cache
-//            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $derived_grandparents);
-//        }
-
-
         // Convert the arrays of datatype/datafield/radio option ids into a format for querying
         $query_datatypes = array_keys($this->derived_datatypes);
         $query_datafields = array_keys($this->derived_datafields);
@@ -1041,6 +1039,8 @@ class CloneTemplateService
                 $this->search_cache_service->onDatatypeImport($dt);
                 $modified_top_level_datatypes[] = $dt->getId();
             }
+
+            $this->search_cache_service->onDatatypeImport($dt);
 
             // TODO - ...don't the datarecord entries need to be wiped too?
         }
@@ -2089,19 +2089,11 @@ class CloneTemplateService
                     //  called
                     self::cloneRenderPlugins($indent_text, $user, $derived_child_datatype, null);
 
-                    // Need to set external_id/name/sort/etc fields for the new datatype...
+                    // Need to set the external_id fields for the new datatype...
                     $child_properties = array();
                     if ( !is_null($master_datatype->getExternalIdField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getExternalIdField()->getId() ];
                         $child_properties['externalIdField'] = $child_df;
-                    }
-                    if ( !is_null($master_datatype->getNameField()) ) {
-                        $child_df = $this->created_datafields[ $master_datatype->getNameField()->getId() ];
-                        $child_properties['nameField'] = $child_df;
-                    }
-                    if ( !is_null($master_datatype->getSortField()) ) {
-                        $child_df = $this->created_datafields[ $master_datatype->getSortField()->getId() ];
-                        $child_properties['sortField'] = $child_df;
                     }
                     if ( !is_null($master_datatype->getBackgroundImageField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getBackgroundImageField()->getId() ];
@@ -2109,6 +2101,21 @@ class CloneTemplateService
                     }
 
                     $this->emm_service->updateDatatypeMeta($user, $derived_child_datatype, $child_properties, true);
+
+                    // ...and also set the name/sort fields for the new datatype
+                    foreach ($this->created_dtsf_entries as $dtsf) {
+                        // This entry should have the correct datatype already, but it won't have the
+                        //  correct datafield
+                        $old_df = $dtsf->getDataField();
+
+                        // So if we locate its derived counterpart...
+                        $derived_df = $this->created_datafields[ $old_df->getId() ];
+                        // ...then we can set this entry to use it
+                        $dtsf->setDataField($derived_df);
+
+                        // Don't need to flush right this minute, technically
+                        $this->em->persist($dtsf);
+                    }
                 }
             }
         }
@@ -2239,6 +2246,7 @@ class CloneTemplateService
 
     /**
      * Split out from self::syncDatatype() to make it slightly simpler to read...
+     * TODO - BRING THIS UP TO DATE BEFORE USING IT
      * TODO - move into an entity deletion service?
      *
      * @param DataFields $derived_df
@@ -2371,13 +2379,28 @@ class CloneTemplateService
         $child_datatype_meta->setNewRecordsArePublic($master_datatype->getNewRecordsArePublic());
         $child_datatype_meta->setPublicDate($master_datatype->getPublicDate());
 
-        // Have to ignore the "special" fields for right now (external_id, name, sort, etc)
-        // Also have to ignore render plugin
+        // Have to ignore the external_id field and the render plugin for the moment...they don't
+        //  exist right now.
 
         $this->em->persist($child_datatype_meta);
+        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created new child datatype '.$child_datatype->getId());
+
+        // Also need to clone the datatypeSpecialField entries, if any exist...though they also
+        //  can't be completely set up at the moment either
+        foreach ($master_datatype->getDataTypeSpecialFields() as $dtsf) {
+            /** @var DataTypeSpecialFields $dtsf */
+            // Can't use $ec_service->createDatatypeSpecialField() because the datafield doesn't exist
+            $new_dtsf = clone $dtsf;
+            $new_dtsf->setDataType($child_datatype);
+
+            // Store for later
+            $this->created_dtsf_entries[ $dtsf->getId() ] = $new_dtsf;
+            $this->em->persist($new_dtsf);
+        }
+
         $this->em->flush();
 
-        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created new child datatype '.$child_datatype->getId());
+        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created special field entries');
 
 
         // Need to create a Datatree entry connecting the new child Datatype...
@@ -2456,13 +2479,28 @@ class CloneTemplateService
         $linked_datatype_meta->setNewRecordsArePublic($master_datatype->getNewRecordsArePublic());
         $linked_datatype_meta->setPublicDate($master_datatype->getPublicDate());
 
-        // Have to ignore the "special" fields for right now (external_id, name, sort, etc)
-        // Also have to ignore render plugin
+        // Have to ignore the external_id field and the render plugin for the moment...they don't
+        //  exist right now.
 
         $this->em->persist($linked_datatype_meta);
+        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created new linked datatype '.$linked_datatype->getId());
+
+        // Also need to clone the datatypeSpecialField entries, if any exist...though they also
+        //  can't be completely set up at the moment either
+        foreach ($master_datatype->getDataTypeSpecialFields() as $dtsf) {
+            /** @var DataTypeSpecialFields $dtsf */
+            // Can't use $ec_service->createDatatypeSpecialField() because the datafield doesn't exist
+            $new_dtsf = clone $dtsf;
+            $new_dtsf->setDataType($linked_datatype);
+
+            // Store for later
+            $this->created_dtsf_entries[ $dtsf->getId() ] = $new_dtsf;
+            $this->em->persist($new_dtsf);
+        }
+
         $this->em->flush();
 
-        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created new linked datatype '.$linked_datatype->getId());
+        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created special field entries');
 
 
         // Need to create a Datatree entry connecting the new linked Datatype...

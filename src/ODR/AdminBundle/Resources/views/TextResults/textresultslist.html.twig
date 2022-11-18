@@ -59,7 +59,6 @@
             "order": [[1, 'asc']],
             "pageLength": {{ page_length }},
             "autoWidth": false,
-            "orderMulti": false,    // disabled because ODR can't multi-sort server-side yet
 
             {# https://datatables.net/reference/option/dom
                 "dom" parameter results in:
@@ -101,6 +100,10 @@
                 // stateSaveParams apparently doesn't let you insert new data to send to the server...have to do it here
                 data.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
 
+                // Need to fix problems with the 'order' parameter before it gets saved...
+                data.order = datatablesStateSave_cleanOrder(data.order);
+                // console.log('state save', data);
+
                 $.ajax({
                     "url": "{{ path('odr_datatables_state_save') }}",
                     "data": data,
@@ -138,17 +141,22 @@
                     }
                 });
 
+                // console.log('state load', state);
                 return state;
             },
 
             "ajax": {
                 "url": "{{ path('odr_datatables_row_request') }}",
                 "type": "POST",
-                "data": {
-                    "datatype_id": {{ datatype.id }},
-                    "theme_id": {{ theme.id }},
-                    "search_key": "{{ search_key }}",
-                    "odr_tab_id": window.sessionStorage.getItem('odr_tab_id')
+                "data": function (d) {
+                    d.datatype_id = {{ datatype.id }};
+                    d.theme_id = {{ theme.id }};
+                    d.search_key = "{{ search_key }}";
+                    d.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
+
+                    // Need to fix problems with the 'order' parameter before it gets saved...
+                    d.order = datatablesAjax_cleanOrder(d.order);
+                    // console.log('row request', d);
                 },
                 "dataSrc": function (json) {
                     // Apparently need to return this for datatables to work
@@ -291,7 +299,6 @@
         }
     });
 
-
     // Enable users to download files straight from the table
     $("#TextResults").on('draw.dt', function(e, settings) {
         // Attach required attributes to any <a> element in the table
@@ -326,6 +333,104 @@
             'page_type': 'text'
         } %}
     });
+
+    /**
+     * Seems like datatables.js has an internal bug when using multisort...it goes from
+     * "none" -> "asc" -> "desc" -> "asc" -> "asc" instead of
+     * "none" -> "asc" -> "desc" -> "none" -> "asc"
+     * ...the only way to fix this seems to be to modify the order array to get rid of duplicates.
+     *
+     * @param {array} order
+     * @returns {array}
+     */
+    function datatablesStateSave_cleanOrder(order) {
+        var cleaned_order = [];
+        var redraw_table = false;
+        $.each(order, function(i,elem) {
+            // The "order" parameter is only supposed to have a column_num and a direction, but it
+            //  sometimes has a third value too...
+            if ( elem.length > 2 )
+                elem = elem.slice(0, 2);
+
+            // Determine whether this column was already seen...
+            var col_id = elem[0];
+            if ( parseInt(col_id) > 1 ) {
+                var index = -1;
+                $.each(cleaned_order, function(j,saved_col) {
+                    if ( saved_col[0] == col_id ) {
+                        index = j;
+                        return false;
+                    }
+                });
+
+                if ( index === -1 ) {
+                    // ...if not, then save the result
+                    elem[0] = elem[0].toString();
+                    cleaned_order.push(elem);
+                }
+                else {
+                    if ( cleaned_order[index][1] == elem[1] ) {
+                        // If the direction is the same, then modify what's submitted to mimic "none"
+                        cleaned_order = cleaned_order.slice(0, -1);
+                        redraw_table = true;
+                    }
+                    else {
+                        // Replace the previous entry when the new one has a different direction
+                        cleaned_order[index][1] = elem[1];
+                    }
+                }
+            }
+        });
+
+        if ( redraw_table && cleaned_order.length > 0 ) {
+            // console.log('forcing redraw');
+            $("#TextResults").DataTable().order(cleaned_order).draw();
+        }
+        // console.log('cleaned_order', cleaned_order);
+
+        return cleaned_order;
+    }
+
+    /**
+     * This does the same stuff as datatablesStateSave_cleanOrder() for the same reason, but the
+     * ajax call has a slightly different structure to it...
+     *
+     * @param {array} order
+     * @returns {array}
+     */
+    function datatablesAjax_cleanOrder(order) {
+        var cleaned_order = [];
+        $.each(order, function(i,elem) {
+            // Determine whether this column was already seen...
+            var col_id = elem.column;
+            if ( parseInt(col_id) > 1 ) {
+                var index = -1;
+                $.each(cleaned_order, function(j,saved_col) {
+                    if ( saved_col.column == col_id ) {
+                        index = j;
+                        return false;
+                    }
+                });
+
+                if ( index === -1 ) {
+                    // ...if not, then save the result
+                    cleaned_order.push(elem);
+                }
+                else {
+                    if ( cleaned_order[index].dir == elem.dir ) {
+                        // If the direction is the same, then modify what's submitted to mimic "none"
+                        cleaned_order = cleaned_order.slice(0, -1);
+                    }
+                    else {
+                        // Replace the previous entry when the new one has a different direction
+                        cleaned_order[index].dir = elem.dir;
+                    }
+                }
+            }
+        });
+
+        return cleaned_order;
+    }
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

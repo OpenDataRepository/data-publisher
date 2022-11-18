@@ -523,6 +523,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Set nameField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $nameField
@@ -536,6 +537,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Get nameField
      *
      * @return \ODR\AdminBundle\Entity\DataFields 
@@ -546,6 +548,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Set sortField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $sortField
@@ -559,6 +562,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Get sortField
      *
      * @return \ODR\AdminBundle\Entity\DataFields 
@@ -569,6 +573,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Set backgroundImageField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $backgroundImageField
@@ -582,6 +587,7 @@ class DataTypeMeta
     }
 
     /**
+     * @deprecated
      * Get backgroundImageField
      *
      * @return \ODR\AdminBundle\Entity\DataFields 

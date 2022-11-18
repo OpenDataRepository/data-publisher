@@ -532,61 +532,59 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load all top-level datarecords of this datatype that the user can see
 
-            // The contents of this database query depend greatly on whether the datatype has an
-            //  external_id or name datafields set...therefore, building the query is considerably
-            //  quicker/easier when using the Doctrine querybuilder
-            $qb = $em->createQueryBuilder();
-            $qb->select('dr.id AS internal_id')
-                ->addSelect('dr.unique_id AS unique_id')
-                ->from('ODRAdminBundle:DataRecord', 'dr')
-                ->join('ODRAdminBundle:DataRecordMeta', 'drm', 'WITH', 'drm.dataRecord = dr')
-                ->where('dr.dataType = :datatype_id')
-                ->andWhere('dr.deletedAt IS NULL')->andWhere('drm.deletedAt IS NULL')
-                ->setParameter('datatype_id', $datatype_id);
-
-            // TODO - add sql limit?
-
-            // If the user isn't allowed to view non-public datarecords, add that requirement in
-            if (!$can_view_datarecord)
-                $qb->andWhere('drm.publicDate != :public_date')->setParameter('public_date', '2200-01-01 00:00:00');
-
-            // If this datatype has an external_id field, make sure the query selects it for the
-            //  JSON response
-            if ($datatype->getExternalIdField() !== null) {
-                $external_id_field = $datatype->getExternalIdField()->getId();
-                $external_id_fieldtype = $datatype->getExternalIdField()->getFieldType()->getTypeClass();
-
-                $qb->addSelect('e_1.value AS external_id')
-                    ->leftJoin('ODRAdminBundle:DataRecordFields', 'drf_1', 'WITH', 'drf_1.dataRecord = dr')
-                    ->leftJoin('ODRAdminBundle:' . $external_id_fieldtype, 'e_1', 'WITH', 'e_1.dataRecordFields = drf_1')
-                    ->andWhere('e_1.dataField = :external_id_field')
-                    ->andWhere('drf_1.deletedAt IS NULL')->andWhere('e_1.deletedAt IS NULL')
-                    ->setParameter('external_id_field', $external_id_field);
+            $str =
+               'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dr.dataType = :datatype_id
+                AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+            $params = array('datatype_id' => $datatype_id);
+            if ( !$can_view_datarecord ) {
+                $str .= 'AND drm.publicDate != :public_date';
+                $params['public_date'] = '2200-01-01 00:00:00';
             }
-
-            // If this datatype has a name field, make sure the query selects it for the JSON response
-            if ($datatype->getNameField() !== null) {
-                $name_field = $datatype->getNameField()->getId();
-                $name_field_fieldtype = $datatype->getNameField()->getFieldType()->getTypeClass();
-
-                $qb->addSelect('e_2.value AS record_name')
-                    ->leftJoin('ODRAdminBundle:DataRecordFields', 'drf_2', 'WITH', 'drf_2.dataRecord = dr')
-                    ->leftJoin('ODRAdminBundle:' . $name_field_fieldtype, 'e_2', 'WITH', 'e_2.dataRecordFields = drf_2')
-                    ->andWhere('e_2.dataField = :name_field')
-                    ->andWhere('drf_2.deletedAt IS NULL')->andWhere('e_2.deletedAt IS NULL')
-                    ->setParameter('name_field', $name_field);
-            }
-
-            $query = $qb->getQuery();
+            $query = $em->createQuery($str)->setParameters($params);
             $results = $query->getArrayResult();
 
             if ($offset > count($results))
                 throw new ODRBadRequestException('This database only has ' . count($results) . ' viewable records, but a starting offset of ' . $offset . ' was specified.');
 
-            // Organize the datarecord list by their internal id
             $dr_list = array();
-            foreach ($results as $result)
-                $dr_list[$result['internal_id']] = $result;
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $dr_uuid = $result['dr_uuid'];
+
+                $dr_list[$dr_id] = array(
+                    'internal_id' => $dr_id,
+                    'unique_id' => $dr_uuid,
+                    'external_id' => '',
+                    'record_name' => '',
+                );
+            }
+
+            // If this datatype has an external_id field, make sure the query selects it for the
+            //  JSON response
+            if ($datatype->getExternalIdField() !== null) {
+                // Have the sort service here, so might as well use that
+                $external_id_values = $sort_service->sortDatarecordsByDatafield($datatype->getExternalIdField()->getId());
+                foreach ($external_id_values as $dr_id => $value)
+                    $dr_list[$dr_id]['external_id'] = $value;
+            }
+
+            // If this datatype has a name field, make sure the query selects it for the JSON response
+            if ( !empty($datatype->getNameFields()) ) {
+                foreach ($datatype->getNameFields() as $name_df) {
+                    // Might as well use the sort service for this too, but it's slightly trickier
+                    //  since there could be more than one field making up the name values
+                    $values = $sort_service->sortDatarecordsByDatafield($name_df->getId());
+                    foreach ($values as $dr_id => $value) {
+                        if ($dr_list[$dr_id]['record_name'] === '')
+                            $dr_list[$dr_id]['record_name'] = $value;
+                        else
+                            $dr_list[$dr_id]['record_name'] .= ' '.$value;
+                    }
+                }
+            }
 
 
             // ----------------------------------------
@@ -924,8 +922,6 @@ class APIController extends ODRCustomController
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             $cache_service->delete('datatype_'.$dataset_record->getDataType()->getId().'_record_order');
-            // TODO - ...shouldn't there be something else here too?
-
 
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_dataset_record', array(
@@ -1031,9 +1027,9 @@ class APIController extends ODRCustomController
             $logged_in_user = $this->container->get('security.token_storage')->gettoken()->getuser();   // <-- will return 'anon.' when nobody is logged in
             if($user_email === '') {
                 // user is setting up dataset for themselves - always allowed
-                $user_email = $logged_in_user->getemail();
+                $user_email = $logged_in_user->getEmail();
             }
-            else if(!$logged_in_user->hasrole('role_super_admin')) {
+            else if(!$logged_in_user->hasRole('role_super_admin')) {
                 // we are acting as a user and do not have super permissions - forbidden
                 throw new odrforbiddenexception();
             }
@@ -1225,7 +1221,6 @@ class APIController extends ODRCustomController
                 /** @var CacheService $cache_service */
                 $cache_service = $this->container->get('odr.cache_service');
                 $cache_service->delete('datatype_'.$metadata_record->getDataType()->getId().'_record_order');
-                // TODO - ...shouldn't there be something else here too?
             }
 
             // Retrieve first (and only) record ...
@@ -1275,7 +1270,6 @@ class APIController extends ODRCustomController
                     /** @var CacheService $cache_service */
                     $cache_service = $this->container->get('odr.cache_service');
                     $cache_service->delete('datatype_'.$actual_data_record->getDataType()->getId().'_record_order');
-                    // TODO - ...shouldn't there be something else here too?
                 }
 
             }
@@ -4213,7 +4207,7 @@ class APIController extends ODRCustomController
                 // with API until a user queries a record.
 
                 // $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-                 $dri_service->updateDatarecordCacheEntry($data_record, $user);
+                $dri_service->updateDatarecordCacheEntry($data_record, $user);
             }
 
             if ( $radio_option_created || $tag_created ) {

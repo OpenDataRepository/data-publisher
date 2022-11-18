@@ -20,6 +20,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
@@ -136,6 +137,11 @@ class CloneMasterDatatypeService
      * @var DataFields[]
      */
     private $df_mapping = array();
+
+    /**
+     * @var DataTypeSpecialFields[]
+     */
+    private $dtsf_mapping = array();
 
     /**
      * @var DataType[]
@@ -377,18 +383,7 @@ class CloneMasterDatatypeService
             // This creates the dt_mapping array
             foreach ($this->created_datatypes as $dt)
                 $this->dt_mapping[ $dt->getMasterDataType()->getId() ] = $dt;
-            /*
-                        $dt_str = '';
-                        foreach ($this->dt_mapping as $dt_id => $dt)
-                            $dt_str .= '['.$dt_id.'] => '.$dt->getId().'  ';
-                        $this->logger->debug('CloneDatatypeService: $this->datatype_mapping: '.$dt_str);
 
-                        // TODO Like to get rid of this
-                        $df_str = '';
-                        foreach ($this->df_mapping as $df_id => $df)
-                            $df_str .= '['.$df_id.'] => '.$df->getId().'  ';
-                        $this->logger->debug('CloneDatatypeService: $this->datafield_mapping: '.$df_str);
-            */
 
             // ----------------------------------------
             // Now that the datatypes are created, ensure their parent/grandparent datatype entries
@@ -423,30 +418,37 @@ class CloneMasterDatatypeService
 
             // ----------------------------------------
             $this->logger->info('----------------------------------------');
-            $this->logger->info('CloneDatatypeService: setting sort fields for all cloned datatypes...');
+            $this->logger->info('CloneDatatypeService: fixing special fields for all cloned datatypes...');
 
-            // Set the sort fields for all the newly cloned datatypes, now that all the source
-            //  datatypes/datafields have been cloned.  This couldn't be set earlier because the
-            //  sort field for a datatype can be from a linked descendant datatype...which isn't
-            //  guaranteed to exist until this point basically
-            foreach ($this->created_datatypes as $dt) {
-                $source_dt = $dt->getMasterDataType();
-                if ( !is_null($source_dt->getSortField()) ) {
-                    // Source datatype has a sort field...need to locate its derived counterpart
-                    $source_sort_df = $source_dt->getSortField();
-                    $derived_df = $this->df_mapping[ $source_sort_df->getId() ];
+            // Set the special fields for all the newly cloned datatypes, now that all the source
+            //  datatypes/datafields have been cloned.  While the name fields could've technically
+            //  been updated earlier, the sort fields couldn't because they could've been from a
+            //  linked descendant datatype...which isn't guaranteed to exist until shortly before
+            //  this point, basically.
+            foreach ($this->dtsf_mapping as $original_dtsf_id => $dtsf) {
+                // This entry should have the correct datatype already, but it won't have the
+                //  correct datafield
+                $derived_dt = $dtsf->getDataType();
+                $old_df = $dtsf->getDataField();
 
-                    // Set the derived datatype to use the correct derived datafield
-                    $dt_meta = $dt->getDataTypeMeta();
-                    $dt_meta->setSortField($derived_df);
+                // So if we locate its derived counterpart...
+                $derived_df = $this->df_mapping[ $old_df->getId() ];
+                // ...then we can set this entry to use it
+                $dtsf->setDataField($derived_df);
 
-                    $this->logger->info('CloneDatatypeService: -- derived datatype "'.$dt->getShortName().'" set to use derived df "'.$derived_df->getFieldName().'" (from source datatype '.$derived_df->getDataType()->getId().' "'.$derived_df->getDataType()->getShortName().'")');
+                $field_purpose = 'UNKNOWN_FIELD_PURPOSE';
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
+                    $field_purpose = 'name_field';
+                else if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
+                    $field_purpose = 'sort_field';
+                $this->logger->info('CloneDatatypeService: -- copy of dtsf entry '.$original_dtsf_id.' for derived datatype "'.$derived_dt->getShortName().'" set to use derived df "'.$derived_df->getFieldName().'" (from source datatype '.$derived_df->getDataType()->getId().' "'.$derived_df->getDataType()->getShortName().'") as '.$field_purpose.' '.$dtsf->getDisplayOrder());
 
-                    $this->em->persist($dt_meta);
-                }
+                // Don't need to flush right this minute, technically
+                $this->em->persist($dtsf);
+                // Apparently need to unset this, because cloning a template with a metadata
+                //  datatype doesn't?  bleh...
+                unset( $this->dtsf_mapping[$original_dtsf_id] );
             }
-
-            // Don't need to flush after this, technically
 
 
             // ----------------------------------------
@@ -579,7 +581,7 @@ class CloneMasterDatatypeService
             // If possible, mark the datatype as failed so the status checker dosen't spin endlessly...
             if ( !is_null($this->original_datatype) ) {
                 $dt = $this->original_datatype;
-                $dt->setSetupStep(Datatype::STATE_CLONE_FAIL);
+                $dt->setSetupStep(DataType::STATE_CLONE_FAIL);
                 $this->em->persist($dt);
                 $this->em->flush();
             }
@@ -662,13 +664,17 @@ class CloneMasterDatatypeService
         }
         else {
             // $new_datatype was created back in DatatypeController::addAction(), and already has
-            //  already has a meta entry with the name/description
+            //  a meta entry with the name/description
             $new_meta = $new_datatype->getDataTypeMeta();
 
             // TODO - anything else to set?
             $new_meta->setSearchNotesUpper($template_datatype->getSearchNotesUpper());
             $new_meta->setSearchNotesLower($template_datatype->getSearchNotesLower());
         }
+
+        // These fields should not be set
+        $new_meta->setNameField(null);
+        $new_meta->setSortField(null);
 
         // New top-level datatype need search slugs...child datatypes shouldn't, since searching
         //  directly on them is meaningless
@@ -701,6 +707,29 @@ class CloneMasterDatatypeService
         $new_datatype->addDataTypeMetum($new_meta);
         self::persistObject($new_meta, true);    // don't flush immediately...
         $this->logger->debug('CloneDatatypeService: meta entry cloned');
+
+        // ----------------------------------------
+        // Need to clone the DatatypeSpecialField entries...
+        $dtsf_entries = $new_datatype->getMasterDataType()->getDataTypeSpecialFields();
+        /** @var DataTypeSpecialFields[] $dtsf_entries */
+
+        foreach ($dtsf_entries as $dtsf) {
+            $new_dtsf = clone $dtsf;
+            $new_dtsf->setDataType($new_datatype);
+
+            // Don't change the field_purpose or displayOrder properties
+            self::persistObject($new_dtsf, true);    // don't flush immediately
+
+            // Since the datafields can't be updated until much later, need to store these for now
+            $this->dtsf_mapping[ $dtsf->getId() ] = $new_dtsf;
+
+            if ( $new_dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
+                $this->logger->debug('CloneDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for name_field '.$new_dtsf->getDisplayOrder().'...');
+            else if ( $new_dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
+                $this->logger->debug('CloneDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for sort_field '.$new_dtsf->getDisplayOrder().'...');
+            else
+                $this->logger->debug('CloneDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for UNKNOWN_FIELD_PURPOSE '.$new_dtsf->getDisplayOrder().'...');
+        }
 
 
         // ----------------------------------------
@@ -790,24 +819,6 @@ class CloneMasterDatatypeService
                 $new_meta->setExternalIdField($new_df);
                 $this->logger->debug("CloneDatatypeService: -- set this field as the datatype's external_id field");
             }
-
-            if ( !is_null($template_meta->getNameField())
-                && $parent_df->getId() == $template_meta->getNameField()->getId()
-            ) {
-                // This is the new name field
-                $new_meta->setNameField($new_df);
-                $this->logger->debug("CloneDatatypeService: -- set this field as the datatype's name field");
-            }
-
-            // NOTE - datafields used for sorting can belong to a linked datatype...which may not be
-            //  cloned at this point in time.  This value will be set TODO
-//            if ( !is_null($template_meta->getSortField())
-//                && $parent_df->getId() == $template_meta->getSortField()->getId()
-//            ) {
-//                // This is the new sort field
-//                $new_meta->setSortField($new_df);
-//                $this->logger->debug("CloneDatatypeService: -- set this field as the datatype's sort field");
-//            }
 
             if ( !is_null($template_meta->getBackgroundImageField())
                 && $parent_df->getId() == $template_meta->getBackgroundImageField()->getId()

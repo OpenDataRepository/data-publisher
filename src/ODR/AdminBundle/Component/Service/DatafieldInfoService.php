@@ -15,6 +15,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\FieldType;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -445,43 +446,61 @@ class DatafieldInfoService
 
         // ----------------------------------------
         // Two of the four reasons to prevent a change to a datafield's fieldype require database
-        //  lookups
+        //  lookups...
+        foreach ($datafield_ids as $df_id) {
+            $fieldtype_info[$df_id] = array(
+                'prevent_change' => false,
+                'prevent_change_message' => '',
+                'allowed_fieldtypes' => $all_fieldtypes,
+            );
+        }
+
+        // Prevent a datafield's fieldtype from changing if other fields are derived from it
+        // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
         $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, d_df.id AS derived_df_id, dt.id AS dt_id
+           'SELECT df.id AS df_id, d_df.id AS derived_df_id
             FROM ODRAdminBundle:DataFields AS df
             LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
-            LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.sortField = df
-            LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
             WHERE df IN (:datafield_ids)
-            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL
-            AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL'
         )->setParameters( array('datafield_ids' => $datafield_ids) );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
             $df_id = $result['df_id'];
             $derived_df_id = $result['derived_df_id'];
-            $dt_id = $result['dt_id'];
 
-            $fieldtype_info[$df_id] = array(
-                'prevent_change' => false,
-                'prevent_change_message' => '',
-                'allowed_fieldtypes' => $all_fieldtypes,
-            );
-
-            // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
-            // Prevent a datafield's fieldtype from changing if other fields are derived from it
             if ( !is_null($derived_df_id) ) {
                 $fieldtype_info[$df_id]['prevent_change'] = true;
                 $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
-            }
 
-            // TODO - allow changing fieldtype of sort fields?
-            // Prevent a datafield's fieldtype from changing if it's being used as a sort field by
-            //  any datatype
+                // Don't need to keep looking
+                break;
+            }
+        }
+
+        // Prevent a datafield's fieldtype from changing if it's a sort field for any datatype
+        // TODO - allow changing fieldtype of sort fields?
+        $query = $this->em->createQuery(
+           'SELECT df.id AS df_id, dt.id AS dt_id
+            FROM ODRAdminBundle:DataFields AS df
+            LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+            LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
+            WHERE df IN (:datafield_ids) AND dtsf.field_purpose = :field_purpose
+            AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters( array('datafield_ids' => $datafield_ids, 'field_purpose' => DataTypeSpecialFields::SORT_FIELD) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $df_id = $result['df_id'];
+            $dt_id = $result['dt_id'];
+
             if ( !is_null($dt_id) ) {
                 $fieldtype_info[$df_id]['prevent_change'] = true;
                 $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+
+                // Don't need to keep looking
+                break;
             }
         }
 
@@ -505,7 +524,6 @@ class DatafieldInfoService
                 }
             }
         }
-
 
         foreach ($datafield_ids as $df_num => $df_id) {
             // Get the datafield's array entry from the cached datatype entry

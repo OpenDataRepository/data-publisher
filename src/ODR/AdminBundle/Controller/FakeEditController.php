@@ -177,6 +177,8 @@ class FakeEditController extends ODRCustomController
 
                     // TODO - technically, it would be valid if the datatype only had files/images/child datatypes
                     // TODO - ...but the resulting datatype is borderline useless, so it's not likely?
+
+                    // TODO - ...it also shows up when there's just a radio or a tag field...ugh
                 }
                 else {
                     // Some other kind of problem, return a generic error message
@@ -565,6 +567,7 @@ class FakeEditController extends ODRCustomController
 
 
     /**
+     * TODO - move this to a service?  but it would have to import the symfony container...
      * Looks through the cached datatype array to determine whether any of the used render plugins
      * derive values for any of their datafields.
      *

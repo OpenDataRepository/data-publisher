@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Controller;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -927,20 +928,49 @@ class LinkController extends ODRCustomController
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update);
 
-                // If the local datatype's sortfield belongs to remote datatype, update that
-                $needs_flush = false;
-                if ( !is_null($local_datatype->getSortField()) ) {
-                    $sortfield = $local_datatype->getSortField();
-                    if ( $sortfield->getDataType()->getId() == $previous_remote_datatype_id ) {
-                        $props = array('sortField' => null);
-                        $emm_service->updateDatatypeMeta($user, $local_datatype, $props, true);  // delay flush
-                        $needs_flush = true;
-                    }
+                // Determine whether the local datatype's sortfield belongs a remote datatype...
+                $query = $em->createQuery(
+                   'SELECT dtsf.id
+                    FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                    LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                    WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
+                    AND remote_df.dataType = :remote_datatype_id
+                    AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'local_datatype_id' => $local_datatype_id,
+                        'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                        'remote_datatype_id' => $previous_remote_datatype_id,
+                    )
+                );
+                $dtsf_ids = $query->getArrayResult();
+
+                if ( !empty($dtsf_ids) ) {
+                    // ...if so, then delete that entry
+                    $query = $em->createQuery(
+                       'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                        SET dtsf.deletedAt = :now, dtsf.deletedBy = :deleted_by
+                        WHERE dtsf.id IN (:dtsf_ids)
+                        AND dtsf.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'now' => new \DateTime(),
+                            'deleted_by' => $user->getId(),
+                            'dtsf_ids' => $dtsf_ids,
+                        )
+                    );
+                    $result = $query->execute();
+
+                    // ...and also wipe the sort order for this datatype
+                    $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
                 }
 
                 // Ensure that the "master_revision" property gets updated if required
-                if ( $local_datatype->getIsMasterType() )
+                $needs_flush = false;
+                if ( $local_datatype->getIsMasterType() ) {
                     $emm_service->incrementDatatypeMasterRevision($user, $local_datatype, true);    // don't flush immediately
+                    $needs_flush = true;
+                }
 
                 // Done making mass updates, commit everything
                 $conn->commit();
@@ -1826,6 +1856,8 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
@@ -1933,16 +1965,25 @@ class LinkController extends ODRCustomController
             }
 
             // Load all records currently linked to the local_datarecord
-            $remote = 'ancestor';
-            if (!$local_datarecord_is_ancestor)
-                $remote = 'descendant';
+            $local_relation = 'ancestor';
+            $remote_relation = 'descendant';
+            if ( !$local_datarecord_is_ancestor ) {
+                $local_relation = 'descendant';
+                $remote_relation = 'ancestor';
+            }
 
             $query = $em->createQuery(
                'SELECT ldt
                 FROM ODRAdminBundle:LinkedDataTree AS ldt
-                WHERE ldt.'.$remote.' = :datarecord
-                AND ldt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $local_datarecord->getId()) );
+                LEFT JOIN ODRAdminBundle:DataRecord AS remote_dr WITH ldt.'.$remote_relation.' = remote_dr
+                WHERE ldt.'.$local_relation.' = :datarecord AND remote_dr.dataType = :remote_datatype_id
+                AND ldt.deletedAt IS NULL AND remote_dr.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datarecord' => $local_datarecord->getId(),
+                    'remote_datatype_id' => $remote_datatype_id
+                )
+            );
             $results = $query->getResult();
 
             $linked_datatree = array();
@@ -2048,6 +2089,27 @@ class LinkController extends ODRCustomController
                         // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
                     }
                 }
+
+                // If the local datatype is using a sortfield that comes from the remote datatype,
+                //  then need to wipe the local datatype's default sort ordering
+                $query = $em->createQuery(
+                   'SELECT dtsf.id
+                    FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                    LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                    WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
+                    AND remote_df.dataType = :remote_datatype_id
+                    AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'local_datatype_id' => $local_datatype_id,
+                        'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                        'remote_datatype_id' => $remote_datatype_id,
+                    )
+                );
+                $dtsf_ids = $query->getArrayResult();
+
+                if ( !empty($dtsf_ids) )
+                    $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
 
                 // Flush once everything is deleted
                 $em->flush();
@@ -2172,6 +2234,8 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -2326,6 +2390,29 @@ class LinkController extends ODRCustomController
 
             // Flush once everything is deleted
             $em->flush();
+
+
+            // ----------------------------------------
+            // If the local datatype is using a sortfield that comes from the remote datatype,
+            //  then need to wipe the local datatype's default sort ordering
+            $query = $em->createQuery(
+               'SELECT dtsf.id
+                FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
+                AND remote_df.dataType = :remote_datatype_id
+                AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'local_datatype_id' => $local_datatype_id,
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                    'remote_datatype_id' => $remote_datatype_id,
+                )
+            );
+            $dtsf_ids = $query->getArrayResult();
+
+            if ( !empty($dtsf_ids) )
+                $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
 
 
             // ----------------------------------------
