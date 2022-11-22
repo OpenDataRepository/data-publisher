@@ -51,7 +51,9 @@
     <a>{{ datatype.dataTypeMeta.shortName }}</a>
     {% endif %}
 
-    {% if display_type == ACCORDION_HEADER and is_first_record %}
+    {# Default::fieldarea_header.html.twig will have created the add buttons when there are no records of this datatype #}
+    {# As such, only need to create the add buttons here when there's at least one record and the datatype is allowed to have more than one record #}
+    {% if display_type == ACCORDION_HEADER and is_first_record and multiple_allowed == 1 %}
     {# Don't need to check context here...when called by FakeEdit, this should never get executed #}
     <span class="DataRecordTools">
         {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
