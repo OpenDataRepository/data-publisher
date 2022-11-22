@@ -1,0 +1,31 @@
+{% spaceless %}
+
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
+{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
+
+{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
+<span id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
+    <span rel="{{ datatype.id }}">
+        {% set class_str = "tooltip fa fa-globe Cursor" %}
+        {% if datarecord.dataRecordMeta.publicDate|is_public %}
+            {% set class_str = class_str ~ " ODRActiveIcon" %}
+        {% endif %}
+
+        {% set title_str = "Record is Not Public" %}
+        {% if datarecord.dataRecordMeta.publicDate|is_public %}
+            {% set title_str = "Record is Public" %}
+        {% endif %}
+
+        {% if is_link == 1 %}
+            {% set title_str = "Linked " ~ title_str %}
+        {% else %}
+            {% set title_str = "Child " ~ title_str %}
+        {% endif %}
+
+        <i id="datarecord_{{ datarecord.id }}_public" class="{{ class_str }}" title="{{ title_str }}" rel="{{ datarecord.id }}"></i>
+    </span>
+</span>
+{% endif %}
+
+{% endspaceless %}
+

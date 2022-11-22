@@ -296,7 +296,7 @@ class DatarecordInfoService
                partial dr_ub.{id, username, email, firstName, lastName},
 
                dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
-               dtm, partial dt_eif.{id}, partial dtsf.{id, dataField, field_purpose, displayOrder}, partial s_df.{id},
+               dtm, partial dt_eif.{id}, partial dtsf.{id, dataField, field_purpose, displayOrder}, partial s_df.{id}, partial s_df_dt.{id},
 
                drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, publicDate, xml_fieldName}, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
@@ -334,6 +334,7 @@ class DatarecordInfoService
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dt.dataTypeSpecialFields AS dtsf
             LEFT JOIN dtsf.dataField AS s_df
+            LEFT JOIN s_df.dataType AS s_df_dt
 
             LEFT JOIN dr.dataRecordFields AS drf
             LEFT JOIN drf.file AS e_f
@@ -724,12 +725,17 @@ class DatarecordInfoService
             // Convert that list into two arrays...one for datarecord names, another for datarecord sort
             $name_fields = array();
             $sort_fields = array();
+            // Also need to track which datatype the special field came from
+            $dt_lookup = array();
 
             foreach ($special_fields as $num => $dtsf) {
+                $df_id = $dtsf['dataField']['id'];
                 if ( $dtsf['field_purpose'] === DataTypeSpecialFields::NAME_FIELD )
-                    $name_fields[ $dtsf['displayOrder'] ] = $dtsf['dataField']['id'];
+                    $name_fields[ $dtsf['displayOrder'] ] = $df_id;
                 else if ( $dtsf['field_purpose'] === DataTypeSpecialFields::SORT_FIELD )
-                    $sort_fields[ $dtsf['displayOrder'] ] = $dtsf['dataField']['id'];
+                    $sort_fields[ $dtsf['displayOrder'] ] = $df_id;
+
+                $dt_lookup[$df_id] = $dtsf['dataField']['dataType']['id'];
             }
 
             // Attempt to find any "name" values for this datarecord...
@@ -748,8 +754,14 @@ class DatarecordInfoService
             $sort_fields_are_numeric = true;
             $sort_field_values = array();
             foreach ($sort_fields as $display_order => $df_id) {
-                // ...hopefully they'll be in this datarecord, and not one of its descendants
-                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                // Determine whether the values should be in this datarecord or not
+                $is_remote = false;
+                if ( $dt_lookup[$df_id] !== $dr['dataType']['id'] )
+                    $is_remote = true;
+
+                if ( !$is_remote && isset($dr['dataRecordFields'][$df_id]) ) {
+                    // The sort field belongs to the current datatype, so attempt to find the value
+                    //  for this datafield
                     $drf = $dr['dataRecordFields'][$df_id];
                     $sort_field_values[$display_order] = self::getValue($drf);
 
@@ -758,62 +770,58 @@ class DatarecordInfoService
                     if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
                         $sort_fields_are_numeric = false;
                 }
-                else {
+                else if ( $is_remote ) {
                     // Sort fields are allowed to come from another datatype if it's a single-allowed
                     //  child/linked descendant.
+                    $descendant_dt_id = $dt_lookup[$df_id];
 
-                    // Unfortunately, linked records aren't available in $dr_array at this point.
-                    // Child records are, but there's no information on which datatype this sort
-                    //  field came from...so might as well loop through all of $dr_array and hope
-                    //  to get lucky
-                    $found_sortvalue_in_child = false;
-                    foreach ($dr_array as $tmp_dr_id => $tmp_dr) {
-                        if ( $tmp_dr_id !== $dr_id ) {
-                            // This isn't the same record as the outer foreach loop, so it might have
-                            //  the sortfield value...
-                            if ( isset($tmp_dr['dataRecordFields'][$df_id]) ) {
-                                // ...got lucky
-                                $tmp_drf = $tmp_dr['dataRecordFields'][$df_id];
-                                $sort_field_values[$display_order] = self::getValue($tmp_drf);
-                                $found_sortvalue_in_child = true;
-                                break;
+                    // At this point, the datarecord array will contain the ids of all of its
+                    //  child/linked descedant records, organized by datatype id...
+                    $tmp_dr_list = array();
+                    if ( isset($dr['children'][$descendant_dt_id]) )
+                        $tmp_dr_list = $dr['children'][$descendant_dt_id];
+
+                    // ...so if it actually has a descendant record of that descendant datatype,
+                    //  then its id will be accessible
+                    $tmp_dr_id = null;
+                    if ( isset($tmp_dr_list[0]) )
+                        $tmp_dr_id = $tmp_dr_list[0];
+
+                    if ( !is_null($tmp_dr_id) ) {
+                        // Fortunately, there is a descendant record...
+
+                        if ( isset($dr_array[$tmp_dr_id]) ) {
+                            // ...and since the datarecord array contains an entry for this id,
+                            //  that means it's coming from a child record
+                            $child_dr = $dr_array[$tmp_dr_id];
+
+                            // Attempt to find the value for this datafield
+                            if ( isset($child_dr['dataRecordFields'][$df_id]) ) {
+                                $child_drf = $child_dr['dataRecordFields'][$df_id];
+                                $sort_field_values[$display_order] = self::getValue($child_drf);
                             }
-
-                            // Otherwise, keep looking
                         }
-                    }
+                        else {
+                            // ...since the datarecord array doesn't contain an entry for this id,
+                            //  that means it's supposed to come from a linked record...however, at
+                            //  this point in time the linked records aren't in the array.  Therefore,
+                            //  have no choice but to locate the value directly from the database
 
-                    if ( !$found_sortvalue_in_child ) {
-                        // If none of the child records have an entry for this datafield, then it's
-                        //  going to be in a linked record...but since $dr_array doesn't have any
-                        //  linked records at this point in time, might as well resort to using a
-                        //  pair of database queries
+                            // Need one query to get the typeclass of the field...
+                            $query = $this->em->createQuery(
+                               'SELECT ft.typeClass
+                                FROM ODRAdminBundle:DataFieldsMeta dfm
+                                LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
+                                WHERE dfm.dataField = :datafield_id
+                                AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
+                            )->setParameters( array('datafield_id' => $df_id) );
+                            $results = $query->getArrayResult();
 
-                        // The first one is to get datatype and the typeclass of the field...
-                        $query = $this->em->createQuery(
-                           'SELECT dt.id AS dt_id, ft.typeClass
-                            FROM ODRAdminBundle:DataType dt
-                            LEFT JOIN ODRAdminBundle:DataFields df WITH df.dataType = dt
-                            LEFT JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
-                            LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
-                            WHERE df = :datafield_id
-                            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-                            AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df_id) );
-                        $results = $query->getArrayResult();
+                            // Should only be one row
+                            $typeclass = $results[0]['typeClass'];
 
-                        // Should only be one row
-                        $dt_id = $results[0]['dt_id'];
-                        $typeclass = $results[0]['typeClass'];
-
-                        // ...$dr_array will have the id of the linked descendant, assuming the
-                        //  current datarecord actually links to it
-                        if ( isset($dr['children'][$dt_id]) ) {
-                            // ...if it does, then there will be at most one record there
-                            $tmp_dr_id = $dr['children'][$dt_id][0];
-
-                            // Knowing the id of the linked descendant record enables a second
-                            //  query to target just the relevant dataRecordField entry...
+                            // Knowing the typeclass enables a second query that targets the relevant
+                            //  dataRecordField entry in the linked record...
                             $query = null;
                             if ( $typeclass === 'Radio' ) {
                                 $query = $this->em->createQuery(
@@ -848,6 +856,8 @@ class DatarecordInfoService
                                 $sort_fields_are_numeric = false;
                         }
                     }
+
+                    // Otherwise, there's no descendant child/linked record to get a sort_value from
                 }
             }
 

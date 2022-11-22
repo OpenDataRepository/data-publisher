@@ -2207,6 +2207,8 @@ h1:after {
     height: 0px;
     line-height: 0px;
 
+    margin-top: 8px;
+    margin-right: 8px;
     padding: 0px 0px 4px 0px;
     z-index: 500;
 }
@@ -2214,6 +2216,19 @@ h1:after {
 .ResultsDataTypeTools span {
     line-height: 0px;
     margin-bottom: -1em;
+}
+
+.DataRecordTools {
+    font-size: 18px;
+    color: #888;
+
+    min-width: 40px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+
+    margin-left: 7px;
+    z-index: 500;
 }
 
 h3 .DatatypeTools,
@@ -2224,12 +2239,6 @@ h3 .DatatypeTools,
     line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
-}
-
-.ResultsDataTypeTools {
-    float: right;
-    margin-top: 8px;
-    margin-right: 8px;
 }
 
 .ODRRecord .ResultsDataTypeTools span {
@@ -2287,7 +2296,7 @@ h3 .DatatypeTools,
 
 .ODRRecord .AccordionSelect {
     float: right;
-    margin-right: 58px !important;
+    margin-right: 78px !important;
     max-width: 350px;
     padding: 0 0 0 0 !important;
     height: 32px !important;

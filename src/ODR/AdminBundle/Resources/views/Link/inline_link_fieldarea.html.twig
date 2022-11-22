@@ -1,8 +1,5 @@
 {% spaceless %}
 
-{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
-{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
-
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -15,20 +12,18 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
-    {% include 'ODRAdminBundle:Edit:edit_datatypetools.html.twig' with {
-        'datatype': datatype,
-        'datarecord': datarecord,
-        'parent_datarecord': parent_datarecord,
+{% include 'ODRAdminBundle:Edit:edit_datatypetools.html.twig' with {
+    'datatype': datatype,
+    'datarecord': datarecord,
+    'parent_datarecord': parent_datarecord,
 
-        'datatype_permissions': datatype_permissions,
-        'datarecord_is_fake': true,
+    'datatype_permissions': datatype_permissions,
+    'datarecord_is_fake': true,
 
-        'is_top_level': is_top_level,
-        'is_link': is_link,
-        'display_type': display_type,
-    } %}
-{% endif %}
+    'is_top_level': is_top_level,
+    'is_link': is_link,
+    'display_type': display_type,
+} %}
 
 {% for theme_element in theme.themeElements %}
     <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
@@ -80,6 +75,8 @@
                                 'is_link': is_link,
                                 'token_list': token_list,
                                 'is_datatype_admin': is_datatype_admin,
+
+                                'datarecord_is_fake': true,
                             } %}
                         {% endif %}
                     </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->

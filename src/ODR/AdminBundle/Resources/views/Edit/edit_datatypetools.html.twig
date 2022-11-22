@@ -1,5 +1,6 @@
 {% spaceless %}
 
+{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
 {% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
 
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
@@ -23,56 +24,60 @@
     {% set can_change_public_status = true %}
 {% endif %}
 
+{# The ACCORDION_HEADER, LIST_HEADER, and NO_HEADER display_types have already been handled in Edit::accordion_header.html.twig #}
+{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
 <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
-{% if not datarecord_is_fake %}
-    {% if is_link == 1 %}
+    {% if not datarecord_is_fake %}
     <span rel="{{ datatype.id }}">
-        {% if can_edit_parent_record %}
-        <i
-            class="fa fa-link Pointer tooltip ODRUnlinkRecord"
-            title="This is a linked record.  Click to unlink."
-            rel="{{ datarecord.id }}"
-        ></i>
+
+        {% if is_top_level == 0 %}
+            {% set class_str = "tooltip fa fa-globe" %}
+            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                {% set class_str = class_str ~ " ODRActiveIcon" %}
+                {% endif %}
+            {% if can_change_public_status %}
+                {% set class_str = class_str ~ " Pointer" %}
+                {% if is_link == 0 %}
+                    {% set class_str = class_str ~ " ODRPublicChildRecord" %}
+                {% else %}
+                    {% set class_str = class_str ~ " ODRPublicLinkedRecord" %}
+                {% endif %}
+            {% endif %}
+
+            <i
+                id="datarecord_{{ datarecord.id }}_public"
+                class="{{ class_str }}"
+                title="This {% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
+                rel="{{ datarecord.id }}"
+            ></i>
         {% endif %}
 
-        {% if can_delete_record %}
-        <i
-            class="Pointer tooltip fa fa-times ODRDeleteLinkedRecord"
-            title="Delete this Linked Record"
-            rel="{{ datarecord.id }}"
-        ></i>
+        {% if is_link == 1 and can_edit_parent_record %}
+            <i
+                class="fa fa-unlink Pointer tooltip ODRUnlinkRecord"
+                title="Click to unlink this Linked Record"
+                rel="{{ datarecord.id }}"
+            ></i>
+        {% endif %}
+
+        {% if can_edit_parent_record and can_delete_record %}
+            <i
+                class="Pointer tooltip fa fa-times {% if is_link == 1 %}ODRDeleteLinkedRecord{% else %}ODRDeleteChildRecord{% endif %}"
+                title="Click to delete this {% if is_link == 1 %}Linked{% else %}Child{% endif %} Record"
+                rel="{{ datarecord.id }}"
+            ></i>
         {% endif %}
     </span>
-    {% endif %}
 
-    {% if datarecord.id != datarecord.grandparent.id %}
-    <span rel="{{ datatype.id }}">
-        <i
-            id="datarecord_{{ datarecord.id }}_public"
-            class="tooltip fa fa-globe {% if datarecord_meta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_change_public_status %}Pointer ODRPublicChildRecord{% endif %}"
-            title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
-            rel="{{ datarecord.id }}"
-        ></i>
-
-        {% if is_link == 0 and can_delete_record %}
-        <i
-            class="Pointer tooltip fa fa-times ODRDeleteChildRecord"
-            title="Delete Record"
-            rel="{{ datarecord.id }}"
-        ></i>
-        {% endif %}
-    </span>
-    {% endif %}
-{% else %}    {# datarecord_is_fake == true #}
-    {% if display_type == DROPDOWN_HEADER %}
+    {% elseif display_type == DROPDOWN_HEADER %}    {# and datarecord_is_fake == true #}
     <span>
         <i
-            class="fa fa-lg fa-hourglass-half Pointer tooltip"
+            class="fa fa-hourglass-half Pointer tooltip"
             title="This is a temporary record..."
         ></i>
     </span>
     {% endif %}
-{% endif %}
 </div>
+{% endif %}
 
 {% endspaceless %}

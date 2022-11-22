@@ -1,44 +1,14 @@
 {% spaceless %}
 
-{% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set childtype = datatype_array[target_datatype_id] %}
-{% set childtype_name = childtype.dataTypeMeta.shortName %}
 
-{% set child_datarecord_count = 0 %}
-{% for dr_id, dr in datarecord_array %}
-    {% set child_datarecord_count = child_datarecord_count + 1 %}
-{% endfor %}
-
-{% set can_edit_parent_record = false %}
-{% if datatype_permissions[ parent_datatype_id ] is defined
-    and datatype_permissions[ parent_datatype_id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_parent_record = true %}
-{% endif %}
-
-{% set can_add_child_record = false %}
-{% if datatype_permissions[ childtype.id ] is defined
-    and datatype_permissions[ childtype.id ][ 'dr_add' ] is defined %}
-    {% set can_add_child_record = true %}
-{% endif %}
-{% set can_edit_child_record = false %}
-{% if datatype_permissions[ childtype.id ] is defined
-    and datatype_permissions[ childtype.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_child_record = true %}
-{% endif %}
-
-{% set datarecord_is_fake = false %}
-{% if parent_datarecord.is_fake is defined and parent_datarecord.is_fake == true %}
-    {% set datarecord_is_fake = true %}
-{% endif %}
 {#
 --------------------<br>
 inline_link_fieldarea_childtype.html.twig<br>
 target_datatype_id: {{ target_datatype_id }}<br>
-parent_datarecord.datatype: {{ parent_datatype_id }}<br>
+parent_datarecord.datatype: {{ parent_datarecord.dataType.id }}<br>
 multiple_allowed: {{ multiple_allowed }}<br>
-child_datarecord_count: {{ child_datarecord_count }}<br>
-can_add_child_record: {{ can_add_child_record }}<br>
-can_edit_child_record: {{ can_edit_child_record }}<br>
+child_datarecord_count: {{ datarecord_array|length }}<br>
 is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
 --------------------<br>
 #}
@@ -58,71 +28,10 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'is_top_level': 0,
         'is_link': is_link,
         'display_type': display_type,
+        'multiple_allowed': multiple_allowed,
 
         'token_list': token_list,
     } %}
-
-    <div class="pure-u-1">
-    {% if is_link == 1 %}
-        {% if datarecord_is_fake %}
-        {# Linking is reliant on both ancestor and descendant records existing beforehand #}
-        {# Disable this feature, for now #}
-        <div class="pure-u-1 Info" title="Record must be saved before it can be linked to other records">
-        {% endif %}
-
-        {% if can_edit_parent_record %}
-            {# User guaranteed to have can_view_datatype for the remote datatype, and they can edit the parent datarecord #}
-            {# Therefore, they can create/remove links to the remote datatype if doing so wouldn't violate multiple_allowed #}
-{#            {% if multiple_allowed == 1 or child_datarecord_count == 0 %}#}    {# NOTE - always want the Add Link button...it provides a useful reset #}
-            <button
-                class="pure-button pure-button-primary"
-                type="button"
-                onclick="AddLinkedRecord({{ childtype.id }},{{ parent_datarecord.id }});"
-                {% if datarecord_is_fake %}
-                disabled
-                {% endif %}
-            >Add {{ childtype_name }}</button>
-{#            {% endif %}#}
-
-            <button
-                type="button"
-                class="pure-button"
-                onclick="OpenLinkSearchPage({{ parent_datatype_id }},{{ childtype.id }},{{ parent_datarecord.id }});"
-                {% if datarecord_is_fake %}
-                disabled
-                {% endif %}
-            >Link to {{ childtype_name }}</button>
-        {% endif %}
-
-        {% if datarecord_is_fake %}
-        </div>
-        {% endif %}
-
-    {% else %}
-        {% if datarecord_is_fake %}
-            {# Getting ODR to render fake child records when the top-level is also fake is painful #}
-            {# Disable this feature, for now #}
-            <div class="pure-u-1 Info" title="Record must be saved before child records can be created">
-        {% endif %}
-
-        {% if can_add_child_record and (multiple_allowed == 1 or child_datarecord_count == 0) %}
-            <button
-                class="pure-button pure-button-primary"
-                type="button"
-                onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});"
-                {% if datarecord_is_fake %}
-                disabled
-                {% endif %}
-            >Add {{ childtype_name }} record</button>
-        {% endif %}
-
-        {% if datarecord_is_fake %}
-            </div>
-        {% endif %}
-
-    {% endif %}
-    </div>
-
 </div><!-- End of #ChildTypeWrapper_{{ target_datatype_id }}_{{ parent_datarecord.id }} -->
 
 {% endspaceless %}

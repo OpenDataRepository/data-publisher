@@ -476,6 +476,7 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
+                        'multiple_allowed' => $rendering_options['multiple_allowed'],
                     )
                 );
             }

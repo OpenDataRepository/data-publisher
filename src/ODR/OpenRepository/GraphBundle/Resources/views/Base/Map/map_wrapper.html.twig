@@ -2,13 +2,6 @@
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
-{% set parent_datarecord_id = "" %}
-{% for dr_id,datarecord in datarecord_array %}
-    {% if datarecord.dataType.id == target_datatype_id %}
-        {% set parent_datarecord_id = datarecord.parent.id %}
-    {% endif %}
-{% endfor %}
-
 {% if is_top_level == 1 %}
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 {% endif %}
@@ -16,12 +9,18 @@
 {% if plugin_options.hide_datafields == "false" %}
     <div class="ODRGraphSpacer pure-u-1">
         {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
+            'context' : 'display',
+
             'datatype': datatype,
+            'parent_datarecord': parent_datarecord,
             'datarecord_list': datarecord_array,
+
+            'datatype_permissions': [],
 
             'is_top_level': is_top_level,
             'is_link': is_link,
-            'display_type': display_type
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
         } %}
 
         {% for dr_id, datarecord in datarecord_array %}
@@ -40,13 +39,14 @@
                     'theme_array': theme_array,
 
                     'target_datatype_id': target_datatype_id,
-                    'parent_datarecord_id': parent_datarecord_id,
+                    'parent_datarecord': parent_datarecord,
                     'target_datarecord_id': datarecord.id,
                     'target_theme_id': target_theme_id,
 
                     'is_top_level': is_top_level,
                     'is_link': is_link,
-                    'display_type': display_type
+                    'display_type': display_type,
+                    'multiple_allowed': multiple_allowed,
                 } %}
             </div><!-- End of #FieldArea_{{ datarecord.id }} -->
         {% endfor %}

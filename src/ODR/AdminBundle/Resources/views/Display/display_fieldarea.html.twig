@@ -1,35 +1,17 @@
 {% spaceless %}
 
-{% set TABBED_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::TABBED_HEADER') %}
-{% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
-
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% if is_top_level == 0 and (display_type == TABBED_HEADER or display_type == DROPDOWN_HEADER) %}
-    <span id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
-        <span rel="{{ datatype.id }}">
-            {% set class_str = "tooltip fa fa-globe Cursor" %}
-            {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                {% set class_str = class_str ~ " ODRActiveIcon" %}
-            {% endif %}
+{% include 'ODRAdminBundle:Display:display_datatypetools.html.twig' with {
+    'datatype': datatype,
+    'datarecord': datarecord,
+    'parent_datarecord': parent_datarecord,
 
-            {% set title_str = "Record is Not Public" %}
-            {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                {% set title_str = "Record is Public" %}
-            {% endif %}
-
-            {% if is_link == 1 %}
-                {% set title_str = "Linked " ~ title_str %}
-            {% else %}
-                {% set title_str = "Child " ~ title_str %}
-            {% endif %}
-
-            <i id="datarecord_{{ datarecord.id }}_public" class="{{ class_str }}" title="{{ title_str }}" rel="{{ datarecord.id }}"></i>
-        </span>
-    </span>
-{% endif %}
-
+    'is_top_level': is_top_level,
+    'is_link': is_link,
+    'display_type': display_type,
+} %}
 
 {% for theme_element in theme.themeElements %}
 
@@ -87,12 +69,13 @@
                                     'theme_array': child_theme,
 
                                     'target_datatype_id': child_datatype_id,
-                                    'parent_datarecord_id': datarecord.id,
+                                    'parent_datarecord': datarecord,
                                     'target_theme_id': child_theme_id,
 
                                     'is_top_level': 0,
                                     'is_link': theme_datatype.is_link,
-                                    'display_type': theme_datatype.display_type
+                                    'display_type': theme_datatype.display_type,
+                                    'multiple_allowed': theme_datatype.display_type,
                                 } %}
                                 </div>
                             {% endif %}

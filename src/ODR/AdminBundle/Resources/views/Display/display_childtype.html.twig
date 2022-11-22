@@ -3,7 +3,7 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'context': 'display'} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'display'} %}
 
 {# Determine whether a render plugin needs to be run #}
 {% set render_plugin_instance = null %}
@@ -23,7 +23,7 @@
 {% set content = '' %}
 {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideChild %}
     {# Display mode doesn't have datatype_permissions, datafield_permissions, or a token_list #}
-    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord) %}
     {% if content|length > 0 %}
         <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override child html -->
         {{ content|raw }}
@@ -35,12 +35,18 @@
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
         {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
+            'context' : 'display',
+
             'datatype': datatype,
+            'parent_datarecord': parent_datarecord,
             'datarecord_list': datarecord_array,
+
+            'datatype_permissions': [],
 
             'is_top_level': is_top_level,
             'is_link': is_link,
-            'display_type': display_type
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
         } %}
 
         {% for dr_id, datarecord in datarecord_array %}
@@ -58,7 +64,7 @@
                 {% set content = '' %}
                 {% if can_execute_plugin and (render_plugin_instance.renderPlugin.overrideChild or render_plugin_instance.renderPlugin.overrideFields) %}
                     {# [datarecord] converts datarecord into a single-element array #}
-                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
+                    {% set content = [datarecord]|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord) %}
                     {% if content|length > 0 %}
                         <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
                         {{ content|raw }}
@@ -73,14 +79,15 @@
                         'datarecord': datarecord,
                         'theme_array': theme_array,
 
+                        'parent_datarecord': parent_datarecord,
                         'target_datatype_id': target_datatype_id,
-                        'parent_datarecord_id': parent_datarecord_id,
                         'target_datarecord_id': datarecord.id,
                         'target_theme_id': target_theme_id,
 
                         'is_top_level': is_top_level,
                         'is_link': is_link,
-                        'display_type': display_type
+                        'display_type': display_type,
+                        'multiple_allowed': multiple_allowed,
                     } %}
                 {% endif %}
 

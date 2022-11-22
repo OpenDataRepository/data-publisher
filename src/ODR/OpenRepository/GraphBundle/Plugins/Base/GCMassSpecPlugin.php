@@ -295,11 +295,13 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'theme_array' => $theme_array,
 
                 'target_datatype_id' => $datatype['id'],
+                'parent_datarecord' => $parent_datarecord,
                 'target_theme_id' => $theme['id'],
 
                 'is_top_level' => $rendering_options['is_top_level'],
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],
+                'multiple_allowed' => $rendering_options['multiple_allowed'],
                 'display_graph' => $display_graph,
 
                 // Options for graph display

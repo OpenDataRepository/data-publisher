@@ -16,15 +16,23 @@
 {# Want the entire datatype to be visible as part of the guidance system #}
 <div class="ODRDataType pure-u-1 ODRMetadataGuidance_Person_1" id="DataType_{{ datatype.id }}">
 
+    {# TODO - ...going to disable adding records from here.  it'll be obvious if it's needed later on... #}
     {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
+        'context' : '',
+
         'datatype': datatype,
+        'parent_datarecord': parent_datarecord,
         'datarecord_list': datarecord_array,
+
+        'datatype_permissions': datatype_permissions,
 
         'is_top_level': is_top_level,
         'is_link': is_link,
-        'display_type': display_type
+        'display_type': display_type,
+        'multiple_allowed': multiple_allowed,
     } %}
 
+    {% set is_first_record = true %}
     {% for dr_id, datarecord in datarecord_array %}
 
         {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
@@ -34,8 +42,13 @@
             'datatype_permissions': datatype_permissions,
 
             'is_top_level': is_top_level,
-            'display_type': display_type
+            'is_link': is_link,
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
+
+            'is_first_record': is_first_record,
         } %}
+        {% set is_first_record = false %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
             {# Don't execute a render plugin here, it'll cause infinite recursion #}
@@ -55,6 +68,7 @@
                 'is_top_level': is_top_level,
                 'is_link': is_link,
                 'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
 
                 'token_list': token_list,
             } %}
