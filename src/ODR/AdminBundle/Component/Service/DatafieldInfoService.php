@@ -426,6 +426,8 @@ class DatafieldInfoService
     {
         // ----------------------------------------
         $fieldtype_info = array();
+        $is_single_radio_field = array();
+        $is_multiple_radio_field = array();
 
         // If no datafields were specified, then determine the allowed fieldtypes of all datafields
         //  in the given datatype
@@ -436,12 +438,52 @@ class DatafieldInfoService
                 $datafield_ids[] = $df_id;
         }
 
+        // It's easier to determine which fields are single/multiple radio all at once
+        foreach ($datatype_array[$datatype_id]['dataFields'] as $df_id => $df) {
+            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+            switch ($typename) {
+                case 'Single Radio':
+                case 'Single Select':
+                    $is_single_radio_field[$df_id] = true;
+                    break;
+                case 'Multiple Radio':
+                case 'Multiple Select':
+                    $is_multiple_radio_field[$df_id] = true;
+                    break;
+
+                default:
+                    $is_single_radio_field[$df_id] = false;
+                    $is_multiple_radio_field[$df_id] = false;
+                    break;
+            }
+        }
+
         // Most likely going to need a list of all available fieldtypes
         /** @var FieldType[] $tmp */
         $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
         $all_fieldtypes = array();
-        foreach ($tmp as $ft)
+        $single_radio_fieldtype_ids = array();
+        $multiple_radio_fieldtype_ids = array();
+        foreach ($tmp as $ft) {
             $all_fieldtypes[] = $ft->getId();
+
+            $typename = $ft->getTypeName();
+            switch ($typename) {
+                case 'Single Radio':
+                case 'Single Select':
+                    // Always want to consider 'Single Radio' as equivalent to 'Single Select'
+                    $single_radio_fieldtype_ids[] = $ft->getId();
+                    break;
+                case 'Multiple Radio':
+                case 'Multiple Select':
+                    // Same deal with 'Multiple Radio' and 'Multiple Select'
+                    $multiple_radio_fieldtype_ids[] = $ft->getId();
+                    break;
+
+                default:
+                    break;
+            }
+        }
 
 
         // ----------------------------------------
@@ -471,8 +513,19 @@ class DatafieldInfoService
             $derived_df_id = $result['derived_df_id'];
 
             if ( !is_null($derived_df_id) ) {
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
+                if ( $is_single_radio_field[$df_id] ) {
+                    // Shouldn't need to prevent fieldtype change, or display a message...
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    // ...both single and multiple radio fields should be allowed to freely switch
+                    //  to the other single/multiple fieldtype at any time
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                }
+                else {
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
+                }
 
                 // Don't need to keep looking
                 break;
@@ -496,8 +549,19 @@ class DatafieldInfoService
             $dt_id = $result['dt_id'];
 
             if ( !is_null($dt_id) ) {
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+                if ( $is_single_radio_field[$df_id] ) {
+                    // Shouldn't need to prevent fieldtype change, or display a message...
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    // ...both single and multiple radio fields should be allowed to freely switch
+                    //  to the other single/multiple fieldtype at any time
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                }
+                else {
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+                }
 
                 // Don't need to keep looking
                 break;
@@ -520,6 +584,9 @@ class DatafieldInfoService
                     if ( isset($fieldtype_info[$df_id]) ) {
                         $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
                         $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $dt_fieldtypes);
+
+                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
+                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
                     }
                 }
             }
@@ -533,14 +600,26 @@ class DatafieldInfoService
 
             // Prevent a datafield's fieldtype from changing if it's derived from a template field
             if ( !is_null($df['masterDataField']) ) {
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is derived from a Master Template.";
+                if ( $is_single_radio_field[$df_id] ) {
+                    // Shouldn't need to prevent fieldtype change, or display a message...
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    // ...both single and multiple radio fields should be allowed to freely switch
+                    //  to the other single/multiple fieldtype at any time
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                }
+                else {
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is derived from a Master Template.";
+                }
             }
 
             // TODO - allow changing fieldtype of unique fields?
             // TODO - ...can go from shorter text -> longer text, or number -> text...but not necessarily from longer text -> shorter text, or text -> number
             // Prevent a datafield's fieldtype from changing if it's marked as unique
             if ( $df['dataFieldMeta']['is_unique'] === true ) {
+                // None of the radio fieldtypes can be unique, so no sense checking here
                 $fieldtype_info[$df_id]['prevent_change'] = true;
                 $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
             }
@@ -554,6 +633,9 @@ class DatafieldInfoService
                         // ...then the fieldtype can't be changed from what the render plugin requires
                         $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
                         $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $df_fieldtypes);
+
+                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
+                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
                     }
                 }
             }
