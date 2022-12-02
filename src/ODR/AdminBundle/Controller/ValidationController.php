@@ -1668,6 +1668,10 @@ class ValidationController extends ODRCustomController
             unset( $query_targets['RenderPluginOptions']['renderPluginInstance'] );
             print '>> ignoring undeleted RenderPluginOptions entities that reference deleted renderPluginInstances'."\n";
         }
+        if ( isset($query_targets['RenderPluginOptionsMap']['renderPluginInstance']) ) {
+            unset( $query_targets['RenderPluginOptionsMap']['renderPluginInstance'] );
+            print '>> ignoring undeleted RenderPluginOptionsMap entities that reference deleted renderPluginInstances'."\n";
+        }
         print "\n";
 
         if ( isset($query_targets['DataFields']['masterDataField']) ) {
@@ -2733,55 +2737,51 @@ class ValidationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            // Since this could be called on deleted datatypes, disable the relevant doctrine filter
-            $em->getFilters()->disable('softdeleteable');
-
-            $initial_datatype_ids = array();
-
-            $datatype_ids = explode(',', $datatype_ids);
-            foreach ($datatype_ids as $dt_id) {
-                /** @var \ODR\AdminBundle\Entity\DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
-                if ($datatype == null) {
-                    $em->getFilters()->enable('softdeleteable');
-                    throw new ODRNotFoundException('Datatype');
-                }
-
-                // Could be multiple grandparent datatypes that are related to this one...
-                if (!is_null($datatype->getTemplateGroup())) {
-                    $query =
-                        'SELECT dt.id AS dt_id
-                         FROM odr_data_type AS dt
-                         WHERE dt.template_group = :template_group';
-                    $parameters = array('template_group' => $datatype->getTemplateGroup());
-                    $results = $conn->fetchAll($query, $parameters);
-
-                    foreach ($results as $result)
-                        $initial_datatype_ids[] = $result['dt_id'];
-                }
-                else {
-                    // If no related datatypes, then start from the one that was passed in
-                    $initial_datatype_ids[] = $datatype->getId();
-                }
-            }
-
-            // Re-enable the filter
-            $em->getFilters()->enable('softdeleteable');
+            $dt_ids_for_filename = $datatype_ids;
+            $initial_datatype_ids = explode(',', $datatype_ids);
 
 
             // ----------------------------------------
-            // Datatypes
+            // Grandparent Datatypes
             $query =
                 'SELECT dt.id AS dt_id
                  FROM odr_data_type AS dt
-                 WHERE dt.grandparent_id IN (?)';
+                 WHERE dt.id IN (?) AND dt.id = dt.grandparent_id
+                 AND dt.deletedAt IS NOT NULL';
             $parameters = array(1 => $initial_datatype_ids);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $results = $conn->fetchAll($query, $parameters, $types);
 
-            $datatype_ids = array();
+            $grandparent_datatype_ids = array();
             foreach ($results as $result)
-                $datatype_ids[] = $result['dt_id'];
+                $grandparent_datatype_ids[] = $result['dt_id'];
+
+            $datatype_ids = array();
+            foreach ($grandparent_datatype_ids as $num => $gp_dt_id) {
+                $new_datatype_ids = array($gp_dt_id);
+                $datatype_ids[$gp_dt_id] = 1;
+
+                while ( !empty($new_datatype_ids) ) {
+                    // Get all direct descendants of this datatype, or any metadata datatypes it has
+                    $query =
+                       'SELECT dt.id AS dt_id
+                        FROM odr_data_type AS dt
+                        WHERE dt.grandparent_id IN (?) OR dt.metadata_for_id IN (?)';
+                    $parameters = array( 1 => $new_datatype_ids, 2 => $new_datatype_ids );
+                    $types = array( 1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY );
+                    $results = $conn->fetchAll($query, $parameters, $types);
+
+                    $new_datatype_ids = array();
+                    foreach ($results as $result) {
+                        if ( !isset($datatype_ids[ $result['dt_id'] ]) )
+                            $new_datatype_ids[] = $result['dt_id'];
+                        $datatype_ids[ $result['dt_id'] ] = 1;
+                    }
+                }
+            }
+
+            $datatype_ids = array_keys($datatype_ids);
+
 
             // Datatrees
             $query_str =
@@ -2807,6 +2807,19 @@ class ValidationController extends ODRCustomController
             $datafield_ids = array();
             foreach ($results as $result)
                 $datafield_ids[] = $result['df_id'];
+
+
+            // Datatype special fields
+            $query_str =
+               'SELECT dtsf.id AS dtsf_id
+                FROM odr_data_type_special_fields AS dtsf
+                WHERE dtsf.data_type_id IN (?) OR dtsf.data_field_id IN (?)';
+            $parameters = array(1 => $datatype_ids, 2 => $datafield_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $dtsf_ids = array();
+            foreach ($results as $result)
+                $dtsf_ids[] = $result['dtsf_id'];
 
 
             // Themes
@@ -2952,191 +2965,206 @@ class ValidationController extends ODRCustomController
 
 
             // ----------------------------------------
-            print '<html><body><pre>';
-            print "DROP TABLE IF EXISTS odr_checkbox, odr_file_storage, odr_image_storage, odr_radio, odr_xyz_value;\n";
-            print "DROP TABLE IF EXISTS odr_user_layout_permissions, odr_user_layout_preferences, odr_layout_meta, odr_layout_data, odr_layout;\n";
-            print "DROP TABLE IF EXISTS odr_theme_element_field;\n";
-            print "DROP TABLE IF EXISTS odr_user_field_permissions, odr_user_permissions;\n";
-            print "\n";
-            print 'count($datarecord_ids): '.count($datarecord_ids)."\n";
+            // Originally, this dumped "DELETE FROM" statements to the browser, which I would then
+            //  copy/paste into a terminal to execute.  Unfortunately, this seems to not be entirely
+            //  reliable, so had to modify it to create mysqldump files
+            $user_tmp_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId();
+            if ( !file_exists($user_tmp_dir) )
+                mkdir( $user_tmp_dir );
+
+//            $handle = fopen($user_tmp_dir.'/purge_'.$dt_ids_for_filename.'.dmp', 'w');
+            $handle = fopen($user_tmp_dir.'/purge.dmp', 'w');
+            if ( !$handle )
+                throw new ODRException('Unable to open dmp file');
+
+            // ...still is useful to return how many datarecords will be deleted though
+            print '<html><pre>number of datarecords: '.count($datarecord_ids).'</pre></html>';
+
+            // ----------------------------------------
+            // Set up the dmp file...
+            $db_name = $this->getParameter('database_name');
+            fprintf($handle, "USE ".$db_name.";\n\n");
 
             // Layout stuff first...
             if ( !empty($theme_element_ids) ) {
-                print "DELETE FROM odr_theme_data_field tdf WHERE tdf.theme_element_id IN (".implode(',', $theme_element_ids).");\n";
-                print "DELETE FROM odr_theme_data_type tdt WHERE tdt.theme_element_id IN (".implode(',', $theme_element_ids).");\n";
-                print "DELETE FROM odr_theme_element_meta tem WHERE tem.theme_element_id IN (".implode(',', $theme_element_ids).");\n";
-                print "DELETE FROM odr_theme_element te WHERE te.id IN (".implode(',', $theme_element_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_theme_data_field tdf WHERE tdf.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_theme_element_meta tem WHERE tem.theme_element_id IN (".implode(',', $theme_element_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_theme_element te WHERE te.id IN (".implode(',', $theme_element_ids).");\n");
             }
             else {
-                print "# No theme elements to delete\n";
+                fprintf($handle, "# No theme elements to delete\n");
             }
 
             // sanity check for both of these
             if ( !empty($datafield_ids) )
-                print "DELETE FROM odr_theme_data_field tdf WHERE tdf.data_field_id IN (".implode(',', $datafield_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_theme_data_field tdf WHERE tdf.data_field_id IN (".implode(',', $datafield_ids).");\n");
             if ( !empty($datatype_ids) )
-                print "DELETE FROM odr_theme_data_type tdt WHERE tdt.data_type_id IN (".implode(',', $datatype_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.data_type_id IN (".implode(',', $datatype_ids).");\n");
 
             if ( !empty($theme_ids) ) {
                 // also need to get all themeDataType entries that reference the themes being deleted
-                print "DELETE FROM odr_theme_data_type tdt WHERE tdt.child_theme_id IN (".implode(',', $theme_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_theme_data_type tdt WHERE tdt.child_theme_id IN (".implode(',', $theme_ids).");\n");
 
-                print "DELETE FROM odr_theme_preferences tp WHERE tp.theme_id IN (".implode(',', $theme_ids).");\n";
-                print "DELETE FROM odr_theme_meta tm WHERE tm.theme_id IN (".implode(',', $theme_ids).");\n";
-                print "UPDATE odr_theme t SET t.parent_theme_id = NULL, t.source_theme_id = NULL WHERE t.id IN (".implode(',', $theme_ids).");\n";
-                print "DELETE FROM odr_theme t WHERE t.id IN (".implode(',', $theme_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_theme_preferences tp WHERE tp.theme_id IN (".implode(',', $theme_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_theme_meta tm WHERE tm.theme_id IN (".implode(',', $theme_ids).");\n");
+                fprintf($handle, "UPDATE odr_theme t SET t.parent_theme_id = NULL, t.source_theme_id = NULL WHERE t.id IN (".implode(',', $theme_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_theme t WHERE t.id IN (".implode(',', $theme_ids).");\n");
             }
             else {
-                print "# No themes to delete\n";
+                fprintf($handle, "# No themes to delete\n");
             }
 
-            // ...then datarecord stuff...
+            // ...then storage entities...
             if ( !empty($datafield_ids) ) {
-                print "DELETE FROM odr_boolean e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_datetime_value e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_decimal_value e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_integer_value e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_long_text e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_long_varchar e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_medium_varchar e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_short_varchar e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_boolean e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_datetime_value e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_decimal_value e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_integer_value e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_long_text e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_long_varchar e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_medium_varchar e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_short_varchar e WHERE e.data_field_id IN (".implode(',', $datafield_ids).");\n");
             }
             else {
-                print "# No storage entities to delete\n";
+                fprintf($handle, "# No storage entities to delete\n");
             }
 
             if ( !empty($radio_option_ids) )
-                print "DELETE FROM odr_radio_selection rs WHERE rs.radio_option_id IN (".implode(',', $radio_option_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_radio_selection rs WHERE rs.radio_option_id IN (".implode(',', $radio_option_ids).");\n");
             else {
-                print "# No radio selections to delete\n";
+                fprintf($handle, "# No radio selections to delete\n");
             }
-
             if ( !empty($tag_ids) )
-                print "DELETE FROM odr_tag_selection ts WHERE ts.tag_id IN (".implode(',', $tag_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_tag_selection ts WHERE ts.tag_id IN (".implode(',', $tag_ids).");\n");
             else {
-                print "# No tag selections to delete\n";
+                fprintf($handle, "# No tag selections to delete\n");
             }
 
             if ( !empty($file_ids) ) {
-                print "DELETE FROM odr_file_checksum fc WHERE fc.file_id IN (".implode(',', $file_ids).");\n";
-                print "DELETE FROM odr_file_meta fm WHERE fm.file_id IN (".implode(',', $file_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_file_checksum fc WHERE fc.file_id IN (".implode(',', $file_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_file_meta fm WHERE fm.file_id IN (".implode(',', $file_ids).");\n");
             }
             else {
-                print "# No files to delete\n";
+                fprintf($handle, "# No files to delete\n");
             }
-
             if ( !empty($datafield_ids) )
-                print "DELETE FROM odr_file f WHERE f.data_field_id IN (".implode(',', $datafield_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_file f WHERE f.data_field_id IN (".implode(',', $datafield_ids).");\n");
+
 
             if ( !empty($image_ids) ) {
-                print "DELETE FROM odr_image_checksum ic WHERE ic.image_id IN (".implode(',', $image_ids).");\n";
-                print "DELETE FROM odr_image_meta im WHERE im.image_id IN (".implode(',', $image_ids).");\n";
-                print "UPDATE odr_image i SET i.parent_id = NULL, i.image_size_id = NULL WHERE i.id IN (".implode(',', $image_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_image_checksum ic WHERE ic.image_id IN (".implode(',', $image_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_image_meta im WHERE im.image_id IN (".implode(',', $image_ids).");\n");
+                fprintf($handle, "UPDATE odr_image i SET i.parent_id = NULL, i.image_size_id = NULL WHERE i.id IN (".implode(',', $image_ids).");\n");
             }
             else {
-                print "# No images to delete\n";
+                fprintf($handle, "# No images to delete\n");
             }
-
             if ( !empty($datafield_ids) ) {
-                print "DELETE FROM odr_image_sizes i_s WHERE i_s.data_fields_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_image i WHERE i.data_field_id IN (".implode(',', $datafield_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_image_sizes i_s WHERE i_s.data_fields_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_image i WHERE i.data_field_id IN (".implode(',', $datafield_ids).");\n");
             }
 
             if ( !empty($datafield_ids) ) {
                 // list of datafield ids is going to be shorter
-                print "DELETE FROM odr_data_record_fields drf WHERE drf.data_field_id IN (".implode(',', $datafield_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_data_record_fields drf WHERE drf.data_field_id IN (".implode(',', $datafield_ids).");\n");
             }
             else {
-                print "# No datarecords to delete\n";
+                fprintf($handle, "# No datarecords to delete\n");
             }
 
             if ( !empty($linked_datatree_ids) )
-                print "DELETE FROM odr_linked_data_tree ldt WHERE ldt.id IN (".implode(',', $linked_datatree_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_linked_data_tree ldt WHERE ldt.id IN (".implode(',', $linked_datatree_ids).");\n");
             else {
-                print "# No linked datatree entries to delete\n";
+                fprintf($handle, "# No linked datatree entries to delete\n");
             }
 
             if ( !empty($datarecord_ids) ) {
-                print "DELETE FROM odr_data_record_meta drm WHERE drm.data_record_id IN (".implode(',', $datarecord_ids).");\n";
-                print "UPDATE odr_data_record dr SET dr.parent_id = NULL, dr.grandparent_id = NULL WHERE dr.id IN (".implode(',', $datarecord_ids).");\n";
-                print "DELETE FROM odr_data_record dr WHERE dr.id IN (".implode(',', $datarecord_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_data_record_meta drm WHERE drm.data_record_id IN (".implode(',', $datarecord_ids).");\n");
+                fprintf($handle, "UPDATE odr_data_record dr SET dr.parent_id = NULL, dr.grandparent_id = NULL WHERE dr.id IN (".implode(',', $datarecord_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_data_record dr WHERE dr.id IN (".implode(',', $datarecord_ids).");\n");
             }
             else {
-                print "# No datarecords to delete\n";
+                fprintf($handle, "# No datarecords to delete\n");
             }
 
             // ...then datatype stuff last
             if ( !empty($radio_option_ids) ) {
-                print "DELETE FROM odr_radio_options_meta rom WHERE rom.radio_option_id IN (".implode(',', $radio_option_ids).");\n";
-                print "DELETE FROM odr_radio_options ro WHERE ro.id IN (".implode(',', $radio_option_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_radio_options_meta rom WHERE rom.radio_option_id IN (".implode(',', $radio_option_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_radio_options ro WHERE ro.id IN (".implode(',', $radio_option_ids).");\n");
             }
             else {
-                print "# No radio options to delete\n";
+                fprintf($handle, "# No radio options to delete\n");
             }
-
             if ( !empty($tag_ids) ) {
-                print "DELETE FROM odr_tag_meta tm WHERE tm.tag_id IN (".implode(',', $tag_ids).");\n";
-                print "DELETE FROM odr_tag_tree tt WHERE (tt.parent_id IN (".implode(',', $tag_ids).") OR tt.child_id IN (".implode(',', $tag_ids)."));\n";
-                print "DELETE FROM odr_tags t WHERE t.id IN (".implode(',', $tag_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_tag_meta tm WHERE tm.tag_id IN (".implode(',', $tag_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_tag_tree tt WHERE (tt.parent_id IN (".implode(',', $tag_ids).") OR tt.child_id IN (".implode(',', $tag_ids)."));\n");
+                fprintf($handle, "DELETE FROM odr_tags t WHERE t.id IN (".implode(',', $tag_ids).");\n");
             }
             else {
-                print "# No tags to delete\n";
+                fprintf($handle, "# No tags to delete\n");
             }
 
             if ( !empty($group_ids) ) {
-                print "DELETE FROM odr_group_datafield_permissions gdfp WHERE gdfp.group_id IN (".implode(',', $group_ids).");\n";
-                print "DELETE FROM odr_group_datatype_permissions gdtp WHERE gdtp.group_id IN (".implode(',', $group_ids).");\n";
-                print "DELETE FROM odr_user_group ug WHERE ug.group_id IN (".implode(',', $group_ids).");\n";
-                print "DELETE FROM odr_group_meta gm WHERE gm.group_id IN (".implode(',', $group_ids).");\n";
-                print "DELETE FROM odr_group g WHERE g.id IN (".implode(',', $group_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_group_datafield_permissions gdfp WHERE gdfp.group_id IN (".implode(',', $group_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_group_datatype_permissions gdtp WHERE gdtp.group_id IN (".implode(',', $group_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_user_group ug WHERE ug.group_id IN (".implode(',', $group_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_group_meta gm WHERE gm.group_id IN (".implode(',', $group_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_group g WHERE g.id IN (".implode(',', $group_ids).");\n");
             }
             else {
-                print "# No groups to delete\n";
+                fprintf($handle, "# No groups to delete\n");
             }
 
             if ( !empty($render_plugin_instance_ids) ) {
-                print "DELETE FROM odr_render_plugin_options rpo WHERE rpo.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n";
-                print "DELETE FROM odr_render_plugin_options_map rpom WHERE rpom.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n";
-                print "DELETE FROM odr_render_plugin_map rpm WHERE rpm.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n";
-                print "DELETE FROM odr_render_plugin_instance rpi WHERE rpi.id IN (".implode(',', $render_plugin_instance_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_render_plugin_options rpo WHERE rpo.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_options_map rpom WHERE rpom.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_map rpm WHERE rpm.render_plugin_instance_id IN (".implode(',', $render_plugin_instance_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_render_plugin_instance rpi WHERE rpi.id IN (".implode(',', $render_plugin_instance_ids).");\n");
             }
             else {
-                print "# No renderPluginInstances to delete\n";
+                fprintf($handle, "# No renderPluginInstances to delete\n");
+            }
+
+            if ( !empty($dtsf_ids) ) {
+                fprintf($handle, "DELETE FROM odr_data_type_special_fields dtsf WHERE dtsf.data_type_id IN (".implode(',', $datatype_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_data_type_special_fields dtsf WHERE dtsf.data_field_id IN (".implode(',', $datafield_ids).");\n");
+            }
+            else {
+                fprintf($handle, "# No datatypeSpecialField entries to delete\n");
             }
 
             if ( !empty($datatype_ids) ) {
-                print "UPDATE odr_data_type_meta dtm SET dtm.external_datafield_id = NULL, dtm.type_name_datafield_id = NULL, dtm.sort_datafield_id = NULL, dtm.background_image_datafield_id = NULL WHERE dtm.data_type_id IN (".implode(',', $datatype_ids).");\n";
-                print "DELETE FROM odr_data_type_meta dtm WHERE dtm.data_type_id IN (".implode(',', $datatype_ids).");\n";
+                fprintf($handle, "UPDATE odr_data_type_meta dtm SET dtm.external_datafield_id = NULL, dtm.type_name_datafield_id = NULL, dtm.sort_datafield_id = NULL, dtm.background_image_datafield_id = NULL WHERE dtm.data_type_id IN (".implode(',', $datatype_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_data_type_meta dtm WHERE dtm.data_type_id IN (".implode(',', $datatype_ids).");\n");
             }
             else {
-                print "# No datatypeMeta entries to delete\n";
+                fprintf($handle, "# No datatypeMeta entries to delete\n");
             }
 
             if ( !empty($datatree_ids) ) {
-                print "DELETE FROM odr_data_tree_meta dtm WHERE dtm.data_tree_id IN (".implode(',', $datatree_ids).");\n";
-                print "DELETE FROM odr_data_tree dt WHERE dt.id IN (".implode(',', $datatree_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_data_tree_meta dtm WHERE dtm.data_tree_id IN (".implode(',', $datatree_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_data_tree dt WHERE dt.id IN (".implode(',', $datatree_ids).");\n");
             }
             else {
-                print "# No datatree entries to delete\n";
+                fprintf($handle, "# No datatree entries to delete\n");
             }
 
             if ( !empty($datafield_ids) ) {
                 // need to also catch all datatypes using one of these datafields as their sort field
-                print "UPDATE odr_data_type_meta dtm SET dtm.sort_datafield_id = NULL WHERE dtm.sort_datafield_id IN (".implode(',', $datafield_ids).");\n";
-
-                print "DELETE FROM odr_data_fields_meta dfm WHERE dfm.data_field_id IN (".implode(',', $datafield_ids).");\n";
-                print "DELETE FROM odr_data_fields df WHERE df.id IN (".implode(',', $datafield_ids).");\n";
+                fprintf($handle, "DELETE FROM odr_data_fields_meta dfm WHERE dfm.data_field_id IN (".implode(',', $datafield_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_data_fields df WHERE df.id IN (".implode(',', $datafield_ids).");\n");
             }
             else {
-                print "# No datafield entries to delete\n";
+                fprintf($handle, "# No datafield entries to delete\n");
             }
 
             if ( !empty($datatype_ids) ) {
-                print "UPDATE odr_data_type dt SET dt.parent_id = NULL, dt.grandparent_id = NULL, dt.master_datatype_id = NULL, dt.metadata_datatype_id = NULL, dt.metadata_for_id = NULL WHERE dt.id IN (".implode(',', $datatype_ids).");\n";
-                print "DELETE FROM odr_data_type dt WHERE dt.id IN (".implode(',', $datatype_ids).");\n";
+                fprintf($handle, "UPDATE odr_data_type dt SET dt.parent_id = NULL, dt.grandparent_id = NULL, dt.master_datatype_id = NULL, dt.metadata_datatype_id = NULL, dt.metadata_for_id = NULL WHERE dt.id IN (".implode(',', $datatype_ids).");\n");
+                fprintf($handle, "DELETE FROM odr_data_type dt WHERE dt.id IN (".implode(',', $datatype_ids).");\n");
             }
             else {
-                print "# No datatype entries to delete\n";
+                fprintf($handle, "# No datatype entries to delete\n");
             }
 
             // ----------------------------------------
