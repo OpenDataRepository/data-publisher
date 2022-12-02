@@ -1638,20 +1638,23 @@ function selectRecordFieldArea(datarecord_id) {
     var field_area = $("#FieldArea_" + datarecord_id);
 
     if ( field_area.parent().hasClass("ODRFormAccordion") ) {
+        // Accordion displayType
         field_area.prev().click();
     }
-    else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
-        field_area.parent().find(".ODRSelect").val(datarecord_id).change();
-    }
     else if (field_area.parent().hasClass("ODRTabAccordion")) {
-        field_area.parent().find(".ODRTabButton").each(function() {
+        // Tab displayType
+        field_area.parent().children(".ODRTabButtonHeader").find(".ODRTabButton").each(function() {
             if ($(this).attr('rel').toString() === datarecord_id.toString()) {
                 $(this).click();
             }
         });
     }
+    else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
+        // Dropdown displayType
+        field_area.parent().children(".ui-accordion-header").children(".ODRSelectWrap").find(".ODRSelect").val(datarecord_id).change();
+    }
     else {
-        // List display
+        // List displayType
         ScrollHighlight( $(field_area) );
     }
 }

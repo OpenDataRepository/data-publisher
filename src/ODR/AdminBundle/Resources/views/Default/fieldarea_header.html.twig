@@ -47,6 +47,7 @@
                 ></i>
                 {% endif %}
             </span>
+
             {% elseif context == 'fake_edit' %}
             <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
@@ -83,6 +84,7 @@
                 ></i>
                 {% endif %}
             </span>
+
             {% elseif context == 'fake_edit' %}
             <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
@@ -135,6 +137,7 @@
                 ></i>
                 {% endif %}
             </span>
+
             {% elseif context == 'fake_edit' %}
             <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
@@ -147,22 +150,22 @@
             {% endif %}
 
             {% if datarecord_list|length > 0 %}
-                <span class="ODRSelectWrap AccordionSelect">
-                    <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect">
-                        {% for num, datarecord in datarecord_list %}
-                            {% set datarecord_is_fake = false %}
-                            {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
-                                {% set datarecord_is_fake = true %}
-                            {% endif %}
+            <span class="ODRSelectWrap AccordionSelect">
+                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect">
+                {% for num, datarecord in datarecord_list %}
+                    {% set datarecord_is_fake = false %}
+                    {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+                        {% set datarecord_is_fake = true %}
+                    {% endif %}
 
-                            {% if not datarecord_is_fake %}
-                                <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
-                            {% else %}
-                                <option value="{{ datarecord.id }}">&lt;&lt;Temporary&gt;&gt;</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </span>
+                    {% if not datarecord_is_fake %}
+                        <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
+                    {% else %}
+                        <option value="{{ datarecord.id }}">&lt;&lt;Temporary&gt;&gt;</option>
+                    {% endif %}
+                {% endfor %}
+                </select>
+            </span>
             {% endif %}
         </h3>
 
@@ -188,6 +191,7 @@
             ></i>
             {% endif %}
         </span>
+
         {% elseif context == 'fake_edit' %}
         <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
             {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
