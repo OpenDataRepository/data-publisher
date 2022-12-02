@@ -4150,7 +4150,7 @@ if ($debug)
                     }
 
                     // If searching for sort fields...
-                    if ( $purpose === 'sort' ) {
+                    if ( $purpose === 'sort' && isset($dt['descendants']) ) {
                         // ...then also need to go looking into linked descendants that only allow
                         //  a single record
                         foreach ($dt['descendants'] as $descendant_dt_id => $data) {

@@ -1251,7 +1251,8 @@ class DataType
                 if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
                     $namefields[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
             }
-            sort($namefields);
+            ksort($namefields);
+            $namefields = array_values($namefields);
         }
 
         return $namefields;
@@ -1270,7 +1271,8 @@ class DataType
                 if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
                     $sortfields[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
             }
-            sort($sortfields);
+            ksort($sortfields);
+            $sortfields = array_values($sortfields);
         }
 
         return $sortfields;

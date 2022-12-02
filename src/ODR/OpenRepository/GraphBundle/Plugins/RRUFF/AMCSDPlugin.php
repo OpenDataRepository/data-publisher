@@ -431,7 +431,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 unset( $drf['file'] );
                 foreach ($drf as $typeclass => $entity) {
                     // Should only be one entry left in typeclass
-                    if ( !empty($entity) )
+                    if ( !empty($entity) && isset($entity[0]['value']) )
                         $value_mapping[$df_id] = $entity[0]['value'];
                     else
                         $value_mapping[$df_id] = '';
@@ -1369,6 +1369,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
+        // TODO - ...don't think i want this firing unless explicitly requested
+        return array();
+
         if ( !isset($render_plugin_instance['renderPluginMap']) )
             throw new ODRException('Invalid plugin config');
 
