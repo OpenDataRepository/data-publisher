@@ -131,4 +131,13 @@ odr_plugins.rruff.amcsd:
             properties:
                 - no_user_edits
                 - is_derived
+
+        # The following isn't needed for operation of the plugin, but should exist anyways
+        reference_file:
+            name: Reference File
+            description: The Reference file for this dataset
+            type: File
+            properties:
+                - single_uploads_only
+
     config_options:

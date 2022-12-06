@@ -10,8 +10,6 @@
  *  @author [Allan Jardine](http://sprymedia.co.uk)
  *  @author [Gordey Doronin](http://github.com/GDoronin)
  *
- *  @author [Alexander Pires](http://github.com/ajpires)
- *
  *  @example
  *    $(document).ready(function() {
  *        $('#example').dataTable( {
@@ -21,238 +19,211 @@
  */
 
 (function ($) {
-    function calcDisableClasses(oSettings) {
-        var start = oSettings._iDisplayStart;
-        var length = oSettings._iDisplayLength;
-        var visibleRecords = oSettings.fnRecordsDisplay();
-        var all = length === -1;
+	function calcDisableClasses(oSettings) {
+		var start = oSettings._iDisplayStart;
+		var length = oSettings._iDisplayLength;
+		var visibleRecords = oSettings.fnRecordsDisplay();
+		var all = length === -1;
 
-        // Gordey Doronin: Re-used this code from main jQuery.dataTables source code. To be consistent.
-        var page = all ? 0 : Math.ceil(start / length);
-        var pages = all ? 1 : Math.ceil(visibleRecords / length);
+		// Gordey Doronin: Re-used this code from main jQuery.dataTables source code. To be consistent.
+		var page = all ? 0 : Math.ceil(start / length);
+		var pages = all ? 1 : Math.ceil(visibleRecords / length);
 
-        var disableFirstPrevClass = (page > 0 ? '' : oSettings.oClasses.sPageButtonDisabled);
-        var disableNextLastClass = (page < pages - 1 ? '' : oSettings.oClasses.sPageButtonDisabled);
+		var disableFirstPrevClass = (page > 0 ? '' : oSettings.oClasses.sPageButtonDisabled);
+		var disableNextLastClass = (page < pages - 1 ? '' : oSettings.oClasses.sPageButtonDisabled);
 
-        return {
-            'first': disableFirstPrevClass,
-            'previous': disableFirstPrevClass,
-            'next': disableNextLastClass,
-            'last': disableNextLastClass
-        };
-    }
+		return {
+			'first': disableFirstPrevClass,
+			'previous': disableFirstPrevClass,
+			'next': disableNextLastClass,
+			'last': disableNextLastClass
+		};
+	}
 
-    function calcCurrentPage(oSettings) {
-        return Math.ceil(oSettings._iDisplayStart / oSettings._iDisplayLength) + 1;
-    }
+	function calcCurrentPage(oSettings) {
+		return Math.ceil(oSettings._iDisplayStart / oSettings._iDisplayLength) + 1;
+	}
 
-    function calcPages(oSettings) {
-        return Math.ceil(oSettings.fnRecordsDisplay() / oSettings._iDisplayLength);
-    }
+	function calcPages(oSettings) {
+		return Math.ceil(oSettings.fnRecordsDisplay() / oSettings._iDisplayLength);
+	}
 
-    // Alexander Pires - added debounce specifically for ODR
-    var DatatablesPageChangeInterval = [];
-    function calcChangePage(oSettings, fnCallbackDraw, input, event) {
-        var input_value = $(input).val().trim();
+	var firstClassName = 'first';
+	var previousClassName = 'previous';
+	var nextClassName = 'next';
+	var lastClassName = 'last';
 
-        if (input_value === '' || input_value.match(/[^0-9]/)) {
-            /* Nothing entered or non-numeric character */
-            $(input).val( input_value.replace(/[^\d]/g, '') ); // don't even allow anything but digits
-            return;
-        }
+	var paginateClassName = 'paginate';
+	var paginatePageClassName = 'paginate_page';
+	var paginateInputClassName = 'paginate_input';
+	var paginateTotalClassName = 'paginate_total';
 
-        // 38 = up arrow, 39 = right arrow
-        if (event.which === 38 || event.which === 39) {
-            input_value++;
-        }
-        // 37 = left arrow, 40 = down arrow
-        else if ((event.which === 37 || event.which === 40) && input_value > 1) {
-            input_value--;
-        }
+	$.fn.dataTableExt.oPagination.input = {
+		'fnInit': function (oSettings, nPaging, fnCallbackDraw) {
+			var nFirst = document.createElement('span');
+			var nPrevious = document.createElement('span');
+			var nNext = document.createElement('span');
+			var nLast = document.createElement('span');
+			var nInput = document.createElement('input');
+			var nTotal = document.createElement('span');
+			var nInfo = document.createElement('span');
 
-        var iNewStart = oSettings._iDisplayLength * (input_value - 1);
-        if (iNewStart < 0) {
-            iNewStart = 0;
-        }
-        if (iNewStart >= oSettings.fnRecordsDisplay()) {
-            iNewStart = (Math.ceil((oSettings.fnRecordsDisplay()) / oSettings._iDisplayLength) - 1) * oSettings._iDisplayLength;
-        }
+			var language = oSettings.oLanguage.oPaginate;
+			var classes = oSettings.oClasses;
+			var info = language.info || 'Page _INPUT_ of _TOTAL_';
 
-        oSettings._iDisplayStart = iNewStart;
-        fnCallbackDraw(oSettings);
-    }
+			nFirst.innerHTML = language.sFirst;
+			nPrevious.innerHTML = language.sPrevious;
+			nNext.innerHTML = language.sNext;
+			nLast.innerHTML = language.sLast;
 
-    var firstClassName = 'first';
-    var previousClassName = 'previous';
-    var nextClassName = 'next';
-    var lastClassName = 'last';
+			nFirst.className = firstClassName + ' ' + classes.sPageButton;
+			nPrevious.className = previousClassName + ' ' + classes.sPageButton;
+			nNext.className = nextClassName + ' ' + classes.sPageButton;
+			nLast.className = lastClassName + ' ' + classes.sPageButton;
 
-    var paginateClassName = 'paginate';
-    var paginatePageClassName = 'paginate_page';
-    var paginateInputClassName = 'paginate_input';
-    var paginateTotalClassName = 'paginate_total';
+			nInput.className = paginateInputClassName;
+			nTotal.className = paginateTotalClassName;
 
-    $.fn.dataTableExt.oPagination.input = {
-        'fnInit': function (oSettings, nPaging, fnCallbackDraw) {
-            var nFirst = document.createElement('span');
-            var nPrevious = document.createElement('span');
-            var nNext = document.createElement('span');
-            var nLast = document.createElement('span');
-            var nInput = document.createElement('input');
-            var nTotal = document.createElement('span');
-            var nInfo = document.createElement('span');
+			if (oSettings.sTableId !== '') {
+				nPaging.setAttribute('id', oSettings.sTableId + '_' + paginateClassName);
+				nFirst.setAttribute('id', oSettings.sTableId + '_' + firstClassName);
+				nPrevious.setAttribute('id', oSettings.sTableId + '_' + previousClassName);
+				nNext.setAttribute('id', oSettings.sTableId + '_' + nextClassName);
+				nLast.setAttribute('id', oSettings.sTableId + '_' + lastClassName);
+			}
 
-            var language = oSettings.oLanguage.oPaginate;
-            var classes = oSettings.oClasses;
-            var info = language.info || 'Page _INPUT_ of _TOTAL_';
+			nInput.type = 'text';
 
-            nFirst.innerHTML = language.sFirst;
-            nPrevious.innerHTML = language.sPrevious;
-            nNext.innerHTML = language.sNext;
-            nLast.innerHTML = language.sLast;
+			info = info.replace(/_INPUT_/g, '</span>' + nInput.outerHTML + '<span>');
+			info = info.replace(/_TOTAL_/g, '</span>' + nTotal.outerHTML + '<span>');
+			nInfo.innerHTML = '<span>' + info + '</span>';
 
-            nFirst.className = firstClassName + ' ' + classes.sPageButton;
-            nPrevious.className = previousClassName + ' ' + classes.sPageButton;
-            nNext.className = nextClassName + ' ' + classes.sPageButton;
-            nLast.className = lastClassName + ' ' + classes.sPageButton;
+			nPaging.appendChild(nFirst);
+			nPaging.appendChild(nPrevious);
+			$(nInfo).children().each(function (i, n) {
+			    nPaging.appendChild(n);
+			});
+			nPaging.appendChild(nNext);
+			nPaging.appendChild(nLast);
 
-            nInput.className = paginateInputClassName;
-            nTotal.className = paginateTotalClassName;
+			$(nFirst).click(function() {
+				var iCurrentPage = calcCurrentPage(oSettings);
+				if (iCurrentPage !== 1) {
+					oSettings.oApi._fnPageChange(oSettings, 'first');
+					fnCallbackDraw(oSettings);
+				}
+			});
 
-            if (oSettings.sTableId !== '') {
-                nPaging.setAttribute('id', oSettings.sTableId + '_' + paginateClassName);
-                nFirst.setAttribute('id', oSettings.sTableId + '_' + firstClassName);
-                nPrevious.setAttribute('id', oSettings.sTableId + '_' + previousClassName);
-                nNext.setAttribute('id', oSettings.sTableId + '_' + nextClassName);
-                nLast.setAttribute('id', oSettings.sTableId + '_' + lastClassName);
-            }
+			$(nPrevious).click(function() {
+				var iCurrentPage = calcCurrentPage(oSettings);
+				if (iCurrentPage !== 1) {
+					oSettings.oApi._fnPageChange(oSettings, 'previous');
+					fnCallbackDraw(oSettings);
+				}
+			});
 
-            nInput.type = 'text';
+			$(nNext).click(function() {
+				var iCurrentPage = calcCurrentPage(oSettings);
+				if (iCurrentPage !== calcPages(oSettings)) {
+					oSettings.oApi._fnPageChange(oSettings, 'next');
+					fnCallbackDraw(oSettings);
+				}
+			});
 
-            info = info.replace(/_INPUT_/g, '</span>' + nInput.outerHTML + '<span>');
-            info = info.replace(/_TOTAL_/g, '</span>' + nTotal.outerHTML + '<span>');
-            nInfo.innerHTML = '<span>' + info + '</span>';
+			$(nLast).click(function() {
+				var iCurrentPage = calcCurrentPage(oSettings);
+				if (iCurrentPage !== calcPages(oSettings)) {
+					oSettings.oApi._fnPageChange(oSettings, 'last');
+					fnCallbackDraw(oSettings);
+				}
+			});
 
-            nPaging.appendChild(nFirst);
-            nPaging.appendChild(nPrevious);
-            $(nInfo).children().each(function (i, n) {
-                nPaging.appendChild(n);
-            });
-            nPaging.appendChild(nNext);
-            nPaging.appendChild(nLast);
+			$(nPaging).find('.' + paginateInputClassName).keyup(function (e) {
+				// 38 = up arrow, 39 = right arrow
+				if (e.which === 38 || e.which === 39) {
+					this.value++;
+				}
+				// 37 = left arrow, 40 = down arrow
+				else if ((e.which === 37 || e.which === 40) && this.value > 1) {
+					this.value--;
+				}
 
-            $(nFirst).click(function() {
-                var iCurrentPage = calcCurrentPage(oSettings);
-                if (iCurrentPage !== 1) {
-                    oSettings.oApi._fnPageChange(oSettings, 'first');
-                    fnCallbackDraw(oSettings);
-                }
-            });
+				if (this.value === '' || this.value.match(/[^0-9]/)) {
+					/* Nothing entered or non-numeric character */
+					this.value = this.value.replace(/[^\d]/g, ''); // don't even allow anything but digits
+					return;
+				}
 
-            $(nPrevious).click(function() {
-                var iCurrentPage = calcCurrentPage(oSettings);
-                if (iCurrentPage !== 1) {
-                    oSettings.oApi._fnPageChange(oSettings, 'previous');
-                    fnCallbackDraw(oSettings);
-                }
-            });
+				var iNewStart = oSettings._iDisplayLength * (this.value - 1);
+				if (iNewStart < 0) {
+					iNewStart = 0;
+				}
+				if (iNewStart >= oSettings.fnRecordsDisplay()) {
+					iNewStart = (Math.ceil((oSettings.fnRecordsDisplay()) / oSettings._iDisplayLength) - 1) * oSettings._iDisplayLength;
+				}
 
-            $(nNext).click(function() {
-                var iCurrentPage = calcCurrentPage(oSettings);
-                if (iCurrentPage !== calcPages(oSettings)) {
-                    oSettings.oApi._fnPageChange(oSettings, 'next');
-                    fnCallbackDraw(oSettings);
-                }
-            });
+				oSettings._iDisplayStart = iNewStart;
+				oSettings.oInstance.trigger("page.dt", oSettings);
+				fnCallbackDraw(oSettings);
+			});
 
-            $(nLast).click(function() {
-                var iCurrentPage = calcCurrentPage(oSettings);
-                if (iCurrentPage !== calcPages(oSettings)) {
-                    oSettings.oApi._fnPageChange(oSettings, 'last');
-                    fnCallbackDraw(oSettings);
-                }
-            });
+			// Take the brutal approach to cancelling text selection.
+			$('span', nPaging).bind('mousedown', function () { return false; });
+			$('span', nPaging).bind('selectstart', function() { return false; });
 
-            // Alexander Pires - added debounce specifically for ODR
-            $(nPaging).find('.' + paginateInputClassName).keyup(function (e) {
-                // Can't pass 'this' to calcChangePage() via setTimeout()
-                var elem = this;
-                // Unlikely that having multiple ODR tabs open will interfere with this, but be safe
-                var odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
+			// If we can't page anyway, might as well not show it.
+			var iPages = calcPages(oSettings);
+			if (iPages <= 1) {
+				$(nPaging).hide();
+			}
+		},
 
-                // Always clear the timeout when this is entered
-                clearTimeout( DatatablesPageChangeInterval[odr_tab_id] );
+		'fnUpdate': function (oSettings) {
+			if (!oSettings.aanFeatures.p) {
+				return;
+			}
 
-                // If any of the arrow keys were pushed, trigger the page change immediately
-                if ( event.which === 38 || event.which === 39 || event.which === 37 || event.which === 40 ) {
-                    calcChangePage(oSettings, fnCallbackDraw, elem, e);
-                }
-                else
-                {
-                    // Otherwise, user is entering numbers...give them a second to finish before
-                    //  changing the page
-                    DatatablesPageChangeInterval[odr_tab_id] = setTimeout(function () {
-                        calcChangePage(oSettings, fnCallbackDraw, elem, e);
-                    }, 1000);
-                }
-            });
+			var iPages = calcPages(oSettings);
+			var iCurrentPage = calcCurrentPage(oSettings);
 
-            // Take the brutal approach to cancelling text selection.
-            $('span', nPaging).bind('mousedown', function () { return false; });
-            $('span', nPaging).bind('selectstart', function() { return false; });
+			var an = oSettings.aanFeatures.p;
+			if (iPages <= 1) // hide paging when we can't page
+			{
+				$(an).hide();
+				return;
+			}
 
-            // If we can't page anyway, might as well not show it.
-            var iPages = calcPages(oSettings);
-            if (iPages <= 1) {
-                $(nPaging).hide();
-            }
-        },
+			var disableClasses = calcDisableClasses(oSettings);
 
-        'fnUpdate': function (oSettings) {
-            if (!oSettings.aanFeatures.p) {
-                return;
-            }
+			$(an).show();
 
-            var iPages = calcPages(oSettings);
-            var iCurrentPage = calcCurrentPage(oSettings);
+			// Enable/Disable `first` button.
+			$(an).children('.' + firstClassName)
+				.removeClass(oSettings.oClasses.sPageButtonDisabled)
+				.addClass(disableClasses[firstClassName]);
 
-            var an = oSettings.aanFeatures.p;
-            if (iPages <= 1) // hide paging when we can't page
-            {
-                $(an).hide();
-                return;
-            }
+			// Enable/Disable `prev` button.
+			$(an).children('.' + previousClassName)
+				.removeClass(oSettings.oClasses.sPageButtonDisabled)
+				.addClass(disableClasses[previousClassName]);
 
-            var disableClasses = calcDisableClasses(oSettings);
+			// Enable/Disable `next` button.
+			$(an).children('.' + nextClassName)
+				.removeClass(oSettings.oClasses.sPageButtonDisabled)
+				.addClass(disableClasses[nextClassName]);
 
-            $(an).show();
+			// Enable/Disable `last` button.
+			$(an).children('.' + lastClassName)
+				.removeClass(oSettings.oClasses.sPageButtonDisabled)
+				.addClass(disableClasses[lastClassName]);
 
-            // Enable/Disable `first` button.
-            $(an).children('.' + firstClassName)
-                .removeClass(oSettings.oClasses.sPageButtonDisabled)
-                .addClass(disableClasses[firstClassName]);
+			// Paginate of N pages text
+			$(an).find('.' + paginateTotalClassName).html(iPages);
 
-            // Enable/Disable `prev` button.
-            $(an).children('.' + previousClassName)
-                .removeClass(oSettings.oClasses.sPageButtonDisabled)
-                .addClass(disableClasses[previousClassName]);
-
-            // Enable/Disable `next` button.
-            $(an).children('.' + nextClassName)
-                .removeClass(oSettings.oClasses.sPageButtonDisabled)
-                .addClass(disableClasses[nextClassName]);
-
-            // Enable/Disable `last` button.
-            $(an).children('.' + lastClassName)
-                .removeClass(oSettings.oClasses.sPageButtonDisabled)
-                .addClass(disableClasses[lastClassName]);
-
-            // Paginate of N pages text
-            $(an).find('.' + paginateTotalClassName).html(iPages);
-
-            // Current page number input value
-            $(an).find('.' + paginateInputClassName).val(iCurrentPage);
-        }
-    };
+			// Current page number input value
+			$(an).find('.' + paginateInputClassName).val(iCurrentPage);
+		}
+	};
 })(jQuery);
 

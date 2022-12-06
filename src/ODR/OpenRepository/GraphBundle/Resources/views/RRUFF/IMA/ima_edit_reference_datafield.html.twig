@@ -114,7 +114,7 @@
                     {% endif %}
 
                     {# Execute the RRUFF References plugin on each datarecord #}
-                    {% set content = [dr]|datatype_plugin(reference_dt, render_plugin_instance, reference_theme, rendering_options) %}
+                    {% set content = [dr]|datatype_plugin(reference_dt, render_plugin_instance, reference_theme, rendering_options, datarecord) %}
                     <option value="{{ dr_ref_id }}" {% if selected %}selected{% endif %}>
                         {{ content|raw }}
                     </option>

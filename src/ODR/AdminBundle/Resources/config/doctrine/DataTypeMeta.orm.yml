@@ -107,6 +107,9 @@ ODR\AdminBundle\Entity\DataTypeMeta:
                     nullable: true
                     referencedColumnName: id
             orphanRemoval: false
+
+        # name and sort field are deprecated, since ODR needs to be able to combine more than one
+        #  field for these purposes
         nameField:
             targetEntity: DataFields
             cascade: {  }
@@ -127,6 +130,8 @@ ODR\AdminBundle\Entity\DataTypeMeta:
                     nullable: true
                     referencedColumnName: id
             orphanRemoval: false
+
+        # background image field is deprecated because nothing uses it
         backgroundImageField:
             targetEntity: DataFields
             cascade: {  }

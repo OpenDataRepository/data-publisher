@@ -1,0 +1,97 @@
+ODR\AdminBundle\Entity\DataTypeSpecialFields:
+    type: entity
+    table: odr_data_type_special_fields
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    indexes:
+        field_purpose_index:
+            columns: [ field_purpose ]
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        field_purpose:
+            type: integer
+            nullable: false
+            default: 0
+            column: field_purpose
+        displayOrder:
+            type: integer
+            nullable: false
+            column: display_order
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    oneToMany:
+
+    manyToOne:
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: dataTypeSpecialFields
+            fetch: LAZY
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: dataField
+            inversedBy: dataTypeSpecialFields
+            fetch: LAZY
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

@@ -120,12 +120,12 @@ class DataType
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $themePreferences;
+    private $dataFields;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $dataFields;
+    private $dataRecords;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -146,6 +146,11 @@ class DataType
      * @var \Doctrine\Common\Collections\Collection
      */
     private $renderPluginInstances;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataTypeSpecialFields;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -198,12 +203,12 @@ class DataType
         $this->relatedMasterTypes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataTypeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->themePreferences = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groups = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groupDatatypePermissions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginInstances = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->dataTypeSpecialFields = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -654,6 +659,42 @@ class DataType
     }
 
     /**
+     * Add dataRecord.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
+     *
+     * @return DataType
+     */
+    public function addDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord)
+    {
+        $this->dataRecords[] = $dataRecord;
+
+        return $this;
+    }
+
+    /**
+     * Remove dataRecord.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord)
+    {
+        return $this->dataRecords->removeElement($dataRecord);
+    }
+
+    /**
+     * Get dataRecords.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDataRecords()
+    {
+        return $this->dataRecords;
+    }
+
+    /**
      * Add themes
      *
      * @param \ODR\AdminBundle\Entity\Theme $themes
@@ -790,6 +831,42 @@ class DataType
     public function getRenderPluginInstances()
     {
         return $this->renderPluginInstances;
+    }
+
+    /**
+     * Add dataTypeSpecialField.
+     *
+     * @param \ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField
+     *
+     * @return DataType
+     */
+    public function addDataTypeSpecialField(\ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField)
+    {
+        $this->dataTypeSpecialFields[] = $dataTypeSpecialField;
+
+        return $this;
+    }
+
+    /**
+     * Remove dataTypeSpecialField.
+     *
+     * @param \ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeDataTypeSpecialField(\ODR\AdminBundle\Entity\DataTypeSpecialFields $dataTypeSpecialField)
+    {
+        return $this->dataTypeSpecialFields->removeElement($dataTypeSpecialField);
+    }
+
+    /**
+     * Get dataTypeSpecialFields.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDataTypeSpecialFields()
+    {
+        return $this->dataTypeSpecialFields;
     }
 
     /**
@@ -1102,13 +1179,10 @@ class DataType
      */
     public function getPublicDate()
     {
-	if(!is_bool($this->getDataTypeMeta())){
-
-         	 return $this->getDataTypeMeta()->getPublicDate();
-	}
-        else {
-                 return new \DateTime('2200-01-01 00:00:00');
-        }
+        if ( !is_bool($this->getDataTypeMeta()) )
+            return $this->getDataTypeMeta()->getPublicDate();
+        else
+            return new \DateTime('2200-01-01 00:00:00');
     }
 
     /**
@@ -1132,6 +1206,7 @@ class DataType
     }
 
     /**
+     * @deprecated
      * Get nameField
      *
      * @return \ODR\AdminBundle\Entity\DataFields
@@ -1142,6 +1217,7 @@ class DataType
     }
 
     /**
+     * @deprecated
      * Get sortField
      *
      * @return \ODR\AdminBundle\Entity\DataFields
@@ -1152,6 +1228,7 @@ class DataType
     }
 
     /**
+     * @deprecated
      * Get backgroundImageField
      *
      * @return \ODR\AdminBundle\Entity\DataFields
@@ -1162,45 +1239,42 @@ class DataType
     }
 
     /**
-    }
-     * @var \Doctrine\Common\Collections\Collection
+     * Get all name fields defined for this datatype.
+     * @return DataFields[]
      */
-    private $dataRecords;
-
-
-    /**
-     * Add dataRecord.
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
-     *
-     * @return DataType
-     */
-    public function addDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord)
+    public function getNameFields()
     {
-        $this->dataRecords[] = $dataRecord;
+        $namefields = array();
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
+                    $namefields[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
+            }
+            ksort($namefields);
+            $namefields = array_values($namefields);
+        }
 
-        return $this;
-    }
-
-    /**
-     * Remove dataRecord.
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
-     *
-     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
-     */
-    public function removeDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord)
-    {
-        return $this->dataRecords->removeElement($dataRecord);
+        return $namefields;
     }
 
     /**
-     * Get dataRecords.
-     *
-     * @return \Doctrine\Common\Collections\Collection
+     * Get all sort fields defined for this datatype.
+     * @return DataFields[]
      */
-    public function getDataRecords()
+    public function getSortFields()
     {
-        return $this->dataRecords;
+        $sortfields = array();
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
+                    $sortfields[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
+            }
+            ksort($sortfields);
+            $sortfields = array_values($sortfields);
+        }
+
+        return $sortfields;
     }
 }

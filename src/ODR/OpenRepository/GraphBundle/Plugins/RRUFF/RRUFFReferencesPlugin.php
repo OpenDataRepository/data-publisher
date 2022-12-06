@@ -433,9 +433,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
         // Not going to mark the datarecord as updated, but still need to do some other cache
         //  maintenance because a datafield value got changed...
 
-        // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
-        if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-            $this->dbi_service->resetDatatypeSortOrder($datatype->getId());
+        // If the datafield that got changed was a datatype's sort datafield, delete its cached datarecord order
+        $sort_datatypes = $datafield->getSortDatatypes();
+        foreach ($sort_datatypes as $num => $dt)
+            $this->dbi_service->resetDatatypeSortOrder($dt->getId());
 
         // Delete any cached search results involving this datafield
         $this->search_cache_service->onDatafieldModify($datafield);

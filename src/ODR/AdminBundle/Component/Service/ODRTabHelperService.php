@@ -266,10 +266,10 @@ class ODRTabHelperService
 
 
     /**
-     * Returns an array with the datafield_id and the sort direction used to sort the datarecord ids
-     * for this tab.
+     * Returns an array with the datafield_ids and the sort direction used to sort the datarecords
+     * for this tab, or null if no such criteria has been set.
      *
-     * A datafield id of 0 in the returned array indicates the lists are sorted by datarecord id.
+     * An empty array of datafield ids indicates the lists are sorted by datarecord id.
      *
      * @param string $odr_tab_id
      *
@@ -294,20 +294,24 @@ class ODRTabHelperService
     /**
      * Saves the sorting criteria that was used to order the list of datarecord ids for this tab.
      *
-     * A datafield id of 0 should be used when the lists are sorted by datarecord id.
+     * An empty array of datafield ids should be used when the lists are sorted by datarecord id.
      *
      * @param string $odr_tab_id
-     * @param int $datafield_id
-     * @param string $sort_direction 'asc'|'desc'
+     * @param int[] $datafield_ids
+     * @param string[] $sort_directions
      *
      * @throws ODRException
      *
      * @return bool true if updated, false otherwise
      */
-    public function setSortCriteria($odr_tab_id, $datafield_id, $sort_direction)
+    public function setSortCriteria($odr_tab_id, $datafield_ids, $sort_directions)
     {
-        if ($sort_direction !== 'asc' && $sort_direction !== 'desc')
-            throw new ODRBadRequestException('$sort_direction must be "asc" or "desc"', 0xebcca9ca);
+        if ( !empty($sort_directions) ) {
+            foreach ($sort_directions as $display_order => $dir) {
+                if ( $dir !== 'asc' && $dir !== 'desc' )
+                    throw new ODRBadRequestException('sort_direction must be "asc" or "desc"', 0xebcca9ca);
+            }
+        }
 
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
@@ -316,8 +320,8 @@ class ODRTabHelperService
 
         // Store the resulting tab data
         $tab_data['sort_criteria'] = array(
-            'datafield_id' => $datafield_id,
-            'sort_direction' => $sort_direction,
+            'datafield_ids' => $datafield_ids,
+            'sort_directions' => $sort_directions,
         );
         self::setTabData($odr_tab_id, $tab_data);
 
@@ -330,17 +334,21 @@ class ODRTabHelperService
      * parameters.  Returns true when sort criteria doesn't exist in the first place.
      *
      * @param string $odr_tab_id
-     * @param int $datafield_id
-     * @param string $sort_direction
+     * @param int[] $datafield_ids
+     * @param string[] $sort_directions
      *
      * @throws ODRException
      *
      * @return bool true if different, false otherwise
      */
-    public function hasSortCriteriaChanged($odr_tab_id, $datafield_id, $sort_direction)
+    public function hasSortCriteriaChanged($odr_tab_id, $datafield_ids, $sort_directions)
     {
-        if ($sort_direction !== 'asc' && $sort_direction !== 'desc')
-            throw new ODRBadRequestException('$sort_direction must be "asc" or "desc"', 0x5ab8c2d1);
+        if ( !empty($sort_directions) ) {
+            foreach ($sort_directions as $display_order => $dir) {
+                if ( $dir !== 'asc' && $dir !== 'desc' )
+                    throw new ODRBadRequestException('sort_direction must be "asc" or "desc"', 0xebcca9ca);
+            }
+        }
 
         // If the requested tab does not exist in the user's session, then the given parameters
         //  are different by default
@@ -351,18 +359,101 @@ class ODRTabHelperService
         if ( !isset($tab_data['sort_criteria']) )
             return true;
 
-
-        $stored_df_id = $tab_data['sort_criteria']['datafield_id'];
-        $stored_sort_dir = $tab_data['sort_criteria']['sort_direction'];
-
-        if ( intval($stored_df_id) !== intval($datafield_id)
-            || $stored_sort_dir !== $sort_direction
-        ) {
+        $stored_sort_directions = $tab_data['sort_criteria']['sort_directions'];
+        if ( count($sort_directions) !== count($stored_sort_directions) )
             return true;
+        foreach ($sort_directions as $display_order => $dir) {
+            if ( !isset($stored_sort_directions[$display_order]) || $stored_sort_directions[$display_order] !== $dir )
+                return true;
+        }
+
+        $stored_df_ids = $tab_data['sort_criteria']['datafield_ids'];
+        if ( count($datafield_ids) !== count($stored_df_ids) )
+            return true;
+        foreach ($datafield_ids as $display_order => $df_id) {
+            if ( !isset($stored_df_ids[$display_order]) || $stored_df_ids[$display_order] !== $df_id )
+                return true;
         }
 
         // Otherwise, no difference
         return false;
+    }
+
+
+    /**
+     * Returns the contents of the search_results variable for the specified browser tab.
+     *
+     * @param string $odr_tab_id
+     *
+     * @return null|array
+     */
+    public function getSearchResults($odr_tab_id)
+    {
+        // Check that the requested tab exists in the user's session
+        $tab_data = self::getTabData($odr_tab_id);
+        if ( is_null($tab_data) || !isset($tab_data['search_results']) ) {
+            // If this value doesn't exist, then return null
+            return null;
+        }
+
+        // Otherwise, return the search_results for the current tab
+        return $tab_data['search_results'];
+    }
+
+
+    /**
+     * Updates the search_results variable in the specified browser tab to have a given value.
+     *
+     * @param string $odr_tab_id
+     * @param array $search_results
+     * @return bool
+     */
+    public function setSearchResults($odr_tab_id, $search_results)
+    {
+        if ($odr_tab_id == '')
+            return false;
+
+        // Check that the requested tab exists in the user's session
+        $tab_data = self::getTabData($odr_tab_id);
+        if ( is_null($tab_data) ) {
+            // No stored tab data for this user's session...start a new one
+            self::setTabData($odr_tab_id, array('search_results' => $search_results));
+        }
+        else {
+            // Set the search_results for this tab, creating an entry if it doesn't exist
+            $tab_data['search_results'] = $search_results;
+
+            // Store the resulting tab data
+            self::setTabData($odr_tab_id, $tab_data);
+        }
+
+        return true;
+    }
+
+
+    /**
+     * Deletes the search_results variable from the specified browser tab if it exists.
+     *
+     * @param string $odr_tab_id
+     */
+    public function clearSearchResults($odr_tab_id)
+    {
+        if ($odr_tab_id == '')
+            return;
+
+        // Check that the requested tab exists in the user's session
+        $tab_data = self::getTabData($odr_tab_id);
+        if ( is_null($tab_data) ) {
+            // No stored tab data for this user's session...don't need to do anything
+            return;
+        }
+        else if ( isset($tab_data['search_results']) ) {
+            // Deletes the search_results for this tab
+            unset( $tab_data['search_results'] );
+
+            // Store the resulting tab data
+            self::setTabData($odr_tab_id, $tab_data);
+        }
     }
 
 

@@ -1,0 +1,142 @@
+{% spaceless %}
+
+<!-- Special Datafield Selection Dialog Form -->
+<script>
+
+    var special_datafield_selection_dialog_wrapper = '<div id="ODRSpecialDatafieldSelectionDialogWrapper" class="ODRHidden"> </div>';
+
+    /**
+     * Opens ODR's modal and loads a form to select/change name/sort fields for the requested datatype.
+     *
+     * @param {number} datatype_id
+     * @param {string} type
+     */
+    function openSpecialFieldsSelectionDialog(datatype_id, type) {
+        var modal_options = {
+            title: 'Special Datafield Selection Dialog',
+            loading: true,
+            body: special_datafield_selection_dialog_wrapper,
+            buttons: [
+                {
+                    id: 'ODRSpecialFields_save',
+                    text: 'Save'
+                },
+                {
+                    id: 'ODRSpecialFields_close',
+                    secondary: true,
+                    text: 'Cancel'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadSpecialDatafieldSelectionDialog(datatype_id, type);
+
+        // Attach event handlers to the buttons
+        $("#ODRSpecialFields_save").unbind('click').click(function() {
+            saveSpecialDatafieldSelectionDialog(datatype_id);
+        });
+        $("#ODRSpecialFields_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
+    }
+
+    /**
+     * Loads a form to select/change the requested datatype's name/sort datafields.
+     *
+     * @param {number} datatype_id
+     * @param {string} type
+     */
+    function loadSpecialDatafieldSelectionDialog(datatype_id, type) {
+
+        var url = '{{ path('odr_design_get_special_datafield_properties', { 'datatype_id': 0, 'type': '' }) }}';
+        url = url.substr(0, url.length-2);
+        url += datatype_id + '/' + type;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRSpecialDatafieldSelectionDialogWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('250', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRSpecialDatafieldSelectionDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves a form to select/change the requested datatype's name/sort datafields.
+     *
+     * @param {number} datatype_id
+     */
+    function saveSpecialDatafieldSelectionDialog(datatype_id) {
+
+        var url = '{{ path('odr_design_save_special_datafield_properties', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += datatype_id;
+
+        var post_data = $("#ODRSpecialDatafieldSelectionForm").serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            data: post_data,
+            dataType: "json",
+            success: function(data) {
+                // Don't need this open anymore
+                closeODRRemodal();
+
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+<!-- End of Special Datafield Selection Dialog Form -->
+
+{% endspaceless %}

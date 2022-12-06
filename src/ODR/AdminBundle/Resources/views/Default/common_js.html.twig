@@ -563,8 +563,9 @@
         $(".ODRFormAccordion").children("h3").each(function() {
             $(this).unbind('click').click(function() {
                 $(this).parent().children(".accordion-content").each(function() {
-                    if(!$(this).is(":hidden")) {
+                    if ( !$(this).is(":hidden") ) {
                         $(this).hide();
+                        // console.log( '.ODRFormAccordion: hiding', $(this) );
                     }
                     $(this).prev().removeClass('ODRAccordionSelected');
                 });
@@ -589,12 +590,11 @@
                     // Ensure that all child/linked records are hidden, unless user has already
                     //  selected one of them
                     $(this).next().hide();
-                    // console.log( 'hiding ' + $(this).next().attr('id') );
+                    // console.log( '.ODRChildDatatype: hiding ', $(this).next() );
                 }
                 else {
                     // User already selected a child/linked record for this child/linked datatype
                     prev_selection = true;
-                    // console.log( 'previously selected: ' + $(this).next().attr('id') );
                 }
             });
 
@@ -602,7 +602,7 @@
             if ( !prev_selection ) {
                 // ...then show the first child/linked record by default
                 $(this).children().children(".ODRFormAccordion").children("h3:first").next().show();
-                // console.log( 'showing ' + $(this).children().children(".ODRFormAccordion").children("h3:first").next().attr('id') );
+                // console.log( '.ODRChildDatatype: showing prev_selection ', $(this).children().children(".ODRFormAccordion").children("h3:first").next() );
             }
         });
 
@@ -625,10 +625,14 @@
 
                     // Hide all the content divs except the one that was selected
                     $(wrapper_div).children(".accordion-content").each(function() {
-                        if ( $(this).attr('id') !== selected_dr )
+                        if ( $(this).attr('id') !== selected_dr ) {
                             $(this).hide();
-                        else
+                            // console.log( '.ODRTabAccordion button: hiding ', $(this) );
+                        }
+                        else {
                             $(this).show();
+                            // console.log( '.ODRTabAccordion button: showing ', $(this) );
+                        }
                     });
 
                     // Resize any elements that were revealed
@@ -652,6 +656,7 @@
                 // ...and the first content div is the only one visible
                 $(wrapper_div).children(".accordion-content").each(function() {
                     $(this).hide();
+                    // console.log( '.ODRTabAccordion: hiding ', $(this) );
                 });
                 $(wrapper_div).children(".accordion-content").first().show();
             }
@@ -659,12 +664,20 @@
 
         // Setup Dropdown
         $(".ODRDropdownAccordion").each(function() {
+            // console.log('in .ODRDropdownAccordion for ' + $(this).parent().attr('id') );
+
             // Hide all content divs except the first
             var wrapper_div = $(this);
-            $(wrapper_div).children(".accordion-content").each(function() {
-                $(this).hide();
+            $(wrapper_div).children(".accordion-content").each(function(index,elem) {
+                if ( index > 0 ) {
+                    $(elem).hide();
+                    // console.log( '.ODRDropdownAccordion: hiding child ' + index, $(elem) );
+                }
+                else {
+                    $(elem).show();
+                    // console.log( '.ODRDropdownAccordion: showing child ' + index, $(elem) );
+                }
             });
-            $(wrapper_div).children(".accordion-content").first().show();
 
             // Attach the click handler to this dropdown
             var select = $(wrapper_div).children('h3').children("span.AccordionSelect").children('select');
@@ -674,10 +687,14 @@
 
                 // Hide all the content divs except the one that was selected
                 $(wrapper_div).children(".accordion-content").each(function() {
-                    if ( $(this).attr('id') !== selected_dr )
+                    if ( $(this).attr('id') !== selected_dr ) {
                         $(this).hide();
-                    else
+                        // console.log( '.ODRDropdownAccordion select: hiding ', $(this) );
+                    }
+                    else {
                         $(this).show();
+                        // console.log( '.ODRDropdownAccordion select: showing ', $(this) );
+                    }
                 });
 
                 // Resize any elements that were revealed

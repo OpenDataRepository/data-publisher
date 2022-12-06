@@ -365,52 +365,38 @@ function initPage() {
         });
     });
 
+    $(".ODRAddChildRecord").unbind('click').click(function() {
+        var rel = $(this).attr('rel').split(/_/);
+        var datatype_id = rel[0];
+        var parent_datarecord_id = rel[1];
+
+        AddChildRecord(datatype_id, parent_datarecord_id);
+    });
+
+    $(".ODRAddLinkedRecord").unbind('click').click(function() {
+        var rel = $(this).attr('rel').split(/_/);
+        var datatype_id = rel[0];
+        var parent_datarecord_id = rel[1];
+
+        AddLinkedRecord(datatype_id, parent_datarecord_id);
+    });
+    $(".ODROpenLinkSearch").unbind('click').click(function() {
+        var rel = $(this).attr('rel').split(/_/);
+        var ancestor_datatype_id = rel[0];
+        var descendant_datatype_id = rel[1];
+        var parent_datarecord_id = rel[2];
+
+        OpenLinkSearchPage(ancestor_datatype_id, descendant_datatype_id, parent_datarecord_id);
+    });
+
     $(".ODRPublicChildRecord").unbind('click').click(function() {
         var datarecord_id = $(this).attr('rel');
+        ChangeRecordPublicStatus(datarecord_id);
+    });
 
-        var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
-        url = url.substring(0, (url.length - 1));
-        url += datarecord_id;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                // Don't want to reload everything just to change one little icon...
-                var header = $("#datarecord_" + data.d.datarecord_id + "_public");
-                var title = $(header).attr('title');
-                var new_title = title;
-
-                if (data.d.public == 1) {
-                    $(header).addClass('ODRActiveIcon');
-                    new_title = title.replace('not ', '');
-                }
-                else {
-                    $(header).removeClass('ODRActiveIcon');
-                    new_title = title.substring(0, title.indexOf('Public')) + 'not Public';
-                }
-
-                $(header).attr('title', new_title);
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
+    $(".ODRPublicLinkedRecord").unbind('click').click(function() {
+        var datarecord_id = $(this).attr('rel');
+        ChangeRecordPublicStatus(datarecord_id);
     });
 
     $(".ODRUnlinkRecord").unbind('click').click(function() {
@@ -618,51 +604,16 @@ function initPage() {
     });
 
     $(".ODRDeleteLinkedRecord").unbind('click').click(function() {
-        if ( confirm('This linked record may be used by other databases.  Are you sure you want to delete this record?') ) {
+        if ( confirm('This linked record may be used by other databases.  Are you absolutely certain you want to delete it?') ) {
             var datarecord_id = $(this).attr('rel');   // which data record to delete
             DeleteLinkedRecord(datarecord_id);
         }
     });
 
     $(".ODRDeleteChildRecord").unbind('click').click(function() {
-        if ( confirm('Are you sure you want to delete this record?') ) {
+        if ( confirm('Are you sure you want to delete this child record?') ) {
             var datarecord_id = $(this).attr('rel');   // which data record to delete
-
-            // The controller action will realize this is a child datarecord, and return the info
-            //  so ReloadEditChild() can be called
-            var url  = '{{ path('odr_record_delete', {'datarecord_id': 0, 'is_link': 0} ) }}';
-            url = url.substring(0,(url.length - 3));
-            url += datarecord_id + '/0';
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    // Refresh child wrapper area
-                    var datatype_id = data.d.datatype_id;
-                    var parent_id = data.d.parent_id;
-
-                    ReloadEditChild(datatype_id, parent_id);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
+            DeleteChildRecord(datarecord_id);
         }
     });
 
@@ -1176,8 +1127,6 @@ function LinkRecordOnly(ancestor_datatype_id, descendant_datatype_id, local_data
 function AddLinkedRecord(remote_datatype_id, parent_datarecord_id) {
 
     var wrapper_div = $("#ChildTypeWrapper_" + remote_datatype_id + "_" + parent_datarecord_id);
-    insertLoadingDiv( $(wrapper_div).attr('id') );
-
     var theme_element_id = $(wrapper_div).parent().parent().attr('rel');
     var top_level_datarecord_id = $("#ODRTopLevelDatarecordId").val();
 
@@ -1190,6 +1139,8 @@ function AddLinkedRecord(remote_datatype_id, parent_datarecord_id) {
     // The top-level datatype/theme can be determined from the theme_element.
     // The parent/child datatype/theme (required to stack the cached arrays at the right spot) can
     //  also be determined from the theme_element.
+
+    insertLoadingDiv( $(wrapper_div).attr('id') );
 
     $.ajax({
         cache: false,
@@ -1215,6 +1166,100 @@ function AddLinkedRecord(remote_datatype_id, parent_datarecord_id) {
                 // List display...fake record will be at the top of the list
                 ScrollHighlight( $(wrapper_div).find(".ODRListDisplayHeader") );
             }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+/**
+ * Changes public status of the requested record.
+ *
+ * @param {number} datarecord_id
+ */
+function ChangeRecordPublicStatus(datarecord_id) {
+    var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
+    url = url.substring(0, (url.length - 1));
+    url += datarecord_id;
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            // Don't want to reload everything just to change one little icon...
+            var header = $("#datarecord_" + data.d.datarecord_id + "_public");
+            var title = $(header).attr('title');
+            var new_title = title;
+
+            if (data.d.public == 1) {
+                $(header).addClass('ODRActiveIcon');
+                new_title = title.replace('not ', '');
+            }
+            else {
+                $(header).removeClass('ODRActiveIcon');
+                new_title = title.substring(0, title.indexOf('Public')) + 'not Public';
+            }
+
+            $(header).attr('title', new_title);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+/**
+ * Soft-deletes the specified child datarecord.
+ *
+ * @param {number} datarecord_id
+ */
+function DeleteChildRecord(datarecord_id) {
+    // The controller action will realize this is a child datarecord, and return the info
+    //  so ReloadEditChild() can be called
+    var url  = '{{ path('odr_record_delete', {'datarecord_id': 0, 'is_link': 0} ) }}';
+    url = url.substring(0,(url.length - 3));
+    url += datarecord_id + '/0';
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            // Refresh child wrapper area
+            var datatype_id = data.d.datatype_id;
+            var parent_id = data.d.parent_id;
+
+            ReloadEditChild(datatype_id, parent_id);
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
@@ -1593,20 +1638,23 @@ function selectRecordFieldArea(datarecord_id) {
     var field_area = $("#FieldArea_" + datarecord_id);
 
     if ( field_area.parent().hasClass("ODRFormAccordion") ) {
+        // Accordion displayType
         field_area.prev().click();
     }
-    else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
-        field_area.parent().find(".ODRSelect").val(datarecord_id).change();
-    }
     else if (field_area.parent().hasClass("ODRTabAccordion")) {
-        field_area.parent().find(".ODRTabButton").each(function() {
+        // Tab displayType
+        field_area.parent().children(".ODRTabButtonHeader").find(".ODRTabButton").each(function() {
             if ($(this).attr('rel').toString() === datarecord_id.toString()) {
                 $(this).click();
             }
         });
     }
+    else if ( field_area.parent().hasClass("ODRDropdownAccordion") ) {
+        // Dropdown displayType
+        field_area.parent().children(".ui-accordion-header").children(".ODRSelectWrap").find(".ODRSelect").val(datarecord_id).change();
+    }
     else {
-        // List display
+        // List displayType
         ScrollHighlight( $(field_area) );
     }
 }

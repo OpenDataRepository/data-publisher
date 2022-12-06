@@ -1,0 +1,130 @@
+{% spaceless %}
+
+<div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
+    <div class="pure-u-1 ODRSpecialFieldSelection_header">
+        This dialog allows you to choose and reorder the fields that will be used for {% if purpose == 'name' %}naming{% else %}sorting{% endif%} the records in this database.
+        No change is saved until you click the "Save" button at the bottom of the dialog.
+    </div>
+
+    <div class="pure-u-1-2">
+    {% for dt_id,dt_data in available_datafields %}
+        <div class="pure-u-1 ODRSpecialFieldSelection_datatype">{{ dt_data['datatype_name'] }}</div>
+        {% if dt_data['datafields']|length == 0 %}
+            <div class="ODRSpecialFieldSelection_datafields">This datatype has no datafields which are suited for {% if purpose == 'name' %}naming{% else %}sorting{% endif%}.</div>
+        {% else %}
+        <div class="pure-u-1 ODRSpecialFieldSelection_datafields">
+            {% for df_id,df_name in dt_data['datafields'] %}
+            <div id="ODRSpecialFieldSelection_df_{{ df_id }}_avail" class="ODRSpecialFieldSelection_datafield" rel="{{ df_id }}">
+                <span class="ODRSpecialFieldSelection ODRTristateCheckbox binary"><i class="fa {% if current_datafields[df_id] is defined %}fa-check{% endif %}"></i></span>
+                <span class="ODRSpecialFieldSelection_datafield_name">{{ df_name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endfor %}
+    </div>
+
+    <div class="pure-u-1-2">
+        <form id="ODRSpecialDatafieldSelectionForm" class="pure-form">
+            <input type="hidden" name="_token" value="{{ token }}" />
+            <input type="hidden" name="purpose" value="{{ purpose }}" />
+
+            {% for df_id, df_data in current_datafields %}
+            <div id="ODRSpecialFieldSelection_df_{{ df_id }}" class="ODRSpecialFieldSelection_datafield">
+                <input type="hidden" name="datafields[]" value="{{ df_id }}" />
+                <span class="ODRSpecialFieldSelection_trash" title="Stop using this field for this purpose"><i class="fa fa-lg fa-trash-o"></i></span>
+                <span class="ODRSpecialFieldSelection_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
+                <span class="ODRSpecialFieldSelection_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
+                <span class="ODRSpecialFieldSelection_datafield_name">{{ df_data['field_name'] }}</span>
+            </div>
+            {% endfor %}
+        </form>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        $(".ODRSpecialFieldSelection.ODRTristateCheckbox").unbind('click').click(function() {
+            var icon_div = $(this).children('.fa').first();
+            var df_name = $(this).next().html();
+            var df_id = $(this).parent().attr('rel');
+
+            if ( $(icon_div).hasClass('fa-check') ) {
+                // Datafield currently selected, mark as unselected
+                $(icon_div).removeClass('fa-check');
+
+                // Remove from the right side
+                $("#ODRSpecialFieldSelection_df_" + df_id).remove();
+            }
+            else {
+                // Datafield currently unselected, mark as selected
+                $(icon_div).addClass('fa-check');
+
+                // Add to the right side
+                ODRSpecialFieldSelection_addDatafield(df_name, df_id);
+            }
+        });
+
+        // Need to attach handlers to everything on the right side
+        ODRSpecialFieldSelection_attachHandlers();
+    });
+
+    /**
+     * Reattaches the jquery handlers to the list of datafields on the right side
+     */
+    function ODRSpecialFieldSelection_attachHandlers() {
+        $(".ODRSpecialFieldSelection_trash").unbind('click').click(function () {
+            var df_id = $(this).prev().attr('value');
+
+            $("#ODRSpecialFieldSelection_df_" + df_id + "_avail").children(".ODRTristateCheckbox").trigger('click');
+        });
+
+        $(".ODRSpecialFieldSelection_up").unbind('click').click(function () {
+            var parent = $(this).parent();
+
+            if ( $(parent).prev().length > 0 ) {
+                var copy = $(parent).clone();
+                $(parent).prev().before(copy);
+                $(parent).remove();
+
+                // Need to attach handlers to the cloned block of HTML
+                ODRSpecialFieldSelection_attachHandlers();
+            }
+        });
+        $(".ODRSpecialFieldSelection_down").unbind('click').click(function () {
+            var parent = $(this).parent();
+
+            if ( $(parent).next().length > 0 ) {
+                var copy = $(parent).clone();
+                $(parent).next().after(copy);
+                $(parent).remove();
+
+                // Need to attach handlers to the cloned block of HTML
+                ODRSpecialFieldSelection_attachHandlers();
+            }
+        });
+    }
+
+    /**
+     * Adds an existing datafield to the list of datafields on the right side
+     *
+     * @param {string} df_name
+     * @param {string} df_id
+     */
+    function ODRSpecialFieldSelection_addDatafield(df_name, df_id) {
+        var str =
+            '<div id="ODRSpecialFieldSelection_df_' + df_id + '" class="ODRSpecialFieldSelection_datafield">' +
+                '<input type="hidden" name="datafields[]" value="' + df_id + '" />' +
+                '<span class="ODRSpecialFieldSelection_trash" title=""><i class="fa fa-lg fa-trash-o"></i></span>' +
+                '<span class="ODRSpecialFieldSelection_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>' +
+                '<span class="ODRSpecialFieldSelection_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
+                '<span class="ODRSpecialFieldSelection_datafield_name">' + df_name + '</span>' +
+            '</div>';
+
+        // Append the block of HTML and attach handlers to it
+        $("#ODRSpecialDatafieldSelectionForm").append(str);
+        ODRSpecialFieldSelection_attachHandlers();
+    }
+</script>
+
+{% endspaceless %}

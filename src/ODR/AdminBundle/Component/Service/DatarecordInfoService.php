@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -295,7 +296,7 @@ class DatarecordInfoService
                partial dr_ub.{id, username, email, firstName, lastName},
 
                dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
-               dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
+               dtm, partial dt_eif.{id}, partial dtsf.{id, dataField, field_purpose, displayOrder}, partial s_df.{id}, partial s_df_dt.{id},
 
                drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, publicDate, xml_fieldName}, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
@@ -331,8 +332,9 @@ class DatarecordInfoService
             LEFT JOIN dt.metadata_for AS mf
 
             LEFT JOIN dtm.externalIdField AS dt_eif
-            LEFT JOIN dtm.nameField AS dt_nf
-            LEFT JOIN dtm.sortField AS dt_sf
+            LEFT JOIN dt.dataTypeSpecialFields AS dtsf
+            LEFT JOIN dtsf.dataField AS s_df
+            LEFT JOIN s_df.dataType AS s_df_dt
 
             LEFT JOIN dr.dataRecordFields AS drf
             LEFT JOIN drf.file AS e_f
@@ -441,23 +443,13 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['createdBy'] = UserUtility::cleanUserData( $dr['createdBy'] );
             $datarecord_data[$dr_num]['updatedBy'] = UserUtility::cleanUserData( $dr['updatedBy'] );
 
-            // Store which datafields are used for the datatype's external_id_datafield, name_datafield, and sort_datafield
+            // Since only one datafield is allowed for a datatype's external_id_datafield, it doesn't
+            //  need to be handled like a name/sort field
             $external_id_field = null;
-            $name_datafield = null;
-            $sort_datafield = null;
-
-            $dt_id = $dr['dataType']['id'];
             if ( isset($dr['dataType']['dataTypeMeta'][0]['externalIdField']['id']) )
                 $external_id_field = $dr['dataType']['dataTypeMeta'][0]['externalIdField']['id'];
-            if ( isset($dr['dataType']['dataTypeMeta'][0]['nameField']['id']) )
-                $name_datafield = $dr['dataType']['dataTypeMeta'][0]['nameField']['id'];
-            if ( isset($dr['dataType']['dataTypeMeta'][0]['sortField']['id']) )
-                $sort_datafield = $dr['dataType']['dataTypeMeta'][0]['sortField']['id'];
-
-            // Also going to store the values for these datafields, once they're found
+            // Also going to store the value for this datafields, once it's found
             $datarecord_data[$dr_num]['externalIdField_value'] = '';
-            $datarecord_data[$dr_num]['nameField_value'] = '';
-            $datarecord_data[$dr_num]['sortField_value'] = '';
 
             // Only want to load the tag hierarchy for this grandparent datatype once
             if ( is_null($tag_id_hierarchy) ) {
@@ -623,27 +615,10 @@ class DatarecordInfoService
                     if ( count($drf[$typeclass]) > 0 ) {
                         $drf[$typeclass][0]['updatedBy'] = UserUtility::cleanUserData( $drf[$typeclass][0]['updatedBy'] );
 
-                        // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
-                        if ($external_id_field !== null && $external_id_field == $df_id) {
+                        // Store the value from this storage entity if it's the one being used for
+                        //  the external_id field
+                        if ($external_id_field !== null && $external_id_field == $df_id)
                             $datarecord_data[$dr_num]['externalIdField_value'] = $drf[$typeclass][0]['value'];
-                        }
-                        if ($name_datafield !== null && $name_datafield == $df_id) {
-                            // Need to ensure this value is a string so php sorting functions don't complain
-                            if ($typeclass == 'datetimeValue')
-                                $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
-                            else
-                                $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value'];
-                        }
-                        if ($sort_datafield !== null && $sort_datafield == $df_id) {
-                            // Need to ensure this value is a string so php sorting functions don't complain
-                            if ($typeclass == 'datetimeValue')
-                                $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
-                            else
-                                $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value'];
-
-                            // Also store the typeclass...Integer/Decimal need to use SORT_NUMERIC instead of SORT_NATURAL...
-                            $datarecord_data[$dr_num]['sortField_typeclass'] = ucfirst($typeclass);
-                        }
                     }
                 }
 
@@ -654,18 +629,6 @@ class DatarecordInfoService
 
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;
-
-                    if ($name_datafield !== null && $name_datafield == $df_id && $rs['selected'] === 1) {
-                        // Should only be one selection since this is a name field...
-                        $datarecord_data[$dr_num]['nameField_value'] = $rs['radioOption']['optionName'];
-                    }
-                    if ($sort_datafield !== null && $sort_datafield == $df_id && $rs['selected'] === 1) {
-                        // Should only be one selection since this is a sort field...
-                        $datarecord_data[$dr_num]['sortField_value'] = $rs['radioOption']['optionName'];
-
-                        // Also store the typeclass...Integer/Decimal need to use SORT_NUMERIC instead of SORT_NATURAL...
-                        $datarecord_data[$dr_num]['sortField_typeclass'] = ucfirst($typeclass);
-                    }
                 }
                 $drf['radioSelection'] = $new_rs_array;
 
@@ -732,24 +695,244 @@ class DatarecordInfoService
         $formatted_datarecord_data = array();
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];
-
-            // These two values should default to the datarecord id if empty
-            if ( $dr_data['nameField_value'] == '' )
-                $dr_data['nameField_value'] = $dr_id;
-
-            // TODO - if sortfield belongs to a linked datatype, then this value will always be blank
-            // TODO - would have to do something else to locate the correct value...
-            if ( $dr_data['sortField_value'] == '' ) {
-                $dr_data['sortField_value'] = $dr_id;
-                $dr_data['sortField_typeclass'] = '';
-            }
-
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
+
+        // Find, combine, and save the values for the name/sort fields
+        self::findSpecialFieldValues($formatted_datarecord_data);
 
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
         return $formatted_datarecord_data;
+    }
+
+
+    /**
+     * Multiple places in ODR need to have quick/easy access to the name/sort values for a datarecord.
+     * This function does the work of locating the values, combining them together if there's more
+     * than one of them, and then saving the values back in the cached datarecord array.
+     *
+     * @param array $dr_array
+     */
+    private function findSpecialFieldValues(&$dr_array)
+    {
+        foreach ($dr_array as $dr_id => $dr) {
+            // Extract the list of special fields for this datatype
+            $special_fields = $dr['dataType']['dataTypeSpecialFields'];
+            // Don't want this data in the final array
+            unset( $dr_array[$dr_id]['dataType']['dataTypeSpecialFields'] );
+
+            // Convert that list into two arrays...one for datarecord names, another for datarecord sort
+            $name_fields = array();
+            $sort_fields = array();
+            // Also need to track which datatype the special field came from
+            $dt_lookup = array();
+
+            foreach ($special_fields as $num => $dtsf) {
+                $df_id = $dtsf['dataField']['id'];
+                if ( $dtsf['field_purpose'] === DataTypeSpecialFields::NAME_FIELD )
+                    $name_fields[ $dtsf['displayOrder'] ] = $df_id;
+                else if ( $dtsf['field_purpose'] === DataTypeSpecialFields::SORT_FIELD )
+                    $sort_fields[ $dtsf['displayOrder'] ] = $df_id;
+
+                $dt_lookup[$df_id] = $dtsf['dataField']['dataType']['id'];
+            }
+
+            // Attempt to find any "name" values for this datarecord...
+            $name_field_values = array();
+            foreach ($name_fields as $display_order => $df_id) {
+                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                    $drf = $dr['dataRecordFields'][$df_id];
+                    $name_field_values[$display_order] = self::getValue($drf);
+                }
+
+                // "name" values aren't allowed to come from child/linked descendants
+            }
+
+
+            // Attempt to find any "sort" values for this datarecord...
+            $sort_fields_are_numeric = true;
+            $sort_field_values = array();
+            foreach ($sort_fields as $display_order => $df_id) {
+                // Determine whether the values should be in this datarecord or not
+                $is_remote = false;
+                if ( $dt_lookup[$df_id] !== $dr['dataType']['id'] )
+                    $is_remote = true;
+
+                if ( !$is_remote && isset($dr['dataRecordFields'][$df_id]) ) {
+                    // The sort field belongs to the current datatype, so attempt to find the value
+                    //  for this datafield
+                    $drf = $dr['dataRecordFields'][$df_id];
+                    $sort_field_values[$display_order] = self::getValue($drf);
+
+                    // Keep track of whether all sort values are numeric or not
+                    $typeclass = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
+                    if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
+                        $sort_fields_are_numeric = false;
+                }
+                else if ( $is_remote ) {
+                    // Sort fields are allowed to come from another datatype if it's a single-allowed
+                    //  child/linked descendant.
+                    $descendant_dt_id = $dt_lookup[$df_id];
+
+                    // At this point, the datarecord array will contain the ids of all of its
+                    //  child/linked descedant records, organized by datatype id...
+                    $tmp_dr_list = array();
+                    if ( isset($dr['children'][$descendant_dt_id]) )
+                        $tmp_dr_list = $dr['children'][$descendant_dt_id];
+
+                    // ...so if it actually has a descendant record of that descendant datatype,
+                    //  then its id will be accessible
+                    $tmp_dr_id = null;
+                    if ( isset($tmp_dr_list[0]) )
+                        $tmp_dr_id = $tmp_dr_list[0];
+
+                    if ( !is_null($tmp_dr_id) ) {
+                        // Fortunately, there is a descendant record...
+
+                        if ( isset($dr_array[$tmp_dr_id]) ) {
+                            // ...and since the datarecord array contains an entry for this id,
+                            //  that means it's coming from a child record
+                            $child_dr = $dr_array[$tmp_dr_id];
+
+                            // Attempt to find the value for this datafield
+                            if ( isset($child_dr['dataRecordFields'][$df_id]) ) {
+                                $child_drf = $child_dr['dataRecordFields'][$df_id];
+                                $sort_field_values[$display_order] = self::getValue($child_drf);
+                            }
+                        }
+                        else {
+                            // ...since the datarecord array doesn't contain an entry for this id,
+                            //  that means it's supposed to come from a linked record...however, at
+                            //  this point in time the linked records aren't in the array.  Therefore,
+                            //  have no choice but to locate the value directly from the database
+
+                            // Need one query to get the typeclass of the field...
+                            $query = $this->em->createQuery(
+                               'SELECT ft.typeClass
+                                FROM ODRAdminBundle:DataFieldsMeta dfm
+                                LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
+                                WHERE dfm.dataField = :datafield_id
+                                AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
+                            )->setParameters( array('datafield_id' => $df_id) );
+                            $results = $query->getArrayResult();
+
+                            // Should only be one row
+                            $typeclass = $results[0]['typeClass'];
+
+                            // Knowing the typeclass enables a second query that targets the relevant
+                            //  dataRecordField entry in the linked record...
+                            $query = null;
+                            if ( $typeclass === 'Radio' ) {
+                                $query = $this->em->createQuery(
+                                   'SELECT ro.optionName AS sortfield_value
+                                    FROM ODRAdminBundle:DataRecordFields drf
+                                    LEFT JOIN ODRAdminBundle:RadioSelection rs WITH rs.dataRecordFields = drf
+                                    LEFT JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
+                                    WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
+                                    AND rs.selected = 1
+                                    AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                                )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
+                            }
+                            else {
+                                $query = $this->em->createQuery(
+                                   'SELECT e.value AS sortfield_value
+                                    FROM ODRAdminBundle:DataRecordFields drf
+                                    LEFT JOIN ODRAdminBundle:'.$typeclass.' e WITH e.dataRecordFields = drf
+                                    WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
+                                    AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+                                )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
+                            }
+                            $results = $query->getArrayResult();
+
+                            // Should only be one value...
+                            if ( isset($results[0]['sortfield_value']) )
+                                $sort_field_values[$display_order] = $results[0]['sortfield_value'];
+                            else
+                                $sort_field_values[$display_order] = '';
+
+                            // Keep track of whether all sort values are numeric or not
+                            if ( $typeclass !== 'IntegerValue' && $typeclass !== 'DecimalValue' )
+                                $sort_fields_are_numeric = false;
+                        }
+                    }
+
+                    // Otherwise, there's no descendant child/linked record to get a sort_value from
+                }
+            }
+
+
+            // ----------------------------------------
+            // Now that the values for these special fields have been found...
+            if ( !empty($name_field_values) ) {
+                // Ensure the values are in the correct order before imploding
+                ksort($name_field_values);
+                $dr_array[$dr_id]['nameField_value'] = implode(' ', $name_field_values);
+            }
+            else {
+                // Otherwise, no value defined...default to the datarecord id
+                $dr_array[$dr_id]['nameField_value'] = $dr_id;
+            }
+
+            // Do the same thing for the sort values
+            if ( !empty($sort_field_values) ) {
+                ksort($sort_field_values);
+                $dr_array[$dr_id]['sortField_value'] = implode(' ', $sort_field_values);
+            }
+            else {
+                $dr_array[$dr_id]['sortField_value'] = $dr_id;
+            }
+
+            // Also should store whether sorts should use SORT_NATURAL or SORT_NUMERIC
+            if ( $sort_fields_are_numeric && count($sort_fields) < 2 ) {
+                // If the sort fields are numeric, and there's not more than one sort field, then
+                //  always use numeric
+                $dr_array[$dr_id]['sortField_types'] = 'numeric';
+            }
+            else {
+                // If the sort field isn't numeric, or there's more than one sort field, then
+                //  always use natural sort
+                $dr_array[$dr_id]['sortField_types'] = 'natural';
+            }
+        }
+    }
+
+
+    /**
+     * Extracts the value from a dataRecordField entry in the array.
+     *
+     * @param $drf
+     * @return string
+     */
+    private function getValue($drf)
+    {
+        $df = $drf['dataField'];
+        $typeclass = lcfirst($df['dataFieldMeta']['fieldType']['typeClass']);
+
+        if ( $typeclass === 'radio' ) {
+            // Radio fields need to dig through the radioSelections...
+            if ( isset($drf['radioSelection']) ) {
+                foreach ($drf['radioSelection'] as $rs_num => $rs) {
+                    if ( $rs['selected'] === 1 )
+                        return trim($rs['radioOption']['optionName']);
+                }
+            }
+        }
+        else if ( $typeclass === 'dateTime' ) {
+            if ( isset($drf[$typeclass][0]['value']) ) {
+                // Datetime fields need to be converted into a string...
+                return ($drf[$typeclass][0]['value'])->format('Y-m-d');
+            }
+        }
+        else {
+            if ( isset($drf[$typeclass][0]['value']) ) {
+                // All other fields can just be used directly
+                return trim($drf[$typeclass][0]['value']);
+            }
+        }
+
+        // Otherwise, no value exists...return the empty string
+        return '';
     }
 
 

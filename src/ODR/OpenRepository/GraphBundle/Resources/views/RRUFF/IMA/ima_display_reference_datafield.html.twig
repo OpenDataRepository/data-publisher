@@ -89,7 +89,7 @@
                         {% set rendered_related_reference = true %}
 
                         {# [datarecord] converts datarecord into a single-element array #}
-                        {% set content = [reference_dr]|datatype_plugin(reference_dt, render_plugin_instance, reference_theme, rendering_options) %}
+                        {% set content = [reference_dr]|datatype_plugin(reference_dt, render_plugin_instance, reference_theme, rendering_options, datarecord) %}
                         {% if content|length > 0 %}
                             <div class="ODRRenderPluginContent ODRReference">{{ content|raw }}</div>
                         {% endif %}

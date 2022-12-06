@@ -160,15 +160,15 @@ class GraphController extends ODRCustomController
                 throw new \Exception('{ "message": "Item Deleted", "detail": "RenderPluginInstance does not exist."}');
 
             // Build Graph - Static Option
-            // {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType} %}
             $rendering_options = array(
                 'build_graph' => true,
 
-                // The value of these four options shouldn't really matter since this call is
-                //  only telling the graph plugin to render/save a graph
+                // The value of these options shouldn't really matter since this call is only
+                //  telling the graph plugin to render/save a graph
                 'is_top_level' => $is_top_level,
                 'is_link' => 0,
                 'display_type' => ThemeDataType::ACCORDION_HEADER,
+                'multiple_allowed' => 0,
                 'theme_type' => 'master',
             );
 

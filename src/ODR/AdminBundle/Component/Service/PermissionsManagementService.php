@@ -143,8 +143,8 @@ class PermissionsManagementService
                 $datatype,
                 $search_key,
                 array(), // empty user permissions array since searching as super admin
-                0,       // use default sort order for datatype
-                true,    // sort ascending by default
+                array(), // use default sort order for datatype
+                array(), // sort ascending by default
                 true     // search as super admin, so no filtering takes place
             );
 

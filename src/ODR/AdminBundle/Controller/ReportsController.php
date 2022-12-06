@@ -161,19 +161,36 @@ class ReportsController extends ODRCustomController
      */
     private function getDatarecordNames($em, $datatype)
     {
-        // If the datatype has a namefield set, load all the values of the namefield
-        $namefield = $datatype->getNameField();
-
+        // TODO - kinda need the grandparent datarecord id in here for the links to be correct...
         $datarecord_names = array();
-        if ( !is_null($namefield) ) {
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id, e.value AS namefield_value
-                FROM ODRAdminBundle:'.$namefield->getFieldType()->getTypeClass().' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE e.dataField = :datafield
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $namefield->getId()) );
+
+        $namefields = $datatype->getNameFields();
+        foreach ($namefields as $display_order => $name_df) {
+            $query = null;
+            $typeclass = $name_df->getFieldType()->getTypeClass();
+            if ( $typeclass === 'Radio' ) {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id, ro.optionName AS namefield_value
+                    FROM ODRAdminBundle:RadioOptions AS ro
+                    LEFT JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
+                    LEFT JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
+                    LEFT JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    WHERE drf.dataField = :datafield AND rs.selected = 1
+                    AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL
+                    AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $name_df->getId()) );
+            }
+            else {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id, e.value AS namefield_value
+                    FROM ODRAdminBundle:'.$typeclass.' AS e
+                    LEFT JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                    LEFT JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    WHERE e.dataField = :datafield
+                    AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
+                    AND dr.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $name_df->getId()) );
+            }
             $results = $query->getArrayResult();
 
             foreach ($results as $num => $result) {
@@ -181,10 +198,13 @@ class ReportsController extends ODRCustomController
                 $namefield_value = trim($result['namefield_value']);
 
                 // Name field values are useless if they're blank...
-                if ( $namefield_value !== '' )
+                if ( $namefield_value === '' )
+                    $namefield_value = $dr_id;
+
+                if ( !isset($datarecord_names[$dr_id]) )
                     $datarecord_names[$dr_id] = $namefield_value;
                 else
-                    $datarecord_names[$dr_id] = $dr_id;
+                    $datarecord_names[$dr_id] .= ' '.$namefield_value;
             }
         }
 

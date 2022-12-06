@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
@@ -391,15 +392,15 @@ class SearchAPIService
      * @param string $search_key
      * @param array $user_permissions     The permissions of the user doing the search, or an empty
      *                                    array when not logged in
-     * @param int $sort_df_id             The id of the datafield to sort by, or 0 to sort by
-     *                                    whatever is default for the datatype
-     * @param bool $sort_ascending        If true, sort ascending...if false, sort descending
-     *                                    instead
+     * @param int[] $sort_datafields      An ordered list of the datafields to sort by, or an empty
+     *                                    array to sort by whatever is default for the datatype
+     * @param string[] $sort_directions   An ordered list of which direction to sort each datafield
+     *                                    by
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return array
      */
-    public function performSearch($datatype, $search_key, $user_permissions, $sort_df_id = 0, $sort_ascending = true, $search_as_super_admin = false)
+    public function performSearch($datatype, $search_key, $user_permissions, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
     {
         // ----------------------------------------
         // This really shouldn't be null, but just in case...
@@ -605,17 +606,68 @@ class SearchAPIService
             $source_dt_id = $datatype->getId();
             $grandparent_ids_for_sorting = implode(',', $grandparent_ids);
 
-            if ($sort_df_id === 0) {
-                // No sort datafield defined for this request, use datarecord_id order
+            // Want to use SortService::getSortedDatarecordList() unless the provided sort datafields
+            //  or directions are different from the datatype's default sort order
+            $is_default_sort_order = true;
+            foreach ($sort_directions as $num => $dir) {
+                if ( $dir !== 'asc' )
+                    $is_default_sort_order = false;
+            }
+            foreach ($datatype->getSortFields() as $display_order => $df) {
+                if ( !isset($sort_datafields[$display_order]) || $df->getId() !== $sort_datafields[$display_order] )
+                    $is_default_sort_order = false;
+            }
+
+            // ----------------------------------------
+            if ( empty($sort_datafields) || $is_default_sort_order ) {
+                // No sort datafields defined for this request, use the datatype's default ordering
                 $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($source_dt_id, $grandparent_ids_for_sorting);
             }
-            else if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) ) {
-                // The sort datafield belongs to the datatype being searched on
-                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
+            else if ( count($sort_datafields) === 1 ) {
+                // If the user wants to only use one datafield for sorting, then it's better to call
+                //  the relevant functions in SortService directly
+                $sort_df_id = $sort_datafields[0];
+                $sort_dir = $sort_directions[0];
+
+                if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) ) {
+                    // The sort datafield belongs to the datatype being searched on
+                    $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_dir, $grandparent_ids_for_sorting);
+                }
+                else {
+                    // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
+                    $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_dir, $grandparent_ids_for_sorting);
+                }
             }
             else {
-                // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
-                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
+                // If more than one datafield is needed for sorting, then multisort has to be used
+                $linked_datafields = array();
+                $numeric_datafields = array();
+
+                foreach ($sort_datafields as $display_order => $sort_df_id) {
+                    // It's easier to determine whether this is a linked field or not here instead
+                    //  of inside the multisort function
+                    if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) )
+                        $linked_datafields[$display_order] = false;
+                    else
+                        $linked_datafields[$display_order] = true;
+
+                    // Same deal with whether the datafield is an integer/decimal field or not
+                    foreach ($searchable_datafields as $sort_df_dt_id => $fields) {
+                        // The field may not belong to $source_dt_id...
+                        if ( isset($fields[$sort_df_id]) ) {
+                            $typeclass = $fields[$sort_df_id]['typeclass'];
+                            if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' )
+                                $numeric_datafields[$display_order] = true;
+                            else
+                                $numeric_datafields[$display_order] = false;
+
+                            // Don't continue looking for this field
+                            break;
+                        }
+                    }
+                }
+
+                $sorted_datarecord_list = $this->sort_service->multisortDatarecordList($source_dt_id, $sort_datafields, $sort_directions, $linked_datafields, $numeric_datafields, $grandparent_ids_for_sorting);
             }
 
             // Convert from ($dr_id => $sort_value) into ($num => $dr_id)

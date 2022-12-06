@@ -15,6 +15,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\FieldType;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -425,6 +426,8 @@ class DatafieldInfoService
     {
         // ----------------------------------------
         $fieldtype_info = array();
+        $is_single_radio_field = array();
+        $is_multiple_radio_field = array();
 
         // If no datafields were specified, then determine the allowed fieldtypes of all datafields
         //  in the given datatype
@@ -435,53 +438,133 @@ class DatafieldInfoService
                 $datafield_ids[] = $df_id;
         }
 
+        // It's easier to determine which fields are single/multiple radio all at once
+        foreach ($datatype_array[$datatype_id]['dataFields'] as $df_id => $df) {
+            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+            switch ($typename) {
+                case 'Single Radio':
+                case 'Single Select':
+                    $is_single_radio_field[$df_id] = true;
+                    break;
+                case 'Multiple Radio':
+                case 'Multiple Select':
+                    $is_multiple_radio_field[$df_id] = true;
+                    break;
+
+                default:
+                    $is_single_radio_field[$df_id] = false;
+                    $is_multiple_radio_field[$df_id] = false;
+                    break;
+            }
+        }
+
         // Most likely going to need a list of all available fieldtypes
         /** @var FieldType[] $tmp */
         $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
         $all_fieldtypes = array();
-        foreach ($tmp as $ft)
+        $single_radio_fieldtype_ids = array();
+        $multiple_radio_fieldtype_ids = array();
+        foreach ($tmp as $ft) {
             $all_fieldtypes[] = $ft->getId();
+
+            $typename = $ft->getTypeName();
+            switch ($typename) {
+                case 'Single Radio':
+                case 'Single Select':
+                    // Always want to consider 'Single Radio' as equivalent to 'Single Select'
+                    $single_radio_fieldtype_ids[] = $ft->getId();
+                    break;
+                case 'Multiple Radio':
+                case 'Multiple Select':
+                    // Same deal with 'Multiple Radio' and 'Multiple Select'
+                    $multiple_radio_fieldtype_ids[] = $ft->getId();
+                    break;
+
+                default:
+                    break;
+            }
+        }
 
 
         // ----------------------------------------
         // Two of the four reasons to prevent a change to a datafield's fieldype require database
-        //  lookups
+        //  lookups...
+        foreach ($datafield_ids as $df_id) {
+            $fieldtype_info[$df_id] = array(
+                'prevent_change' => false,
+                'prevent_change_message' => '',
+                'allowed_fieldtypes' => $all_fieldtypes,
+            );
+        }
+
+        // Prevent a datafield's fieldtype from changing if other fields are derived from it
+        // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
         $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, d_df.id AS derived_df_id, dt.id AS dt_id
+           'SELECT df.id AS df_id, d_df.id AS derived_df_id
             FROM ODRAdminBundle:DataFields AS df
             LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
-            LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.sortField = df
-            LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
             WHERE df IN (:datafield_ids)
-            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL
-            AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL'
         )->setParameters( array('datafield_ids' => $datafield_ids) );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
             $df_id = $result['df_id'];
             $derived_df_id = $result['derived_df_id'];
+
+            if ( !is_null($derived_df_id) ) {
+                if ( $is_single_radio_field[$df_id] ) {
+                    // Shouldn't need to prevent fieldtype change, or display a message...
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    // ...both single and multiple radio fields should be allowed to freely switch
+                    //  to the other single/multiple fieldtype at any time
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                }
+                else {
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
+                }
+
+                // Don't need to keep looking
+                break;
+            }
+        }
+
+        // Prevent a datafield's fieldtype from changing if it's a sort field for any datatype
+        // TODO - allow changing fieldtype of sort fields?
+        $query = $this->em->createQuery(
+           'SELECT df.id AS df_id, dt.id AS dt_id
+            FROM ODRAdminBundle:DataFields AS df
+            LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+            LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
+            WHERE df IN (:datafield_ids) AND dtsf.field_purpose = :field_purpose
+            AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters( array('datafield_ids' => $datafield_ids, 'field_purpose' => DataTypeSpecialFields::SORT_FIELD) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $df_id = $result['df_id'];
             $dt_id = $result['dt_id'];
 
-            $fieldtype_info[$df_id] = array(
-                'prevent_change' => false,
-                'prevent_change_message' => '',
-                'allowed_fieldtypes' => $all_fieldtypes,
-            );
-
-            // TODO - need to make template synchronization able to migrate Fieldtypes eventually...
-            // Prevent a datafield's fieldtype from changing if other fields are derived from it
-            if ( !is_null($derived_df_id) ) {
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet...";
-            }
-
-            // TODO - allow changing fieldtype of sort fields?
-            // Prevent a datafield's fieldtype from changing if it's being used as a sort field by
-            //  any datatype
             if ( !is_null($dt_id) ) {
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+                if ( $is_single_radio_field[$df_id] ) {
+                    // Shouldn't need to prevent fieldtype change, or display a message...
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    // ...both single and multiple radio fields should be allowed to freely switch
+                    //  to the other single/multiple fieldtype at any time
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                }
+                else {
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is being used to sort a Datatype.";
+                }
+
+                // Don't need to keep looking
+                break;
             }
         }
 
@@ -501,11 +584,13 @@ class DatafieldInfoService
                     if ( isset($fieldtype_info[$df_id]) ) {
                         $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
                         $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $dt_fieldtypes);
+
+                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
+                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
                     }
                 }
             }
         }
-
 
         foreach ($datafield_ids as $df_num => $df_id) {
             // Get the datafield's array entry from the cached datatype entry
@@ -515,14 +600,26 @@ class DatafieldInfoService
 
             // Prevent a datafield's fieldtype from changing if it's derived from a template field
             if ( !is_null($df['masterDataField']) ) {
-                $fieldtype_info[$df_id]['prevent_change'] = true;
-                $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is derived from a Master Template.";
+                if ( $is_single_radio_field[$df_id] ) {
+                    // Shouldn't need to prevent fieldtype change, or display a message...
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $single_radio_fieldtype_ids;
+                }
+                else if ( $is_multiple_radio_field[$df_id] ) {
+                    // ...both single and multiple radio fields should be allowed to freely switch
+                    //  to the other single/multiple fieldtype at any time
+                    $fieldtype_info[$df_id]['allowed_fieldtypes'] = $multiple_radio_fieldtype_ids;
+                }
+                else {
+                    $fieldtype_info[$df_id]['prevent_change'] = true;
+                    $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is derived from a Master Template.";
+                }
             }
 
             // TODO - allow changing fieldtype of unique fields?
             // TODO - ...can go from shorter text -> longer text, or number -> text...but not necessarily from longer text -> shorter text, or text -> number
             // Prevent a datafield's fieldtype from changing if it's marked as unique
             if ( $df['dataFieldMeta']['is_unique'] === true ) {
+                // None of the radio fieldtypes can be unique, so no sense checking here
                 $fieldtype_info[$df_id]['prevent_change'] = true;
                 $fieldtype_info[$df_id]['prevent_change_message'] = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
             }
@@ -536,6 +633,9 @@ class DatafieldInfoService
                         // ...then the fieldtype can't be changed from what the render plugin requires
                         $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
                         $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $df_fieldtypes);
+
+                        // The render plugin system already stores 'allowed_fieldtypes' in the backend
+                        //  such that 'Single Radio' === 'Single Select', and the same for multiple
                     }
                 }
             }

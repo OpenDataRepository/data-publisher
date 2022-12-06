@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -245,6 +246,29 @@ class EntityDeletionService
             // Merge the two lists together
             $all_affected_users = array_merge($all_affected_users, $all_super_admins);
 
+            // If any of the datafields being deleted are being used as a sortfield for other
+            //  datatypes, then need to clear the default sort order for those datatypes
+            $query = $this->em->createQuery(
+               'SELECT DISTINCT(l_dt.id) AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                WHERE df.id IN (:datafields_to_delete) AND dtsf.field_purpose = :field_purpose
+                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafields_to_delete' => array($datafield->getId()),
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_reset_order = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_reset_order[] = $dt_id;
+            }
+
 
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
@@ -325,71 +349,72 @@ class EntityDeletionService
 
 
             // ----------------------------------------
-            // Need to check whether any other datatypes are using this datafield for sorting...
-            // This kinda needs to come before checking the datafield's datatype, because otherwise
-            //  the delayed flushing will create multiple DatatypeMeta entries for the previously
-            //  mentioned "other datatypes"...
+            // Need to locate all other datatypes that are using this soon-to-be-deleted datafield
+            //  as their sort field...
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataTypeMeta AS dtm
-                JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
-                WHERE dtm.sortField = :datafield_id AND dt.id != :datatype_id
-                AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafield_id' => $datafield->getId(),
-                    'datatype_id' => $datatype->getId()    // don't want the datatype of the datafield that's getting deleted...it'll be taken care of next
-                )
-            );
+                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
+                LEFT JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
+                WHERE dtsf.dataField = :datafield_id AND dtsf.dataType != :datatype_id
+                AND dtsf.deletedAt IS NULL'
+            )->setParameters( array('datafield_id' => $datafield->getId(), 'datatype_id' => $datatype->getId()) );
             $results = $query->getResult();
 
-            foreach ($results as $result) {
-                /** @var DataType $dt */
-                $dt = $result;
-
-                $props = array('sortField' => null);
-                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
-
-                // Shouldn't need to clear cache entries as a result of this...
-                $need_flush = true;
+            /** @var DataType[] $results */
+            foreach ($results as $dt) {
+                // Any datatypes this query finds don't need to be modified, but they do need to
+                //  rebuild their cache entries
+                $this->dbi_service->updateDatatypeCacheEntry($dt, $user);
             }
+
+            // ...and delete any mention that this field was used for a special purpose
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                SET dtsf.deletedAt = :now, dtsf.deletedBy = :deleted_by
+                WHERE dtsf.dataField = :datafield
+                AND dtsf.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'deleted_by' => $user->getId(),
+                    'datafield' => $datafield->getId()
+                )
+            );
+            $rows = $query->execute();
 
 
             // ----------------------------------------
             // Ensure that the datatype no longer thinks this datafield has a special purpose...
+            // NOTE: external_id fields aren't allowed to be deleted, but keep for safety
+            // NOTE: the rest of these aren't supposed to be used, but keep for the same reason
             $properties = array();
 
             // ...external id field
-            // NOTE: external id fields aren't allowed to be deleted, but keep for safety
-            if ( !is_null($datatype->getExternalIdField())
+            if ( !is_null($datatype->getExternalIdField() )
                 && $datatype->getExternalIdField()->getId() === $datafield->getId()
             ) {
                 $properties['externalIdField'] = null;
             }
 
             // ...name field
-            if ( !is_null($datatype->getNameField())
+            if ( !is_null($datatype->getNameField() )
                 && $datatype->getNameField()->getId() === $datafield->getId()
             ) {
                 $properties['nameField'] = null;
             }
 
             // ...background image field
-            if ( !is_null($datatype->getBackgroundImageField())
+            if ( !is_null($datatype->getBackgroundImageField() )
                 && $datatype->getBackgroundImageField()->getId() === $datafield->getId()
             ) {
                 $properties['backgroundImageField'] = null;
             }
 
             // ...sort field
-            if ( !is_null($datatype->getSortField())
+            if ( !is_null($datatype->getSortField() )
                 && $datatype->getSortField()->getId() === $datafield->getId()
             ) {
                 $properties['sortField'] = null;
-
-                // TODO - shouldn't this technically be in SortService?
-                // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $this->dbi_service->resetDatatypeSortOrder($datatype->getId());
             }
 
             // Save any required changes
@@ -465,6 +490,12 @@ class EntityDeletionService
             //  figure out specifics
             $this->cache_service->delete('default_radio_options');
 
+            // Reset sort order for the datatypes found earlier
+            foreach ($datatypes_to_reset_order as $num => $dt_id)
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+
+            // ----------------------------------------
             // Mark this datatype as updated
             $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);
 
@@ -748,9 +779,8 @@ class EntityDeletionService
             $datatypes_to_delete = array(0 => $datatype->getId());
 
             // If datatype has metadata, delete metadata
-            if ($metadata_datatype = $datatype->getMetadataDatatype()) {
-                array_push($datatypes_to_delete, $metadata_datatype->getId());
-            }
+            if ( !is_null($datatype->getMetadataDatatype()) )
+                $datatypes_to_delete[] = $datatype->getMetadataDatatype()->getId();
 
             while (count($tmp) > 0) {
                 $new_tmp = array();
@@ -782,6 +812,28 @@ class EntityDeletionService
             foreach ($results as $result)
                 $datafields_to_delete[] = $result['df_id'];
 
+            // If any of the datafields being deleted are being used as a sortfield for other
+            //  datatypes, then need to clear the default sort order for those datatypes
+            $query = $this->em->createQuery(
+               'SELECT DISTINCT(l_dt.id) AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                WHERE df.id IN (:datafields_to_delete) AND dtsf.field_purpose = :field_purpose
+                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafields_to_delete' => $datafields_to_delete,
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_reset_order = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_reset_order[] = $dt_id;
+            }
 
             // Determine all Groups and all Users affected by this
             $query = $this->em->createQuery(
@@ -863,6 +915,25 @@ class EntityDeletionService
              * interpret them correctly.
              */
 
+            // ----------------------------------------
+            // Need to locate all other datatypes that are using any of this soon-to-be-deleted
+            //  datatype's fields as their sort field...since said fields are about to be deleted
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
+                LEFT JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
+                WHERE dtsf.dataField IN (:datafields) AND dtsf.dataType NOT IN (:datatypes)
+                AND dtsf.deletedAt IS NULL'
+            )->setParameters( array('datafields' => $datafields_to_delete, 'datatypes' => $datatypes_to_delete) );
+            $results = $query->getResult();
+
+            /** @var DataType[] $results */
+            foreach ($results as $dt) {
+                // Any datatypes this query finds don't need to be modified, but they do need to
+                //  rebuild their cache entries
+                $this->dbi_service->updateDatatypeCacheEntry($dt, $user);
+            }
+
 
             // ----------------------------------------
             // Determine which datarecords are going to need to be recached, before the linked
@@ -939,31 +1010,15 @@ class EntityDeletionService
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 */
 
-            // Ensure no datatypes attempt to use datafields from these soon-to-be-deleted datatypes
-            //  as their sortfield
-            $query = $this->em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                JOIN ODRAdminBundle:DataFields AS df WITH dtm.sortField = df
-                WHERE df.dataType IN (:a) AND dt.id NOT IN (:b)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND df.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'a' => $datatypes_to_delete,
-                    'b' => $datatypes_to_delete
-                )
-            );
-            $sub_results = $query->getResult();
-
-            $needs_flush = false;
-            foreach ($sub_results as $dt) {
-                /** @var DataType $dt */
-                $props = array('sortField' => null);
-                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush immediately
-                $needs_flush = true;
-            }
-
+            // Delete all DatatypeSpecialField entries for the datatypes that are getting deleted
+            $query_str =
+               'UPDATE odr_data_type_special_fields AS dtsf
+                SET dtsf.deletedAt = NOW(), dtsf.deletedBy = '.$user->getId().'
+                WHERE dtsf.data_type_id IN (?) OR dtsf.data_field_id IN (?)
+                AND dtsf.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // ----------------------------------------
 /*
@@ -1187,14 +1242,14 @@ class EntityDeletionService
             //  figure out specifics
             $this->cache_service->delete('default_radio_options');
 
+            // Reset sort order for the datatypes found earlier
+            foreach ($datatypes_to_reset_order as $num => $dt_id)
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
 
             // ----------------------------------------
             // No error encountered, commit changes
             $conn->commit();
-
-            // If a flush is needed, then only do it after the transaction is finished
-            if ( $needs_flush )
-                $this->em->flush();
 
         }
         catch (\Exception $e) {

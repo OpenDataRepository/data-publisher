@@ -148,7 +148,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
                 // Store sort values for later...
                 $datarecord_sortvalues[$dr_id] = $dr['sortField_value'];
-                $sort_typeclass = $dr['sortField_typeclass'];
+                $sortField_type = $dr['sortField_types'];
 //
 //                // Locate the value for the Pivot Field if possible
 //                $legend_datafield_id = $datafield_mapping['pivot_field']['datafield']['id'];
@@ -199,13 +199,9 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             }
 
             // Sort datarecords by their sortvalue
-            $flag = SORT_NATURAL;
-            if ($sort_typeclass == 'IntegerValue' ||
-                $sort_typeclass == 'DecimalValue' ||
-                $sort_typeclass == ''   // if empty string, sort values will be datarecord ids
-            ) {
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
+            if ( $sortField_type === 'numeric' )
                 $flag = SORT_NUMERIC;
-            }
 
             asort($datarecord_sortvalues, $flag);
             $datarecord_sortvalues = array_flip( array_keys($datarecord_sortvalues) );
@@ -299,11 +295,13 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'theme_array' => $theme_array,
 
                 'target_datatype_id' => $datatype['id'],
+                'parent_datarecord' => $parent_datarecord,
                 'target_theme_id' => $theme['id'],
 
                 'is_top_level' => $rendering_options['is_top_level'],
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],
+                'multiple_allowed' => $rendering_options['multiple_allowed'],
                 'display_graph' => $display_graph,
 
                 // Options for graph display

@@ -40,7 +40,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
-        $search_results = $search_api_service->performSearch(null, $search_key, array(), 0, true, $search_as_super_admin);
+        $search_results = $search_api_service->performSearch(null, $search_key, array(), array(), array(), $search_as_super_admin);
 
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $search_results['grandparent_datarecord_list'] );
     }
@@ -60,7 +60,7 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
-        $search_results = $search_api_service->performSearch(null, $search_key, array(), 0, true, $search_as_super_admin);
+        $search_results = $search_api_service->performSearch(null, $search_key, array(), array(), array(), $search_as_super_admin);
 
         $this->assertEqualsCanonicalizing( $expected_datarecord_ids, $search_results['complete_datarecord_list'] );
     }

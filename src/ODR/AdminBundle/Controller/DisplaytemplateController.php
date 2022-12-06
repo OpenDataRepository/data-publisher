@@ -27,8 +27,8 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\FieldType;
-use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -372,184 +372,6 @@ class DisplaytemplateController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x8ae875b2;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Saves changes made to a Datatree entity.
-     *
-     * @param integer $datatree_id  The id of the Datatree entity being changed
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function savedatatreeAction($datatree_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-
-            /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
-            if ($datatree == null)
-                throw new ODRNotFoundException('Datatree');
-
-            $ancestor_datatype = $datatree->getAncestor();
-            if ($ancestor_datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $ancestor_datatype) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-
-            // ----------------------------------------
-            // Ensure that the datatree isn't set to only allow single child/linked datarecords when it already is supporting multiple child/linked datarecords
-            $parent_datatype_id = $datatree->getAncestor()->getId();
-            $child_datatype_id = $datatree->getDescendant()->getId();
-
-            $force_multiple = false;
-            $results = array();
-            if ($datatree->getIsLink() == 0) {
-                // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
-                $query = $em->createQuery(
-                   'SELECT parent.id AS ancestor_id, child.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
-                    WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
-                    AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
-                $results = $query->getArrayResult();
-            }
-            else {
-                // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
-                $query = $em->createQuery(
-                   'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
-                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
-                $results = $query->getArrayResult();
-            }
-
-            $tmp = array();
-            foreach ($results as $num => $result) {
-                $ancestor_id = $result['ancestor_id'];
-                if ( isset($tmp[$ancestor_id]) ) {
-                    $force_multiple = true;
-                    break;
-                }
-                else {
-                    $tmp[$ancestor_id] = 1;
-                }
-            }
-
-            // Determine whether the ancestor datatype is using a sortfield from the
-            //  descendant datatype
-            $ancestor_datatype = $datatree->getAncestor();
-            $descendant_datatype = $datatree->getDescendant();
-
-            $affects_sortfield = false;
-            if ( !is_null($ancestor_datatype->getSortField()) ) {
-                $sortfield = $ancestor_datatype->getSortField();
-                if ( $sortfield->getDataType()->getId() === $descendant_datatype->getId() )
-                    $affects_sortfield = true;
-            }
-
-
-            // ----------------------------------------
-            // Populate new Datatree form
-            $submitted_data = new DataTreeMeta();
-            $datatree_form = $this->createForm(UpdateDataTreeForm::class, $submitted_data);
-
-            $datatree_form->handleRequest($request);
-            if ( $datatree_form->isSubmitted() ) {
-
-                // Ensure that "multiple allowed" is true if required
-                if ($force_multiple)
-                    $submitted_data->setMultipleAllowed(true);
-
-                if ( $datatree_form->isValid() ) {
-                    // If a value in the form changed, create a new DataTree entity to store the change
-                    $properties = array(
-                        'multiple_allowed' => $submitted_data->getMultipleAllowed(),
-//                        'is_link' => $submitted_data->getIsLink(),    // Not allowed to change this value through this controller action
-                    );
-                    $emm_service->updateDatatreeMeta($user, $datatree, $properties);
-
-                    // Need to delete the cached version of the datatree array
-                    $cache_service->delete('cached_datatree_array');
-
-
-                    // If the ancestor datatype's sortfield belongs to the descendant datatype, and
-                    //  the user is now permitting multiple links/children between ancestor and
-                    //  descendant...
-                    if ( $affects_sortfield && $submitted_data->getMultipleAllowed() == true ) {
-                        // ...then clear the ancestor datatype's sortfield...
-                        $props = array('sortField' => null);
-                        $emm_service->updateDatatypeMeta($user, $ancestor_datatype, $props);
-
-                        // NOTE: apparently don't need to delete any additional cache entries
-                    }
-
-                    // Then delete the cached version of the affected datatype
-                    $dbi_service->updateDatatypeCacheEntry($ancestor_datatype, $user);
-
-                    // The 'is_link' or 'multiple_allowed' properties are also stored in the
-                    //  cached theme entries, so they need to get rebuilt as well
-                    $query = $em->createQuery(
-                       'SELECT t.id AS theme_id
-                        FROM ODRAdminBundle:Theme AS t
-                        WHERE t.dataType = :datatype_id
-                        AND t.deletedAt IS NULL'
-                    )->setParameters( array('datatype_id' => $ancestor_datatype->getGrandparent()->getId()) );
-                    $results = $query->getArrayResult();
-
-                    foreach ($results as $result)
-                        $cache_service->delete('cached_theme_'.$result['theme_id']);
-                }
-                else {
-                    // Form validation failed
-                    $error_str = parent::ODR_getErrorMessages($datatree_form);
-                    throw new ODRException($error_str);
-                }
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0x43a5ff6f;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1682,24 +1504,15 @@ class DisplaytemplateController extends ODRCustomController
                         $datatype_form->addError( new FormError('A different Datatype is already using this abbreviation') );
                 }
 
-                // The fieldtypes of the external_id, name, sort, and background image fields need
-                //  to be verified
+                // The fieldtypes of the external_id field needs to be verified
                 if ( !is_null($submitted_data->getExternalIdField()) ) {
                     if ( $submitted_data->getExternalIdField()->getFieldType()->getCanBeUnique() !== true )
                         $datatype_form->addError( new FormError('Invalid external id field') );
                 }
-                if ( !is_null($submitted_data->getNameField()) ) {
-                    if ( $submitted_data->getNameField()->getFieldType()->getCanBeSortField() !== true )
-                        $datatype_form->addError( new FormError('Invalid name field') );
-                }
-                if ( !is_null($submitted_data->getSortField()) ) {
-                    if ( $submitted_data->getSortField()->getFieldType()->getCanBeSortField() !== true )
-                        $datatype_form->addError( new FormError('Invalid sort field') );
-                }
-                if ( !is_null($submitted_data->getBackgroundImageField()) ) {
-                    if ( $submitted_data->getBackgroundImageField()->getFieldType()->getTypeClass() !== "Image" )
-                        $datatype_form->addError( new FormError('Invalid background image field') );
-                }
+                // The name, sort, and background image fields should not be changed here
+                $submitted_data->setNameField( $datatype->getNameField() );
+                $submitted_data->setSortField( $datatype->getSortField() );
+                $submitted_data->setBackgroundImageField( $datatype->getBackgroundImageField() );
 
 
                 // ----------------------------------------
@@ -1711,34 +1524,14 @@ class DisplaytemplateController extends ODRCustomController
                     $old_external_id_field = $datatype->getExternalIdField();
                     if ( !is_null($old_external_id_field) )
                         $old_external_id_field = $old_external_id_field->getId();
-                    $old_namefield = $datatype->getNameField();
-                    if ( !is_null($old_namefield) )
-                        $old_namefield = $old_namefield->getId();
-                    $old_sortfield = $datatype->getSortField();
-                    if ( !is_null($old_sortfield) )
-                        $old_sortfield = $old_sortfield->getId();
-
                     /** @var int|null $old_external_id_field */
-                    /** @var int|null $old_namefield */
-                    /** @var int|null $old_sortfield */
-                    // It doesn't matter whether the background image field changes or not
 
                     // ...because if any of the "special" fields got changed, then multiple cache
                     //  entries need to be modified/rebuilt
                     $new_external_id_field = $submitted_data->getExternalIdField();
                     if ( !is_null($new_external_id_field) )
                         $new_external_id_field = $new_external_id_field->getId();
-                    $new_namefield = $submitted_data->getNameField();
-                    if ( !is_null($new_namefield) )
-                        $new_namefield = $new_namefield->getId();
-                    $new_sortfield = $submitted_data->getSortField();
-                    if ( !is_null($new_sortfield) )
-                        $new_sortfield = $new_sortfield->getId();
-
                     /** @var int|null $new_external_id_field */
-                    /** @var int|null $new_namefield */
-                    /** @var int|null $new_sortfield */
-                    // It doesn't matter whether the background image field changes or not
 
                     if ( !is_null($submitted_data->getSearchSlug()) && $datatype->getSearchSlug() !== $submitted_data->getSearchSlug() )
                         $new_search_slug = $submitted_data->getSearchSlug();
@@ -1781,12 +1574,9 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Usually don't need to update cached versions of datarecords, themes, or
                     //  search results as a result of changes to the DatatypeMeta entry...
-                    if ( $old_external_id_field !== $new_external_id_field
-                        || $old_namefield !== $new_namefield
-                        || $old_sortfield !== $new_sortfield
-                    ) {
-                        // ...but changes to these three fields require rebuilding cached datarecord
-                        //  entries, since the values in these fields are stored in those entries
+                    if ( $old_external_id_field !== $new_external_id_field ) {
+                        // ...but changes to the external_id field require rebuilding cached datarecord
+                        //  entries, since the values in that field are stored in those entries
 
                         // Not using $grandparent_datatype because the user could be directly editing
                         //  a linked datatype, and the cache clearing needs to happen on the datatype
@@ -1796,13 +1586,6 @@ class DisplaytemplateController extends ODRCustomController
                             $cache_service->delete('cached_datarecord_'.$dr_id);
                             $cache_service->delete('cached_table_data_'.$dr_id);
                         }
-                    }
-
-                    if ( $old_sortfield !== $new_sortfield ) {
-                        // ...changing this field also require updating several more cache entries
-                        //  and any pre-rendered graphs, in addition to rebuilding the cached
-                        //  datarecord entries
-                        $dbi_service->resetDatatypeSortOrder($datatype->getId());
                     }
 
 
@@ -1875,9 +1658,8 @@ class DisplaytemplateController extends ODRCustomController
                     $ancestor_datatype = $datatree->getAncestor();
                     $descendant_datatype = $datatree->getDescendant();
 
-                    if ( !is_null($ancestor_datatype->getSortField()) ) {
-                        $sortfield = $ancestor_datatype->getSortField();
-                        if ( $sortfield->getDataType()->getId() === $descendant_datatype->getId() )
+                    foreach ($ancestor_datatype->getSortFields() as $display_order => $sort_df) {
+                        if ( $sort_df->getDataType()->getId() === $descendant_datatype->getId() )
                             $affects_sortfield = true;
                     }
 
@@ -2049,6 +1831,182 @@ class DisplaytemplateController extends ODRCustomController
         }
 
         return $sortfield_datatypes;
+    }
+
+
+    /**
+     * Saves changes made to a Datatree entity.
+     *
+     * @param integer $datatree_id  The id of the Datatree entity being changed
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function savedatatreeAction($datatree_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            if ($datatree == null)
+                throw new ODRNotFoundException('Datatree');
+
+            $ancestor_datatype = $datatree->getAncestor();
+            if ($ancestor_datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $ancestor_datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Ensure that the datatree isn't set to only allow single child/linked datarecords when it already is supporting multiple child/linked datarecords
+            $parent_datatype_id = $datatree->getAncestor()->getId();
+            $child_datatype_id = $datatree->getDescendant()->getId();
+
+            $force_multiple = false;
+            $results = array();
+            if ($datatree->getIsLink() == 0) {
+                // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                $query = $em->createQuery(
+                   'SELECT parent.id AS ancestor_id, child.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS parent
+                    JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                    WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
+                    AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
+                $results = $query->getArrayResult();
+            }
+            else {
+                // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS ancestor
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
+                $results = $query->getArrayResult();
+            }
+
+            $tmp = array();
+            foreach ($results as $num => $result) {
+                $ancestor_id = $result['ancestor_id'];
+                if ( isset($tmp[$ancestor_id]) ) {
+                    $force_multiple = true;
+                    break;
+                }
+                else {
+                    $tmp[$ancestor_id] = 1;
+                }
+            }
+
+            // Determine whether the ancestor datatype is using a sortfield from the descendant datatype
+            $ancestor_datatype = $datatree->getAncestor();
+            $descendant_datatype = $datatree->getDescendant();
+
+            $affects_sortfield = false;
+            foreach ($ancestor_datatype->getSortFields() as $display_order => $sort_df) {
+                if ( $sort_df->getDataType()->getId() === $descendant_datatype->getId() )
+                    $affects_sortfield = true;
+            }
+
+
+            // ----------------------------------------
+            // Populate new Datatree form
+            $submitted_data = new DataTreeMeta();
+            $datatree_form = $this->createForm(UpdateDataTreeForm::class, $submitted_data);
+
+            $datatree_form->handleRequest($request);
+            if ( $datatree_form->isSubmitted() ) {
+
+                // Ensure that "multiple allowed" is true if required
+                if ($force_multiple)
+                    $submitted_data->setMultipleAllowed(true);
+
+                if ( $datatree_form->isValid() ) {
+                    // If a value in the form changed, create a new DataTree entity to store the change
+                    $properties = array(
+                        'multiple_allowed' => $submitted_data->getMultipleAllowed(),
+//                        'is_link' => $submitted_data->getIsLink(),    // Not allowed to change this value through this controller action
+                    );
+                    $emm_service->updateDatatreeMeta($user, $datatree, $properties);
+
+                    // Need to delete the cached version of the datatree array
+                    $cache_service->delete('cached_datatree_array');
+
+
+                    // If the ancestor datatype's sortfield belongs to the descendant datatype, and
+                    //  the user is now permitting multiple links/children between ancestor and
+                    //  descendant...
+                    if ( $affects_sortfield && $submitted_data->getMultipleAllowed() == true ) {
+                        // ...then clear the ancestor datatype's sortfield...
+                        $props = array('sortField' => null);
+                        $emm_service->updateDatatypeMeta($user, $ancestor_datatype, $props);
+
+                        // NOTE: apparently don't need to delete any additional cache entries
+                    }
+
+                    // Then delete the cached version of the affected datatype
+                    $dbi_service->updateDatatypeCacheEntry($ancestor_datatype, $user);
+
+                    // The 'is_link' or 'multiple_allowed' properties are also stored in the
+                    //  cached theme entries, so they need to get rebuilt as well
+                    $query = $em->createQuery(
+                       'SELECT t.id AS theme_id
+                        FROM ODRAdminBundle:Theme AS t
+                        WHERE t.dataType = :datatype_id
+                        AND t.deletedAt IS NULL'
+                    )->setParameters( array('datatype_id' => $ancestor_datatype->getGrandparent()->getId()) );
+                    $results = $query->getArrayResult();
+
+                    foreach ($results as $result)
+                        $cache_service->delete('cached_theme_'.$result['theme_id']);
+                }
+                else {
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($datatree_form);
+                    throw new ODRException($error_str);
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x43a5ff6f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -2377,9 +2335,6 @@ class DisplaytemplateController extends ODRCustomController
                     // ----------------------------------------
                     // Mark the datatype as updated
                     $dbi_service->updateDatatypeCacheEntry($datatype, $user);
-
-                    // TODO - when/if sort fields can change their fieldtype, this will be needed
-//                    $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
                     // Don't need to update cached datarecords or themes
 
@@ -3895,6 +3850,433 @@ if ($debug)
         }
         catch (\Exception $e) {
             $source = 0x96406f68;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders and returns a form to change the datatype's name or sort fields.
+     *
+     * @param integer $datatype_id
+     * @param string $type
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getspecialdatafieldsAction($datatype_id, $type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            if ($type !== 'name' && $type !== 'sort')
+                throw new ODRBadRequestException('Invalid $type value');
+
+            // Both these fields only allow certain typeclasses
+            $query = $em->createQuery(
+               'SELECT ft.typeClass
+                FROM ODRAdminBundle:FieldType ft
+                WHERE ft.canBeSortField = 1
+                AND ft.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $allowed_typeclasses = array();
+            foreach ($results as $result) {
+                $typeclass = $result['typeClass'];
+                $allowed_typeclasses[$typeclass] = 1;
+            }
+
+            // Need to build two arrays of datafields
+            $current_datafields = array();
+            $available_datafields = array();
+
+            // All of the data can come from the cached datatype array
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
+            $dt = $datatype_array[$datatype->getId()];
+
+            // The current fields only have the datafield id...
+            $fields = array();
+            if ( $type === 'name' )
+                $fields = $dt['nameFields'];
+            else
+                $fields = $dt['sortFields'];
+
+            // ...going to need to also find their names from the cached datatype array
+            foreach ($fields as $display_order => $df_id)
+                $current_datafields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
+
+
+            $datatypes_to_check = array($datatype->getId());
+            while ( !empty($datatypes_to_check) ) {
+                $tmp = array();
+
+                foreach ($datatypes_to_check as $dt_id) {
+                    $dt = $datatype_array[$dt_id];
+                    $dt_name = $dt['dataTypeMeta']['shortName'];
+                    $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
+
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        // Only save this field if it has the correct typeclass
+                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        if ( isset($allowed_typeclasses[$typeclass]) )
+                            $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+
+                        // Also fill in the names for the current datafields while here
+                        if ( isset($current_datafields[$df_id]) )
+                            $current_datafields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
+                    }
+
+                    // If searching for sort fields...
+                    if ( $type === 'sort' && isset($dt['descendants']) ) {
+                        // ...then also need to go looking into linked descendants that only allow
+                        //  a single record
+                        foreach ($dt['descendants'] as $descendant_dt_id => $data) {
+                            if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
+                                $tmp[] = $descendant_dt_id;
+                        }
+                    }
+                }
+
+                // Reset for next loop
+                $datatypes_to_check = $tmp;
+            }
+
+            // Generate a csrf token for the form before the datafields are sorted by name
+            $token_key = 'Form_';
+            foreach ($available_datafields as $dt_id => $dt_data) {
+                foreach ($dt_data['datafields'] as $df_id => $df_name)
+                    $token_key .= $df_id.'_';
+            }
+            $token_key .= 'Datafields';
+            $token = $token_manager->getToken($token_key)->getValue();
+
+
+            // Sort each set of available datafields by their name so they're easier to locate
+            foreach ($available_datafields as $dt_id => $dt_data) {
+                if ( !empty($dt_data['datafields']) ) {
+                    $tmp = $dt_data['datafields'];
+                    asort($tmp);
+                    $available_datafields[$dt_id]['datafields'] = $tmp;
+                }
+            }
+            // Do the same for the datatypes
+            uasort($available_datafields, function($a, $b) {
+                return strcmp($a['datatype_name'], $b['datatype_name']);
+            });
+
+            // The currently selected datafields need to be sorted by display order
+            uasort($current_datafields, function($a, $b) {
+                return $a['display_order'] <=> $b['display_order'];
+            });
+
+
+            // ----------------------------------------
+            // Render and return the dialog
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Displaytemplate:special_datafield_selection_dialog_form.html.twig',
+                    array(
+                        'token' => $token,
+                        'purpose' => $type,
+
+                        'available_datafields' => $available_datafields,
+                        'current_datafields' => $current_datafields,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x19444cda;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Validates and saves a form to change the datatype's name or sort fields.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function savespecialdatafieldsAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Ensure required variables exist
+            $post = $request->request->all();
+            if ( !isset($post['_token']) || !isset($post['purpose']) )
+                throw new ODRBadRequestException();
+
+            $purpose = $post['purpose'];
+            if ( $purpose !== 'name' && $purpose !== 'sort' )
+                throw new ODRBadRequestException();
+
+            $seen_datafields = array();
+            $df_list = array();
+            if ( isset($post['datafields']) ) {
+                foreach ($post['datafields'] as $display_order => $df_id) {
+                    $df_list[intval($df_id)] = intval($display_order);
+                    $seen_datafields[$df_id] = false;
+                }
+            }
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Both these fields only allow certain typeclasses
+            $query = $em->createQuery(
+               'SELECT ft.typeClass
+                FROM ODRAdminBundle:FieldType ft
+                WHERE ft.canBeSortField = 1
+                AND ft.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $allowed_typeclasses = array();
+            foreach ($results as $result) {
+                $typeclass = $result['typeClass'];
+                $allowed_typeclasses[$typeclass] = 1;
+            }
+
+            // Get the cached datatype array to verify the form
+            $available_datafields = array();
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());    // do want links
+
+            $datatypes_to_check = array($datatype->getId());
+            while ( !empty($datatypes_to_check) ) {
+                $tmp = array();
+
+                foreach ($datatypes_to_check as $dt_id) {
+                    $dt = $datatype_array[$dt_id];
+                    $dt_name = $dt['dataTypeMeta']['shortName'];
+                    $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
+
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        // Only save this field if it has the correct typeclass
+                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        if ( isset($allowed_typeclasses[$typeclass]) ) {
+                            $available_datafields[$dt_id]['datafields'][$df_id] = $df['dataFieldMeta']['fieldName'];
+
+                            // Mark that this field in the $_POST belongs to the correct datatype...
+                            if ( isset($seen_datafields[$df_id]) )
+                                $seen_datafields[$df_id] = true;
+                        }
+                    }
+
+                    // If searching for sort fields...
+                    if ( $purpose === 'sort' && isset($dt['descendants']) ) {
+                        // ...then also need to go looking into linked descendants that only allow
+                        //  a single record
+                        foreach ($dt['descendants'] as $descendant_dt_id => $data) {
+                            if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
+                                $tmp[] = $descendant_dt_id;
+                        }
+                    }
+                }
+
+                // Reset for next loop
+                $datatypes_to_check = $tmp;
+            }
+
+            // Generate a csrf token for the form before the datafields are sorted by name
+            $token_key = 'Form_';
+            foreach ($available_datafields as $dt_id => $dt_data) {
+                foreach ($dt_data['datafields'] as $df_id => $df_name)
+                    $token_key .= $df_id.'_';
+            }
+            $token_key .= 'Datafields';
+            $token = $token_manager->getToken($token_key)->getValue();
+
+            // If the token doesn't match, then throw an exception
+            if ( $token !== $post['_token'] )
+                throw new ODRBadRequestException('Invalid token');
+
+            // If one of the submitted datafields is illegal, then throw an exception
+            foreach ($seen_datafields as $df_id => $seen) {
+                if ( !$seen )
+                    throw new ODRBadRequestException('Illegal datafield '.$df_id);
+            }
+
+
+            // ----------------------------------------
+            // Now that the given data is valid, load what's already in the database
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df IN (:datafield_ids)
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('datafield_ids' => array_keys($df_list)) );
+            $results = $query->getResult();
+
+            $df_lookup = array();
+            foreach ($results as $df) {
+                /** @var DataFields $df */
+                $df_lookup[ $df->getId() ] = $df;
+            }
+
+            $field_purpose = DataTypeSpecialFields::NAME_FIELD;
+            if ( $purpose === 'sort' )
+                $field_purpose = DataTypeSpecialFields::SORT_FIELD;
+
+            $query = $em->createQuery(
+               'SELECT dtsf
+                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
+                WHERE dtsf.dataType = :datatype_id AND dtsf.field_purpose = :purpose
+                AND dtsf.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId(), 'purpose' => $field_purpose) );
+            $results = $query->getResult();
+
+            $entities = array();
+            foreach ($results as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                $entities[ $dtsf->getDataField()->getId() ] = $dtsf;
+            }
+
+            // For each of the datafields that are supposed to fulfill special purposes for this datatype...
+            $changes_made = false;
+            foreach ($df_list as $df_id => $display_order) {
+                if ( !isset($entities[$df_id]) ) {
+                    // ...this datafield is not already marked as a special field, so create a new
+                    //  entry for it
+                    $dtsf = $ec_service->createDatatypeSpecialField($user, $datatype, $df_lookup[$df_id], $field_purpose, $display_order, true);    // don't flush immediately...
+                    $changes_made = true;
+
+                    // Don't need to deal with this entity later on
+                    unset( $entities[$df_id] );
+                }
+                else {
+                    // ...this datafield was already marked as a special field...
+                    $dtsf = $entities[$df_id];
+                    if ( $display_order !== $dtsf->getDisplayOrder() ) {
+                        // ...so ensure it's in the correct order
+                        $props = array(
+                            'displayOrder' => $display_order
+                        );
+                        $emm_service->updateDatatypeSpecialField($user, $dtsf, $props, true);    // don't flush immediately...
+                        $changes_made = true;
+                    }
+
+                    // Don't need to deal with this entity later on
+                    unset( $entities[$df_id] );
+                }
+            }
+
+            // Any of the DatatypeSpecialFields entities leftover need to be deleted
+            foreach ($entities as $df_id => $dtsf) {
+                $em->remove($dtsf);
+                $changes_made = true;
+            }
+
+
+            // ----------------------------------------
+            // Avoid updating cache entries or reloading the page if no changes have been made
+            if ( $changes_made ) {
+                // Changes made, flush the database
+                $em->flush();
+
+                // Mark the datatype as updated
+                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+
+                // Need to rebuild the cache entries for all datarecords of this datatype
+                $dr_list = $search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $parent_dr_id) {
+                    $cache_service->delete('cached_datarecord_'.$dr_id);
+                    $cache_service->delete('cached_table_data_'.$dr_id);
+                }
+
+                // If the sort fields got changed, then need to reset some more cache entries
+                if ( $purpose === 'sort' )
+                    $dbi_service->resetDatatypeSortOrder($datatype->getId());
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x556cb893;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

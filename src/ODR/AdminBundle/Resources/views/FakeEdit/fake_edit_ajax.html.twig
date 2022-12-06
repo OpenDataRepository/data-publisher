@@ -103,8 +103,17 @@ function AddChildRecord(child_datatype_id, fake_dr_id) {
 function AddLinkedRecord(parent_datatype_id, child_datatype_id, fake_dr_id) {
     alert('Record must be saved before it can be linked to other records');
 }
-function OpenLinkSearchPage(child_datatype_id, fake_dr_id) {
+function OpenLinkSearchPage(ancestor_datatype_id, descendant_datatype_id, parent_datarecord_id) {
     alert('Record must be saved before it can be linked to other records');
+}
+function ChangeRecordPublicStatus(datarecord_id) {
+    alert('Record must be saved before public status can be changed');
+}
+function DeleteChildRecord(datarecord_id) {
+    alert('Record must be saved before it can be deleted');
+}
+function DeleteLinkedRecord(datarecord_id) {
+    alert('Not allowed to delete a linked record from here');
 }
 function CheckRecordData(form_id, interval) {
     alert('Changes do not automatically save');

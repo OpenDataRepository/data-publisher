@@ -14,8 +14,9 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -77,7 +78,7 @@ class DatabaseInfoService
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
-        $odr_web_dir,
+        string $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -135,13 +136,7 @@ class DatabaseInfoService
         $associated_datatypes = array();
         if ($include_links) {
             // Need to locate all linked datatypes for the provided datatype
-            $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$grandparent_datatype_id);
-            if ($associated_datatypes == false) {
-                $associated_datatypes = $this->dti_service->getAssociatedDatatypes($grandparent_datatype_id);
-
-                // Save the list of associated datatypes back into the cache
-                $this->cache_service->set('associated_datatypes_for_'.$grandparent_datatype_id, $associated_datatypes);
-            }
+            $associated_datatypes = $this->dti_service->getAssociatedDatatypes($grandparent_datatype_id);
         }
         else {
             // Don't want any datatypes that are linked to from the given grandparent datatype
@@ -195,11 +190,15 @@ class DatabaseInfoService
         $radio_options = self::getRadioOptionData($grandparent_datatype_id);
         $tags = self::getTagData($grandparent_datatype_id);
 
+        // Name/Sort fields are also separate from the primary query because the datatype could have
+        //  more than one of either, and both of them have their own displayOrder
+        $special_fields = self::getSpecialFields($grandparent_datatype_id);
+
         // Get all the rest of the non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
                 dt, dtm,
-                partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id}, partial dt_bif.{id},
+                partial dt_eif.{id}, partial dt_bif.{id},
                 partial md.{id, unique_id},
                 partial mf.{id, unique_id},
                 partial dt_cb.{id, username, email, firstName, lastName},
@@ -228,8 +227,6 @@ class DatabaseInfoService
 
             LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dtm.externalIdField AS dt_eif
-            LEFT JOIN dtm.nameField AS dt_nf
-            LEFT JOIN dtm.sortField AS dt_sf
             LEFT JOIN dtm.backgroundImageField AS dt_bif
 
             LEFT JOIN dt.renderPluginInstances AS dt_rpi
@@ -295,6 +292,16 @@ class DatabaseInfoService
             //  data, if it exists
             if ( !empty($datatype_data[$dt_num]['renderPluginInstances']) )
                 $datatype_data[$dt_num]['renderPluginInstances'] = self::flattenRenderPlugin($datatype_data[$dt_num]['renderPluginInstances']);
+
+            // Attach any name/sort fields for this datatype
+            $datatype_data[$dt_num]['nameFields'] = array();
+            $datatype_data[$dt_num]['sortFields'] = array();
+            if ( isset($special_fields[$dt_id]) ) {
+                if ( !empty($special_fields[$dt_id]['name']) )
+                    $datatype_data[$dt_num]['nameFields'] = $special_fields[$dt_id]['name'];
+                if ( !empty($special_fields[$dt_id]['sort']) )
+                    $datatype_data[$dt_num]['sortFields'] = $special_fields[$dt_id]['sort'];
+            }
 
 
             // ----------------------------------------
@@ -569,6 +576,49 @@ class DatabaseInfoService
         }
 
         return $tags;
+    }
+
+
+    /**
+     * Due to datatypes potentially having multiple name/sort fields, both with their own displayOrder
+     * values, it's easier to get these in a separate query.
+     *
+     * @param int $grandparent_datatype_id
+     *
+     * @return array
+     */
+    private function getSpecialFields($grandparent_datatype_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS dt_id, dtsf.field_purpose, dtsf.displayOrder, df.id AS df_id
+            FROM ODRAdminBundle:DataType AS dt
+            LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
+            LEFT JOIN ODRAdminBundle:DataFields AS df WITH dtsf.dataField = df
+            WHERE dt.grandparent = :grandparent_datatype_id
+            AND dt.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL
+            ORDER BY dt.id, dtsf.field_purpose, dtsf.displayOrder, df.id'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        $results = $query->getArrayResult();
+
+        $special_fields = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $field_purpose = $result['field_purpose'];
+            $display_order = $result['displayOrder'];
+            $df_id = $result['df_id'];
+
+            if ( !isset($special_fields[$dt_id]) )
+                $special_fields[$dt_id] = array('name' => array(), 'sort' => array());
+
+            if ( !is_null($df_id) ) {
+                if ( $field_purpose === DataTypeSpecialFields::NAME_FIELD )
+                    $special_fields[$dt_id]['name'][$display_order] = $df_id;
+                else if ( $field_purpose === DataTypeSpecialFields::SORT_FIELD )
+                    $special_fields[$dt_id]['sort'][$display_order] = $df_id;
+            }
+        }
+
+        return $special_fields;
     }
 
 

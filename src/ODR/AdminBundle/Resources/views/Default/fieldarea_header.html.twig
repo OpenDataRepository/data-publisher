@@ -6,20 +6,95 @@
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 {% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
 
+{% set parent_datatype_id = parent_datarecord.dataType.id %}
+
+{% set can_edit_parent_record = false %}
+{% set can_add_record = false %}
+{% if context == 'edit' or context == 'fake_edit' %}
+    {# don't enable add/link to outside of edit mode #}
+    {% if datatype_permissions[ parent_datatype_id ] is defined
+        and datatype_permissions[ parent_datatype_id ][ 'dr_edit' ] is defined %}
+        {% set can_edit_parent_record = true %}
+    {% endif %}
+    {% if datatype_permissions[ datatype.id ] is defined
+        and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+        {% set can_add_record = true %}
+    {% endif %}
+{% endif %}
+
 {% if is_top_level or display_type == ACCORDION_HEADER or display_type == NO_HEADER %}
     <div class="ODRAccordionWrapper ODRFormAccordion">
-        {% if datarecord_list|length == 0 and is_top_level == 0 and display_type != NO_HEADER %}    {# only display this if there are no child datarecords for this datatype #}
+    {% if datarecord_list|length == 0 and is_top_level == 0 %}    {# only display something here when there are no child datarecords for this datatype #}
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
+
+            {% if context == 'edit' %}
+            <span class="DataRecordTools">
+                {# The following don't need to check multiple_allowed, since the child/linked datatype always has zero records here #}
+                {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+                <i
+                    class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
+                    title="Click to {% if is_link == 0 %}add a new child{% else %}link to a{% endif %} Record of this datatype"
+                    rel="{{ datatype.id }}_{{ parent_datarecord.id }}"
+                ></i>
+                {% endif %}
+                {% if (is_link == 1 and can_edit_parent_record) %}
+                <i
+                   class="fa fa-search-plus Pointer tooltip ODROpenLinkSearch"
+                   title="Click to search for a Record to link to"
+                   rel="{{ parent_datatype_id }}_{{ datatype.id }}_{{ parent_datarecord.id }}"
+                ></i>
+                {% endif %}
+            </span>
+
+            {% elseif context == 'fake_edit' %}
+            <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
+                {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+                <i class="fa fa-plus"></i>
+                {% endif %}
+                {% if (is_link == 1 and can_edit_parent_record) %}
+                <i class="fa fa-search-plus"></i>
+                {% endif %}
+            </span>
+            {% endif %}
         </h3>
-        {% endif %}
+    {% endif %}
 
 {% elseif display_type == TABBED_HEADER %}
     <div class="ODRAccordionWrapper ODRTabAccordion">
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
+
+            {% if context == 'edit' and (multiple_allowed == 1 or datarecord_list|length == 0) %}
+            <span class="DataRecordTools">
+                {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+                <i
+                    class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
+                    title="Click to {% if is_link == 0 %}add a new child{% else %}link to a{% endif %} Record of this datatype"
+                    rel="{{ datatype.id }}_{{ parent_datarecord.id }}"
+                ></i>
+                {% endif %}
+                {% if (is_link == 1 and can_edit_parent_record) %}
+                <i
+                    class="fa fa-search-plus Pointer tooltip ODROpenLinkSearch"
+                    title="Click to search for a Record to link to"
+                    rel="{{ parent_datatype_id }}_{{ datatype.id }}_{{ parent_datarecord.id }}"
+                ></i>
+                {% endif %}
+            </span>
+
+            {% elseif context == 'fake_edit' %}
+            <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
+                {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+                <i class="fa fa-plus"></i>
+                {% endif %}
+                {% if (is_link == 1 and can_edit_parent_record) %}
+                <i class="fa fa-search-plus"></i>
+                {% endif %}
+            </span>
+            {% endif %}
         </h3>
 
         <div class="pure-u-1 ODRTabButtonHeader">
@@ -45,23 +120,52 @@
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
 
-            {% if datarecord_list|length > 0 %}
-                <span class="ODRSelectWrap AccordionSelect">
-                    <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect">
-                        {% for num, datarecord in datarecord_list %}
-                            {% set datarecord_is_fake = false %}
-                            {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
-                                {% set datarecord_is_fake = true %}
-                            {% endif %}
+            {% if context == 'edit' and (multiple_allowed == 1 or datarecord_list|length == 0) %}
+            <span class="DataRecordTools">
+                {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+                <i
+                    class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
+                    title="Click to {% if is_link == 0 %}add a new child{% else %}link to a{% endif %} Record of this datatype"
+                    rel="{{ datatype.id }}_{{ parent_datarecord.id }}"
+                ></i>
+                {% endif %}
+                {% if (is_link == 1 and can_edit_parent_record) %}
+                <i
+                    class="fa fa-search-plus Pointer tooltip ODROpenLinkSearch"
+                    title="Click to search for a Record to link to"
+                    rel="{{ parent_datatype_id }}_{{ datatype.id }}_{{ parent_datarecord.id }}"
+                ></i>
+                {% endif %}
+            </span>
 
-                            {% if not datarecord_is_fake %}
-                                <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
-                            {% else %}
-                                <option value="{{ datarecord.id }}">&lt;&lt;Temporary&gt;&gt;</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </span>
+            {% elseif context == 'fake_edit' %}
+            <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
+                {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+                <i class="fa fa-plus"></i>
+                {% endif %}
+                {% if (is_link == 1 and can_edit_parent_record) %}
+                <i class="fa fa-search-plus"></i>
+                {% endif %}
+            </span>
+            {% endif %}
+
+            {% if datarecord_list|length > 0 %}
+            <span class="ODRSelectWrap AccordionSelect">
+                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect">
+                {% for num, datarecord in datarecord_list %}
+                    {% set datarecord_is_fake = false %}
+                    {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+                        {% set datarecord_is_fake = true %}
+                    {% endif %}
+
+                    {% if not datarecord_is_fake %}
+                        <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
+                    {% else %}
+                        <option value="{{ datarecord.id }}">&lt;&lt;Temporary&gt;&gt;</option>
+                    {% endif %}
+                {% endfor %}
+                </select>
+            </span>
             {% endif %}
         </h3>
 
@@ -69,6 +173,35 @@
     {# just a header here...accordion_footer.html.twig doesn't need a closing tag #}
     <h3 class="ODRListDisplayHeader ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ datatype.dataTypeMeta.shortName }}</a>
+
+        {% if context == 'edit' and (multiple_allowed == 1 or datarecord_list|length == 0) %}
+        <span class="DataRecordTools">
+            {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+            <i
+                class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
+                title="Click to {% if is_link == 0 %}add a new child{% else %}link to a{% endif %} Record of this datatype"
+                rel="{{ datatype.id }}_{{ parent_datarecord.id }}"
+            ></i>
+            {% endif %}
+            {% if (is_link == 1 and can_edit_parent_record) %}
+            <i
+                class="fa fa-search-plus Pointer tooltip ODROpenLinkSearch"
+                title="Click to search for a Record to link to"
+                rel="{{ parent_datatype_id }}_{{ datatype.id }}_{{ parent_datarecord.id }}"
+            ></i>
+            {% endif %}
+        </span>
+
+        {% elseif context == 'fake_edit' %}
+        <span class="DataRecordTools Info" title="This record must be saved before {% if is_link ==0 %}child records can be created{% else %}it can be linked to other records{% endif %}" style="opacity: 45%">
+            {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
+            <i class="fa fa-plus"></i>
+            {% endif %}
+            {% if (is_link == 1 and can_edit_parent_record) %}
+            <i class="fa fa-search-plus"></i>
+            {% endif %}
+        </span>
+        {% endif %}
     </h3>
 
 {% endif %}
