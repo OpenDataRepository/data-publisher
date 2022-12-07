@@ -1363,7 +1363,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             //  ids for the Reference A/B datafields
             $rpm = array();
             foreach ($datatype_array['renderPluginInstances'] as $num => $rpi) {
-                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' )    // TODO - this doesn't work with the RRUFF Sample plugin, since that one moves references around...
+                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' )
                     $rpm = $rpi['renderPluginMap'];
             }
 
@@ -1483,7 +1483,13 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         if ( isset($datarecord['children']) && isset($datarecord['children'][$rruff_reference_dt_id]) )
             $linked_references = $datarecord['children'][$rruff_reference_dt_id];
 
-        // ...but if it does...
+        // ...if the Linked Descendant Merger plugin is involved with the rendering, then it might
+        //  have moved the linked records from $datarecord['children'] in order to do its job...it
+        //  will have left a copy of the original at $datarecord['original_children'] if so
+        if ( isset($datarecord['original_children']) && isset($datarecord['original_children'][$rruff_reference_dt_id]) )
+            $linked_references = $datarecord['original_children'][$rruff_reference_dt_id];
+
+        // If the given $datarecord does link to records belonging to $rruff_reference_datatype...
         if ( !is_null($linked_references) ) {
             // ...then attempt to find the linked record from $rruff_reference_datatype that has a
             //  reference id which matches the given $reference_id

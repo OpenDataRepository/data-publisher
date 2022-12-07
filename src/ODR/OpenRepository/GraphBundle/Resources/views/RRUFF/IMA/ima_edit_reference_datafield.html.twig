@@ -95,6 +95,11 @@
                 {% if datarecord['children'][reference_dt_id] is defined %}
                     {% set linked_records = datarecord['children'][reference_dt_id] %}
                 {% endif %}
+                {# The Linked Descendant Merger plugin might have moved the references from 'children' to somewhere else...but if it did, then it will have left a copy in 'original_children' #}
+                {# ...though for the moment, said plugin doesn't actually work in Edit mode, so this technically does nothing #}
+                {% if datarecord['original_children'][reference_dt_id] is defined %}
+                    {% set linked_records = datarecord['original_children'][reference_dt_id] %}
+                {% endif %}
 
                 {% for dr_id,dr in linked_records %}
                     {# Determine whether the current field is referring to the current datarecord #}
