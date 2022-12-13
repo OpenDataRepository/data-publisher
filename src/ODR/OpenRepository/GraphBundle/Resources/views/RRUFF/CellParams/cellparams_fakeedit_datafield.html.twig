@@ -1,0 +1,77 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {# This only gets called on "Short Text" fields #}
+    {% if field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set max_length = '' %}
+{% if field_typename == "Long Text" %}
+    {% set max_length = 255 %}
+{% elseif field_typename == "Medium Text" %}
+    {% set max_length = 64 %}
+{% elseif field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+    <form
+        autocomplete="off"
+        class="pure-u-1 {% if datafield_meta.is_unique %}ODRUniqueField{% endif %}"
+        id="EditForm_{{ unique_id }}"
+        method="POST"
+    >
+
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+        <input type="hidden" id="Cellparams_{{ datarecord.id }}_{{ datafield.id }}_Field__token" class="ODRFakeEdit_autogenerate" name="" value="{{ special_tokens[ datafield.id ] }}" rel="{{ datafield.id }}" />
+
+        {# This only gets called on "Short Text" fields #}
+{#    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}#}
+        <fieldset>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {{ datafield_meta.fieldName }}
+
+                {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/symmetry_popup.html.twig' with {
+                    'unique_id': unique_id,
+                    'input_id': input_id,
+
+                    'field_identifiers': field_identifiers,
+                    'form_token': form_token,
+
+                    'crystal_systems': crystal_systems,
+                    'point_groups': point_groups,
+                    'space_groups': space_groups,
+                } %}
+            </label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                    type="text"
+                    id="{{ input_id }}"
+                    class="pure-u-1"
+                    name="{{ input_name }}"
+                    value="{{ valuefield_value }}"
+                    data-error-type="inline"
+                    readonly="readonly"
+                />
+                <i class="fa fa-hourglass-2 ODRSaveIndicator"></i>
+            </div>
+        </fieldset>
+
+    </form>
+{% endspaceless %}

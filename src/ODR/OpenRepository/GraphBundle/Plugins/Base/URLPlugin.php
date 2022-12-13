@@ -25,11 +25,12 @@ use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class URLPlugin implements DatafieldPluginInterface
+class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -136,7 +137,7 @@ class URLPlugin implements DatafieldPluginInterface
             }
 
 
-            // Load strings to append/prepend to the contents of the datafield
+            // Get all the options of the plugin...
             $prepend = '';
             if ( isset($options['base_url']) && $options['base_url'] !== 'auto' )
                 $prepend = $options['base_url'];
@@ -145,29 +146,15 @@ class URLPlugin implements DatafieldPluginInterface
             if ( isset($options['post_url']) && $options['post_url'] !== 'auto' )
                 $append = $options['post_url'];
 
-
-            // https://tools.ietf.org/html/rfc3986#section-3  only the query and the fragment should
-            //  be encoded (if at all), but without having a URL parser handy it's impossible to
-            //  automatically and accurately encode a URL.
-            // Fortunately, users shouldn't be putting "url-like" and "not-url-like" values in the
-            //  same datafield, so handling it with a plugin option should be sufficient...
-            $href_value = $value;
+            $encode_input = false;
             if ( isset($options['encode_input']) && $options['encode_input'] === 'yes' )
-                $href_value = urlencode($value);
+                $encode_input = true;
 
 
+            // Convert the datafield's value into a URL
             $str = '';
-            if ($value !== '') {
-                $str = '<a target="_blank" href="'.$prepend.$href_value.$append.'" class="underline">';
-
-                // Display the prepend/append strings in the datafield contents if configured that way
-                if ( isset($options['display_full_url']) && $options['display_full_url'] === 'yes' )
-                    $str .= $prepend.$value.$append;
-                else
-                    $str .= $value;
-
-                $str .= '</a>';
-            }
+            if ( $value !== '' )
+                $str = self::buildURL($prepend, $append, $encode_input, $value);
 
 
             $output = "";
@@ -192,6 +179,40 @@ class URLPlugin implements DatafieldPluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Converts the given value into a URL.
+     *
+     * @param string $prepend
+     * @param string $append
+     * @param boolean $encode_input
+     * @param string $original_value
+     * @return string
+     */
+    private function buildURL($prepend, $append, $encode_input, $original_value)
+    {
+        // https://tools.ietf.org/html/rfc3986#section-3  only the query and the fragment should
+        //  be encoded (if at all), but without having a URL parser handy it's impossible to
+        //  automatically and accurately encode a URL.
+        // Fortunately, users shouldn't be putting "url-like" and "not-url-like" values in the
+        //  same datafield, so handling it with a plugin option should be sufficient...
+        $href_value = $original_value;
+        if ($encode_input)
+            $href_value = urlencode($href_value);
+
+        $str = '<a target="_blank" href="'.$prepend.$href_value.$append.'" class="underline">';
+
+        // Display the prepend/append strings in the datafield contents if configured that way
+        if ( isset($options['display_full_url']) && $options['display_full_url'] === 'yes' )
+            $str .= $prepend.$original_value.$append;
+        else
+            $str .= $original_value;
+
+        $str .= '</a>';
+
+        return $str;
     }
 
 
@@ -240,5 +261,59 @@ class URLPlugin implements DatafieldPluginInterface
         // This is a datafield plugin, so getting the datatype via the datafield...
         $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
         $this->dri_service->deleteCachedTableData($datatype_id);
+    }
+
+
+    /**
+     * Returns an array of datafield values that TableThemeHelperService should display, instead of
+     * using the values in the datarecord.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datarecord
+     * @param array|null $datafield
+     *
+     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     */
+    public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
+    {
+        // Need to get the super/subscript values
+        $render_plugin_options = $render_plugin_instance['renderPluginOptionsMap'];
+
+        $prepend = '';
+        if ( isset($render_plugin_options['base_url']) && $render_plugin_options['base_url'] !== 'auto' )
+            $prepend = $render_plugin_options['base_url'];
+        $append = '';
+        if ( isset($render_plugin_options['post_url']) && $render_plugin_options['post_url'] !== 'auto' )
+            $append = $render_plugin_options['post_url'];
+
+        $encode_input = false;
+        if ( isset($render_plugin_options['encode_input']) && $render_plugin_options['encode_input'] === 'yes' )
+            $encode_input = true;
+
+
+        // Since this is a datafield plugin, $datafield has a value
+        $df_id = $datafield['id'];
+
+        // Still need to find the value for this datafield in the given datarecord...
+        $value = array();
+        if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
+            $drf = $datarecord['dataRecordFields'][$df_id];
+
+            // Don't know the typeclass, so brute-force it
+            unset( $drf['id'] );
+            unset( $drf['created'] );
+            unset( $drf['file'] );
+            unset( $drf['image'] );
+            unset( $drf['dataField'] );
+
+            // The remaining entry will be the correct value
+            foreach ($drf as $typeclass => $data) {
+                if ( isset($data[0]['value']) && $data[0]['value'] !== '' )
+                    $value[$df_id] = self::buildURL($prepend, $append, $encode_input, $data[0]['value']);
+            }
+        }
+
+        // Return the modified value
+        return $value;
     }
 }

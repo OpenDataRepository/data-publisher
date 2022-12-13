@@ -195,9 +195,9 @@ function SaveAsNew() {
                     }
                 });
             }
-            else if ( $(fieldset).find("select").length > 0 ) {
+            else if ( $(fieldset).children("select").length > 0 ) {
                 // Single Select
-                var selected = $(fieldset).find("select").children("option:selected");
+                var selected = $(fieldset).children("select").children("option:selected");
                 if ( $(selected).length > 0 ) {
                     var ro_id_data = $(selected).attr('id').split(/_/);
                     var ro_id = ro_id_data[1];
@@ -209,7 +209,7 @@ function SaveAsNew() {
                     }
                 }
             }
-            else if ( $(fieldset).find("textarea").length > 0 ) {
+            else if ( $(fieldset).children(".ODRFieldWrapper").children("textarea").length > 0 ) {
                 // Paragraph text
                 var textarea = $(fieldset).find("textarea");
                 // console.log( $(textarea).attr('id') );
@@ -220,7 +220,7 @@ function SaveAsNew() {
                     form_data.tokens[df_id] = token;
                 }
             }
-            else if ( $(fieldset).find("input").length > 0 ) {
+            else if ( $(fieldset).children(".ODRFieldWrapper").children("input").length > 0 ) {
                 var input = $(fieldset).find("input");
                 // console.log( $(input).attr('id') );
 

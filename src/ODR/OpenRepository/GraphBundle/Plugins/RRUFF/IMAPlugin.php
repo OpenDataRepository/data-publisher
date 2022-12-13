@@ -486,6 +486,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 unset( $drf['created'] );
                 unset( $drf['file'] );
                 unset( $drf['image'] );
+                unset( $drf['dataField'] );
 
                 // Should only be one entry left at this point
                 foreach ($drf as $typeclass => $data) {

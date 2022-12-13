@@ -52,6 +52,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symphony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -238,6 +239,7 @@ class PluginsController extends ODRCustomController
             'override_fields',
             'override_field_reload',
             'override_child',
+            'override_table_fields',
             'description',
             'registered_events',
             'required_fields',
@@ -271,6 +273,13 @@ class PluginsController extends ODRCustomController
             // A datafield plugin must define exactly one "required_field"
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a Datafield Plugin and must define exactly one entry in the "required_fields" option');
         }
+
+        // A plugin must implement TableResultsOverrideInterface if and only if it affects table
+        //  search results
+        if ( $plugin_config['override_table_fields'] === true && !($plugin_service instanceof TableResultsOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must implement TableResultsOverrideInterface');
+        else if ( $plugin_config['override_table_fields'] === false && ($plugin_service instanceof TableResultsOverrideInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must not implement TableResultsOverrideInterface');
 
 
         // ----------------------------------------
@@ -640,6 +649,9 @@ class PluginsController extends ODRCustomController
 
             if ( $installed_plugin_data['overrideFieldReload'] !== $plugin_config['override_field_reload'] )
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_field_reload';
+
+            if ( $installed_plugin_data['overrideTableFields'] !== $plugin_config['override_table_fields'] )
+                $plugins_needing_updates[$plugin_classname]['meta'][] = 'override_table_fields';
 
 
             // Should doublecheck the plugin type too...
@@ -1322,6 +1334,11 @@ class PluginsController extends ODRCustomController
             else
                 $render_plugin->setOverrideChild(true);
 
+            if ( $plugin_data['override_table_fields'] === false )
+                $render_plugin->setOverrideTableFields(false);
+            else
+                $render_plugin->setOverrideTableFields(true);
+
             $render_plugin->setCreatedBy($user);
             $render_plugin->setUpdatedBy($user);
 
@@ -1751,6 +1768,11 @@ class PluginsController extends ODRCustomController
                 $render_plugin->setOverrideChild(false);
             else
                 $render_plugin->setOverrideChild(true);
+
+            if ( $plugin_data['override_table_fields'] === false )
+                $render_plugin->setOverrideTableFields(false);
+            else
+                $render_plugin->setOverrideTableFields(true);
 
             // Want the render plugin to always get marked as updated, even if it's just the
             //  fields/options/events getting changed

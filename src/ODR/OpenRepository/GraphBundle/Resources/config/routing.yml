@@ -7,8 +7,13 @@ odr_plugin_graph_static:
         datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it
 
 odr_plugin_file_renamer_rebuild:
-    path:  /plugins/file_renamer/rebuild/{dr_id}/{df_id}
+    path:  /edit/plugins/file_renamer/rebuild/{dr_id}/{df_id}
     defaults: { _controller: ODROpenRepositoryGraphBundle:FileRenamer:rebuild }
     requirements:
         dr_id: \d+
         df_id: \d+
+
+odr_plugin_cellparam_save:
+    path:  /edit/plugins/cellparams/save
+    defaults: { _controller: ODROpenRepositoryGraphBundle:RRUFFCellparams:save }
+    methods: [POST]

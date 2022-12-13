@@ -23,11 +23,12 @@ use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class ChemistryPlugin implements DatafieldPluginInterface
+class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -145,17 +146,8 @@ class ChemistryPlugin implements DatafieldPluginInterface
                 $super = "^";
 
 
-            // Apply the subscripts...
-            $sub = preg_quote($sub);
-            $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);
-            
-            // Apply the superscripts...
-            $super = preg_quote($super);
-            $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
-            
-            // Redo the boxes...
-            // TODO - replace with a css class? or with the '□' character? (0xE2 0x96 0xA1)
-            $str = preg_replace('/\[box\]/', '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>', $str);
+            if ( $str !== '' )
+                $str = self::applyChemistryFormatting($super, $sub, $str);
 
             $output = "";
             if ( $context === 'text' ) {
@@ -209,6 +201,32 @@ class ChemistryPlugin implements DatafieldPluginInterface
 
 
     /**
+     * Applies chemistry formatting to the given string.
+     *
+     * @param string $superscript_delimiter
+     * @param string $subscript_delimiter
+     * @param string $str
+     * @return string
+     */
+    private function applyChemistryFormatting($superscript_delimiter, $subscript_delimiter, $str)
+    {
+        // Apply the subscripts...
+        $sub = preg_quote($subscript_delimiter);
+        $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);
+
+        // Apply the superscripts...
+        $super = preg_quote($superscript_delimiter);
+        $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
+
+        // Redo the boxes...
+        // TODO - replace with a css class? or with the '□' character? (0xE2 0x96 0xA1)
+        $str = preg_replace('/\[box\]/', '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>', $str);
+
+        return $str;
+    }
+
+
+    /**
      * Called when a user attaches this render plugin to a datafield.
      *
      * @param PluginAttachEvent $event
@@ -253,5 +271,48 @@ class ChemistryPlugin implements DatafieldPluginInterface
         // This is a datafield plugin, so getting the datatype via the datafield...
         $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
         $this->dri_service->deleteCachedTableData($datatype_id);
+    }
+
+
+    /**
+     * Returns an array of datafield values that TableThemeHelperService should display, instead of
+     * using the values in the datarecord.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datarecord
+     * @param array|null $datafield
+     *
+     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     */
+    public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
+    {
+        // Need to get the super/subscript values
+        $superscript_delimiter = $render_plugin_instance['renderPluginOptionsMap']['superscript_delimiter'];
+        $subscript_delimiter = $render_plugin_instance['renderPluginOptionsMap']['subscript_delimiter'];
+
+        // Since this is a datafield plugin, $datafield has a value
+        $df_id = $datafield['id'];
+
+        // Still need to find the value for this datafield in the given datarecord...
+        $value = array();
+        if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
+            $drf = $datarecord['dataRecordFields'][$df_id];
+
+            // Don't know the typeclass, so brute-force it
+            unset( $drf['id'] );
+            unset( $drf['created'] );
+            unset( $drf['file'] );
+            unset( $drf['image'] );
+            unset( $drf['dataField'] );
+
+            // The remaining entry will be the correct value
+            foreach ($drf as $typeclass => $data) {
+                if ( isset($data[0]['value']) && $data[0]['value'] !== '' )
+                    $value[$df_id] = self::applyChemistryFormatting($superscript_delimiter, $subscript_delimiter, $data[0]['value']);
+            }
+        }
+
+        // Return the modified value
+        return $value;
     }
 }
