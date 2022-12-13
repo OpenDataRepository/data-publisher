@@ -1487,6 +1487,9 @@ odr_purge_datatype:
     defaults: { _controller: ODRAdminBundle:Validation:purge }
     requirements:
         datatype_ids: "^[0-9,]+$"
+odr_purge_files:
+    path: /admin/purge_files
+    defaults: { _controller: ODRAdminBundle:Validation:purgefiles }
 
 #-----------------------------------------
 
