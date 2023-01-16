@@ -7,6 +7,7 @@ odr_plugins.rruff.rruff_sample:
     override_fields: true
     override_field_reload: false
     override_child: false
+    override_table_fields: false
     description: TODO
     registered_events:
     required_fields:

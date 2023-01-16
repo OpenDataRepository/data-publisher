@@ -5,11 +5,14 @@ odr_plugins.rruff.cell_parameters:
     render: true
     version: 1.0.0
     override_fields: true
-    override_field_reload: false    # TODO - should this be true?
+    override_field_reload: true
     override_child: false
-    description: TODO
+    override_table_fields: true
+    description: This plugin provides a framework for entering crystallographic symmetry data.  In Edit mode, it restricts the available Crystal System, Point Group, Space Group, and Lattice data to ensure none of them conflict with each other.  In Display mode, it also tweaks the Point/Space groups so they're displayed nicer, and calculates volume when a value hasn't been entered by a user.
     registered_events:
-        #PostUpdateEvent: onPostUpdate    # TODO - is this needed?
+        DatarecordCreatedEvent: onDatarecordCreate
+        PostUpdateEvent: onPostUpdate
+        PostMassEditEvent: onPostMassEdit
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
@@ -18,8 +21,21 @@ odr_plugins.rruff.cell_parameters:
     #####################
 
     required_fields:
-        # So there's a grand total of 6 "official" crystal systems...
-        # (technically 8, if you could "amorphous" and "unknown")
+        cellparam_id:
+            name: Cell Parameter ID
+            description: An external ID used for the data
+            type: IntegerValue
+            properties:
+                - autogenerate_values
+                - must_be_unique
+
+        # So for crystal system, point group, and space group...these values need to be restricted
+        # Space group is technically the least restrictive, but the plugin needs to be hardcoded
+        #  to suggest specific values, so...blame the people doing the refinements if one of them
+        #  isn't listed
+
+        # There's a grand total of 6 "official" crystal systems...
+        # (technically 8, if you count "amorphous" and "unknown")
         # (additionally, euros tended to use "hexagonal" for point groups starting with 6, and tended
         #   to use "rhombohedral" or "trigonal" for those starting with 3...but RRUFF just uses the
         #   "hexagonal" crystal system for all of them)
@@ -36,21 +52,26 @@ odr_plugins.rruff.cell_parameters:
             type: ShortVarchar
             properties:
                 - no_user_edits
-        # ...and a grand total of 230 "official" space groups
+        # ...and a grand total of 230 "official" space groups...though basically all of them allow
+        #  multiple values based on the axis/angle ordering selected for the a/b/c/α/β/γ values
         space_group:
             name: Space Group
             description:
             type: ShortVarchar
             properties:
                 - no_user_edits
+
         # The lattice is derived from the first letter of the space group
         lattice:
             name: Lattice
             description:
             type: ShortVarchar
             properties:
+                - is_derived
                 - no_user_edits
 
+        # RRUFF also had a feature where it made an attempt to calculate volume based on the values
+        #  in the a/b/c/alpha/beta/gamma fields...
         a:
             name: a
             description:
@@ -75,8 +96,8 @@ odr_plugins.rruff.cell_parameters:
             name: gamma
             description:
             type: ShortVarchar
-        # RRUFF also had a feature where it made an attempt to calculate volume based on the values
-        #  in the a/b/c/alpha/beta/gamma fields, but allowed you to override if needed
+        # ...but allowed the user to override the volume, typically used when the reference authors
+        #  bothered to actually calculate it
         volume:
             name: Volume
             description:

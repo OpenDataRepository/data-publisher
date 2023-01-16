@@ -3,10 +3,11 @@ odr_plugins.chemin.qanalyze:
     category: Chemin
     datatype: false
     render: true
-    version: 1.3.0
+    version: 1.4.0
     override_fields: true
     override_field_reload: false
     override_child: false
+    override_table_fields: false
     description: Opens XRD spectrum files in Qanalyze and performs peak fitting analysis.
     registered_events:
     required_fields:

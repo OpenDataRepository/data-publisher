@@ -3,10 +3,11 @@ odr_plugins.chemin.cheminefm:
     category: Chemin
     datatype: true
     render: true
-    version: 1.2.0
+    version: 1.3.0
     override_fields: false
     override_field_reload: false
     override_child: true
+    override_table_fields: false
     description: Plugin to display Chemin EFM Data
     registered_events:
     required_fields:

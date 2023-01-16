@@ -3,10 +3,11 @@ odr_plugins.base.graph:
     category: Base
     datatype: true
     render: true
-    version: 1.3.0
+    version: 1.4.0
     override_fields: false
     override_field_reload: false
     override_child: true
+    override_table_fields: false
     description: The Graph Plugin plots XY data from uploaded files, labelling them with an associated pivot field value if possible.  If the "Use Rollup Graph" option is enabled and the plugin is attached to a child Database, then the plugin will attempt to plot data from all of the child Records onto a single graph.
     registered_events:
         FileDeletedEvent: onFileDelete

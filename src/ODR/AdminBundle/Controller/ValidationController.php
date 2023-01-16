@@ -12,6 +12,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -3172,6 +3173,102 @@ class ValidationController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xca53aaf6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Looks through the crypto directory and mentions every file/image that doesn't have an entry
+     * in the database...files/images directories for soft-deleted files/images are ignored.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function purgefilesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            // Don't want to deal with the soft-deleted filter, so use raw sql
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            // ----------------------------------------
+            // Get the directories from the crypto dir
+            $crypto_dir = realpath($this->getParameter('dterranova_crypto.temp_folder'));
+            $encrypted_folders = array('File' => array(), 'Image' => array());
+
+            $contents = scandir($crypto_dir);
+            foreach ($contents as $dir) {
+                if ($dir === '.' || $dir === '..')
+                    continue;
+
+                $name = explode('_', $dir);
+                $filetype = $name[0];
+                $id = $name[1];
+
+                $encrypted_folders[$filetype][$id] = 1;
+            }
+//            print '<pre>'.print_r($encrypted_folders, true).'</pre>';
+
+            // Get the list of files that exist in the database (including soft-deleted)
+            $query_str = 'SELECT id FROM odr_file';
+            $results = $conn->fetchAll($query_str);
+
+            foreach ($results as $result) {
+                $file_id = $result['id'];
+
+                // If the file has a database entry, then want to preserve its encrypted folder
+                if ( isset($encrypted_folders['File'][$file_id]) )
+                    unset( $encrypted_folders['File'][$file_id] );
+                else
+                    print 'File '.$file_id.' does not have an encrypted directory<br>';
+            }
+
+            // Do the same for the images...
+            $query_str = 'SELECT id FROM odr_image';
+            $results = $conn->fetchAll($query_str);
+
+            foreach ($results as $result) {
+                $file_id = $result['id'];
+
+                // If the image has a database entry, then want to preserve its encrypted folder
+                if ( isset($encrypted_folders['Image'][$file_id]) )
+                    unset( $encrypted_folders['Image'][$file_id] );
+                else
+                    print 'Image '.$file_id.' does not have an encrypted directory<br>';
+            }
+
+
+            // ----------------------------------------
+            if ( !self::SAVE ) {
+                print '<pre>'.print_r($encrypted_folders, true).'</pre>';
+            }
+            else {
+                throw new ODRNotImplementedException();
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xccf9f540;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

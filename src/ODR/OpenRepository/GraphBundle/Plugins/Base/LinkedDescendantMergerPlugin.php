@@ -512,7 +512,14 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
             if ( isset($datarecord['children']) && isset($datarecord['children'][$new_prefix]) ) {
                 // This record has descendants of this datatype...
                 $tmp = $datarecord['children'][$new_prefix];
-                // ...don't want them here anymore
+
+                // ...they need to still be available near their original location, in case there
+                //  are render plugins that rely on their existence...
+                if ( !isset($datarecord['original_children']) )
+                    $datarecord['original_children'] = array();
+                $datarecord['original_children'][$new_prefix] = $datarecord['children'][$new_prefix];
+
+                // ...but don't want twig to attempt to render them
                 unset( $datarecord['children'][$new_prefix] );
 
                 return $tmp;

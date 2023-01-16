@@ -3,10 +3,11 @@ odr_plugins.base.comment:
     category: Base
     datatype: true
     render: true
-    version: 1.2.0
+    version: 1.3.0
     override_fields: true
     override_field_reload: false
     override_child: true
+    override_table_fields: false
     description: This RenderPlugin turns all records of a child Datatype into a table, displaying the contents of the Comment field, who entered it, and when.  Ideally existing comment records would not be editable, but there's no way to enforce that at the moment.
     registered_events:
     required_fields:
