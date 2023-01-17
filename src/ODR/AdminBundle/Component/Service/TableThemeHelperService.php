@@ -139,12 +139,15 @@ class TableThemeHelperService
         // Get the array versions of the datafields being viewed by the user
         $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e67);
         foreach ($df_array as $num => $df) {
-            // Extract the datafield's name
+            // Extract the datafield's name and escape any double-quotes it has
             $fieldname = $df['dataFieldMeta']['fieldName'];
-
-            // Escape double-quotes in the datafield's name
             $fieldname = str_replace('"', "\\\"", $fieldname);
-            $column_names .= '{"title":"'.$fieldname.'",';
+
+            // datatables.js uses the "title" property for the column label, and makes the "name"
+            //  property availble for selecting columns via its own column() selector
+            //  @see https://datatables.net/reference/type/column-selector#{string}:name
+            // Of note is that the "name" property does not show up in the table's HTML
+            $column_names .= '{"name":"'.$df['id'].'","title":"'.$fieldname.'",';
 
             // If dynamically added, the edit link column will have a priority of 10000
             //  and therefore won't be hidden if there's too many columns for the screen
@@ -353,7 +356,13 @@ class TableThemeHelperService
                 // Prepend the datarecord's id and sortfield value
                 $row = array();
                 $row[] = strval($dr_id);
-                $row[] = strval($dr['sortField_value']);
+
+                // IMPORTANT: doing it this way only (mostly) worked BEFORE multi-datafield sorting
+//                $row[] = strval($dr['sortField_value']);
+                // The better way of doing it now is to leave a placeholder space here, so that the
+                //  calling function can fill it in later with the sort order determined by the
+                //  search system
+                $row[] = '';
 
                 // Convert all the datafield values into strings, and store them
                 foreach ($dr_data as $tmp)

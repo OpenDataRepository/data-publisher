@@ -323,22 +323,48 @@ class SearchAPIService
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
         $filtered_search_params = array();
 
-        // Get all the datatypes/datafields the user is allowed to search on...
+        // Get all the datatypes/datafields the user can view...
         $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
+
+        // Prior to inline searching, $searchable_datafields only had datafields that the user could
+        //  view and weren't marked as DataFields::NOT_SEARCHED...but because of inline search's
+        //  requirements, it now contains every single datafield related to this datatype that the
+        //  user is allowed to view
 
         foreach ($search_params as $key => $value) {
             if ($key === 'dt_id' || $key === 'gen') {
                 // Don't need to do anything special with these keys
                 $filtered_search_params[$key] = $value;
             }
+            else if ($key === 'sort_by') {
+                // TODO - eventually need sort by created/modified date
+
+                // The values for the "sort_by" key are allowed to either be an object...
+                // e.g. {"dt_id":"3","sort_by":{"sort_df_id":"18","sort_dir":"asc"}}
+                // ...or it's allowed to be an array of objects...
+                // e.g. {"dt_id":"3","sort_by":[{"sort_df_id":"18","sort_dir":"asc"}]}
+
+                // Since we want multi-datafield sorting to be a thing, convert the first form into
+                //  the second form if needed
+                if ( count($value) === 2 && isset($value['sort_df_id']) && isset($value['sort_dir']) ) {
+                    $tmp = $value;
+                    $value = array($tmp);
+                }
+
+                // Sorting happens regardless of whether the user can see the relevant datafield...
+                //  so don't need to look anything up in $searchable_datafields
+                $filtered_search_params['sort_by'] = $value;
+            }
             else if ( is_numeric($key) ) {
                 // This is a datafield entry...
                 $df_id = intval($key);
 
+                // Determine if the user can view the datafield...
                 foreach ($searchable_datafields as $dt_id => $datafields) {
-                    if ( isset($datafields[$df_id]) ) {
-                        // User can search on this datafield
+                    if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
+                        // User can both view and search this datafield
                         $filtered_search_params[$key] = $value;
+                        break;
                     }
                 }
             }
@@ -350,9 +376,10 @@ class SearchAPIService
                     $df_id = intval($pieces[0]);
 
                     foreach ($searchable_datafields as $dt_id => $datafields) {
-                        if ( isset($datafields[$df_id]) ) {
-                            // User can search on this datafield
+                        if ( isset($datafields[$df_id]) && $datafields[$df_id]['searchable'] > DataFields::NOT_SEARCHED ) {
+                            // User can both view and search this datafield
                             $filtered_search_params[$key] = $value;
+                            break;
                         }
                     }
                 }
@@ -608,18 +635,22 @@ class SearchAPIService
 
             // Want to use SortService::getSortedDatarecordList() unless the provided sort datafields
             //  or directions are different from the datatype's default sort order
+            $has_sortfields = false;
             $is_default_sort_order = true;
             foreach ($sort_directions as $num => $dir) {
                 if ( $dir !== 'asc' )
                     $is_default_sort_order = false;
             }
             foreach ($datatype->getSortFields() as $display_order => $df) {
+                $has_sortfields = true;
                 if ( !isset($sort_datafields[$display_order]) || $df->getId() !== $sort_datafields[$display_order] )
                     $is_default_sort_order = false;
             }
+            if ( $has_sortfields && $is_default_sort_order )
+                $sort_datafields = $sort_directions = array();
 
             // ----------------------------------------
-            if ( empty($sort_datafields) || $is_default_sort_order ) {
+            if ( empty($sort_datafields) ) {
                 // No sort datafields defined for this request, use the datatype's default ordering
                 $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($source_dt_id, $grandparent_ids_for_sorting);
             }

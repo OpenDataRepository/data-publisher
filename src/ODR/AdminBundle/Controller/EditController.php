@@ -2509,6 +2509,12 @@ class EditController extends ODRCustomController
                     // User can't view the results of this search key, redirect to the one they can view
                     return $search_redirect_service->redirectToEditPage($datarecord_id, $search_theme_id, $filtered_search_key, $offset);
                 }
+                $search_params = $search_key_service->decodeSearchKey($search_key);
+
+                // Ensure the tab refers to the given search key
+                $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
+                if ( $expected_search_key !== $search_key )
+                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
 
                 // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
                 //  will display stuff in a different order
@@ -2516,7 +2522,23 @@ class EditController extends ODRCustomController
                 $sort_directions = array();
 
                 $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
-                if ( is_null($sort_criteria) ) {
+                if ( !is_null($sort_criteria) ) {
+                    // Prefer the criteria from the user's session whenever possible
+                    $sort_datafields = $sort_criteria['datafield_ids'];
+                    $sort_directions = $sort_criteria['sort_directions'];
+                }
+                else if ( isset($search_params['sort_by']) ) {
+                    // If the user's session doesn't have anything but the search key does, then
+                    //  use that
+                    foreach ($search_params['sort_by'] as $display_order => $data) {
+                        $sort_datafields[$display_order] = intval($data['sort_df_id']);
+                        $sort_directions[$display_order] = $data['sort_dir'];
+                    }
+
+                    // Store this in the user's session
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
+                }
+                else {
                     // No criteria set...get this datatype's current list of sort fields, and convert
                     //  into a list of datafield ids for storing this tab's criteria
                     foreach ($datatype->getSortFields() as $display_order => $df) {
@@ -2524,11 +2546,6 @@ class EditController extends ODRCustomController
                         $sort_directions[$display_order] = 'asc';
                     }
                     $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
-                }
-                else {
-                    // Load the criteria from the user's session
-                    $sort_datafields = $sort_criteria['datafield_ids'];
-                    $sort_directions = $sort_criteria['sort_directions'];
                 }
 
                 // No problems, so get the datarecords that match the search
