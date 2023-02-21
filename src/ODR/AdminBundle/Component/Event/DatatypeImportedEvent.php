@@ -2,36 +2,35 @@
 
 /**
  * Open Data Repository Data Publisher
- * DatarecordCreated Event
+ * DatatypeImported Event
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Due to design decisions, "auto-incrementing" of ID fields for databases is going to be handled
- * via render plugins.  As such, an event is needed for notification that a datarecord has been
- * created, and therefore needs to have its ID generated.
+ * The primary use for this event is to notify stuff that needs synchronization via API.  I'm not
+ * entirely sure this is needed, but...
  *
- * Stuff that needs synchronization via API also probably will find this event useful.
+ * Render Plugins currently aren't allowed to latch onto this event.
  */
 
 namespace ODR\AdminBundle\Component\Event;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Symfony\Component\EventDispatcher\Event;
 
 
-class DatarecordCreatedEvent extends Event implements ODREventInterface
+class DatatypeImportedEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
-    const NAME = 'odr.event.datarecord_created_event';
+    const NAME = 'odr.event.datatype_imported_event';
 
     /**
-     * @var DataRecord
+     * @var DataType
      */
-    private $datarecord;
+    private $datatype;
 
     /**
      * @var ODRUser
@@ -40,33 +39,33 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * DatarecordCreatedEvent constructor.
+     * DatatypeImportedEvent constructor.
      *
-     * @param DataRecord $datarecord
+     * @param DataType $datatype
      * @param ODRUser $user
      */
     public function __construct(
-        DataRecord $datarecord,
+        DataType $datatype,
         ODRUser $user
     ) {
-        $this->datarecord = $datarecord;
+        $this->datatype = $datatype;
         $this->user = $user;
     }
 
 
     /**
-     * Returns the datarecord that just got created.
+     * Returns the datatype that just got modified.
      *
-     * @return DataRecord
+     * @return DataType
      */
-    public function getDatarecord()
+    public function getDatatype()
     {
-        return $this->datarecord;
+        return $this->datatype;
     }
 
 
     /**
-     * Returns the user that created the datarecord.
+     * Returns the user that performed the modification.
      *
      * @return ODRUser
      */
@@ -92,7 +91,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
     {
         return array(
             self::NAME,
-            'dr '.$this->datarecord->getId(),
+            'dt '.$this->datatype->getId(),
         );
     }
 }

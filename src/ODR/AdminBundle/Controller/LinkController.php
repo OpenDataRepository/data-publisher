@@ -24,6 +24,9 @@ use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -45,9 +48,9 @@ use ODR\AdminBundle\Component\Utility\UserUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Templating\EngineInterface;
 
 
@@ -928,7 +931,7 @@ class LinkController extends ODRCustomController
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update);
 
-                // Determine whether the local datatype's sortfield belongs a remote datatype...
+                // Determine whether one of the local datatype's sortfields belongs a remote datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
@@ -978,15 +981,6 @@ class LinkController extends ODRCustomController
                 // Only flush if needed, and only after the previous transaction is committed
                 if ($needs_flush)
                     $em->flush();
-
-
-                // ----------------------------------------
-                // Mark the ancestor datatype as has having been updated
-                $dbi_service->updateDatatypeCacheEntry($local_datatype, $user);
-                // Mark the ancestor datatype's theme as having been updated
-                $theme_service->updateThemeCacheEntry($theme, $user);
-                // Also delete the list of top-level themes, just incase...
-                $cache_service->delete('top_level_themes');
             }
 
 
@@ -1033,28 +1027,46 @@ class LinkController extends ODRCustomController
                     'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
                 );
                 $emm_service->updateThemeMeta($user, $theme, $properties);    // flush here
-
-
-                // ----------------------------------------
-                // Mark the ancestor datatype has having been updated
-                $dbi_service->updateDatatypeCacheEntry($local_datatype, $user);
-                // Mark the the ancestor datatype's master theme as updated
-                $theme_service->updateThemeCacheEntry($theme, $user);
-                // Also delete the list of top-level themes, just incase...
-                $cache_service->delete('top_level_themes');
             }
 
 
-            // Since a link between datatypes got created/deleted, delete the cached datatree array
-            $cache_service->delete('cached_datatree_array');
+            // ----------------------------------------
+            // If a link got removed or added, the datatype needs to be marked as updated
+            if ( $previous_remote_datatype_id !== '' || $remote_datatype_id !== '' ) {
+                // ...but the cached datarecord entries only need to be deleted if a link was removed
+                $clear_datarecord_caches = false;
+                if ( $previous_remote_datatype_id !== '' )
+                    $clear_datarecord_caches = true;
 
-            // Regardless of whether something got linked or unlinked, the cache entry
-            //  'associated_datatypes_for_<dt_id>' only relies on the local datatype...
-            $dbi_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
-            // ...and the cache entry 'cached_search_dt_<dt_id>_linked_dr_parents' only depends
-            //  on the remote datatype
-            $search_cache_service->onLinkStatusChange($remote_datatype);
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypeModifiedEvent($local_datatype, $user, $clear_datarecord_caches);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
 
+                // Mark the ancestor datatype's theme as having been updated
+                $theme_service->updateThemeCacheEntry($theme, $user);
+                // Also delete the list of top-level themes, just incase...
+                $cache_service->delete('top_level_themes');
+                // Since a link between datatypes got created/deleted, delete the cached datatree array
+                $cache_service->delete('cached_datatree_array');
+
+                // Regardless of whether something got linked or unlinked, the cache entry
+                //  'associated_datatypes_for_<dt_id>' only relies on the local datatype...
+                $dbi_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
+                // ...and the cache entry 'cached_search_dt_<dt_id>_linked_dr_parents' only depends
+                //  on the remote datatype
+                $search_cache_service->onLinkStatusChange($remote_datatype);
+            }
 
             if ($remote_datatype_id === '')
                 $remote_datatype_id = $previous_remote_datatype_id;
@@ -1481,7 +1493,11 @@ class LinkController extends ODRCustomController
      */
     private function updateDatarecordEntries($em, $user, $datarecord_ids)
     {
-        // Mark all datarecords that linked to a datarecord in the remote datatype as updated
+        // Do NOT want to fire off DatarecordModified events here...it would likely require a lot
+        //  of hydration
+
+        // ...since DatarecordModified events aren't being used, that means all relevant datarecords
+        //  can be marked as updated with a single DQL statement
         $query = $em->createQuery(
            'UPDATE ODRAdminBundle:DataRecord AS dr
             SET dr.updated = :now, dr.updatedBy = :user_id
@@ -1494,6 +1510,9 @@ class LinkController extends ODRCustomController
             )
         );
         $query->execute();
+
+        // Clearing the datarecord cache entries is handled by the DatatypeModified event that gets
+        //  fired later on
 
         // Locate and clear all cache entries claiming that a datarecord links to something
         //  in $datarecord_ids
@@ -1958,7 +1977,6 @@ class LinkController extends ODRCustomController
 
 
             // Ensure these actions are undertaken on the correct entity
-            $linked_datatree = null;
             $local_datarecord_is_ancestor = true;
             if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                 $local_datarecord_is_ancestor = false;
@@ -2046,9 +2064,8 @@ class LinkController extends ODRCustomController
             // Keep track of whether any change was made
             $change_made = false;
 
-            // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
-            //  potentially multiple datarecords...
-            $records_to_check = array();
+            // Likely going to need to clear cache entries for multiple records
+            $records_needing_events = array();
 
             if ($remove_records_not_in_post) {
                 foreach ($linked_datatree as $ldt) {
@@ -2070,10 +2087,9 @@ class LinkController extends ODRCustomController
                     if ( !isset($datarecords[$remote_datarecord->getId()]) ) {
                         // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
-                        // Mark the ancestor datarecord as updated
-                        $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
                         // Setup for figuring out which cache entries need deleted
-                        $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
+                        $gp_dr = $ldt->getAncestor()->getGrandparent();
+                        $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
 
                         // Delete the linked_datatree entry
                         $ldt->setDeletedBy($user);
@@ -2082,6 +2098,9 @@ class LinkController extends ODRCustomController
 
                         // The local record is no longer linked to this remote record
                         $change_made = true;
+
+                        // NOTE: don't want to fire off an event right this moment...there could be
+                        //  multiple records to be unlinked, and even more records to link to
                     }
                     else {
                         // Otherwise, a datarecord was linked and still is linked...
@@ -2142,10 +2161,9 @@ class LinkController extends ODRCustomController
                 // Ensure there is a link between the two datarecords
                 $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
 
-                // Force a rebuild of the cached entry for the ancestor datarecord
-                $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
                 // Setup for figuring out which cache entries need deleted
-                $records_to_check[ $ancestor_datarecord->getGrandparent()->getId() ] = 1;
+                $gp_dr = $ancestor_datarecord->getGrandparent();
+                $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
 
                 // The local record is now linked to this remote record
                 $change_made = true;
@@ -2156,10 +2174,29 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
-            //  entry removed so the view/edit pages show the correct linked records
-            $records_to_check = array_flip($records_to_check);
-            $dri_service->deleteCachedDatarecordLinkData($records_to_check);
+            // Each of the records in $records_needing_events needs to be marked as updated and have
+            //  their primary cache entries cleared
+            try {
+                foreach ($records_needing_events as $dr_id => $dr) {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordModifiedEvent($dr, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
+            //  cache entry deleted so the view/edit pages can show the correct linked records
+            $records_to_clear = array_keys($records_needing_events);
+            $dri_service->deleteCachedDatarecordLinkData($records_to_clear);
             // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
             //  searching isn't using old cache entries
             $search_cache_service->onLinkStatusChange($descendant_datatype);
@@ -2355,7 +2392,7 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
             //  potentially multiple datarecords...
-            $records_to_check = array();
+            $records_needing_events = array();
 
             foreach ($linked_datatree as $ldt) {
                 $remote_datarecord = null;
@@ -2376,15 +2413,17 @@ class LinkController extends ODRCustomController
                 if ( isset($datarecords[$remote_datarecord->getId()]) ) {
                     // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
-                    // Mark the ancestor datarecord as updated
-                    $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
                     // Setup for figuring out which cache entries need deleted
-                    $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
+                    $gp_dr = $ldt->getAncestor()->getGrandparent();
+                    $records_needing_events[ $gp_dr->getId() ] = $gp_dr;
 
                     // Delete the linked_datatree entry
                     $ldt->setDeletedBy($user);
                     $ldt->setDeletedAt(new \DateTime());
                     $em->persist($ldt);
+
+                    // NOTE: don't want to fire off an event right this moment, as it could cause
+                    //  multiple updates for the same record
                 }
             }
 
@@ -2416,10 +2455,29 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
-            //  entry removed so the view/edit pages show the correct linked records
-            $records_to_check = array_flip($records_to_check);
-            $dri_service->deleteCachedDatarecordLinkData($records_to_check);
+            // Each of the records in $records_needing_events needs to be marked as updated and have
+            //  their primary cache entries cleared
+            try {
+                foreach ($records_needing_events as $dr_id => $dr) {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordModifiedEvent($dr, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Each of these records also needs to have their "associated_datarecords_for_<dr_id>"
+            //  cache entry deleted so the view/edit pages can show the correct linked records
+            $records_to_clear = array_keys($records_needing_events);
+            $dri_service->deleteCachedDatarecordLinkData($records_to_clear);
             // ...also need to delete the relevant 'cached_search_dt_<dt_id>_linked_dr_parents' so
             //  searching isn't using old cache entries
             $search_cache_service->onLinkStatusChange($descendant_datatype);

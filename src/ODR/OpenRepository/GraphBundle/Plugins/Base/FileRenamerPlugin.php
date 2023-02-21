@@ -24,10 +24,10 @@
  *
  * Because the file/image field in question can't be flagged as derived from the contents of other
  * fields, any changes made to these other fields can't automatically update the file/image field...
- * so rendering the field in View and Edit modes has to check whether the filename is out of sync
- * with its constituent parts, and splice in an obnoxious warning if not.  Furthermore, this means
- * both Edit and MassEdit modes have to be capable of regenerating the filename when the user sees
- * the need to do so.
+ * but since checking whether the filename is out of sync is expensive, it can't really splice in
+ * an obnoxious warning when it's out of sync.  It's easier to make both Edit and MassEdit capable
+ * of regenerating the filename when the user sees the need to do so, though doing so still requires
+ * extra events and controllers.
  *
  * On top of this, the "other fields" can come from a linked database, so any config made for this
  * plugin has a very real chance of getting invalidated due to changes made by a user that doesn't
@@ -191,6 +191,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
             // ----------------------------------------
             $output = "";
             if ( $rendering_options['context'] === 'display' ) {
+                // TODO - also work in the 'display' context?  but finding errors to display is expensive...
+
 //                $output = $this->templating->render(
 //                    'ODROpenRepositoryGraphBundle:Base:FileRenamer/display_file_datafield.html.twig',
 //                    array(

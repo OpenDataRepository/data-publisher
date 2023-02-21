@@ -7,11 +7,7 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Due to design decisions, "auto-incrementing" of ID fields for databases is going to be handled
- * via render plugins.  As such, an event is needed for notification that a datarecord has been
- * created, and therefore needs to have its ID generated.
- *
- * Stuff that needs synchronization via API also probably will find this event useful.
+ * The primary use for this event is to notify stuff that needs synchronization via API.
  */
 
 namespace ODR\AdminBundle\Component\Event;
@@ -23,10 +19,10 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class DatarecordCreatedEvent extends Event implements ODREventInterface
+class DatarecordPublicStatusChangedEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
-    const NAME = 'odr.event.datarecord_created_event';
+    const NAME = 'odr.event.datarecord_public_status_changed_event';
 
     /**
      * @var DataRecord
@@ -40,7 +36,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * DatarecordCreatedEvent constructor.
+     * DatarecordPublicStatusChangedEvent constructor.
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
@@ -55,7 +51,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the datarecord that just got created.
+     * Returns the datarecord that was modified.
      *
      * @return DataRecord
      */
@@ -66,7 +62,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the user that created the datarecord.
+     * Returns the user that changed the public status of this datarecord.
      *
      * @return ODRUser
      */

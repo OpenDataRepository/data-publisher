@@ -1677,11 +1677,11 @@ class ValidationController extends ODRCustomController
 
         if ( isset($query_targets['DataFields']['masterDataField']) ) {
             unset( $query_targets['DataFields']['masterDataField'] );
-            print '>> TODO - ignore undeleted DataField entities that reference deleted masterDataFields??'."\n";
+            print '>> TODO - modify undeleted DataField entities to no longer reference deleted masterDataFields??'."\n";
         }
         if ( isset($query_targets['DataType']['masterDataType']) ) {
             unset( $query_targets['DataType']['masterDataType'] );
-            print '>> TODO - ignore undeleted DataType entities that reference deleted masterDataTypes??'."\n";
+            print '>> TODO - modify undeleted DataType entities to no longer reference deleted masterDataTypes??'."\n";
         }
         print "\n";
 

@@ -15,8 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -44,6 +42,7 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\HttpFoundation\Request;
@@ -208,10 +207,14 @@ class WorkerController extends ODRCustomController
                         $em->flush();
 
                     // ----------------------------------------
-                    // Do not mark this datarecord as updated
-                    // Delete the relevant cached datarecord entries
+                    // NOTE: conversions from multiple radio/select to single radio/select create
+                    //  one background job per datarecord
+
+                    // Do not want to mark this datarecord as updated...nothing fundamentally changed
+                    // However, still need to delete the relevant cached datarecord entries
                     $cache_service->delete('cached_datarecord_'.$datarecord->getGrandparent()->getId());
                     $cache_service->delete('cached_table_data_'.$datarecord->getGrandparent()->getId());
+                    $cache_service->delete('json_record_'.$datarecord->getGrandparent()->getUniqueId());
 
                     // Delete all relevant search cache entries
                     $search_cache_service->onDatafieldModify($datafield);
@@ -416,26 +419,25 @@ class WorkerController extends ODRCustomController
 
 
                 // ----------------------------------------
-                // Need to delete all cache entries for all datarecords of the datatype...can't just
-                //  delete them for the datarecords that got migrated
-                $query =
-                   'SELECT dr.id AS dr_id, dr.unique_id AS unique_id
-                    FROM odr_data_record dr
-                    WHERE dr.data_type_id = '.$datafield->getDataType()->getGrandparent()->getId().'
-                    AND dr.deletedAt IS NULL';
-                $results = $conn->fetchAll($query);
+                // NOTE: all non-radio fieldtype migrations only have a single background job, and
+                //  so the list of datarecords must be determined via other means
 
-                foreach ($results as $result) {
-                    $dr_id = $result['dr_id'];
-                    $unique_id = $result['unique_id'];
+                // Don't want to mark the affected datarecords as updated...nothing has fundamentally
+                //  changed.  However, need to delete all the cached datarecords for the datatype
+                /** @var SearchService $search_service */
+                $search_service = $this->container->get('odr.search_service');
 
-//                    if ( $cache_service->exists('cached_datarecord_'.$dr_id) ) {
-                        $cache_service->delete('cached_datarecord_'.$dr_id);
-                        $cache_service->delete('cached_table_data_'.$dr_id);
-                        $cache_service->delete('json_record_'.$unique_id);
-//                    }
+                $dr_list = $search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $parent_dr_id) {
+                    $cache_service->delete('cached_datarecord_'.$dr_id);
+                    $cache_service->delete('cached_table_data_'.$dr_id);
                 }
-                $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted cache entries for '.count($results).' datarecords from top-level datatype '.$top_level_datatype->getId());
+
+                $dr_list = $search_service->getCachedDatarecordUUIDList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $dr_uuid)
+                    $cache_service->delete('json_record_'.$dr_uuid);
+
+                $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted cache entries for '.count($dr_list).' datarecords from top-level datatype '.$top_level_datatype->getId());
 
                 // Also need to delete all relevant search cache entries
                 $search_cache_service->onDatafieldModify($datafield);

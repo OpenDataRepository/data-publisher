@@ -93,7 +93,7 @@
 
         function exportDatarecord() {
             // Default to JSON output
-            var url = "{{ path('odr_api_get_datarecord_single', {'datarecord_uuid': datarecord.uniqueid, 'version': 'v1' }) }}";
+            var url = "{{ path('odr_api_get_datarecord_single', {'record_uuid': datarecord.uniqueid, 'version': 'v1' }) }}";
             url += '?download=file';
 
             document.location = url;

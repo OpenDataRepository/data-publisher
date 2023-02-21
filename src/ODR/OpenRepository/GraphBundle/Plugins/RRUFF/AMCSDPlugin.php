@@ -29,6 +29,7 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 use ODR\AdminBundle\Component\Event\PostMassEditEvent;
@@ -50,6 +51,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -97,6 +99,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private $search_cache_service;
 
     /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    /**
      * @var CsrfTokenManager
      */
     private $token_manager;
@@ -123,6 +130,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param LockService $lock_service
      * @param SearchCacheService $search_cache_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -136,6 +144,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         EntityMetaModifyService $entity_meta_modify_service,
         LockService $lock_service,
         SearchCacheService $search_cache_service,
+        EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
@@ -148,6 +157,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $this->emm_service = $entity_meta_modify_service;
         $this->lock_service = $lock_service;
         $this->search_cache_service = $search_cache_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -1179,12 +1189,22 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private function clearCacheEntries($datarecord, $user, $storage_entities)
     {
         // The datarecord needs to be marked as updated
-        $this->dri_service->updateDatarecordCacheEntry($datarecord, $user);
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
 
         // Because multiple datafields got updated, multiple cache entries need to be wiped
         foreach ($storage_entities as $df_id => $entity)
             $this->search_cache_service->onDatafieldModify($entity->getDataField());
-        $this->search_cache_service->onDatarecordModify($datarecord);
     }
 
 

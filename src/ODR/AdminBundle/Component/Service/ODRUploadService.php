@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -292,6 +293,24 @@ class ODRUploadService
         // TODO - should encryption be deferred through beanstalk instead?
         $this->crypto_service->encryptImage($image->getId(), $filepath);
 
+
+        // ----------------------------------------
+        // Mark this datarecord as updated...don't want to let this happen inside the crypto service,
+        //  because then it'll fire off two modified events
+        $datarecord = $image->getDataRecord();
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
         return $image;
     }
 
@@ -384,5 +403,23 @@ class ODRUploadService
 
         // Encrypt the original version of the image, storing its information back in $existing_image
         $this->crypto_service->encryptImage($existing_image->getId(), $filepath);
+
+
+        // ----------------------------------------
+        // Mark this datarecord as updated...don't want to let this happen inside the crypto service,
+        //  because then it'll fire off two modified events
+        $datarecord = $existing_image->getDataRecord();
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 }

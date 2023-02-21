@@ -15,9 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -40,6 +37,10 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Event\PostMassEditEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -575,6 +576,11 @@ class MassEditController extends ODRCustomController
             // Set the url for mass updating datarecord values
             $url = $this->generateUrl('odr_mass_update_worker_values', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
+            // TODO - ...modify this to only create one background job per datarecord?
+            // TODO - ...this would reduce the number of events fired, but there will still be multiple events if modifying child records
+            // TODO - also, just sending one job per drf is the least likely to run into "background job payload too big" issues
+            // TODO - ...and any RSS subscriber is already going to need the ability to "debounce" repeated events anyways
+
             foreach ($datafield_list as $df_id => $dt_id) {
                 // Ensure user has the permisions to modify values of this datafield
                 $can_edit_datafield = false;
@@ -755,14 +761,10 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -815,12 +817,22 @@ class MassEditController extends ODRCustomController
             }
 
             if ($updated) {
-                // ----------------------------------------
-                // Mark this datarecord as updated
-                $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-                // ...and delete the cached entry that stores public status for this datatype
-                $search_cache_service->onDatarecordPublicStatusChange($datarecord);
+                // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
+                //  the database changes and cache clearing that a DatarecordModified event would cause
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
+                    $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
             }
 
 
@@ -923,8 +935,6 @@ class MassEditController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1366,10 +1376,20 @@ class MassEditController extends ODRCustomController
 
             // ----------------------------------------
             // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // Delete the search cache entries that relate to datarecord modification
-            $search_cache_service->onDatarecordModify($datarecord);
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
@@ -1385,7 +1405,20 @@ class MassEditController extends ODRCustomController
                     // TODO - really want a better system than this...
                     // In theory, being here means the job is done, so delete all search cache entries
                     //  relevant to this datatype
-                    $search_cache_service->onDatatypeImport($datatype);
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatatypeImportedEvent($datatype, $user);
+                        $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                    }
 
                     // This includes search cache entries of the datafields that got modified...
                     $additional_data = $tracked_job->getAdditionalData();
@@ -1672,7 +1705,7 @@ class MassEditController extends ODRCustomController
             // Locate all datarecords that link to any of the datarecords that will be deleted...
             //  they will need to have their cache entries rebuilt
             $query = $em->createQuery(
-               'SELECT DISTINCT(gp.id) AS ancestor_id
+               'SELECT gp.id AS dr_id, gp.unique_id AS dr_uuid
                 FROM ODRAdminBundle:LinkedDataTree AS ldt
                 JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
                 JOIN ODRAdminBundle:DataRecord AS gp WITH ancestor.grandparent = gp
@@ -1682,9 +1715,17 @@ class MassEditController extends ODRCustomController
             )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
             $results = $query->getArrayResult();
 
-            $ancestor_datarecord_ids = array();
-            foreach ($results as $result)
-                $ancestor_datarecord_ids[] = $result['ancestor_id'];
+            $dr_ids = array();
+            $dr_uuids = array();
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $dr_uuid = $result['dr_uuid'];
+
+                $dr_ids[$dr_id] = 1;
+                $dr_uuids[$dr_uuid] = 1;
+            }
+            $ancestor_datarecord_ids = array_keys($dr_ids);
+            $ancestor_datarecord_uuids = array_keys($dr_uuids);
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  //exit();
 
             // If the datarecord contains any datafields that are being used as a sortfield for
@@ -1769,6 +1810,7 @@ class MassEditController extends ODRCustomController
 //$conn->rollBack();
             $conn->commit();
 
+
             // -----------------------------------
             // All datarecords deleted by this were top-level, so it doesn't make sense to mark
             //  anything as updated
@@ -1778,18 +1820,29 @@ class MassEditController extends ODRCustomController
             // Ensure no records think they're still linked to this now-deleted record
             $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
 
-            // Delete all search cache entries that could reference the deleted datarecords
-            $search_cache_service->onDatarecordDelete($datatype);
             // Force anything that linked to this datatype to rebuild link entries since at least
             //  one record got deleted
             $search_cache_service->onLinkStatusChange($datatype);
 
-            // Force a rebuild of the cache entries for each datarecord that linked to the records
-            //  that just got deleted
-            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
-                $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('cached_table_data_'.$dr_id);
+            // We don't want to fire off multiple (potentially hundreds) of DatarecordDeleted events
+            //  here, so the event was designed to permit arrays of ids/uuids
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordDeletedEvent($ancestor_datarecord_ids, $ancestor_datarecord_uuids, $datatype, $user);
+                $dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
             }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // NOTE: don't want/need a DatarecordModified event here...the deleted records are
+            //  (currently) guaranteed to be top-level, and therefore have nothing to update
 
 
             // ----------------------------------------

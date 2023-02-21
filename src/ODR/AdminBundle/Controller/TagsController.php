@@ -18,12 +18,19 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
-use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -33,14 +40,9 @@ use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
-// Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Templating\EngineInterface;
@@ -190,9 +192,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -262,8 +261,21 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Update the cached version of the datatype
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Don't need to update cached versions of datarecords or themes
 
@@ -650,8 +662,22 @@ class TagsController extends ODRCustomController
                 $sort_service->sortTagsByName($user, $datafield);
 
 
-            // Update the cached version of the datatype
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // ----------------------------------------
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Also need to clear a few search cache entries
             $search_cache_service->onDatafieldModify($datafield);
@@ -783,17 +809,12 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var TagHelperService $tag_helper_service */
@@ -965,37 +986,35 @@ class TagsController extends ODRCustomController
             // No error encountered, commit changes
             $conn->commit();
 
-
-            // ----------------------------------------
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
                 $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
-            // Mark this datatype as updated
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // ----------------------------------------
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries since deletion could have unselected a tag
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Delete the separately cached tag tree for this datatype's grandparent
+            $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+
             if ( $grandparent_datatype->getIsMasterType() ) {
                 // This is a master template datatype...cross-template searches use this entry
                 //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
                 $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
-
-                // Template datatypes also have this
-                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-            }
-            else {
-                // This is not a master template datatype, so it will only have this cache entry
-                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-
-                // Wipe cached data for all the datatype's datarecords
-                $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-                foreach ($dr_list as $dr_id => $parent_dr_id) {
-                    $cache_service->delete('cached_datarecord_'.$dr_id);
-                    // Tags can't be in table themes, so don't need to delete those cache entries
-                }
-
-                // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
-                //  isn't displayed in table themes
             }
 
             // Delete any cached search results involving this datafield
@@ -1048,16 +1067,12 @@ class TagsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
@@ -1289,36 +1304,38 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             if ($tag_hierarchy_changed || $tag_sort_order_changed) {
                 // Update cached version of datatype
-                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries, see below
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+
+                    // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
+                    //  entry somewhere in them because otherwise Display mode can't handle the
+                    //  "display_unselected_radio_options" config option...this entry depends on
+                    //  the "cached_tag_tree_<dt_id>" entry that will get deleted, so all of the
+                    //  cached datarecord entries for this datatype also need to get deleted...
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
 
                 // Don't need to update cached versions of datarecords or search results unless tag
                 //  parentage got changed...
                 if ($create_new_entry || $delete_old_entry) {
                     // Delete the separately cached tag tree for this datatype's grandparent
                     $grandparent_datatype = $datatype->getGrandparent();
+                    $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+
                     if ($grandparent_datatype->getIsMasterType()) {
                         // This is a master template datatype...cross-template searches use this entry
                         //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
                         $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
-
-                        // Template datatypes also have this
-                        $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-                    }
-                    else {
-                        // This is not a master template datatype, so it will only have this cache entry
-                        $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-
-                        // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
-                        //  entry somewhere in them because otherwise Display mode can't handle the
-                        //  "display_unselected_radio_options" config option...this entry depended on
-                        //  the "cached_tag_tree_<dt_id>" entry that just got deleted, so all of the
-                        //  cached datarecord entries for this datatype also need to get deleted...
-                        $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-                        foreach ($dr_list as $dr_id => $parent_dr_id)
-                            $cache_service->delete('cached_datarecord_'.$dr_id);
-
-                        // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
-                        //  isn't displayed in table themes
                     }
 
                     // Also need to clear a whole pile of cached data specifically required for searching
@@ -1371,10 +1388,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1452,26 +1465,25 @@ class TagsController extends ODRCustomController
                 $changes_made = $sort_service->sortTagsByName($user, $datafield);
 
 
-            // Update the cached version of the datatype...
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // ----------------------------------------
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries since they have tag names
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
-
-            // Locate all datarecords that could display this tag...
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                // Need to delete the cached datarecord...it has the tagName property
-                $cache_service->delete('cached_datarecord_'.$result['dr_id']);
-
-                // Tags can't be displayed in table layouts, so no sense deleting those cache entries
-            }
 
 
             // ----------------------------------------
@@ -1519,8 +1531,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1632,7 +1642,20 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Delete any cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);

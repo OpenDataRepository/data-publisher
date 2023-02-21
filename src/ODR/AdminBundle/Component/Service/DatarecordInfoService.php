@@ -17,7 +17,6 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -976,47 +975,6 @@ class DatarecordInfoService
         }
 
         return $current_datarecord;
-    }
-
-
-    /**
-     * Marks the specified datarecord (and all its parents) as updated by the given user.
-     *
-     * @param DataRecord $datarecord
-     * @param ODRUser $user
-     */
-    public function updateDatarecordCacheEntry($datarecord, $user)
-    {
-        // Whenever an edit is made to a datarecord, each of its parents (if it has any) also need
-        //  to be marked as updated
-        $dr = $datarecord;
-        while ($dr->getId() !== $dr->getParent()->getId()) {
-            // Mark this (non-top-level) datarecord as updated by this user
-            $dr->setUpdatedBy($user);
-            $dr->setUpdated(new \DateTime());
-            $this->em->persist($dr);
-
-            // Continue locating parent datarecords...
-            $dr = $dr->getParent();
-        }
-
-        // $dr is now the grandparent of $datarecord
-        $dr->setUpdatedBy($user);
-        $dr->setUpdated(new \DateTime());
-        $this->em->persist($dr);
-
-        // Save all changes made
-        $this->em->flush();
-
-        // Child datarecords don't have their own cached entries, it's all contained within the
-        //  cache entry for their top-level datarecord
-        $this->cache_service->delete('cached_datarecord_'.$dr->getId());
-
-        // Delete the filtered list of data meant specifically for table themes
-        $this->cache_service->delete('cached_table_data_'.$dr->getId());
-
-        // Clear json caches used in API
-        $this->cache_service->delete('json_record_' . $dr->getUniqueId());
     }
 
 

@@ -19,6 +19,9 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -45,6 +48,16 @@ class ODREventSubscriber implements EventSubscriberInterface
     private $em;
 
     /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
+     * @var SearchService
+     */
+    private $search_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -56,17 +69,23 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param string $environment
      * @param ContainerInterface $container
      * @param EntityManager $entity_manager
+     * @param CacheService $cacheService
+     * @param SearchService $search_service
      * @param Logger $logger
      */
     public function __construct(
         string $environment,
         ContainerInterface $container,
         EntityManager $entity_manager,
+        CacheService $cache_service,
+        SearchService $search_service,
         Logger $logger
     ) {
         $this->env = $environment;
         $this->container = $container;
         $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
+        $this->search_service = $search_service;
         $this->logger = $logger;
     }
 
@@ -77,14 +96,35 @@ class ODREventSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents()
     {
         return array(
+            // Datatype
+            DatatypeCreatedEvent::NAME => 'onDatatypeCreated',
+//            DatatypeImportedEvent::NAME => 'onDatatypeImport',
+            DatatypeModifiedEvent::NAME => 'onDatatypeModified',
+            DatatypeDeletedEvent::NAME => 'onDatatypeDeleted',
+            DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChanged',
+            // Datarecord
             DatarecordCreatedEvent::NAME => 'onDatarecordCreated',
+            DatarecordModifiedEvent::NAME => 'onDatarecordModified',
+            DatarecordDeletedEvent::NAME => 'onDatarecordDeleted',
+            DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChanged',
+            // Datafield
+//            DatafieldCreatedEvent::NAME => 'onDatafieldCreated',    // TODO - ignore datafields for now...
+//            DatafieldModifiedEvent::NAME => 'onDatafieldModified',
+//            DatafieldDeletedEvent::NAME => 'onDatafieldDeleted',
+//            DatafieldPublicStatusChangedEvent::NAME => 'onDatafieldPublicStatusChanged',
+            // TODO - Nate is also going to eventually need events for Layout changes
+
+            // Files/Images
             FileDeletedEvent::NAME => 'onFileDeleted',
             FilePreEncryptEvent::NAME => 'onFilePreEncrypt',
+            // Other storage entities
+            PostUpdateEvent::NAME => 'onPostUpdate',
+            PostMassEditEvent::NAME => 'onPostMassEdit',
+
+            // Plugins
             PluginAttachEvent::NAME => 'onPluginAttach',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
             PluginPreRemoveEvent::NAME => 'onPluginPreRemove',
-            PostMassEditEvent::NAME => 'onPostMassEdit',
-            PostUpdateEvent::NAME => 'onPostUpdate',
         );
     }
 
@@ -93,7 +133,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      * Determines whether any render plugins need to respond to the given event, and determines
      * which function to call inside the render plugin definition file if so.
      *
-     * Don't really need to cache this, it seems.
+     * Don't really need to cache this, it seems.    TODO - since events are going to be everywhere, it probably should be cached
      *
      * @param string $event_name
      * @param DataType|null $datatype
@@ -214,6 +254,275 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
+     * Handles dispatched DatatypeCreated events
+     *
+     * @param DatatypeCreatedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatatypeCreated(DatatypeCreatedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatatypeCreated()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datatype = $event->getDatatype();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // This cache entry always needs to be cleared
+            $this->cache_service->delete('cached_datatree_array');
+
+            // These cache entries should be cleared only if the new datatype is top-level
+            if ( $datatype->getId() === $datatype->getParent()->getId() ) {
+                $this->cache_service->delete('top_level_datatypes');
+                $this->cache_service->delete('top_level_themes');
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatatypeModified events
+     *
+     * @param DatatypeModifiedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatatypeModified(DatatypeModifiedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatatypeModified()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datatype = $event->getDatatype();
+            $user = $event->getUser();
+            $clear_datarecord_caches = $event->getClearDatarecordCaches();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
+            //  to be marked as updated
+            while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
+                // Mark this (non-top-level) datatype as updated by this user
+                $datatype->setUpdatedBy($user);
+                $datatype->setUpdated(new \DateTime());
+                $this->em->persist($datatype);
+
+                // Continue locating parent datatypes...
+                $datatype = $datatype->getParent();
+            }
+
+            // $datatype is now guaranteed to be top-level
+            $datatype->setUpdatedBy($user);
+            $datatype->setUpdated(new \DateTime());
+            $this->em->persist($datatype);
+
+            // Save all changes made
+            $this->em->flush();
+
+            // Delete all regular cache entries that need to be rebuilt due to whatever change
+            //  triggered this event
+            $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+
+            if ($clear_datarecord_caches) {
+                // ...also need to delete the datarecord entries here...usually due to modifying
+                //  external id/name/sort fields, or changing radio/tag names, but there are others
+                $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $parent_dr_id) {
+                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                    $this->cache_service->delete('cached_table_data_'.$dr_id);
+                }
+
+                $dr_list = $this->search_service->getCachedDatarecordUUIDList($datatype->getGrandparent()->getId());
+                foreach ($dr_list as $dr_id => $dr_uuid)
+                    $this->cache_service->delete('json_record_'.$dr_uuid);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatatypeDeleted events
+     *
+     * @param DatatypeDeletedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatatypeDeleted(DatatypeDeletedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatatypeDeleted()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datatype_id = $event->getDatatypeId();
+            $datatype_uuid = $event->getDatatypeUUID();
+            $was_top_level = $event->getWasTopLevel();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+            // ----------------------------------------
+            // While probably not strictly necessary, going to still delete the cached entries for
+            //  datarecords belonging to the deleted datatype...only if it's top-level though
+            if ( $was_top_level ) {
+                // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+                //  confident it works properly when dealing with potentially async situations
+                $conn = $this->em->getConnection();
+                $query =
+                   'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+                    FROM odr_data_record AS dr
+                    WHERE dr.data_type_id = '.$datatype_id;
+                $results = $conn->fetchAll($query);
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+                    $dr_uuid = $result['dr_uuid'];
+
+                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                    $this->cache_service->delete('cached_table_data_'.$dr_id);
+                    $this->cache_service->delete('json_record_'.$dr_uuid);
+                }
+            }
+
+            // Child records don't have their own cache entries, so there's no point doing this if
+            // the deleted datatype was not top-level
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatatypePublicStatusChanged events.  This also triggers the database
+     * changes and cache clearing that a DatatypeModified event would, since we don't really
+     * want to fire off both of these events at the same time...
+     *
+     * @param DatatypePublicStatusChangedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatatypePublicStatusChanged(DatatypePublicStatusChangedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatatypePublicStatusChanged()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datatype = $event->getDatatype();
+            $user = $event->getUser();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
+            //  to be marked as updated
+            while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
+                // Mark this (non-top-level) datatype as updated by this user
+                $datatype->setUpdatedBy($user);
+                $datatype->setUpdated(new \DateTime());
+                $this->em->persist($datatype);
+
+                // Continue locating parent datatypes...
+                $datatype = $datatype->getParent();
+            }
+
+            // $datatype is now guaranteed to be top-level
+            $datatype->setUpdatedBy($user);
+            $datatype->setUpdated(new \DateTime());
+            $this->em->persist($datatype);
+
+            // Save all changes made
+            $this->em->flush();
+
+            // Delete all regular cache entries that need to be rebuilt due to whatever change
+            //  triggered this event
+            $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+    /**
      * Handles dispatched DatarecordCreated events
      *
      * @param DatarecordCreatedEvent $event
@@ -222,6 +531,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatarecordCreated(DatarecordCreatedEvent $event)
     {
+        $this->logger->debug('ODREventSubscriber::onDatarecordCreated()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $datarecord = $event->getDatarecord();
@@ -232,6 +543,218 @@ class ODREventSubscriber implements EventSubscriberInterface
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
             }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatarecordModified events
+     *
+     * @param DatarecordModifiedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordModified(DatarecordModifiedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatarecordModified()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $user = $event->getUser();
+            $datarecord = $event->getDatarecord();
+//            $datatype = $datarecord->getDataType();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+            // ----------------------------------------
+            // Whenever an edit is made to a datarecord, each of its parents (if it has any) also need
+            //  to be marked as updated
+            $dr = $datarecord;
+            while ($dr->getId() !== $dr->getParent()->getId()) {
+                // Mark this (non-top-level) datarecord as updated by this user
+                $dr->setUpdatedBy($user);
+                $dr->setUpdated(new \DateTime());
+                $this->em->persist($dr);
+
+                // Continue locating parent datarecords...
+                $dr = $dr->getParent();
+            }
+
+            // $dr is now the grandparent of $datarecord, save all changes made
+            $dr->setUpdatedBy($user);
+            $dr->setUpdated(new \DateTime());
+
+            $this->em->persist($dr);
+            $this->em->flush();
+
+            // Delete all regular cache entries that need to be rebuilt due to whatever change
+            //  triggered this event
+            $this->cache_service->delete('cached_datarecord_'.$dr->getId());
+            $this->cache_service->delete('cached_table_data_'.$dr->getId());
+            $this->cache_service->delete('json_record_' . $dr->getUniqueId());
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatarecordDeleted events
+     *
+     * @param DatarecordDeletedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordDeleted(DatarecordDeletedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatarecordDeleted()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datarecord_id = $event->getDatarecordId();
+            $datarecord_uuid = $event->getDatarecordUUID();
+//            $datatype = $event->getDataType();
+
+            // NOTE: $dr_id and $dr_uuid will be arrays if this event was fired as a result of MassEdit
+            //  doing a mass deletion
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+            // While this isn't necessary if the deleted datarecord wasn't top-level, and technically
+            //  shouldn't be necessary even if it is a top-level...might as well ensure no cache
+            //  entries exist to reference the datarecord
+            if ( !is_array($datarecord_id) ) {
+                $this->cache_service->delete('cached_datarecord_'.$datarecord_id);
+                $this->cache_service->delete('cached_table_data_'.$datarecord_id);
+
+                $this->cache_service->delete('associated_datarecords_for_'.$datarecord_id);
+            }
+            else {
+                foreach ($datarecord_id as $dr_id) {
+                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                    $this->cache_service->delete('cached_table_data_'.$dr_id);
+
+                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+                }
+            }
+
+            if ( !is_array($datarecord_uuid) ) {
+                $this->cache_service->delete('json_record_'.$datarecord_uuid);
+            }
+            else {
+                foreach ($datarecord_uuid as $dr_uuid)
+                    $this->cache_service->delete('json_record_'.$dr_uuid);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatarecordPublicStatusChanged events.  This also triggers the database
+     * changes and cache clearing that a DatarecordModified event would, since we don't really
+     * want to fire off both of these events at the same time...
+     *
+     * @param DatarecordPublicStatusChangedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordPublicStatusChanged(DatarecordPublicStatusChangedEvent $event)
+    {
+        $this->logger->debug('ODREventSubscriber::onDatarecordPublicStatusChanged()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datarecord = $event->getDatarecord();
+            $datatype = $datarecord->getDataType();
+            $user = $event->getUser();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Whenever an edit is made to a datarecord, each of its parents (if it has any) also need
+            //  to be marked as updated
+            $dr = $datarecord;
+            while ($dr->getId() !== $dr->getParent()->getId()) {
+                // Mark this (non-top-level) datarecord as updated by this user
+                $dr->setUpdatedBy($user);
+                $dr->setUpdated(new \DateTime());
+                $this->em->persist($dr);
+
+                // Continue locating parent datarecords...
+                $dr = $dr->getParent();
+            }
+
+            // $dr is now the grandparent of $datarecord, save all changes made
+            $dr->setUpdatedBy($user);
+            $dr->setUpdated(new \DateTime());
+
+            $this->em->persist($dr);
+            $this->em->flush();
+
+            // Delete all regular cache entries that need to be rebuilt due to whatever change
+            //  triggered this event
+            $this->cache_service->delete('cached_datarecord_'.$dr->getId());
+            $this->cache_service->delete('cached_table_data_'.$dr->getId());
+            $this->cache_service->delete('json_record_' . $dr->getUniqueId());
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {

@@ -16,14 +16,14 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -312,7 +312,7 @@ class DatatypeController extends ODRCustomController
                     $user,
                     $datarecord,
                     null,       // don't care about search_key
-                    null        // ...or search_theme_id
+                    0           // ...or search_theme_id
                 );
 
                 // Need to create a form for editing datatype metadata
@@ -984,6 +984,8 @@ class DatatypeController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        // TODO - rename this controller action
+
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1061,6 +1063,9 @@ class DatatypeController extends ODRCustomController
     /**
      * Datatypes without metadata datatypes are given a choice of available templates to create a
      * metadata datatype from.
+     *
+     * TODO - this is ONLY accessible via the landing page when the database does not have a metadata datatype
+     * TODO - it needs to be modified so you can create a blank metadata datatype
      *
      * @param $datatype_id
      * @param Request $request
@@ -1165,6 +1170,9 @@ class DatatypeController extends ODRCustomController
      * Starts the create database wizard and loads master templates available for creation
      * from templates.
      *
+     * TODO - this is supposedly only used when a template doesn't have a metadata datatype, but all new templates receive one by default, and templates without use createblankmetaAction() instead
+     * TODO - ...delete this?
+     *
      * @param integer $template_choice
      * @param integer $creating_master_template
      * @param Request $request
@@ -1177,6 +1185,8 @@ class DatatypeController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        // TODO - rename this controller action
 
         try {
             // Grab necessary objects
@@ -1291,6 +1301,7 @@ class DatatypeController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
+            // TODO - verifies this works properly
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1346,6 +1357,8 @@ class DatatypeController extends ODRCustomController
         $return['t'] = 'html';
         $return['d'] = array();
 
+        // TODO - can this be removed?
+
         try {
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $admin */
@@ -1365,6 +1378,25 @@ class DatatypeController extends ODRCustomController
                 $this->container->getParameter('beanstalk_api_key')
 
             );
+
+            // ----------------------------------------
+            // Both paths of $dtc_service->direct_add_datatype() call CloneMasterDatatypeService,
+            //  so don't need to fire off a DatatypeCreated event for the new datatype here
+//            try {
+//                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+//                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+//                /** @var EventDispatcherInterface $event_dispatcher */
+//                $dispatcher = $this->get('event_dispatcher');
+//                $event = new DatatypeCreatedEvent($datatype, $admin);
+//                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+//            }
+//            catch (\Exception $e) {
+//                // ...don't want to rethrow the error since it'll interrupt everything after this
+//                //  event
+////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                    throw $e;
+//            }
+
 
             // Forward to database properties page.
             $url = $this->generateUrl(
@@ -1408,8 +1440,6 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var ODRUserGroupMangementService $ugm_service */
@@ -1696,10 +1726,22 @@ class DatatypeController extends ODRCustomController
                             $em->flush();
 
 
-                            // Delete the cached version of the datatree array and the list of top-level datatypes
-                            $cache_service->delete('cached_datatree_array');
-                            $cache_service->delete('top_level_datatypes');
-                            $cache_service->delete('top_level_themes');
+                            // ----------------------------------------
+                            // Fire off a DatatypeCreated event
+                            try {
+                                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                                /** @var EventDispatcherInterface $event_dispatcher */
+                                $dispatcher = $this->get('event_dispatcher');
+                                $event = new DatatypeCreatedEvent($datatype, $admin);
+                                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                            }
+                            catch (\Exception $e) {
+                                // ...don't want to rethrow the error since it'll interrupt everything after this
+                                //  event
+//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                    throw $e;
+                            }
 
 
                             // Create the groups for the new datatype here so the datatype can be viewed
@@ -1760,7 +1802,10 @@ class DatatypeController extends ODRCustomController
 
 
     /**
-     * Creates a new blank metadata datatype for the requested datatype
+     * Creates a new blank metadata datatype for the requested datatype.
+     *
+     * This can only get called from the template list on a template that does not have a metadata
+     * datatype, when the user clicks "Create" in the "Metadata Layout" column.
      *
      * @param int $datatype_id
      * @param Request $request
@@ -1779,10 +1824,6 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var ODRUserGroupMangementService $ugm_service */
@@ -1840,13 +1881,39 @@ class DatatypeController extends ODRCustomController
 
             $em->flush();
 
-            // Mark the datatype that just got a metadata datatype as updated
-            $dbi_service->updateDatatypeCacheEntry($datatype, $admin);
 
-            // Delete the cached version of the datatree array and the list of top-level datatypes
-            $cache_service->delete('cached_datatree_array');
-            $cache_service->delete('top_level_datatypes');
-            $cache_service->delete('top_level_themes');
+            // ----------------------------------------
+            // Fire off a DatatypeCreated event for the new metadata datatype
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeCreatedEvent($new_metadata_datatype, $admin);
+                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Mark the datatype that just got a metadata datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $admin);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
         }
         catch (\Exception $e) {

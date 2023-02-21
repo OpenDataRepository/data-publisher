@@ -14,8 +14,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\Boolean as ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -41,6 +39,9 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -2966,8 +2967,6 @@ class CSVImportController extends ODRCustomController
                 // Save all changes
                 $em->flush();
 
-                // Update cached versions of datatype and master theme since new datafields were added
-                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
                 $theme_service->updateThemeCacheEntry($theme, $user);
 
                 // Don't need to worry about datafield permissions here, those are taken care of
@@ -3057,12 +3056,27 @@ print_r($new_mapping);
                     $sort_service->sortTagsByName($user, $df);
                 }
 
-                // Update the cached version of the datatype
-                $dbi_service->updateDatatypeCacheEntry($datatype, $user);
-
                 // Shouldn't need to worry about the search cache...
             }
 
+            if ( $created || $created_new_tags ) {
+                // Update cached versions of datatype and master theme since new datafields and/or
+                //  tags were added
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypeModifiedEvent($datatype, $user);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
@@ -4230,13 +4244,40 @@ exit();
 
                 // Mark the datatype as updated and rebuild its cache entries if needed
                 if ( isset($additional_data['rebuild_datatype_cache']) ) {
-                    $dbi_service->updateDatatypeCacheEntry($datatype, $user);
                     $status .= ' == updated datatype cache entry for datatype '.$datatype->getId().' ("'.$datatype->getShortName().'")'."\n";
+
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatatypeModifiedEvent($datatype, $user);
+                        $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
                 }
 
                 // Since the job is now done (in theory), delete all search cache entries
                 //  relevant to this datatype
-                $search_cache_service->onDatatypeImport($datatype);
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypeImportedEvent($datatype, $user);
+                    $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
                 $status .= ' == deleting all search cache entries for datatype '.$datatype->getId().' ("'.$datatype->getShortName().'")'."\n";
 
                 // Job will be flushed shortly...
@@ -4255,7 +4296,20 @@ exit();
             $dbi_service->resetDatatypeSortOrder($datatype->getId());
 
             // Mark this datarecord as updated...
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
             $status .= ' == updating datarecord cache entry for datarecord '.$datarecord->getId()."\n";
 
             $return['d'] = $status;
@@ -4466,7 +4520,21 @@ exit();
             $status .= ' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")'."\n";
 
             // Force a rebuild of the cached entry for the ancestor datarecord
-            $dri_service->updateDatarecordCacheEntry($local_datarecord, $user);
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($local_datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
             $dri_service->deleteCachedDatarecordLinkData( array($local_datarecord->getId()) );
             $search_cache_service->onLinkStatusChange($remote_datarecord->getDataType());

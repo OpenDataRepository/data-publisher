@@ -15,8 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -43,7 +41,6 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -206,8 +203,6 @@ class FakeEditController extends ODRCustomController
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var CsrfTokenManager $token_manager */
@@ -482,9 +477,12 @@ class FakeEditController extends ODRCustomController
             }
 
 
+            // ----------------------------------------
+            // Now that the datarecord exists...
             $new_datarecord->setProvisioned(false);
             $em->persist($new_datarecord);
 
+            // ...create any required storage entities and assign the requested values to them
             foreach ($datafields as $df_id => $value) {
                 $df = $df_mapping[$df_id];
                 $typeclass = $df->getFieldType()->getTypeClass();
@@ -534,8 +532,6 @@ class FakeEditController extends ODRCustomController
 
             // Delete the cached string containing the ordered list of datarecords for this datatype
             $dbi_service->resetDatatypeSortOrder($datatype->getId());
-            // Delete all search results that can change
-            $search_cache_service->onDatarecordCreate($datatype);
 
             // Everything created, return the id of the new datarecord
             $return['d'] = array(

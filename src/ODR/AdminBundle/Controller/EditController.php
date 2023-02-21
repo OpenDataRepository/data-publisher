@@ -14,8 +14,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -36,15 +34,18 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Events
-use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
-use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
 use ODR\AdminBundle\Form\DatetimeValueForm;
@@ -119,8 +120,6 @@ class EditController extends ODRCustomController
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -200,12 +199,10 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Don't need to fire off a DatarecordModified event, since this is a new top-level record
+
             // Delete the cached string containing the ordered list of datarecords for this datatype
             $dbi_service->resetDatatypeSortOrder($datatype->getId());
-            // Delete all search results that can change
-            $search_cache_service->onDatarecordCreate($datatype);
-
-            // Since this is a new top-level datarecord, there's nothing to mark as updated
         }
         catch (\Exception $e) {
             $source = 0x2d4d92e6;
@@ -246,14 +243,10 @@ class EditController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab needed Entities from the repository
@@ -325,6 +318,23 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
+            // Need to fire off a DatarecordModified event for the parent datarecord
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($parent_datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+
             // ----------------------------------------
             // Get edit_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
@@ -333,14 +343,8 @@ class EditController extends ODRCustomController
                 'parent_id' => $parent_datarecord->getId(),
             );
 
-            // Delete all search results that can change
-            $search_cache_service->onDatarecordCreate($datatype);
-
             // Delete the cached string containing the ordered list of datarecords for this datatype
             $dbi_service->resetDatatypeSortOrder($datatype->getId());
-
-            // Refresh the cache entries for the new datarecord's parent
-            $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
         }
         catch (\Exception $e) {
             $source = 0x3d2835d5;
@@ -405,6 +409,7 @@ class EditController extends ODRCustomController
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
+            $datarecord_uuid = $datarecord->getUniqueId();
 
             $parent_datarecord = $datarecord->getParent();
             if ($parent_datarecord->getDeletedAt() != null)
@@ -589,19 +594,48 @@ class EditController extends ODRCustomController
             $conn->commit();
 
             // -----------------------------------
-            // Mark this now-deleted datarecord's parent (and all its parents) as updated unless
-            //  it was already a top-level datarecord
-            if ( !$is_top_level )
-                $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
+            // Fire off an event notifying that this datarecord got deleted
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordDeletedEvent($datarecord_id, $datarecord_uuid, $datatype, $user);
+                $dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // If this was a top-level datarecord that just got deleted...
             if ( $is_top_level ) {
                 // ...then ensure no other datarecords think they're still linked to this
                 $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
             }
+            else {
+                // ...if not, then mark this now-deleted datarecord's parent (and all its parents)
+                //  as updated
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordModifiedEvent($parent_datarecord, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+            }
 
-            // Delete all search cache entries that could reference the deleted datarecords
-            $search_cache_service->onDatarecordDelete($datatype);
+
+            // ----------------------------------------
             // Force anything that linked to this datatype to rebuild link entries since at least
             //  one record got deleted
             $search_cache_service->onLinkStatusChange($datatype);
@@ -613,8 +647,6 @@ class EditController extends ODRCustomController
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
 
-
-            // ----------------------------------------
             // Reset sort order for the datatypes found earlier
             foreach ($datatypes_to_reset_order as $num => $dt_id)
                 $cache_service->delete('datatype_'.$dt_id.'_record_order');
@@ -711,8 +743,6 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -777,8 +807,21 @@ class EditController extends ODRCustomController
 
 
             // -----------------------------------
-            // Mark this file's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Need to fire off a DatarecordModified event because a file got deleted
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Delete cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
@@ -845,10 +888,6 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -960,8 +999,21 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this file's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Need to fire off a DatarecordModified event because a file's public status was changed
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // TODO - implement searching based on public status of file/image?
         }
@@ -1002,8 +1054,6 @@ class EditController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1092,8 +1142,21 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Need to fire off a DatarecordModified event because an image's public status got changed
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // TODO - implement searching based on public status of file/image?
         }
@@ -1132,8 +1195,6 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -1214,8 +1275,21 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Need to fire off a DatarecordModified event because an image got deleted
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Delete cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
@@ -1413,8 +1487,7 @@ class EditController extends ODRCustomController
                 $em->flush();
             }
 
-            // Don't need to mark the datareord as updated...it already happened when the images
-            //  got re-encrypted
+            // Don't need to fire off an event to update the datarecord...ODRUploadService already did
         }
         catch (\Exception $e) {
             $source = 0x4093b173;
@@ -1452,8 +1525,6 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1534,8 +1605,24 @@ class EditController extends ODRCustomController
                 $em->flush();
 
 
-            // Mark the image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // ----------------------------------------
+            // While this is a pretty weak reason to require a DatarecordModified event, it does
+            //  technically make a change to the cached entries, and any remote copies maintained
+            //  over RSS are technically out of sync until they redownload
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
         }
         catch (\Exception $e) {
             $source = 0x8b01c7e4;
@@ -1571,14 +1658,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1621,11 +1704,25 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
+            //  the database changes and cache clearing that a DatarecordModified event would cause
 
-            // Delete cached search results involving this datarecord
-            $search_cache_service->onDatarecordPublicStatusChange($datarecord);
+            // NOTE: do NOT want to also fire off a DatarecordModified event...this would effectively
+            //  double the work any event subscribers (such as RSS) would have to do
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------
@@ -1651,7 +1748,8 @@ class EditController extends ODRCustomController
     /**
      * Parses a $_POST request to update the contents of a datafield.
      * File and Image uploads are handled by @see FlowController
-     * Changes to RadioSelections are handled by EditController::radioselectionAction()
+     * Changes to RadioSelections are handled by EditController::radioselectionAction(), and changes
+     * to Tags are handled by TagsController::tagselectionAction()
      *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
@@ -1677,8 +1775,6 @@ class EditController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -1819,8 +1915,8 @@ class EditController extends ODRCustomController
                                 $new_value = '';
                         }
 
-
-                        // Save the value
+                        // Save the value...this will also fire a PostUpdate event, which will cause
+                        //  any datafields derived from this particular field to update if needed
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
 
 
@@ -1888,13 +1984,26 @@ class EditController extends ODRCustomController
 
                         // ----------------------------------------
                         // Mark this datarecord as updated
-                        $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+                        try {
+                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                            /** @var EventDispatcherInterface $event_dispatcher */
+                            $dispatcher = $this->get('event_dispatcher');
+                            $event = new DatarecordModifiedEvent($datarecord, $user);
+                            $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
 
                         // Delete any cached search results involving this datafield
                         $search_cache_service->onDatafieldModify($datafield);
-                        $search_cache_service->onDatarecordModify($datarecord);
 
 
+                        // ----------------------------------------
                         // Unfortunately, need to determine whether derived datafield shennanigans
                         //  were involved...
                         $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links...
@@ -1909,6 +2018,9 @@ class EditController extends ODRCustomController
                         }
                         $all_datafields = array_keys($all_datafields);
 
+                        // ...if this datafield was being used as a sort field, or triggered an
+                        //  update (via the previously mentioned derived datafield shennanigans) to
+                        //  a datafield being used as a sort field...
                         $query = $em->createQuery(
                            'SELECT dtsf
                             FROM ODRAdminBundle:DataTypeSpecialFields dtsf
@@ -1924,8 +2036,8 @@ class EditController extends ODRCustomController
                         /** @var DataTypeSpecialFields[] $dtsf_list */
 
                         foreach ($dtsf_list as $dtsf) {
-                            // Delete the default ordering of any datatype that relies on these
-                            //  datafields
+                            // ...then delete the default ordering of any datatype that relies on a
+                            //  sort field that this updateAction() ended up changing
                             $cache_service->delete('datatype_'.$dtsf->getDataType()->getId().'_record_order');
                         }
                     }
@@ -1953,8 +2065,8 @@ class EditController extends ODRCustomController
 
     /**
      * TODO - move this to a service?  but it would have to import the symfony container...
-     * Looks through the cached datatype array to determine whether any of the used render plugins
-     * derive values for any of their datafields.
+     * Looks through the cached datatype array to determine whether any of the render plugins used
+     * by the given datatype derive values for any of their datafields.
      *
      * @param array $datatype_array
      *

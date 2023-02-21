@@ -34,6 +34,8 @@ use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -42,6 +44,7 @@ use FOS\UserBundle\Model\UserManagerInterface;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class CloneMasterDatatypeService
@@ -72,14 +75,14 @@ class CloneMasterDatatypeService
     private $ec_service;
 
     /**
-     * @var ThemeInfoService
-     */
-    private $tif_service;
-
-    /**
      * @var UUIDService
      */
     private $uuid_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
 
     /**
      * @var UserManagerInterface
@@ -162,9 +165,9 @@ class CloneMasterDatatypeService
      * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
      * @param DatabaseInfoService $database_info_service
      * @param EntityCreationService $entity_creation_service
-     * @param ThemeInfoService $theme_info_service
      * @param UUIDService $uuid_service
      * @param UserManagerInterface $user_manager
+     * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
@@ -173,9 +176,9 @@ class CloneMasterDatatypeService
         CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatabaseInfoService $database_info_service,
         EntityCreationService $entity_creation_service,
-        ThemeInfoService $theme_info_service,
         UUIDService $uuid_service,
         UserManagerInterface $user_manager,
+        EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -183,9 +186,9 @@ class CloneMasterDatatypeService
         $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dbi_service = $database_info_service;
         $this->ec_service = $entity_creation_service;
-        $this->tif_service = $theme_info_service;
         $this->uuid_service = $uuid_service;
         $this->user_manager = $user_manager;
+        $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
 
         $this->original_datatype = null;
@@ -571,6 +574,24 @@ class CloneMasterDatatypeService
 
 
             // ----------------------------------------
+            // Fire off a DatatypeCreated event for each new top-level datatype here
+            try {
+                foreach ($this->created_datatypes as $dt) {
+                    if ( $dt->getId() === $dt->getGrandparent()->getId() ) {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $event = new DatatypeCreatedEvent($datatype, $this->user);
+                        $this->event_dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                    }
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
             $this->logger->info('----------------------------------------');
             $this->logger->info('CloneDatatypeService: cloning of datatype '.$datatype->getId().' is complete');
             $this->logger->info('----------------------------------------');

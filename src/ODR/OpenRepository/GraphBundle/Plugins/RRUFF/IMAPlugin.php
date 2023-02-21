@@ -31,6 +31,7 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\PostMassEditEvent;
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Exceptions
@@ -53,6 +54,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -110,6 +112,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private $sort_service;
 
     /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    /**
      * @var CsrfTokenManager
      */
     private $token_manager;
@@ -138,6 +145,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param LockService $lock_service
      * @param SearchCacheService $search_cache_service
      * @param SortService $sort_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -153,6 +161,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         LockService $lock_service,
         SearchCacheService $search_cache_service,
         SortService $sort_service,
+        EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
@@ -167,6 +176,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $this->lock_service = $lock_service;
         $this->search_cache_service = $search_cache_service;
         $this->sort_service = $sort_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -1151,11 +1161,21 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private function clearCacheEntries($datarecord, $user, $destination_storage_entity)
     {
         // The datarecord needs to be marked as updated
-        $this->dri_service->updateDatarecordCacheEntry($datarecord, $user);
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
 
         // Because other datafields got updated, several more cache entries need to be wiped
         $this->search_cache_service->onDatafieldModify($destination_storage_entity->getDataField());
-        $this->search_cache_service->onDatarecordModify($datarecord);
     }
 
 

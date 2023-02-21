@@ -745,48 +745,6 @@ class DatabaseInfoService
 
 
     /**
-     * Marks the specified datatype (and all its parents) as updated by the given user.
-     *
-     * @param DataType $datatype
-     * @param ODRUser $user
-     */
-    public function updateDatatypeCacheEntry($datatype, $user)
-    {
-        // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
-        //  to be marked as updated
-        while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
-            // Mark this (non-top-level) datatype as updated by this user
-            $datatype->setUpdatedBy($user);
-            $datatype->setUpdated(new \DateTime());
-            $this->em->persist($datatype);
-
-            // Continue locating parent datatypes...
-            $datatype = $datatype->getParent();
-        }
-
-        // $datatype is now guaranteed to be top-level
-        $datatype->setUpdatedBy($user);
-        $datatype->setUpdated(new \DateTime());
-        $this->em->persist($datatype);
-
-        // Save all changes made
-        $this->em->flush();
-
-
-        // Child datatypes don't have their own cached entries, it's all contained within the
-        //  cache entry for their top-level datatype
-        $this->cache_service->delete('cached_datatype_'.$datatype->getId());
-
-        // Need to clear cached records related to this type for the API...
-        $records = $this->em->getRepository('ODRAdminBundle:DataRecord')->findBy(array('dataType' => $datatype->getId()));
-        /** @var DataRecord $record */
-        foreach($records as $record) {
-            $this->cache_service->delete('json_record_'.$record->getUniqueId());
-        }
-    }
-
-
-    /**
      * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
      * e.g.  A links to B links to C links to D links to...etc
      * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because

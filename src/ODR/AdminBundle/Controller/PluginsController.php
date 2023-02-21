@@ -15,8 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
@@ -30,6 +28,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\PluginAttachEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 use ODR\AdminBundle\Component\Event\PluginPreRemoveEvent;
@@ -458,9 +457,29 @@ class PluginsController extends ODRCustomController
 
 
         // ----------------------------------------
+        // Don't necessarily want render plugins to attach to every single possible event...
+        $illegal_events = array(
+            'DatatypeCreatedEvent' => 0,
+            'DatatypeModifiedEvent' => 0,
+            'DatatypeDeletedEvent' => 0,
+            'DatatypePublicStatusChangedEvent' => 0,
+
+            'DatarecordModifiedEvent' => 0,
+            'DatarecordDeletedEvent' => 0,
+            'DatarecordPublicStatusChangedEvent' => 0,
+        );
+        // ...though this is more due to a great reluctance to test that a render plugin will properly
+        //  work in all situations the event can be triggered in, rather than some structural reason
+        // e.g. DatarecordModifiedEvent can be fired multiple times in rapid succession when the
+        //  record is being modified by a user, or through MassEdit...
+
         // If there are entries in the "registered_events" key, ensure they are properly formed
         if ( is_array($plugin_config['registered_events']) ) {
             foreach ($plugin_config['registered_events'] as $event => $callable) {
+                // Ensure the event isn't illegal for a render plugin to listen to
+                if ( isset($illegal_events[$event]) )
+                    throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not allowed to listen to the ODR Event "'.$event.'"');
+
                 // Ensure the events listed in the plugin config exist...
                 if ( !isset($all_events[$event]) )
                     throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" references an invalid ODR Event "'.$event.'"');
@@ -2934,7 +2953,20 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Now that all the database changes have been made, wipe the relevant cache entries
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Changes in render plugin tend to require changes in datafield properties
             $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId());
@@ -3403,10 +3435,14 @@ class PluginsController extends ODRCustomController
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                        throw $e;
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
             }
+
+            // Only need to update the theme entry if plugin fields were created
+            if ( $plugin_fields_added )
+                $theme_service->updateThemeCacheEntry($theme, $user);
 
             if ( $plugin_fields_added || $plugin_fields_changed || $plugin_settings_changed ) {
                 // Some render plugins need to do stuff when their settings get changed
@@ -3426,20 +3462,12 @@ class PluginsController extends ODRCustomController
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                        throw $e;
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
+            }
 
-
-                // ----------------------------------------
-                // Due to changes being made, the cached datatype array needs to be rebuilt
-                $dbi_service->updateDatatypeCacheEntry($target_datatype, $user);
-
-                // Only need to update the theme entry if plugin fields were created
-                if ( $plugin_fields_added )
-                    $theme_service->updateThemeCacheEntry($theme, $user);
-
-
+            if ( $plugin_attached || $plugin_fields_added || $plugin_fields_changed || $plugin_settings_changed ) {
                 // Also need to ensure that changes to plugin settings update the "master_revision"
                 //  property of template datafields/datatypes
                 if ($local_datafield_id == 0) {
@@ -3449,6 +3477,22 @@ class PluginsController extends ODRCustomController
                 else {
                     if ($target_datafield->getIsMasterField())
                         $emm_service->incrementDatafieldMasterRevision($user, $target_datafield);
+                }
+
+                // Mark the datatype as updated
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypeModifiedEvent($target_datatype, $user);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
             }
 
