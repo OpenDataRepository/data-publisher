@@ -38,6 +38,9 @@ class ThemeDataType
     //  the themeElements.  Only allowed with single child/linked datarecords
     const NO_HEADER = 4;
 
+    // Child/linked datatype is rendered via datatables, while effectively using list header
+    const DATATABLES_CONTENT = 5;
+
 
     /**
      * @var integer

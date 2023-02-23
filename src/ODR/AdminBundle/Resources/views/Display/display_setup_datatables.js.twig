@@ -1,0 +1,61 @@
+{% spaceless %}
+<script>
+    $(function() {
+        var table = $("#Datatables_{{ unique_id }}").dataTable({
+            "columnDefs": [
+                { targets: [0], visible: false }
+            ],
+            "order": [[0, 'asc']],
+            "autoWidth": false,
+
+{% if num_records > 10 %}
+            {# https://datatables.net/reference/option/dom
+                "dom" parameter results in:
+                <div class="wrapper">
+                    <div class="FLeft">
+                        {information}
+                        {length}
+                    </div>
+                    <div class="FRight">
+                        {pagination}
+                    </div>
+                        {processing}
+                        {table}
+                    <div class="FLeft">
+                        {information}
+                        {length}
+                    </div>
+                    <div class="FRight">
+                        {pagination}
+                    </div>
+                </div>
+            #}
+            "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
+{% else %}
+            {# https://datatables.net/reference/option/dom
+                "dom" parameter results in:
+                <div class="wrapper">
+                    {processing}
+                    {table}
+                    <div class="FLeft">
+                        {information}
+                    </div>
+                </div>
+            #}
+            "dom": 'rt<"FLeft"i>',
+{% endif %}
+
+            {# have  web/js/mylibs/jquery_datatables/datatables.input.js  handle pagination #}
+            {#"pagingType": "input",#}
+
+            "responsive": true,
+            "serverSide": false,
+            "stateSave": false,
+
+            "language": {
+                "emptyTable": "No Datarecords found"
+            }
+        });
+    });
+</script>
+{% endspaceless %}

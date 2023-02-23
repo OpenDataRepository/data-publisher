@@ -443,7 +443,7 @@ class TableThemeHelperService
                 foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
                     // ...and it wants to override the values displayed in table layouts...
                     $render_plugin = $rpi['renderPlugin'];
-                    if ( $render_plugin['active'] && $render_plugin['render'] ) {
+                    if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
                         // ...then load the render plugin...
                         $plugin_classname = $render_plugin['pluginClassName'];
                         /** @var TableResultsOverrideInterface $plugin */

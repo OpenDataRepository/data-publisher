@@ -45,6 +45,7 @@ class UpdateThemeDatatypeForm extends AbstractType
         );
         if (!$multiple_allowed)
             $display_choices['Hide Header'] = ThemeDataType::NO_HEADER;
+        $display_choices['Table'] = ThemeDataType::DATATABLES_CONTENT;
 
         $builder->add(
             'dataType',
