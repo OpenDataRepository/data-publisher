@@ -294,6 +294,8 @@ class DatarecordInfoService
         $tag_selections = self::getTagSelections($grandparent_datarecord_id);
 
         // Unlike datatype hydration, it seems that separating out the sort/name fields has no benefit
+        //  ...but separating out query to find the child/linked datarecords has a massive benefit
+        $descendants = self::getDescendants($grandparent_datarecord_id);
 
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
@@ -318,10 +320,7 @@ class DatarecordInfoService
                partial e_lvc_ub.{id, username, email, firstName, lastName},
                partial e_mvc_ub.{id, username, email, firstName, lastName},
                partial e_svc_ub.{id, username, email, firstName, lastName},
-               partial e_dtv_ub.{id, username, email, firstName, lastName},
-
-               partial cdr.{id}, partial cdr_dt.{id},
-               ldt, partial ldr.{id}, partial ldr_dt.{id}
+               partial e_dtv_ub.{id, username, email, firstName, lastName}
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -374,18 +373,11 @@ class DatarecordInfoService
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN dfm.fieldType AS ft
 
-            LEFT JOIN dr.children AS cdr
-            LEFT JOIN cdr.dataType AS cdr_dt
-
-            LEFT JOIN dr.linkedDatarecords AS ldt
-            LEFT JOIN ldt.descendant AS ldr
-            LEFT JOIN ldr.dataType AS ldr_dt
-
             WHERE
                 dr.grandparent = :grandparent_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND (e_i.id IS NULL OR e_i.original = 0)'
-        )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
+        )->setParameters( array('grandparent_id' => $grandparent_datarecord_id) );
 
         $datarecord_data = $query->getArrayResult();
 
@@ -487,6 +479,13 @@ class DatarecordInfoService
 
 
             // Need to store a list of child/linked datarecords by their respective datatype ids
+            $dr['children'] = array();
+            $dr['linkedDatarecords'] = array();
+            if ( isset($descendants[$dr_id]) ) {
+                $dr['children'] = $descendants[$dr_id]['children'];
+                $dr['linkedDatarecords'] = $descendants[$dr_id]['linkedDatarecords'];
+            }
+
             $child_datarecords = array();
             foreach ($dr['children'] as $child_num => $cdr) {
                 $cdr_id = $cdr['id'];
@@ -803,6 +802,41 @@ class DatarecordInfoService
         }
 
         return $tag_selections;
+    }
+
+
+    /**
+     * Apparently, mysql REALLY doesn't like getting the child/linked descendant records with the
+     * rest of the data that self::buildDatarecordData() loads.
+     *
+     * @param int $grandparent_datarecord_id
+     * @return array
+     */
+    private function getDescendants($grandparent_datarecord_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT partial dr.{id}, partial cdr.{id}, partial cdr_dt.{id},
+                    partial ldt.{id}, partial ldr.{id}, partial ldr_dt.{id}
+            FROM ODRAdminBundle:DataRecord dr
+            LEFT JOIN dr.children AS cdr
+            LEFT JOIN cdr.dataType AS cdr_dt
+            LEFT JOIN dr.linkedDatarecords AS ldt
+            LEFT JOIN ldt.descendant AS ldr
+            LEFT JOIN ldr.dataType AS ldr_dt
+            WHERE dr.grandparent = :grandparent_datarecord_id
+            AND dr.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        $results = $query->getArrayResult();
+
+        $descendants = array();
+        foreach ($results as $result) {
+            $dr_id = $result['id'];
+
+            $descendants[$dr_id]['children'] = $result['children'];
+            $descendants[$dr_id]['linkedDatarecords'] = $result['linkedDatarecords'];
+        }
+
+        return $descendants;
     }
 
 
