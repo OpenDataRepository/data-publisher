@@ -14,10 +14,8 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -53,11 +51,6 @@ class DatabaseInfoService
     private $th_service;
 
     /**
-     * @var string
-     */
-    private $odr_web_dir;
-
-    /**
      * @var Logger
      */
     private $logger;
@@ -70,7 +63,6 @@ class DatabaseInfoService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
-     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -78,14 +70,12 @@ class DatabaseInfoService
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
-        string $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
-        $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
 
@@ -773,38 +763,6 @@ class DatabaseInfoService
         //  newly linked/unlinked datarecords show up (or not) when they should
         foreach ($all_linked_ancestors as $num => $dt_id)
             $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-    }
-
-
-    /**
-     * TODO - shouldn't this technically be in SortService?
-     * Should be called whenever the default sort order of datarecords within a datatype changes.
-     *
-     * @param int $datatype_id
-     */
-    public function resetDatatypeSortOrder($datatype_id)
-    {
-        // Delete the cached default ordering of records in this datatype
-        $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
-
-        // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
-        //  datarecord entries when the sort datafield is changed...
-
-
-        // TODO - this doesn't feel like it belongs here...but putting it in the GraphPluginInterface also doesn't quite make sense...
-        // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
-        //  the legend order matching the new datarecord order
-        $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
-        if ( file_exists($graph_filepath) ) {
-            $files = scandir($graph_filepath);
-            foreach ($files as $filename) {
-                // TODO - assumes linux?
-                if ($filename === '.' || $filename === '..')
-                    continue;
-
-                unlink($graph_filepath.'/'.$filename);
-            }
-        }
     }
 
 

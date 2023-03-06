@@ -19,6 +19,9 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
@@ -59,6 +62,11 @@ class SearchCacheService implements EventSubscriberInterface
      */
     private $logger;
 
+    /**
+     * @var boolean
+     */
+    private $debug;
+
 
     /**
      * SearchCacheService constructor.
@@ -78,6 +86,10 @@ class SearchCacheService implements EventSubscriberInterface
         $this->cache_service = $cache_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
+
+
+        $this->debug = false;
+//        $this->debug = true;
     }
 
 
@@ -99,10 +111,10 @@ class SearchCacheService implements EventSubscriberInterface
             DatarecordDeletedEvent::NAME => 'onDatarecordDelete',
             DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChange',
             // Datafield
-//            DatafieldCreatedEvent::NAME => 'onDatafieldCreated',    // TODO - ignore datafields for now...
-//            DatafieldModifiedEvent::NAME => 'onDatafieldModified',
-//            DatafieldDeletedEvent::NAME => 'onDatafieldDeleted',
-//            DatafieldPublicStatusChangedEvent::NAME => 'onDatafieldPublicStatusChanged',
+            DatafieldCreatedEvent::NAME => 'onDatafieldCreate',
+            DatafieldModifiedEvent::NAME => 'onDatafieldModify',
+            DatafieldDeletedEvent::NAME => 'onDatafieldDelete',
+
             // TODO - Nate is also going to eventually need events for Layout changes
         );
     }
@@ -127,7 +139,7 @@ class SearchCacheService implements EventSubscriberInterface
         $conn = $this->em->getConnection();
 
         $query =
-            'SELECT df.id AS df_id, df.template_field_uuid AS template_field_uuid
+           'SELECT df.id AS df_id, df.template_field_uuid AS template_field_uuid
             FROM odr_data_fields AS df
             WHERE df.data_type_id IN (?)';
         if (!$include_deleted)
@@ -137,7 +149,7 @@ class SearchCacheService implements EventSubscriberInterface
         $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
         $results = $conn->fetchAll($query, $parameters, $types);
 
-        if (is_array($results)) {
+        if ( is_array($results) ) {
             foreach ($results as $result) {
                 $df_id = $result['df_id'];
                 $template_df_uuid = $result['template_field_uuid'];
@@ -168,7 +180,7 @@ class SearchCacheService implements EventSubscriberInterface
         $conn = $this->em->getConnection();
 
         $query =
-            'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
+           'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
             FROM odr_radio_options AS ro
             JOIN odr_data_fields AS df ON ro.data_fields_id = df.id
             WHERE df.data_type_id IN (?)';
@@ -179,7 +191,7 @@ class SearchCacheService implements EventSubscriberInterface
         $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
         $results = $conn->fetchAll($query, $parameters, $types);
 
-        if (is_array($results)) {
+        if ( is_array($results) ) {
             foreach ($results as $result) {
                 $ro_id = $result['ro_id'];
                 $ro_uuid = $result['ro_uuid'];
@@ -206,7 +218,7 @@ class SearchCacheService implements EventSubscriberInterface
         $conn = $this->em->getConnection();
 
         $query =
-            'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
+           'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
             FROM odr_tags AS t
             JOIN odr_data_fields AS df ON t.data_fields_id = df.id
             WHERE df.data_type_id IN (?)';
@@ -217,7 +229,7 @@ class SearchCacheService implements EventSubscriberInterface
         $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
         $results = $conn->fetchAll($query, $parameters, $types);
 
-        if (is_array($results)) {
+        if ( is_array($results) ) {
             foreach ($results as $result) {
                 $t_id = $result['t_id'];
                 $t_uuid = $result['t_uuid'];
@@ -244,7 +256,7 @@ class SearchCacheService implements EventSubscriberInterface
         $conn = $this->em->getConnection();
 
         $query =
-            'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
+           'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
             FROM odr_radio_options AS ro
             WHERE ro.data_fields_id IN (?)';
         if (!$include_deleted)
@@ -254,7 +266,7 @@ class SearchCacheService implements EventSubscriberInterface
         $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
         $results = $conn->fetchAll($query, $parameters, $types);
 
-        if (is_array($results)) {
+        if ( is_array($results) ) {
             foreach ($results as $result) {
                 $ro_id = $result['ro_id'];
                 $ro_uuid = $result['ro_uuid'];
@@ -281,7 +293,7 @@ class SearchCacheService implements EventSubscriberInterface
         $conn = $this->em->getConnection();
 
         $query =
-            'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
+           'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
             FROM odr_tags AS t
             WHERE t.data_fields_id IN (?)';
         if (!$include_deleted)
@@ -291,7 +303,7 @@ class SearchCacheService implements EventSubscriberInterface
         $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
         $results = $conn->fetchAll($query, $parameters, $types);
 
-        if (is_array($results)) {
+        if ( is_array($results) ) {
             foreach ($results as $result) {
                 $t_id = $result['t_id'];
                 $t_uuid = $result['t_uuid'];
@@ -314,7 +326,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypeDelete(DatatypeDeletedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatatypeDelete()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypeDelete()', $event->getErrorInfo());
 
         // Both deletion of a datatype and importing into a datatype typically require deletion of
         //  every single search cache entry that is related to a datatype
@@ -332,7 +345,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypeImport(DatatypeImportedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatatypeImport()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypeImport()', $event->getErrorInfo());
 
         // Both deletion of a datatype and importing into a datatype typically require deletion of
         //  every single search cache entry that is related to a datatype
@@ -506,7 +520,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatatypePublicStatusChange(DatatypePublicStatusChangedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatatypePublicStatusChange()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypePublicStatusChange()', $event->getErrorInfo());
 
         $datatype = $event->getDatatype();
 
@@ -519,11 +534,14 @@ class SearchCacheService implements EventSubscriberInterface
     /**
      * Deletes relevant search cache entries when a datafield is created.
      *
-     * @param DataFields $datafield
+     * @param DatafieldCreatedEvent $event
      */
-    public function onDatafieldCreate($datafield)
+    public function onDatafieldCreate(DatafieldCreatedEvent $event)
     {
-        $datatype = $datafield->getDataType();
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatafieldCreate()', $event->getErrorInfo());
+
+        $datatype = $event->getDatafield()->getDataType();
 
         // Need to delete these entries...
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
@@ -535,64 +553,106 @@ class SearchCacheService implements EventSubscriberInterface
      * Deletes relevant search cache entries when a datafield has its value changed, or has its
      * fieldtype changed.
      *
-     * @param DataFields $datafield
+     * @param DatafieldModifiedEvent $event
      */
-    public function onDatafieldModify($datafield)
+    public function onDatafieldModify(DatafieldModifiedEvent $event)
     {
-        // While it's technically possible to selectively delete portions of the cached entry, it's
-        //  really not worthwhile
-        $this->cache_service->delete('cached_search_df_'.$datafield->getId());
-        $this->cache_service->delete('cached_search_df_'.$datafield->getId().'_ordering');
-        $this->cache_service->delete('cached_search_dt_'.$datafield->getDataType()->getId().'_datafields');
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatafieldModify()', $event->getErrorInfo());
 
-        if ( !is_null($datafield->getMasterDataField()) ) {
-            $master_df_uuid = $datafield->getMasterDataField()->getFieldUuid();
-            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid);
-            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_ordering');
-            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_fieldstats');
-        }
+        $datafield = $event->getDatafield();
+        $datafield_id = $datafield->getId();
+        $datatype_id = $datafield->getDataType()->getId();
+        $typeclass = $datafield->getFieldType()->getTypeClass();
 
-        // If the datafield is a radio options or tag datafield, then any change should also delete
-        //  all of the cached radio options or tags associated with this datafield
-        if ($datafield->getFieldType()->getTypeClass() === 'Radio')
-            self::clearCachedRadioOptionsByDatafield( array($datafield->getId()) );
-        else if ($datafield->getFieldType()->getTypeClass() === 'Tag')
-            self::clearCachedTagsByDatafield( array($datafield->getId()) );
+        $master_datafield_uuid = null;
+        if ( !is_null($datafield->getMasterDataField()) )
+            $master_datafield_uuid = $datafield->getMasterDataField()->getFieldUuid();
+
+        // Modifying and deleting a datafield requires the same clearing of search cache entries
+        self::clearDatafieldEntries(
+            $datafield_id,
+            $datatype_id,
+            $typeclass,
+            $master_datafield_uuid
+        );
     }
 
 
     /**
      * Deletes relevant search cache entries when a datafield is deleted.
      *
-     * @param Datafields $datafield
+     * @param DatafieldDeletedEvent $event
      */
-    public function onDatafieldDelete($datafield)
+    public function onDatafieldDelete(DatafieldDeletedEvent $event)
     {
-        // The cache entries deleted by this function also need to be deleting when a datafield
-        //  is modified
-        self::onDatafieldModify($datafield);
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatafieldDelete()', $event->getErrorInfo());
+
+        $datafield_id = $event->getDatafieldId();
+        $datatype_id = $event->getDatatype()->getId();
+
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+        $query =
+           'SELECT ft.type_class, mdf.unique_id
+            FROM odr_data_fields df
+            LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+            LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
+            LEFT JOIN odr_data_fields mdf ON df.master_datafield_id = mdf.id
+            WHERE df.id = '.$datafield_id;
+        $results = $conn->fetchAll($query);
+
+        // Unfortunately, there are likely to be multiple unwanted datafieldMeta entries in here...
+        $typeclass = null;
+        $master_datafield_uuid = null;
+        foreach ($results as $result) {
+            $a = 1;
+        }
+
+        // Modifying and deleting a datafield requires the same clearing of search cache entries
+        self::clearDatafieldEntries(
+            $datafield_id,
+            $datatype_id,
+            $typeclass,
+            $master_datafield_uuid
+        );
 
         // Also need to delete these entries
-        $datatype = $datafield->getDataType();
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
-        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
+        $this->cache_service->delete('cached_search_dt_'.$datatype_id.'_datafields');
+        $this->cache_service->delete('cached_search_template_dt_'.$datatype_id.'_datafields');
     }
 
 
     /**
-     * Deletes relevant search cache entries when a datafield has its public status changed.
+     * Does the work of clearing cached datatype entries when a datafield is modified or deleted.
      *
-     * @param DataFields $datafield
+     * @param int $datafield_id
+     * @param int $datatype_id
+     * @param string $typeclass
+     * @param string|null $master_datafield_uuid
      */
-    public function onDatafieldPublicStatusChange($datafield)
+    private function clearDatafieldEntries($datafield_id, $datatype_id, $typeclass, $master_datafield_uuid = null)
     {
-        $datatype = $datafield->getDataType();
+        // While it's technically possible to selectively delete portions of the cached entry, it's
+        //  really not worthwhile
+        $this->cache_service->delete('cached_search_df_'.$datafield_id);
+        $this->cache_service->delete('cached_search_df_'.$datafield_id.'_ordering');
+        $this->cache_service->delete('cached_search_dt_'.$datatype_id.'_datafields');
 
-        // Need to delete these entries...
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+        if ( !is_null($master_datafield_uuid) ) {
+            $this->cache_service->delete('cached_search_template_df_'.$master_datafield_uuid);
+            $this->cache_service->delete('cached_search_template_df_'.$master_datafield_uuid.'_ordering');
+            $this->cache_service->delete('cached_search_template_df_'.$master_datafield_uuid.'_fieldstats');
+        }
 
-        // "cached_search_template_dt_<template_uuid>_datafields"  does not store public dates, so
-        //  it doesn't need to be cleared
+        // If the datafield is a radio options or tag datafield, then any change should also delete
+        //  all of the cached radio options or tags associated with this datafield
+        if ($typeclass === 'Radio')
+            self::clearCachedRadioOptionsByDatafield( array($datafield_id) );
+        else if ($typeclass === 'Tag')
+            self::clearCachedTagsByDatafield( array($datafield_id) );
     }
 
 
@@ -603,7 +663,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatarecordCreate()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordCreate()', $event->getErrorInfo());
 
         $datatype = $event->getDatarecord()->getDataType();
 
@@ -649,7 +710,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordModify(DatarecordModifiedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatarecordModify()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordModify()', $event->getErrorInfo());
 
         // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
         //  search cache entries
@@ -665,7 +727,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordDelete(DatarecordDeletedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatarecordDelete()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordDelete()', $event->getErrorInfo());
 
         $datatype = $event->getDatatype();
 
@@ -718,7 +781,8 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public function onDatarecordPublicStatusChange(DatarecordPublicStatusChangedEvent $event)
     {
-        $this->logger->debug('SearchCacheService::onDatarecordPublicStatusChange()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordPublicStatusChange()', $event->getErrorInfo());
 
         // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
         //  search cache entries
@@ -728,7 +792,8 @@ class SearchCacheService implements EventSubscriberInterface
 
 
     /**
-     * @see self::onDatarecordModify(), self::onDatarecordPublicStatusChange()
+     * Does the work of clearing cached relevant datarecord entries when a datarecord is modified,
+     * or its public status changes.
      *
      * @param DataRecord $datarecord
      */

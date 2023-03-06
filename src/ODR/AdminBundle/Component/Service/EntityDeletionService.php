@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 // Exceptions
@@ -31,7 +32,6 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
@@ -83,11 +83,6 @@ class EntityDeletionService
     private $pm_service;
 
     /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
-
-    /**
      * @var TrackedJobService
      */
     private $tracked_job_service;
@@ -119,7 +114,6 @@ class EntityDeletionService
      * @param DatatreeInfoService $datatree_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
-     * @param SearchCacheService $search_cache_service
      * @param TrackedJobService $tracked_job_service
      * @param ThemeInfoService $theme_info_service
      * @param EventDispatcherInterface $event_dispatcher
@@ -134,7 +128,6 @@ class EntityDeletionService
         DatatreeInfoService $datatree_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
-        SearchCacheService $search_cache_service,
         TrackedJobService $tracked_job_service,
         ThemeInfoService $theme_info_service,
         EventDispatcherInterface $event_dispatcher,
@@ -148,7 +141,6 @@ class EntityDeletionService
         $this->dti_service = $datatree_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
-        $this->search_cache_service = $search_cache_service;
         $this->tracked_job_service = $tracked_job_service;
         $this->theme_info_service = $theme_info_service;
         $this->event_dispatcher = $event_dispatcher;
@@ -170,6 +162,9 @@ class EntityDeletionService
 
         try {
             // Going to need these later...
+            $datafield_id = $datafield->getId();
+            $datafield_uuid = $datafield->getFieldUuid();
+
             $typeclass = $datafield->getFieldType()->getTypeClass();
             $datatype = $datafield->getDataType();
             $grandparent_datatype = $datatype->getGrandparent();
@@ -440,9 +435,6 @@ class EntityDeletionService
 
 
             // ----------------------------------------
-            // Delete any cached search results that use this soon-to-be-deleted datafield
-            $this->search_cache_service->onDatafieldDelete($datafield);
-
             // Now that nothing references the datafield, and no other action requires it to still
             //  exist, delete the meta entry...
             $query = $this->em->createQuery(
@@ -493,6 +485,20 @@ class EntityDeletionService
                 // Ensure that the cached tag hierarchy doesn't reference this datafield
                 $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
                 $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+            }
+
+            // Inform that this datafield was deleted
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                $event = new DatafieldDeletedEvent($datafield_id, $datafield_uuid, $datatype, $user);
+                $this->event_dispatcher->dispatch(DatafieldDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // Mark this datatype as updated

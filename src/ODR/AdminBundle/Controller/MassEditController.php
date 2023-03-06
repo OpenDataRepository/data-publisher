@@ -62,7 +62,6 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
@@ -941,12 +940,10 @@ class MassEditController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var Logger $logger */
-//            $logger = $this->get('logger');
+            $logger = $this->get('logger');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -1419,58 +1416,6 @@ class MassEditController extends ODRCustomController
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                     }
-
-                    // This includes search cache entries of the datafields that got modified...
-                    $additional_data = $tracked_job->getAdditionalData();
-                    $datafield_list = $additional_data['datafield_list'];
-
-                    // ...but due to render plugin shennanigans, more fields than just those that
-                    //  were selected might've been modified...
-                    /** @var DatabaseInfoService $dbi_service */
-                    $dbi_service = $this->container->get('odr.database_info_service');
-                    $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links...
-                    $derived_datafields = self::findDerivedDatafields($dt_array);
-
-                    // If derived datafield shennanigans were involved...
-                    $extra_datafields = array();
-                    if ( !empty($derived_datafields) ) {
-                        // ...then determine whether any of the datafields modified by this mass
-                        //  edit job caused derivation jobs for other datafields
-                        foreach ($datafield_list as $num => $df_id) {
-                            foreach ($derived_datafields as $derived_df_id => $source_df_ids) {
-                                if ( in_array($df_id, $source_df_ids) )
-                                    $extra_datafields[] = $derived_df_id;
-                            }
-                        }
-                    }
-
-                    // Merge the list of datafields directly modified by this mass edit job with
-                    //  the list of datafields that also got modified due to render plugins
-                    $all_datafields = array();
-                    foreach ($datafield_list as $num => $df_id)
-                        $all_datafields[$df_id] = 1;
-                    foreach ($extra_datafields as $num => $df_id)
-                        $all_datafields[$df_id] = 1;
-                    $all_datafields = array_keys($all_datafields);
-
-                    $query = $em->createQuery(
-                       'SELECT df
-                        FROM ODRAdminBundle:DataFields df
-                        WHERE df IN (:datafield_list)
-                        AND df.deletedAt IS NULL'
-                    )->setParameters( array('datafield_list' => $all_datafields) );
-                    $datafields = $query->getResult();
-                    /** @var DataFields[] $datafields */
-
-                    /** @var CacheService $cache_service */
-                    $cache_service = $this->container->get('odr.cache_service');
-                    foreach ($datafields as $df) {
-                        // Delete cached search results for each datafield...
-                        $search_cache_service->onDatafieldModify($df);
-                        // ...and the default ordering of any datatype that relies on the datafield
-                        foreach ($df->getSortDatatypes() as $num => $dt)
-                            $cache_service->delete('datatype_'.$dt->getId().'_record_order');
-                    }
                 }
 
                 $em->persist($tracked_job);
@@ -1576,8 +1521,6 @@ class MassEditController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
@@ -1820,10 +1763,6 @@ class MassEditController extends ODRCustomController
             // Ensure no records think they're still linked to this now-deleted record
             $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
 
-            // Force anything that linked to this datatype to rebuild link entries since at least
-            //  one record got deleted
-            $search_cache_service->onLinkStatusChange($datatype);
-
             // We don't want to fire off multiple (potentially hundreds) of DatarecordDeleted events
             //  here, so the event was designed to permit arrays of ids/uuids
             try {
@@ -1843,6 +1782,23 @@ class MassEditController extends ODRCustomController
 
             // NOTE: don't want/need a DatarecordModified event here...the deleted records are
             //  (currently) guaranteed to be top-level, and therefore have nothing to update
+
+            // Due to a pile of records being deleted, it probably won't hurt to fire off this
+            //  event either
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeImportedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------

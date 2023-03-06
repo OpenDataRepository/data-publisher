@@ -18,6 +18,7 @@ use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageChecksum;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -389,7 +390,22 @@ class CryptoService
         //  "are you done encrypting yet?" javascript requests can return the correct HTML
         // TODO - ...I'm pretty sure this javascript request no longer exists?  regardless, datarecord should be updated here
         $datarecord = $file->getDataRecord();
+        $datafield = $file->getDataField();
         $user = $file->getCreatedBy();
+
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
         try {
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode

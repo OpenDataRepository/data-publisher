@@ -28,14 +28,15 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-// Services
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class CloneTemplateService
@@ -55,11 +56,6 @@ class CloneTemplateService
      * @var CacheService
      */
     private $cache_service;
-
-    /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
 
     /**
      * @var CloneThemeService
@@ -100,6 +96,11 @@ class CloneTemplateService
      * @var UUIDService
      */
     private $uuid_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
 
     /**
      * @var Logger
@@ -180,8 +181,8 @@ class CloneTemplateService
      * @param LockService $lock_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
-     * @param SearchCacheService $search_cache_service
      * @param UUIDService $uuid_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
@@ -195,8 +196,8 @@ class CloneTemplateService
         LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
-        SearchCacheService $search_cache_service,
         UUIDService $uuid_service,
+        EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -209,8 +210,8 @@ class CloneTemplateService
         $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->ti_service = $theme_info_service;
-        $this->search_cache_service = $search_cache_service;
         $this->uuid_service = $uuid_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
 
         $this->template_datatypes = array();
@@ -1027,22 +1028,32 @@ class CloneTemplateService
 
         $modified_top_level_datatypes = array();
         foreach ($this->derived_datatypes as $dt) {
-            $this->cache_service->delete('cached_datatype_'.$dt->getId());
-            $this->cache_service->delete('associated_datatypes_for_'.$dt->getId());
-
-            $master_theme = $this->ti_service->getDatatypeMasterTheme($dt->getId());
-            $this->cache_service->delete('cached_theme_'.$master_theme->getId());
-
             // Don't remember whether $this->derived_datatypes contains linked datatypes or not...
             //  ...do it this way to be safe
-            if ( $dt->getGrandparent()->getId() === $dt->getId() ) {
-                $this->search_cache_service->onDatatypeImport($dt);
-                $modified_top_level_datatypes[] = $dt->getId();
+            if ( $dt->getGrandparent()->getId() === $dt->getId() )
+                $modified_top_level_datatypes[ $dt->getId() ] = $dt;
+        }
+
+        foreach ($modified_top_level_datatypes as $dt_id => $dt) {
+            // Since the job is now done (in theory), delete all search cache entries
+            //  relevant to this datatype
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                $event = new DatatypeImportedEvent($dt, $user);
+                $this->event_dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
-            $this->search_cache_service->onDatatypeImport($dt);
+            $master_theme = $this->ti_service->getDatatypeMasterTheme($dt_id);
+            $this->cache_service->delete('cached_theme_'.$master_theme->getId());
 
-            // TODO - ...don't the datarecord entries need to be wiped too?
+            // TODO - ...do the datarecord entries need to be wiped too?  Theoretically nothing was deleted, so the entries should be fine?
         }
 
         // Need to also delete the permissions related cache entries...technically they've already
@@ -1060,7 +1071,7 @@ class CloneTemplateService
             AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
         )->setParameters(
             array(
-                'datatype_ids' => $modified_top_level_datatypes
+                'datatype_ids' => array_keys($modified_top_level_datatypes)
             )
         );
         $results = $query->getArrayResult();
@@ -2241,103 +2252,6 @@ class CloneTemplateService
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
             }
         }
-    }
-
-
-    /**
-     * Split out from self::syncDatatype() to make it slightly simpler to read...
-     * TODO - BRING THIS UP TO DATE BEFORE USING IT
-     * TODO - move into an entity deletion service?
-     *
-     * @param DataFields $derived_df
-     * @param ODRUser $user
-     */
-    private function deleteDatafield($derived_df, $user)
-    {
-        // Going to need this in a bit
-        $derived_dt = $derived_df->getDataType();
-
-        // Delete any relevant search cache entries before the datafield gets deleted
-        $this->search_cache_service->onDatafieldDelete($derived_df);
-
-        // Mark the datafield and its meta entry as deleted
-        $derived_df_meta = $derived_df->getDataFieldMeta();
-        $derived_df->setDeletedAt(new \DateTime());
-        $derived_df->setDeletedBy($user);
-        $this->em->persist($derived_df);
-
-        $derived_df_meta->setDeletedAt(new \DateTime());
-        $this->em->persist($derived_df_meta);
-
-
-        // Need to delete all theme datafield entries that reference this datafield...
-        $query = $this->em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeDataField AS tdf
-            SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
-            WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'now' => new \DateTime(),
-                'deleted_by' => $user->getId(),
-                'datafield' => $derived_df->getId()
-            )
-        );
-        $rows = $query->execute();
-
-        // ...and datafield permission entries
-        $query = $this->em->createQuery(
-           'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-            SET gdfp.deletedAt = :now
-            WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'now' => new \DateTime(),
-                'datafield' => $derived_df->getId()
-            )
-        );
-        $rows = $query->execute();
-
-        // If this datafield was an external_id/name/sort/background_image datafield, then its
-        //  datatype needs an update so it doesn't inadvertently point to a deleted datafield...
-        $properties = array(
-            'externalIdField' => $derived_dt->getExternalIdField(),
-            'nameField' => $derived_dt->getNameField(),
-            'sortField' => $derived_dt->getSortField(),
-            'backgroundImageField' => $derived_dt->getBackgroundImageField(),
-        );
-
-        // Ensure that the datatype doesn't continue to think this datafield is its external id field
-        if ( !is_null($properties['externalIdField']) && $properties['externalIdField']->getId() === $derived_df->getId() )
-            $properties['externalIdField'] = null;
-        else
-            unset( $properties['externalIdField'] );
-
-        // Ensure that the datatype doesn't continue to think this datafield is its name field
-        if ( !is_null($properties['nameField']) && $properties['nameField']->getId() === $derived_df->getId() )
-            $properties['nameField'] = null;
-        else
-            unset( $properties['nameField'] );
-
-
-        // TODO - doesn't handle sortfields in different datatypes
-        // Ensure that the datatype doesn't continue to think this datafield is its sort field
-        if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
-            $properties['sortField'] = null;
-
-            // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-            $this->dbi_service->resetDatatypeSortOrder($derived_dt->getId());
-        }
-        else
-            unset( $properties['sortField'] );
-
-        // Ensure that the datatype doesn't continue to think this datafield is its background image field
-        if ( !is_null($properties['backgroundImageField']) && $properties['backgroundImageField']->getId() === $derived_df->getId() )
-            $properties['backgroundImageField'] = null;
-        else
-            unset( $properties['backgroundImageField'] );
-
-        // Delay saving any changes to the datatype
-        $this->emm_service->updateDatatypeMeta($user, $derived_dt, $properties, true);
     }
 
 

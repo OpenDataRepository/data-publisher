@@ -2087,8 +2087,6 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CloneMasterDatatypeService $cmd_service */
-            $cmd_service = $this->container->get('odr.clone_master_datatype_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var CsrfTokenManager $token_generator */
@@ -2198,6 +2196,8 @@ class DatatypeController extends ODRCustomController
 
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "api_key" => $api_key,
+
+                        "clone_and_link" => false,    // ?
                     )
                 );
                 $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
@@ -2213,6 +2213,8 @@ class DatatypeController extends ODRCustomController
 
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "api_key" => $api_key,
+
+                    "clone_and_link" => false,    // ?
                 )
             );
             $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);

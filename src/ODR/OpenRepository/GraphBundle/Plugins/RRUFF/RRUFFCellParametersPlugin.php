@@ -50,6 +50,7 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\PostMassEditEvent;
@@ -68,7 +69,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -114,11 +114,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      * @var LockService
      */
     private $lock_service;
-
-    /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
 
     /**
      * @var EventDispatcherInterface
@@ -489,7 +484,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      * @param EntityCreationService $entity_creation_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param LockService $lock_service
-     * @param SearchCacheService $search_cache_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
@@ -503,7 +497,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         EntityCreationService $entity_creation_service,
         EntityMetaModifyService $entity_meta_modify_service,
         LockService $lock_service,
-        SearchCacheService $search_cache_service,
         EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
@@ -516,7 +509,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $this->ec_service = $entity_creation_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->lock_service = $lock_service;
-        $this->search_cache_service = $search_cache_service;
         $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
@@ -1133,16 +1125,19 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
 
         // ----------------------------------------
-        // Not going to mark the datarecord as updated, but still need to do some other cache
-        //  maintenance because a datafield value got changed...
-
-        // If the datafield that got changed was a datatype's sort datafield, delete its cached datarecord order
-        $sort_datatypes = $datafield->getSortDatatypes();
-        foreach ($sort_datatypes as $num => $dt)
-            $this->dbi_service->resetDatatypeSortOrder($dt->getId());
-
-        // Delete any cached search results involving this datafield
-        $this->search_cache_service->onDatafieldModify($datafield);
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 
 
@@ -1534,6 +1529,20 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      */
     private function clearCacheEntries($datarecord, $user, $destination_storage_entity)
     {
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($destination_storage_entity->getDataField(), $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
         // The datarecord needs to be marked as updated
         try {
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -1547,9 +1556,6 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                throw $e;
         }
-
-        // Because other datafields got updated, several more cache entries need to be wiped
-        $this->search_cache_service->onDatafieldModify($destination_storage_entity->getDataField());
     }
 
 

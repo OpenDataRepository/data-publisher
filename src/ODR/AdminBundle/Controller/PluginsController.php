@@ -28,6 +28,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\PluginAttachEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
@@ -463,10 +464,16 @@ class PluginsController extends ODRCustomController
             'DatatypeModifiedEvent' => 0,
             'DatatypeDeletedEvent' => 0,
             'DatatypePublicStatusChangedEvent' => 0,
+            'DatatypeImportedEvent' => 0,
 
+//            'DatarecordCreatedEvent' => 0,    // Render Plugins need this event
             'DatarecordModifiedEvent' => 0,
             'DatarecordDeletedEvent' => 0,
             'DatarecordPublicStatusChangedEvent' => 0,
+
+            'DatafieldCreatedEvent' => 0,
+            'DatafieldModifiedEvent' => 0,
+            'DatafieldDeletedEvent' => 0,
         );
         // ...though this is more due to a great reluctance to test that a render plugin will properly
         //  work in all situations the event can be triggered in, rather than some structural reason
@@ -3263,6 +3270,7 @@ class PluginsController extends ODRCustomController
             $theme = $theme_service->getDatatypeMasterTheme($target_datatype->getId());
 
             $theme_element = null;
+            $new_datafields = array();
             foreach ($new_df_fieldtypes as $rpf_id => $ft_id) {
                 // Only attempt to create new datafields if they're being requested
                 if ( $plugin_map[$rpf_id] != '-1' )
@@ -3300,14 +3308,34 @@ class PluginsController extends ODRCustomController
                 // Now that the datafield exists, update the plugin map
                 $em->refresh($datafield);
                 $plugin_map[$rpf_id] = $datafield->getId();
+                $new_datafields[] = $datafield;
 
                 if ($fieldtype->getTypeClass() == 'Image')
                     $ec_service->createImageSizes($user, $datafield);    // TODO - test this...no render plugin creates an image at the moment
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
-            if ($reload_datatype)
+            if ($reload_datatype) {
                 $em->flush();
+
+                // Now that flushing has happened, should fire off events notifying of each new datafield
+                foreach ($new_datafields as $df) {
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatafieldCreatedEvent($df, $user);
+                        $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+                }
+            }
 
 
             // ----------------------------------------

@@ -33,6 +33,8 @@ use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
@@ -62,8 +64,6 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
@@ -414,8 +414,6 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -550,6 +548,22 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Notify that a datafield was just created
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldCreatedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Update the cached version of the datatype and its master theme
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -573,10 +587,6 @@ class DisplaytemplateController extends ODRCustomController
                 //  datatype's master theme as updated
                 $theme_service->updateThemeCacheEntry($source_theme, $user);
             }
-
-            // A couple search cache entries need cleared when a datafield is created...
-            $search_cache_service->onDatafieldCreate($datafield);
-
 
             // NOTE: this doesn't need to clear any of the datarecord caches...they're built/used
             //  under the assumption that a "missing" datafield means "no value"
@@ -646,8 +656,6 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -814,6 +822,22 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Notify that a datafield was just created
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldCreatedEvent($new_df, $user);
+                $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Updated the cached version of the datatype and its master theme
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -837,10 +861,6 @@ class DisplaytemplateController extends ODRCustomController
                 //  datatype's master theme as updated
                 $theme_service->updateThemeCacheEntry($source_theme, $user);
             }
-
-            // Since this copy created a new datafield, a few search cache entries need to be
-            //  cleared...
-            $search_cache_service->onDatafieldCreate($new_df);
 
             // NOTE: this doesn't need to clear any of the datarecord caches...they're built/used
             //  under the assumption that a "missing" datafield means "no value"
@@ -1871,14 +1891,14 @@ class DisplaytemplateController extends ODRCustomController
 
         // Locate the ids of all datatypes that the given parent datatype links to
         $datatree_array = $dti_service->getDatatreeArray();
-        $linked_descendents = $dti_service->getLinkedDescendants( array($datatype->getId()), $datatree_array );
+        $linked_descendants = $dti_service->getLinkedDescendants( array($datatype->getId()), $datatree_array );
 
         // The parent datatype should always be in here, otherwise no fields will get listed as
         //  candidates for a sortfield
         $sortfield_datatypes = array();
         $sortfield_datatypes[] = $datatype->getId();
 
-        foreach ($linked_descendents as $num => $ldt_id) {
+        foreach ($linked_descendants as $num => $ldt_id) {
             if ( !isset($datatree_array['multiple_allowed'][$ldt_id]) ) {
                 // If the linked datatype isn't in the 'multiple allowed' section, then everything
                 //  that links to it only permits a single linked record
@@ -2154,8 +2174,6 @@ class DisplaytemplateController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var ThemeInfoService $theme_service */
@@ -2451,6 +2469,23 @@ class DisplaytemplateController extends ODRCustomController
 
 
                     // ----------------------------------------
+                    // Fire off an event notifying that the modification of the datafield is done
+                    // ...though this won't necessarily be true if the fieldtype is getting changed
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatafieldModifiedEvent($datafield, $user);
+                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+
                     // Mark the datatype as updated
                     try {
                         // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -2472,9 +2507,6 @@ class DisplaytemplateController extends ODRCustomController
                     }
 
                     // Don't need to update cached datarecords or themes
-
-                    // This is probably slightly overkill...
-                    $search_cache_service->onDatafieldModify($datafield);
 
 
                     // ----------------------------------------
@@ -3234,8 +3266,6 @@ if ($debug)
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataFields $datafield */
@@ -3277,6 +3307,25 @@ if ($debug)
 
 
             // ----------------------------------------
+            // Notify that the datafield has been changed
+            // NOTE: intentionally don't have a DatafieldPublicStatusChanged event...it would only
+            //  really be used here, as any other place that could fire it might also need to fire
+            //  off a DatafieldModified event anyways
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Update cached version of datatype
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -3294,9 +3343,6 @@ if ($debug)
             }
 
             // Don't need to update cached datarecords or themes
-
-            // Do need to clear some search cache entries
-            $search_cache_service->onDatafieldPublicStatusChange($datafield);
         }
         catch (\Exception $e) {
             $source = 0xbd3dc347;
@@ -3811,8 +3857,6 @@ if ($debug)
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
@@ -3931,6 +3975,7 @@ if ($debug)
             $change_made = false;
 
             // Now that the form is valid, update all the datafields
+            $datafields_needing_events = array();
             foreach ($df_array as $df_id => $df) {
                 $datafield = $datafield_map[$df_id];
 
@@ -4003,8 +4048,8 @@ if ($debug)
                             $ec_service->createImageSizes($user, $datafield, true);    // don't flush immediately
                     }
 
-                    // Clear relevant cache entries for this datafield
-                    $search_cache_service->onDatafieldModify($datafield);
+                    // Need to fire events for these datafields in a bit
+                    $datafields_needing_events[] = $datafield;
                 }
 
                 // NOTE: don't need to have stuff to deal with updating DatatypeSpecialField entries
@@ -4018,6 +4063,24 @@ if ($debug)
             if ( $change_made ) {
                 // Changes made, flush the database
                 $em->flush();
+
+                foreach ($datafields_needing_events as $df) {
+                    // Fire off an event notifying that the modification of the datafield is done
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatafieldModifiedEvent($df, $user);
+                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+                }
 
                 // Mark the datatype as updated
                 try {
@@ -4165,6 +4228,8 @@ if ($debug)
                             if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
                                 $tmp[] = $descendant_dt_id;
                         }
+
+                        // Currently not allowed to use fields from child descendants for sorting
                     }
                 }
 
@@ -4271,6 +4336,8 @@ if ($debug)
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
@@ -4466,7 +4533,7 @@ if ($debug)
 
                 // If the sort fields got changed, then need to reset some more cache entries
                 if ( $purpose === 'sort' )
-                    $dbi_service->resetDatatypeSortOrder($datatype->getId());
+                    $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
             }
         }
         catch (\Exception $e) {

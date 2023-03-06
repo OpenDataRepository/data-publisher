@@ -20,6 +20,7 @@ use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 // Exceptions
@@ -39,7 +40,6 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -198,8 +198,6 @@ class TagsController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -261,6 +259,22 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Mark the datatype as updated
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -278,9 +292,6 @@ class TagsController extends ODRCustomController
             }
 
             // Don't need to update cached versions of datarecords or themes
-
-            // Do need to clear some search cache entries however
-            $search_cache_service->onDatafieldModify($datafield);
 
 
             // ----------------------------------------
@@ -535,8 +546,6 @@ class TagsController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TagHelperService $tag_helper_service */
@@ -663,6 +672,22 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Mark the datatype as updated
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -678,9 +703,6 @@ class TagsController extends ODRCustomController
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
-
-            // Also need to clear a few search cache entries
-            $search_cache_service->onDatafieldModify($datafield);
         }
         catch (\Exception $e) {
             $source = 0x75de8980;
@@ -815,8 +837,6 @@ class TagsController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -992,6 +1012,22 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Mark the datatype as updated
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -1017,8 +1053,6 @@ class TagsController extends ODRCustomController
                 $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
             }
 
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
 
             // ----------------------------------------
             // Need to let the browser know which datafield to reload
@@ -1073,8 +1107,6 @@ class TagsController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -1328,6 +1360,21 @@ class TagsController extends ODRCustomController
                 // Don't need to update cached versions of datarecords or search results unless tag
                 //  parentage got changed...
                 if ($create_new_entry || $delete_old_entry) {
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatafieldModifiedEvent($datafield, $user);
+                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+
                     // Delete the separately cached tag tree for this datatype's grandparent
                     $grandparent_datatype = $datatype->getGrandparent();
                     $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
@@ -1337,9 +1384,6 @@ class TagsController extends ODRCustomController
                         //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
                         $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
                     }
-
-                    // Also need to clear a whole pile of cached data specifically required for searching
-                    $search_cache_service->onDatafieldModify($datafield);
                 }
             }
 
@@ -1392,8 +1436,6 @@ class TagsController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -1466,6 +1508,22 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Mark the datatype as updated
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -1481,9 +1539,6 @@ class TagsController extends ODRCustomController
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
-
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
 
 
             // ----------------------------------------
@@ -1537,8 +1592,6 @@ class TagsController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var Tags $tag */
@@ -1657,8 +1710,21 @@ class TagsController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
         }
         catch (\Exception $e) {

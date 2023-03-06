@@ -28,6 +28,8 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -41,10 +43,10 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -100,12 +102,8 @@ class WorkerController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -215,9 +213,6 @@ class WorkerController extends ODRCustomController
                     $cache_service->delete('cached_datarecord_'.$datarecord->getGrandparent()->getId());
                     $cache_service->delete('cached_table_data_'.$datarecord->getGrandparent()->getId());
                     $cache_service->delete('json_record_'.$datarecord->getGrandparent()->getUniqueId());
-
-                    // Delete all relevant search cache entries
-                    $search_cache_service->onDatafieldModify($datafield);
                 }
             }
             else if ( $new_typeclass !== 'Radio' ) {
@@ -438,9 +433,6 @@ class WorkerController extends ODRCustomController
                     $cache_service->delete('json_record_'.$dr_uuid);
 
                 $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted cache entries for '.count($dr_list).' datarecords from top-level datatype '.$top_level_datatype->getId());
-
-                // Also need to delete all relevant search cache entries
-                $search_cache_service->onDatafieldModify($datafield);
             }
 
             // ----------------------------------------
@@ -451,8 +443,26 @@ class WorkerController extends ODRCustomController
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
 
-                if ($count >= $total)
+                if ($count >= $total) {
+                    // Job is completed...
                     $tracked_job->setCompleted( new \DateTime() );
+
+                    // Fire off an event notifying that the modification of the datafield is done
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatafieldModifiedEvent($datafield, $user);
+                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+                }
 
                 $em->persist($tracked_job);
                 $em->flush();

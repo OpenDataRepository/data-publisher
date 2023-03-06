@@ -140,8 +140,7 @@ class DatarecordDeletedEvent extends Event implements ODREventInterface
         else {
             return array(
                 self::NAME,
-                'dr_ids '.print_r($this->datarecord_id, true),
-                'dr_uuids '.print_r($this->datarecord_uuid, true),
+                'dr_ids '.implode(',', $this->datarecord_id),
                 'dt '.$this->datatype->getId()
             );
         }

@@ -105,9 +105,18 @@ class DatatypeModifiedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
-            self::NAME,
-            'dt '.$this->datatype->getId(),
-        );
+        if ( $this->clear_datarecord_caches ) {
+            return array(
+                self::NAME,
+                'dt '.$this->datatype->getId(),
+                'clear_datarecord_entries',
+            );
+        }
+        else {
+            return array(
+                self::NAME,
+                'dt '.$this->datatype->getId(),
+            );
+        }
     }
 }

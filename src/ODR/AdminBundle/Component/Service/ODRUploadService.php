@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Exceptions
@@ -295,9 +296,25 @@ class ODRUploadService
 
 
         // ----------------------------------------
-        // Mark this datarecord as updated...don't want to let this happen inside the crypto service,
-        //  because then it'll fire off two modified events
+        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
+        //  fire off events inside CryptoService...it would end up firing off one event for the
+        //  original image, then another for each thumbnail created
         $datarecord = $image->getDataRecord();
+        $datafield = $image->getDataField();
+
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
         try {
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -406,9 +423,25 @@ class ODRUploadService
 
 
         // ----------------------------------------
-        // Mark this datarecord as updated...don't want to let this happen inside the crypto service,
-        //  because then it'll fire off two modified events
+        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
+        //  fire off events inside CryptoService...it would end up firing off one event for the
+        //  original image, then another for each thumbnail created
         $datarecord = $existing_image->getDataRecord();
+        $datafield = $existing_image->getDataField();
+
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
         try {
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode

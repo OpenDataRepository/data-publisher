@@ -38,6 +38,7 @@ use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
@@ -2686,8 +2687,6 @@ class CSVImportController extends ODRCustomController
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TagHelperService $tag_helper_service */
@@ -2958,8 +2957,22 @@ class CSVImportController extends ODRCustomController
                     if ($new_datafield->getFieldType()->getTypeClass() == 'Image')
                         $ec_service->createImageSizes($user, $new_datafield, true);    // don't flush immediately...
 
-                    // Also need to delete some search cache entries here...
-                    $search_cache_service->onDatafieldCreate($new_datafield);
+                    // Notify that a datafield was just created...
+                    try {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $dispatcher = $this->get('event_dispatcher');
+                        $event = new DatafieldCreatedEvent($new_datafield, $user);
+                        $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+
                     // ...and since the new datafield is already hydrated, store it for later
                     $hydrated_datafields[$new_datafield->getId()] = $new_datafield;
                 }
@@ -3331,8 +3344,6 @@ print_r($new_mapping);
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var ODRUploadService $upload_service */
@@ -3549,9 +3560,7 @@ exit();
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
-                    //  event.  In this case, a datarecord gets created, but the rest of the values
-                    //  aren't saved and the provisioned flag never gets changed to "false"...leaving
-                    //  the datarecord in a state that the user can't view/edit
+                    //  event.
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
@@ -4217,6 +4226,8 @@ exit();
             if ($count >= $total) {
                 // Job is completed...
                 $tracked_job->setCompleted( new \DateTime() );
+                // Job will be flushed shortly...
+                $em->persist($tracked_job);
 
                 // TODO - really want a better system than this...
 
@@ -4236,7 +4247,7 @@ exit();
                             }
                             else if ( $df->getFieldType()->getTypeClass() === 'Tag' ) {
                                 $sort_service->sortTagsByName($user, $df);
-                                $status .= ' == re-sorting tasg by name for datafield '.$df_id.' ("'.$df->getFieldName().'")'."\n";
+                                $status .= ' == re-sorting tags by name for datafield '.$df_id.' ("'.$df->getFieldName().'")'."\n";
                             }
                         }
                     }
@@ -4279,9 +4290,6 @@ exit();
 //                        throw $e;
                 }
                 $status .= ' == deleting all search cache entries for datatype '.$datatype->getId().' ("'.$datatype->getShortName().'")'."\n";
-
-                // Job will be flushed shortly...
-                $em->persist($tracked_job);
             }
 
             // Import is finished, ensure the datarecord can be accessed by other parts of the site
@@ -4292,9 +4300,6 @@ exit();
 
 
             // ----------------------------------------
-            // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            $dbi_service->resetDatatypeSortOrder($datatype->getId());
-
             // Mark this datarecord as updated...
             try {
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,

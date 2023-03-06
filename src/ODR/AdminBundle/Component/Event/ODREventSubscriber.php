@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Component\Event;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 // Services
@@ -62,6 +63,11 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     private $logger;
 
+    /**
+     * @var boolean
+     */
+    private $debug;
+
 
     /**
      * ODREventSubscriber constructor.
@@ -69,7 +75,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param string $environment
      * @param ContainerInterface $container
      * @param EntityManager $entity_manager
-     * @param CacheService $cacheService
+     * @param CacheService $cache_service
      * @param SearchService $search_service
      * @param Logger $logger
      */
@@ -87,6 +93,9 @@ class ODREventSubscriber implements EventSubscriberInterface
         $this->cache_service = $cache_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
+
+        $this->debug = false;
+//        $this->debug = true;
     }
 
 
@@ -98,7 +107,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         return array(
             // Datatype
             DatatypeCreatedEvent::NAME => 'onDatatypeCreated',
-//            DatatypeImportedEvent::NAME => 'onDatatypeImport',
+            DatatypeImportedEvent::NAME => 'onDatatypeImport',
             DatatypeModifiedEvent::NAME => 'onDatatypeModified',
             DatatypeDeletedEvent::NAME => 'onDatatypeDeleted',
             DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChanged',
@@ -108,10 +117,10 @@ class ODREventSubscriber implements EventSubscriberInterface
             DatarecordDeletedEvent::NAME => 'onDatarecordDeleted',
             DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChanged',
             // Datafield
-//            DatafieldCreatedEvent::NAME => 'onDatafieldCreated',    // TODO - ignore datafields for now...
-//            DatafieldModifiedEvent::NAME => 'onDatafieldModified',
+//            DatafieldCreatedEvent::NAME => 'onDatafieldCreated',
+            DatafieldModifiedEvent::NAME => 'onDatafieldModified',
 //            DatafieldDeletedEvent::NAME => 'onDatafieldDeleted',
-//            DatafieldPublicStatusChangedEvent::NAME => 'onDatafieldPublicStatusChanged',
+
             // TODO - Nate is also going to eventually need events for Layout changes
 
             // Files/Images
@@ -262,7 +271,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatatypeCreated(DatatypeCreatedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatatypeCreated()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatatypeCreated()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -313,7 +323,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatatypeModified(DatatypeModifiedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatatypeModified()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatatypeModified()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -395,7 +406,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatatypeDeleted(DatatypeDeletedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatatypeDeleted()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatatypeDeleted()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -465,7 +477,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatatypePublicStatusChanged(DatatypePublicStatusChangedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatatypePublicStatusChanged()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatatypePublicStatusChanged()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -522,6 +535,84 @@ class ODREventSubscriber implements EventSubscriberInterface
         }
     }
 
+
+    /**
+     * The DatatypeImportedEvent is usually fired when there's a massive changeset to a datatype,
+     * such as with MassEdit or CSVImport...instead of dispatching hundreds of more granular events,
+     * this one is used instead.
+     *
+     * @param DatatypeImportedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatatypeImport(DatatypeImportedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatatypeImport()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datatype = $event->getDatatype();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Should ensure that these cache entries are cleared
+            $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+            $this->cache_service->delete('associated_datatypes_for_'.$datatype->getId());
+
+            // Instead of firing off DatafieldModified events for every single datafield that
+            //  might've been changed...locate all other datatypes that use this datatype's fields
+            //  as a sort field...
+            $query = $this->em->createQuery(
+               'SELECT DISTINCT(l_dt.id) AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                WHERE df.dataType IN (:datatype_id) AND dtsf.field_purpose = :field_purpose
+                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatype_id' => array( $datatype->getId() ),
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_reset_order = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_reset_order[] = $dt_id;
+            }
+
+            // ...and then reset the sort order for each of the other datatypes
+            foreach ($datatypes_to_reset_order as $dt_id)
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
     /**
      * Handles dispatched DatarecordCreated events
      *
@@ -531,7 +622,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatarecordCreated(DatarecordCreatedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatarecordCreated()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatarecordCreated()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -543,6 +635,16 @@ class ODREventSubscriber implements EventSubscriberInterface
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
             }
+
+
+            // ----------------------------------------
+            // Delete the cached default ordering of records in this datatype
+            $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+
+            // DatabaseInfoService originally always reset cached graphs when a datarecord was
+            //  created...that doesn't actually need to happen, since cached graphs change should
+            //  only change on file events (or datarecord deletions), and a new record shouldn't
+            //  have a file uploaded
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -571,7 +673,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatarecordModified(DatarecordModifiedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatarecordModified()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatarecordModified()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -640,13 +743,14 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatarecordDeleted(DatarecordDeletedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatarecordDeleted()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatarecordDeleted()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
             $datarecord_id = $event->getDatarecordId();
             $datarecord_uuid = $event->getDatarecordUUID();
-//            $datatype = $event->getDataType();
+            $datatype = $event->getDataType();
 
             // NOTE: $dr_id and $dr_uuid will be arrays if this event was fired as a result of MassEdit
             //  doing a mass deletion
@@ -658,31 +762,39 @@ class ODREventSubscriber implements EventSubscriberInterface
 //                self::relayEvent($relevant_plugins, $event);
 //            }
 
-            // While this isn't necessary if the deleted datarecord wasn't top-level, and technically
-            //  shouldn't be necessary even if it is a top-level...might as well ensure no cache
-            //  entries exist to reference the datarecord
-            if ( !is_array($datarecord_id) ) {
-                $this->cache_service->delete('cached_datarecord_'.$datarecord_id);
-                $this->cache_service->delete('cached_table_data_'.$datarecord_id);
 
-                $this->cache_service->delete('associated_datarecords_for_'.$datarecord_id);
-            }
-            else {
-                foreach ($datarecord_id as $dr_id) {
-                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
-                    $this->cache_service->delete('cached_table_data_'.$dr_id);
+            // ----------------------------------------
+            // Delete the cached default ordering of records in this datatype
+            $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
-                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+            // If the deleted datarecord (or datarecords) belongs to a top-level datatype, then
+            //  probably should ensure several more cache entries are deleted...
+            if ( $datatype->getId() == $datatype->getGrandparent()->getId() ) {
+                if ( !is_array($datarecord_id) ) {
+                    $this->cache_service->delete('cached_datarecord_'.$datarecord_id);
+                    $this->cache_service->delete('cached_table_data_'.$datarecord_id);
+
+                    $this->cache_service->delete('associated_datarecords_for_'.$datarecord_id);
+                }
+                else {
+                    foreach ($datarecord_id as $dr_id) {
+                        $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                        $this->cache_service->delete('cached_table_data_'.$dr_id);
+
+                        $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+                    }
+                }
+
+                if ( !is_array($datarecord_uuid) ) {
+                    $this->cache_service->delete('json_record_'.$datarecord_uuid);
+                }
+                else {
+                    foreach ($datarecord_uuid as $dr_uuid)
+                        $this->cache_service->delete('json_record_'.$dr_uuid);
                 }
             }
 
-            if ( !is_array($datarecord_uuid) ) {
-                $this->cache_service->delete('json_record_'.$datarecord_uuid);
-            }
-            else {
-                foreach ($datarecord_uuid as $dr_uuid)
-                    $this->cache_service->delete('json_record_'.$dr_uuid);
-            }
+            // There's no point deleting the above entries for a datarecord that isn't top-level
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -713,7 +825,8 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onDatarecordPublicStatusChanged(DatarecordPublicStatusChangedEvent $event)
     {
-        $this->logger->debug('ODREventSubscriber::onDatarecordPublicStatusChanged()', $event->getErrorInfo());
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatarecordPublicStatusChanged()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
@@ -775,6 +888,56 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
+     * Handles dispached DatafieldModified events
+     *
+     * @param DatafieldModifiedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatafieldModified(DatafieldModifiedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatafieldModified()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datafield = $event->getDatafield();
+            $datatype = $datafield->getDataType();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+            // ----------------------------------------
+            // Changes to the datafield should reset sort order for any datatypes using it as their
+            //  sort field
+            $sort_datatypes = $datafield->getSortDatatypes();
+            foreach ($sort_datatypes as $dt)
+                $this->cache_service->delete('datatype_'.$dt->getId().'_record_order');
+
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
      * Handles dispached FileDeleted events
      *
      * @param FileDeletedEvent $event
@@ -783,6 +946,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onFileDeleted(FileDeletedEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onFileDeleted()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $datafield = $event->getDatafield();
@@ -821,6 +987,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onFilePreEncrypt(FilePreEncryptEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onFilePreEncrypt()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $datafield = $event->getDatafield();
@@ -859,6 +1028,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onPluginAttach(PluginAttachEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onPluginAttach()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $rpi = $event->getRenderPluginInstance();
@@ -899,6 +1071,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onPluginOptionsChanged(PluginOptionsChangedEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onPluginOptionsChanged()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $rpi = $event->getRenderPluginInstance();
@@ -939,6 +1114,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onPluginPreRemove(PluginPreRemoveEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onPluginPreRemove()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $rpi = $event->getRenderPluginInstance();
@@ -979,6 +1157,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onPostMassEdit(PostMassEditEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onPostMassEdit()', $event->getErrorInfo());
+
         try {
             // Determine whether any render plugins should run something in response to this event
             $drf = $event->getDataRecordFields();
@@ -1018,6 +1199,9 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public function onPostUpdate(PostUpdateEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onPostUpdate()', $event->getErrorInfo());
+
         try {
             // TODO - technically, there's a chance for infinite recursion...a change to datafield A
             // TODO -  triggers a change to datafield B, which can trigger a change to datafield A
