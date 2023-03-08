@@ -40,6 +40,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Event\PostMassEditEvent;
 // Exceptions
@@ -1517,8 +1518,6 @@ class MassEditController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
@@ -1755,13 +1754,21 @@ class MassEditController extends ODRCustomController
 
 
             // -----------------------------------
-            // All datarecords deleted by this were top-level, so it doesn't make sense to mark
-            //  anything as updated
-//            if ( !$is_top_level )
-//                $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
-
             // Ensure no records think they're still linked to this now-deleted record
-            $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
+                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // We don't want to fire off multiple (potentially hundreds) of DatarecordDeleted events
             //  here, so the event was designed to permit arrays of ids/uuids

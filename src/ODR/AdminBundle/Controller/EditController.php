@@ -40,6 +40,7 @@ use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -379,8 +380,6 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
@@ -580,6 +579,7 @@ class EditController extends ODRCustomController
 //$conn->rollBack();
             $conn->commit();
 
+
             // -----------------------------------
             // Fire off an event notifying that this datarecord got deleted
             try {
@@ -599,8 +599,21 @@ class EditController extends ODRCustomController
 
             // If this was a top-level datarecord that just got deleted...
             if ( $is_top_level ) {
-                // ...then ensure no other datarecords think they're still linked to this
-                $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
+                // ...then ensure no other datarecords think they're still linked to it
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
+                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
             }
             else {
                 // ...if not, then mark this now-deleted datarecord's parent (and all its parents)
@@ -616,20 +629,13 @@ class EditController extends ODRCustomController
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
             }
 
 
             // ----------------------------------------
-            // Force a rebuild of the cache entries for each datarecord that linked to the records
-            //  that just got deleted
-            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
-                $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('cached_table_data_'.$dr_id);
-            }
-
             // Reset sort order for the datatypes found earlier
             foreach ($datatypes_to_reset_order as $num => $dt_id)
                 $cache_service->delete('datatype_'.$dt_id.'_record_order');

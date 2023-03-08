@@ -735,38 +735,6 @@ class DatabaseInfoService
 
 
     /**
-     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
-     * e.g.  A links to B links to C links to D links to...etc
-     * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because
-     *  they all need to be loaded via getDatatypeData() in order to properly render A.
-     *
-     * However, this means that linking/unlinking of datatypes between B/C, C/D, D/etc also affects
-     * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
-     *
-     * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
-     * TODO - ...or should this be off in the DatatreeInfoService?
-     *
-     * @param array $datatype_ids dt_ids are values in the array, NOT keys
-     */
-    public function deleteCachedDatatypeLinkData($datatype_ids)
-    {
-        // Locate all datatypes that end up needing to load cache entries for the datatypes in
-        //  $datatype_ids...
-        $datatree_array = $this->dti_service->getDatatreeArray();
-        $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
-
-        // Ensure the datatype that were originally passed in get the cache entry cleared
-        foreach ($datatype_ids as $num => $dt_id)
-            $all_linked_ancestors[] = $dt_id;
-
-        // Clearing this cache entry for each of the ancestor datatypes found ensures that the
-        //  newly linked/unlinked datarecords show up (or not) when they should
-        foreach ($all_linked_ancestors as $num => $dt_id)
-            $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-    }
-
-
-    /**
      * Returns an array with how many datarecords the user is allowed to see for each datatype in
      * $datatype_ids
      *

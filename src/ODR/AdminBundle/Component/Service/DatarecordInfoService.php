@@ -1002,55 +1002,6 @@ class DatarecordInfoService
 
 
     /**
-     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datarecords...
-     * e.g.  A links to B links to C links to D links to...etc
-     * ...the cache entry 'associated_datarecords_for_<A>' will then mention (B, C, D, etc.), because
-     *  they all need to be loaded via getDatarecordArray() in order to properly render A.
-     *
-     * However, this means that linking/unlinking of datarecords between B/C, C/D, D/etc also affects
-     * which datarecords A needs to load...so any linking/unlinking needs to be propagated upwards...
-     *
-     * TODO - potentially modify this to use SearchService::getCachedSearchDatarecordList()?
-     * TODO - ...or create a new CacheClearService and move every single cache clearing function into there instead?
-     *
-     * @param array $datarecord_ids the datarecord_ids are values in the array, NOT keys
-     */
-    public function deleteCachedDatarecordLinkData($datarecord_ids)
-    {
-        $records_to_check = $datarecord_ids;
-        $records_to_clear = $records_to_check;
-
-        while ( !empty($records_to_check) ) {
-            // Determine whether anything links to the given datarecords...
-            $query = $this->em->createQuery(
-               'SELECT grandparent.id AS ancestor_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS grandparent WITH ancestor.grandparent = grandparent
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                WHERE descendant.id IN (:datarecords)
-                AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-                AND grandparent.deletedAt IS NULL'
-            )->setParameters( array('datarecords' => $records_to_check) );
-            $results = $query->getArrayResult();
-
-            $records_to_check = array();
-            foreach ($results as $result) {
-                $ancestor_id = $result['ancestor_id'];
-                $records_to_clear[] = $ancestor_id;
-                $records_to_check[] = $ancestor_id;
-            }
-        }
-
-        // Clearing this cache entry for each of the ancestor records found ensures that the
-        //  newly linked/unlinked datarecords show up (or not) when they should
-        foreach ($records_to_clear as $num => $dr_id)
-            $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
-    }
-
-
-    /**
      * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
      *
      * @param array $datatype_array    @see DatabaseInfoService::buildDatatypeData()

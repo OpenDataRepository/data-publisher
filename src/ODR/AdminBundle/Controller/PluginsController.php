@@ -465,11 +465,13 @@ class PluginsController extends ODRCustomController
             'DatatypeDeletedEvent' => 0,
             'DatatypePublicStatusChangedEvent' => 0,
             'DatatypeImportedEvent' => 0,
+            'DataTypeLinkStatusChangedEvent' => 0,
 
 //            'DatarecordCreatedEvent' => 0,    // Render Plugins need this event
             'DatarecordModifiedEvent' => 0,
             'DatarecordDeletedEvent' => 0,
             'DatarecordPublicStatusChangedEvent' => 0,
+            'DatarecordLinkStatusChangedEvent' => 0,
 
             'DatafieldCreatedEvent' => 0,
             'DatafieldModifiedEvent' => 0,

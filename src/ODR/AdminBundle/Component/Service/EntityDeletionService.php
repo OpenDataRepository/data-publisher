@@ -1102,10 +1102,6 @@ class EntityDeletionService
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
 
             // There are a couple other cache entries that might have referenced this datatype
-            $this->cache_service->delete('top_level_datatypes');
-            $this->cache_service->delete('top_level_themes');
-            $this->cache_service->delete('cached_datatree_array');
-
             $this->cache_service->delete('dashboard_'.$grandparent_datatype_id);
             $this->cache_service->delete('dashboard_'.$grandparent_datatype_id.'_public_only');
 

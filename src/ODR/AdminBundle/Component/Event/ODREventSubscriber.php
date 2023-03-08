@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -54,6 +55,11 @@ class ODREventSubscriber implements EventSubscriberInterface
     private $cache_service;
 
     /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
+
+    /**
      * @var SearchService
      */
     private $search_service;
@@ -76,6 +82,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param Logger $logger
      */
@@ -84,6 +91,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         ContainerInterface $container,
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
         Logger $logger
     ) {
@@ -91,6 +99,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         $this->container = $container;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
 
@@ -111,11 +120,13 @@ class ODREventSubscriber implements EventSubscriberInterface
             DatatypeModifiedEvent::NAME => 'onDatatypeModified',
             DatatypeDeletedEvent::NAME => 'onDatatypeDeleted',
             DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChanged',
+            DatatypeLinkStatusChangedEvent::NAME => 'onDatatypeLinkStatusChanged',
             // Datarecord
             DatarecordCreatedEvent::NAME => 'onDatarecordCreated',
             DatarecordModifiedEvent::NAME => 'onDatarecordModified',
             DatarecordDeletedEvent::NAME => 'onDatarecordDeleted',
             DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChanged',
+            DatarecordLinkStatusChangedEvent::NAME => 'onDatarecordLinkStatusChanged',
             // Datafield
 //            DatafieldCreatedEvent::NAME => 'onDatafieldCreated',
             DatafieldModifiedEvent::NAME => 'onDatafieldModified',
@@ -412,7 +423,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datatype_id = $event->getDatatypeId();
-            $datatype_uuid = $event->getDatatypeUUID();
+//            $datatype_uuid = $event->getDatatypeUUID();
             $was_top_level = $event->getWasTopLevel();
 
             // This event currently isn't allowed to fire for render plugins
@@ -423,6 +434,14 @@ class ODREventSubscriber implements EventSubscriberInterface
 //            }
 
             // ----------------------------------------
+            // Always need to delete this entry
+            $this->cache_service->delete('cached_datatree_array');
+            // Might need to delete these entries too
+            if ( $was_top_level ) {
+                $this->cache_service->delete('top_level_datatypes');
+                $this->cache_service->delete('top_level_themes');
+            }
+
             // While probably not strictly necessary, going to still delete the cached entries for
             //  datarecords belonging to the deleted datatype...only if it's top-level though
             if ( $was_top_level ) {
@@ -517,6 +536,73 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Delete all regular cache entries that need to be rebuilt due to whatever change
             //  triggered this event
             $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatatypeLinkStatusChanged events.
+     *
+     * @param DatatypeLinkStatusChangedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatatypeLinkStatusChanged(DatatypeLinkStatusChangedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatatypeLinkStatusChanged()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $ancestor_datatype = $event->getAncestorDatatype();
+//            $new_descendant_datatype = $event->getNewDescendantDatatype();
+//            $previous_descendant_datatype = $event->getPreviousDescendantDatatype();
+//            $user = $event->getUser();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Since a link between datatypes got created/deleted, delete the cached datatree array
+            $this->cache_service->delete('cached_datatree_array');
+            // The datatree array needs to be rebuilt with the new link data anyways
+            $datatree_array = $this->dti_service->getDatatreeArray();
+
+
+            // Locate all datatypes that end up needing to load cache entries for the datatypes in
+            //  $datatype_ids...
+            $datatype_ids = array($ancestor_datatype->getId());
+            $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
+
+            // Ensure the datatype that were originally passed in get the cache entry cleared
+            foreach ($datatype_ids as $num => $dt_id)
+                $all_linked_ancestors[] = $dt_id;
+
+            // Clearing this cache entry for each of the ancestor datatypes found ensures that the
+            //  newly linked/unlinked datarecords show up (or not) when they should
+            foreach ($all_linked_ancestors as $num => $dt_id)
+                $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+
         }
         catch (\Throwable $e) {
             if ( $this->env !== 'dev' ) {
@@ -831,7 +917,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datarecord = $event->getDatarecord();
-            $datatype = $datarecord->getDataType();
+//            $datatype = $datarecord->getDataType();
             $user = $event->getUser();
 
             // This event currently isn't allowed to fire for render plugins
@@ -888,6 +974,116 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
+     * Handles dispatched DatatypeLinkStatusChanged events.
+     *
+     * @param DatarecordLinkStatusChangedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordLinkStatusChanged(DatarecordLinkStatusChangedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatarecordLinkStatusChanged()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datarecord_ids = $event->getDatarecordIds();
+//            $datatype = $event->getDescendantDatatype();
+//            $user = $event->getUser();
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Force a rebuild of the cache entries for each datarecord that directly linked to the
+            //  records mentioned in this event, so they no longer have a reference to them in the
+            //  'children' section of their cache entries
+            $query = $this->em->createQuery(
+               'SELECT grandparent.unique_id
+                FROM ODRAdminBundle:DataRecord dr
+                JOIN ODRAdminBundle:DataRecord grandparent WITH dr.grandparent = grandparent
+                WHERE dr.id IN (:datarecord_ids)
+                AND grandparent.deletedAt IS NULL'
+            )->setParameters( array('datarecord_ids' => $datarecord_ids) );
+            $results = $query->getArrayResult();
+
+            $datarecord_uuids = array();
+            foreach ($results as $result)
+                $datarecord_uuids[] = $result['unique_id'];
+
+            foreach ($datarecord_ids as $dr_id) {
+                $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                $this->cache_service->delete('cached_table_data_'.$dr_id);
+            }
+            foreach ($datarecord_uuids as $dr_uuid)
+                $this->cache_service->delete('json_record_'.$dr_uuid);
+
+
+            // Because ODR permits an arbitrarily deep hierarchy when it comes to linking datarecords...
+            //  e.g.  A links to B links to C links to D links to...etc
+            //  ...the cache entry 'associated_datarecords_for_<A>' will then mention (B, C, D, etc.),
+            //  because they all need to be loaded via getDatarecordArray() in order to properly
+            //  render A.  However, this means that linking/unlinking of datarecords between B/C,
+            //  C/D, etc also affects which datarecords A needs to load...so any linking/unlinking
+            //  needs to be propagated upwards...
+            $records_to_check = $datarecord_ids;
+            $records_to_clear = $records_to_check;
+
+            while ( !empty($records_to_check) ) {
+                // Determine whether anything links to the given datarecords...
+                $query = $this->em->createQuery(
+                   'SELECT grandparent.id AS ancestor_id
+                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS grandparent WITH ancestor.grandparent = grandparent
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE descendant.id IN (:datarecords)
+                    AND ldt.deletedAt IS NULL
+                    AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
+                    AND grandparent.deletedAt IS NULL'
+                )->setParameters( array('datarecords' => $records_to_check) );
+                $results = $query->getArrayResult();
+
+                $records_to_check = array();
+                foreach ($results as $result) {
+                    $ancestor_id = $result['ancestor_id'];
+                    $records_to_clear[] = $ancestor_id;
+                    $records_to_check[] = $ancestor_id;
+                }
+            }
+
+            // Clearing this cache entry for each of the ancestor records found ensures that the
+            //  newly linked/unlinked datarecords show up (or not) when they should
+            foreach ($records_to_clear as $num => $dr_id)
+                $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+
+            // These particular ancestors don't need their 'cached_datarecord_<dr_id>' (and other)
+            //  entries cleared, because those don't directly reference the records in this event
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
      * Handles dispached DatafieldModified events
      *
      * @param DatafieldModifiedEvent $event
@@ -902,7 +1098,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         try {
             // Determine whether any render plugins should run something in response to this event
             $datafield = $event->getDatafield();
-            $datatype = $datafield->getDataType();
+//            $datatype = $datafield->getDataType();
 
             // This event currently isn't allowed to fire for render plugins
 //            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);

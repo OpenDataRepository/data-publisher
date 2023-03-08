@@ -15,7 +15,6 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Events
@@ -26,11 +25,13 @@ use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeLinkStatusChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 // Symfony
@@ -105,11 +106,13 @@ class SearchCacheService implements EventSubscriberInterface
             DatatypeImportedEvent::NAME => 'onDatatypeImport',
             DatatypeDeletedEvent::NAME => 'onDatatypeDelete',
             DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChange',
+            DatatypeLinkStatusChangedEvent::NAME => 'onDatatypeLinkStatusChange',
             // Datarecord
             DatarecordCreatedEvent::NAME => 'onDatarecordCreate',
             DatarecordModifiedEvent::NAME => 'onDatarecordModify',
             DatarecordDeletedEvent::NAME => 'onDatarecordDelete',
             DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChange',
+            DatarecordLinkStatusChangedEvent::NAME => 'onDatarecordLinkStatusChange',
             // Datafield
             DatafieldCreatedEvent::NAME => 'onDatafieldCreate',
             DatafieldModifiedEvent::NAME => 'onDatafieldModify',
@@ -532,6 +535,33 @@ class SearchCacheService implements EventSubscriberInterface
 
 
     /**
+     * Deletes relevant search cache entries when a datatype is linked to or unlinked from another
+     * datatype.
+     *
+     * @param DatatypeLinkStatusChangedEvent $event
+     */
+    public function onDatatypeLinkStatusChange(DatatypeLinkStatusChangedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypeLinkStatusChange()', $event->getErrorInfo());
+
+//        $ancestor_datatype = $event->getAncestorDatatype();
+//        $new_descendant_datatype = $event->getNewDescendantDatatype();
+        $previous_descendant_datatype = $event->getPreviousDescendantDatatype();
+
+        // If the ancestor datatype was unlinked from a descendant datatype...
+        if ( !is_null($previous_descendant_datatype) )
+            // ...then need to clear this cache entry
+            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
+
+        // Don't need to clear anything for the new descendant datatype
+
+        // Also don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry
+        //  here, since it doesn't contain any information about linking
+    }
+
+
+    /**
      * Deletes relevant search cache entries when a datafield is created.
      *
      * @param DatafieldCreatedEvent $event
@@ -823,17 +853,22 @@ class SearchCacheService implements EventSubscriberInterface
 
 
     /**
-     * Deletes relevant search cache entries when a datarecord (or a datatype) is linked to or
-     * unlinked from.
+     * Handles dispatched DatatypeLinkStatusChanged events.
      *
-     * @param DataType $descendant_datatype
+     * @param DatarecordLinkStatusChangedEvent $event
+     *
+     * @throws \Throwable
      */
-    public function onLinkStatusChange($descendant_datatype)
+    public function onDatarecordLinkStatusChange(DatarecordLinkStatusChangedEvent $event)
     {
-        // ----------------------------------------
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordLinkStatusChange()', $event->getErrorInfo());
+
+        $datatype = $event->getDescendantDatatype();
+
         // If something now (or no longer) links to $descendant_datatype, then these cache entries
         //  need to be deleted
-        $this->cache_service->delete('cached_search_dt_'.$descendant_datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
 
         // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
         // It doesn't contain any information about linking
