@@ -67,23 +67,3 @@ odr_plugins.rruff.rruff_sample:
 
 
     config_options:
-        # NOTE - instead of "correctly" implementing methods for a render plugin to identify a
-        #  datatype like it can a datafield (via the "required_fields") key...it's faster to use
-        #  render plugin options to specify strings to identify relevant datatypes.  This hack
-        #  fits right in with how the rest of the plugin operates.
-
-        ima_datatype:
-            name: IMA Datatype Identifier
-            type: string
-            default: IMA
-            description: TODO
-        reference_datatype:
-            name: Reference Datatype Identifier
-            type: string
-            default: Reference
-            description: TODO
-        comment_datatypes:
-            name: Comment Datatype Identifier
-            type: string
-            default: Comment
-            description: TODO

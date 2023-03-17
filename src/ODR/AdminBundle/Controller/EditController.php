@@ -19,7 +19,6 @@ use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
@@ -37,10 +36,8 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
-use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
-use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -60,9 +57,9 @@ use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -378,8 +375,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
@@ -395,7 +392,6 @@ class EditController extends ODRCustomController
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
-            $datarecord_uuid = $datarecord->getUniqueId();
 
             $parent_datarecord = $datarecord->getParent();
             if ($parent_datarecord->getDeletedAt() != null)
@@ -417,25 +413,12 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // ----------------------------------------
-            // Check whether any jobs that are currently running would interfere with the deletion
-            //  of this datarecord
-            $new_job_data = array(
-                'job_type' => 'delete_datarecord',
-                'target_entity' => $datarecord,
-            );
-
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
-            if ( !is_null($conflicting_job) )
-                throw new ODRConflictException('Unable to delete this Datarecord, as it would interfere with an already running '.$conflicting_job.' job');
-
 
             // ----------------------------------------
-            // NOTE - changes here should also be made in MassEditController::massDeleteAction()
-            // ----------------------------------------
-
-
             // Store whether this was a deletion for a top-level datarecord or not
+            $datatype = $datarecord->getDataType();
+            $parent_datarecord = $datarecord->getParent();
+
             $is_top_level = true;
             if ( $datatype->getId() !== $parent_datarecord->getDataType()->getId() )
                 $is_top_level = false;
@@ -447,201 +430,8 @@ class EditController extends ODRCustomController
                 $is_link = true;
 
 
-            // ----------------------------------------
-            // Recursively locate all children of this datarecord
-            $parent_ids = array();
-            $parent_ids[] = $datarecord->getId();
-
-            $datarecords_to_delete = array();
-            $datarecords_to_delete[] = $datarecord->getId();
-
-            while ( count($parent_ids) > 0 ) {
-                // Can't use the grandparent datarecord property, because this deletion request
-                //  could be for a datarecord that isn't top-level
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
-                    WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
-                    AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-                )->setParameters( array('parent_ids' => $parent_ids) );
-                $results = $query->getArrayResult();
-
-                $parent_ids = array();
-                foreach ($results as $result) {
-                    $dr_id = $result['dr_id'];
-
-                    $parent_ids[] = $dr_id;
-                    $datarecords_to_delete[] = $dr_id;
-                }
-            }
-//print '<pre>'.print_r($datarecords_to_delete, true).'</pre>';  exit();
-
-            // Locate all datarecords that link to any of the datarecords that will be deleted...
-            //  they will need to have their cache entries rebuilt
-            $query = $em->createQuery(
-               'SELECT DISTINCT(gp.id) AS ancestor_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS gp WITH ancestor.grandparent = gp
-                WHERE ldt.descendant IN (:datarecord_ids)
-                AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND gp.deletedAt IS NULL'
-            )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
-            $results = $query->getArrayResult();
-
-            $ancestor_datarecord_ids = array();
-            foreach ($results as $result)
-                $ancestor_datarecord_ids[] = $result['ancestor_id'];
-//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
-
-
-            // If the datarecord contains any datafields that are being used as a sortfield for
-            //  other datatypes, then need to clear the default sort order for those datatypes
-            $query = $em->createQuery(
-               'SELECT DISTINCT(l_dt.id) AS dt_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
-                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datarecords_to_delete' => $datarecords_to_delete,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
-            );
-            $results = $query->getArrayResult();
-
-            $datatypes_to_reset_order = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $datatypes_to_reset_order[] = $dt_id;
-            }
-
-
-            // ----------------------------------------
-            // Since this needs to make updates to multiple tables, use a transaction
-            $conn = $em->getConnection();
-            $conn->beginTransaction();
-
-            // TODO - delete datarecordfield entries as well?
-            // TODO - delete radio/tagSelection entries as well?
-
-            // ...delete all linked_datatree entries that reference these datarecords
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
-                SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
-                WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
-                AND ldt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'deleted_by' => $user->getId(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-
-            // ...delete each meta entry for the datarecords to be deleted
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
-                SET drm.deletedAt = :now
-                WHERE drm.dataRecord IN (:datarecord_ids)
-                AND drm.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-
-            // ...delete all of the datarecords
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecord AS dr
-                SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
-                WHERE dr.id IN (:datarecord_ids)
-                AND dr.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'deleted_by' => $user->getId(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-
-            // No error encountered, commit changes
-//$conn->rollBack();
-            $conn->commit();
-
-
-            // -----------------------------------
-            // Fire off an event notifying that this datarecord got deleted
-            try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordDeletedEvent($datarecord_id, $datarecord_uuid, $datatype, $user);
-                $dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-            }
-
-            // If this was a top-level datarecord that just got deleted...
-            if ( $is_top_level ) {
-                // ...then ensure no other datarecords think they're still linked to it
-                try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
-                    $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
-                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
-                }
-                catch (\Exception $e) {
-                    // ...don't want to rethrow the error since it'll interrupt everything after this
-                    //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                        throw $e;
-                }
-            }
-            else {
-                // ...if not, then mark this now-deleted datarecord's parent (and all its parents)
-                //  as updated
-                try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
-                    $event = new DatarecordModifiedEvent($parent_datarecord, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
-                }
-                catch (\Exception $e) {
-                    // ...don't want to rethrow the error since it'll interrupt everything after this
-                    //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                        throw $e;
-                }
-            }
-
-
-            // ----------------------------------------
-            // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
-                $cache_service->delete('datatype_'.$dt_id.'_record_order');
-
-            // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
-            //  plugins will end up requesting new graphs without the files for the deleted records
+            // Delete the datarecord
+            $ed_service->deleteDatarecord($datarecord, $user);
 
 
             // ----------------------------------------
@@ -776,10 +566,6 @@ class EditController extends ODRCustomController
             if ( file_exists($absolute_path) )
                 unlink($absolute_path);
 
-            // Save who deleted the file
-            $file->setDeletedBy($user);
-            $em->persist($file);
-            $em->flush($file);
 
             // Delete the file and its current metadata entry
             $file_meta = $file->getFileMeta();
@@ -794,12 +580,26 @@ class EditController extends ODRCustomController
 
 
             // -----------------------------------
-            // Fire off an event notifying that the modification of the datafield is done
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            // Notify that a file got deleted...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
+                $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
+
+            // ...and that something happened to the datafield...
+            try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -810,12 +610,8 @@ class EditController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Need to fire off a DatarecordModified event because a file got deleted
+            // ...and finally that something happened to the datarecord
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -824,26 +620,6 @@ class EditController extends ODRCustomController
                 //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
-            }
-
-
-            // ----------------------------------------
-            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-            //  event subscribers will prevent file encryption otherwise...
-            try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
-                $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
             }
 
 

@@ -251,7 +251,7 @@ services:
     odr.entity_creation_service:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
-            $environment: "%kernel.environment%"
+#            $environment: "%kernel.environment%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $lock_service: "@odr.lock_service"
@@ -262,7 +262,7 @@ services:
     odr.entity_meta_modify_service:
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
-            $environment: "%kernel.environment%"
+#            $environment: "%kernel.environment%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
@@ -276,7 +276,6 @@ services:
             $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $permissions_management_service: "@odr.permissions_management_service"

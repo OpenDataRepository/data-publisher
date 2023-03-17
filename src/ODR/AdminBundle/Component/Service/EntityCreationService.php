@@ -84,11 +84,6 @@ class EntityCreationService
 {
 
     /**
-     * @var string
-     */
-    private $env;
-
-    /**
      * @var EntityManager
      */
     private $em;
@@ -113,6 +108,9 @@ class EntityCreationService
      */
     private $event_dispatcher;
 
+    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+
     /**
      * @var Logger
      */
@@ -122,7 +120,6 @@ class EntityCreationService
     /**
      * EntityCreationService constructor.
      *
-     * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param LockService $lock_service
@@ -131,7 +128,6 @@ class EntityCreationService
      * @param Logger $logger
      */
     public function __construct(
-        string $environment,
         EntityManager $entity_manager,
         CacheService $cache_service,
         LockService $lock_service,
@@ -139,7 +135,6 @@ class EntityCreationService
         EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
-        $this->env = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->lock_service = $lock_service;
@@ -157,14 +152,20 @@ class EntityCreationService
      * @param DataType $datatype
      * @param FieldType $fieldtype
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataFields
      */
-    public function createDatafield($user, $datatype, $fieldtype, $delay_flush = false)
+    public function createDatafield($user, $datatype, $fieldtype, $delay_flush = false, $created = null)
     {
-        // Poplulate new DataFields form
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        // Populate new DataFields form
         $datafield = new DataFields();
         $datafield->setDataType($datatype);
+
+        $datafield->setCreated($created);
         $datafield->setCreatedBy($user);
 
         // This will always be zero unless created from a Master Template data field.
@@ -223,6 +224,8 @@ class EntityCreationService
         }
         $datafield_meta->setNewFilesArePublic(false);    // Newly uploaded files/images default to non-public
 
+        $datafield_meta->setCreated($created);
+        $datafield_meta->setUpdated($created);
         $datafield_meta->setCreatedBy($user);
         $datafield_meta->setUpdatedBy($user);
 
@@ -235,7 +238,7 @@ class EntityCreationService
 
 
         // Add the datafield to all groups for this datatype
-        self::createGroupsForDatafield($user, $datafield, $delay_flush);
+        self::createGroupsForDatafield($user, $datafield, $delay_flush, $created);
 
         return $datafield;
     }
@@ -249,15 +252,21 @@ class EntityCreationService
      * @param DataType $datatype
      * @param bool $delay_flush If true, then don't flush prior to returning
      * @param bool $select_default_radio_options If true, then relevant default radio options are automatically located and marked as selected
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataRecord
      */
-    public function createDatarecord($user, $datatype, $delay_flush = false, $select_default_radio_options = true)
+    public function createDatarecord($user, $datatype, $delay_flush = false, $select_default_radio_options = true, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Initial create
         $datarecord = new DataRecord();
-
         $datarecord->setDataType($datatype);
+
+        $datarecord->setCreated($created);
+        $datarecord->setUpdated($created);
         $datarecord->setCreatedBy($user);
         $datarecord->setUpdatedBy($user);
 
@@ -280,6 +289,8 @@ class EntityCreationService
         else
             $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
+        $datarecord_meta->setCreated($created);
+        $datarecord_meta->setUpdated($created);
         $datarecord_meta->setCreatedBy($user);
         $datarecord_meta->setUpdatedBy($user);
 
@@ -291,7 +302,7 @@ class EntityCreationService
         // NOTE - the only reason this function works properly is because it gets called before a
         //  flush happens
         if ($select_default_radio_options)
-            self::selectDefaultRadioOptions($user, $datarecord);
+            self::selectDefaultRadioOptions($user, $datarecord, $created);
 
         if ( !$delay_flush )
             $this->em->flush();
@@ -308,8 +319,9 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      */
-    private function selectDefaultRadioOptions($user, $datarecord)
+    private function selectDefaultRadioOptions($user, $datarecord, $created = null)
     {
         // Load the list of radio options marked as default, if possible
         $default_radio_options = $this->cache_service->get('default_radio_options');
@@ -395,6 +407,9 @@ class EntityCreationService
             $radio_options[$df_id][ $ro->getId() ] = $ro;
         }
 
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Now that the entities are hydrated, create a DataRecordField entry for each datafield
         // IMPORTANT - this method ONLY works because the Datarecord doesn't actually "exist"...
         // It exists only in Doctrine's persist buffer (or whatever), so there's no way for another
@@ -405,7 +420,7 @@ class EntityCreationService
             $drf->setDataRecord($datarecord);
             $drf->setDataField($df);
 
-            $drf->setCreated(new \DateTime());
+            $drf->setCreated($created);
             $drf->setCreatedBy($user);
 
             // Do not flush the entity here
@@ -419,8 +434,8 @@ class EntityCreationService
                 $rs->setDataRecordFields($drf);
                 $rs->setRadioOption($ro);
 
-                $rs->setCreated(new \DateTime());
-                $rs->setUpdated(new \DateTime());
+                $rs->setCreated($created);
+                $rs->setUpdated($created);
                 $rs->setCreatedBy($user);
                 $rs->setUpdatedBy($user);
 
@@ -445,10 +460,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataRecord $datarecord
      * @param DataFields $datafield
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataRecordFields
      */
-    public function createDatarecordField($user, $datarecord, $datafield)
+    public function createDatarecordField($user, $datarecord, $datafield, $created = null)
     {
         /** @var DataRecordFields $drf */
         $drf = $this->em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
@@ -468,6 +484,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the drf that the other process created
+                /** @var DataRecordFields $drf */
                 $drf = $this->em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                     array(
                         'dataRecord' => $datarecord->getId(),
@@ -482,14 +499,17 @@ class EntityCreationService
                 $drf->setDataRecord($datarecord);
                 $drf->setDataField($datafield);
 
-                $drf->setCreated(new \DateTime());
+                if ( is_null($created) )
+                    $created = new \DateTime();
+
+                $drf->setCreated($created);
                 $drf->setCreatedBy($user);
 
                 $this->em->persist($drf);
                 $this->em->flush();
                 $this->em->refresh($drf);
 
-                // Now that the drf is is created, release the lock on it
+                // Now that the drf has been created, release the lock on it
                 $lockHandler->release();
             }
         }
@@ -506,10 +526,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataRecord $ancestor_datarecord
      * @param DataRecord $descendant_datarecord
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return LinkedDataTree
      */
-    public function createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord)
+    public function createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord, $created = null)
     {
         // Check to see if the two datarecords are already linked
         /** @var LinkedDataTree $linked_datatree */
@@ -529,6 +550,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the linked_datatree entry that got created
+                /** @var LinkedDataTree $linked_datatree */
                 $linked_datatree = $this->em->getRepository('ODRAdminBundle:LinkedDataTree')->findOneBy(
                     array(
                         'ancestor' => $ancestor_datarecord,
@@ -543,6 +565,10 @@ class EntityCreationService
                 $linked_datatree->setAncestor($ancestor_datarecord);
                 $linked_datatree->setDescendant($descendant_datarecord);
 
+                if ( is_null($created) )
+                    $created = new \DateTime();
+
+                $linked_datatree->setCreated($created);
                 $linked_datatree->setCreatedBy($user);
 
                 $this->em->persist($linked_datatree);
@@ -567,15 +593,20 @@ class EntityCreationService
      * @param bool $is_link
      * @param bool $multiple_allowed If true, this relationship permits more than one child/linked datarecord
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTree
      */
-    public function createDatatree($user, $ancestor, $descendant, $is_link, $multiple_allowed, $delay_flush = false)
+    public function createDatatree($user, $ancestor, $descendant, $is_link, $multiple_allowed, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $datatree = new DataTree();
         $datatree->setAncestor($ancestor);
         $datatree->setDescendant($descendant);
 
+        $datatree->setCreated($created);
         $datatree->setCreatedBy($user);
 
         $this->em->persist($datatree);
@@ -585,6 +616,8 @@ class EntityCreationService
         $datatree_meta->setIsLink($is_link);
         $datatree_meta->setMultipleAllowed($multiple_allowed);
 
+        $datatree_meta->setCreated($created);
+        $datatree_meta->setUpdated($created);
         $datatree_meta->setCreatedBy($user);
         $datatree_meta->setUpdatedBy($user);
 
@@ -606,11 +639,15 @@ class EntityCreationService
      * @param ODRUser $user
      * @param string $datatype_name
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataType
      */
-    public function createDatatype($user, $datatype_name, $delay_flush = false)
+    public function createDatatype($user, $datatype_name, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Initial create
         $datatype = new DataType();
         $datatype->setSetupStep(DataType::STATE_INITIAL);
@@ -629,6 +666,8 @@ class EntityCreationService
         $datatype->setUniqueId($unique_id);
         $datatype->setTemplateGroup($unique_id);
 
+        $datatype->setCreated($created);
+        $datatype->setUpdated($created);
         $datatype->setCreatedBy($user);
         $datatype->setUpdatedBy($user);
 
@@ -661,6 +700,8 @@ class EntityCreationService
         $datatype_meta->setSortField(null);
         $datatype_meta->setBackgroundImageField(null);
 
+        $datatype_meta->setCreated($created);
+        $datatype_meta->setUpdated($created);
         $datatype_meta->setCreatedBy($user);
         $datatype_meta->setUpdatedBy($user);
 
@@ -685,16 +726,19 @@ class EntityCreationService
      * @param int $field_purpose
      * @param int $display_order
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeSpecialFields
      */
-    public function createDatatypeSpecialField($user, $datatype, $datafield, $field_purpose, $display_order = 999, $delay_flush = false)
+    public function createDatatypeSpecialField($user, $datatype, $datafield, $field_purpose, $display_order = 999, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Have some verification to do first...
         if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD && $field_purpose !== DataTypeSpecialFields::SORT_FIELD )
             throw new ODRBadRequestException('Invalid field_purpose for special Datatype field');
 
+        if ( is_null($created) )
+            $created = new \DateTime();
 
         // ----------------------------------------
         // Initial create
@@ -704,6 +748,8 @@ class EntityCreationService
         $dtsf->setFieldPurpose($field_purpose);
         $dtsf->setDisplayOrder($display_order);
 
+        $dtsf->setCreated($created);
+        $dtsf->setUpdated($created);
         $dtsf->setCreatedBy($user);
         $dtsf->setUpdatedBy($user);
 
@@ -726,10 +772,11 @@ class EntityCreationService
      * @param DataType $datatype
      * @param string $initial_purpose One of 'admin', 'edit_all', 'view_all', 'view_only', or ''
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Group
      */
-    public function createGroup($user, $datatype, $initial_purpose = '', $delay_flush = false)
+    public function createGroup($user, $datatype, $initial_purpose = '', $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Groups should only be attached to top-level datatypes...child datatypes inherit groups
@@ -737,12 +784,16 @@ class EntityCreationService
         if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
             throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
 
+        if ( is_null($created) )
+            $created = new \DateTime();
 
         // ----------------------------------------
         // Create the Group entity
         $group = new Group();
         $group->setDataType($datatype);
         $group->setPurpose($initial_purpose);
+
+        $group->setCreated($created);
         $group->setCreatedBy($user);
 
         // Ensure the "in-memory" version of $datatype knows about the new group
@@ -774,6 +825,8 @@ class EntityCreationService
             $group_meta->setGroupDescription('');
         }
 
+        $group_meta->setCreated($created);
+        $group_meta->setUpdated($created);
         $group_meta->setCreatedBy($user);
         $group_meta->setUpdatedBy($user);
 
@@ -804,8 +857,8 @@ class EntityCreationService
             $gdtp->setGroup($group);
             $gdtp->setDataType($dt);
 
-            $gdtp->setCreated(new \DateTime());
-            $gdtp->setCreated(new \DateTime());
+            $gdtp->setCreated($created);
+            $gdtp->setUpdated($created);
             $gdtp->setCreatedBy($user);
             $gdtp->setUpdatedBy($user);
 
@@ -876,8 +929,8 @@ class EntityCreationService
             $gdfp->setDataField($df);
             $gdfp->setDeletedAt( $df->getDeletedAt() );    // need to copy the datafield's deletedAt incase it gets undeleted later...
 
-            $gdfp->setCreated(new \DateTime());
-            $gdfp->setCreated(new \DateTime());
+            $gdfp->setCreated($created);
+            $gdfp->setUpdated($created);
             $gdfp->setCreatedBy($user);
             $gdfp->setUpdatedBy($user);
 
@@ -928,9 +981,13 @@ class EntityCreationService
      *
      * @param ODRUser $user
      * @param DataType $datatype
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      */
-    public function createGroupsForDatatype($user, $datatype)
+    public function createGroupsForDatatype($user, $datatype, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // ----------------------------------------
         // Store whether this is a top-level datatype or not
         $datatype_id = $datatype->getId();
@@ -950,19 +1007,19 @@ class EntityCreationService
             // Create any default groups the top-level datatype is currently missing...
             $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
             if ($admin_group == null)
-                self::createGroup($datatype->getCreatedBy(), $datatype, 'admin', true);    // don't flush immediately...
+                self::createGroup($datatype->getCreatedBy(), $datatype, 'admin', true, $created);    // don't flush immediately...
 
             $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
             if ($edit_group == null)
-                self::createGroup($datatype->getCreatedBy(), $datatype, 'edit_all', true);    // don't flush immediately...
+                self::createGroup($datatype->getCreatedBy(), $datatype, 'edit_all', true, $created);    // don't flush immediately...
 
             $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
             if ($view_all_group == null)
-                self::createGroup($datatype->getCreatedBy(), $datatype, 'view_all', true);    // don't flush immediately...
+                self::createGroup($datatype->getCreatedBy(), $datatype, 'view_all', true, $created);    // don't flush immediately...
 
             $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
             if ($view_only_group == null)
-                self::createGroup($datatype->getCreatedBy(), $datatype, 'view_only', true);    // don't flush immediately
+                self::createGroup($datatype->getCreatedBy(), $datatype, 'view_only', true, $created);    // don't flush immediately
 
             // By definition, a brand new top-level datatype can't already have a custom group...it
             //  can only have the default groups
@@ -1004,8 +1061,8 @@ class EntityCreationService
                 $gdtp->setGroup($group);
                 $gdtp->setDataType($datatype);
 
-                $gdtp->setCreated(new \DateTime());
-                $gdtp->setCreated(new \DateTime());
+                $gdtp->setCreated($created);
+                $gdtp->setUpdated($created);
                 $gdtp->setCreatedBy($user);
                 $gdtp->setUpdatedBy($user);
 
@@ -1099,9 +1156,13 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      */
-    public function createGroupsForDatafield($user, $datafield, $delay_flush = false)
+    public function createGroupsForDatafield($user, $datafield, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // ----------------------------------------
         // Locate this datafield's datatype's grandparent
         $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
@@ -1156,8 +1217,8 @@ class EntityCreationService
             $gdfp->setGroup($group);
             $gdfp->setDataField($datafield);
 
-            $gdfp->setCreated(new \DateTime());
-            $gdfp->setUpdated(new \DateTime());
+            $gdfp->setCreated($created);
+            $gdfp->setUpdated($created);
             $gdfp->setCreatedBy($user);
             $gdfp->setUpdatedBy($user);
 
@@ -1205,10 +1266,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataRecordFields $drf
      * @param string $filepath The path to the unencrypted file on the server
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return File
      */
-    public function createFile($user, $drf, $filepath)
+    public function createFile($user, $drf, $filepath, $created = null)
     {
         // Ensure a file exists at the given path
         if ( !file_exists($filepath) )
@@ -1234,6 +1296,8 @@ class EntityCreationService
 
         $file->setProvisioned(false);
         $file->setUniqueId( $this->uuid_service->generateFileUniqueId() );
+
+        $file->setCreated($created);
         $file->setCreatedBy($user);
 
         // ...these properties can be set immediately...
@@ -1266,6 +1330,8 @@ class EntityCreationService
         else
             $file_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
+        $file_meta->setCreated($created);
+        $file_meta->setUpdated($created);
         $file_meta->setCreatedBy($user);
         $file_meta->setUpdatedBy($user);
 
@@ -1291,14 +1357,18 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataRecordFields $drf
      * @param string $filepath The path to the unencrypted image on the server
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Image
      */
-    public function createImage($user, $drf, $filepath)
+    public function createImage($user, $drf, $filepath, $created = null)
     {
         // Ensure a file exists at the given path
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('Uploaded Image');
+
+        if ( is_null($created) )
+            $created = new \DateTime();
 
         // Determine several properties of the image before it gets encrypted
         $uploaded_file = new SymfonyFile($filepath);
@@ -1349,6 +1419,7 @@ class EntityCreationService
         //  the rest of ODR know it can start using the image
         $image->setOriginalChecksum('');
 
+        $image->setCreated($created);
         $image->setCreatedBy($user);
 
         // Done with the file entity, for now
@@ -1370,6 +1441,8 @@ class EntityCreationService
         else
             $image_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
+        $image_meta->setCreated($created);
+        $image_meta->setUpdated($created);
         $image_meta->setCreatedBy($user);
         $image_meta->setUpdatedBy($user);
 
@@ -1627,12 +1700,17 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      */
-    public function createImageSizes($user, $datafield, $delay_flush = false)
+    public function createImageSizes($user, $datafield, $delay_flush = false, $created = null)
     {
         // Don't run this on a datafield that isn't already an image
         if ( $datafield->getFieldType()->getTypeName() !== 'Image' )
             return;
+
+        if ( is_null($created) )
+            $created = new \DateTime();
+
 
         // ----------------------------------------
         // Attempt to load ImageSize entities from the database to determine if any are missing
@@ -1665,8 +1743,8 @@ class EntityCreationService
             $original->setOriginal(1);
             $original->setImagetype(null);
 
-            $original->setCreated( new \DateTime() );
-            $original->setUpdated( new \DateTime() );
+            $original->setCreated($created);
+            $original->setUpdated($created);
             $original->setCreatedBy($user);
             $original->setUpdatedBy($user);
 
@@ -1687,8 +1765,8 @@ class EntityCreationService
             $thumbnail->setOriginal(0);
             $thumbnail->setImagetype('thumbnail');
 
-            $thumbnail->setCreated( new \DateTime() );
-            $thumbnail->setUpdated( new \DateTime() );
+            $thumbnail->setCreated($created);
+            $thumbnail->setUpdated($created);
             $thumbnail->setCreatedBy($user);
             $thumbnail->setUpdatedBy($user);
 
@@ -1712,15 +1790,16 @@ class EntityCreationService
      *                              find and return the existing RadioOption with the given $datafield
      *                              and $option_name first
      * @param string $option_name
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioOptions
      */
-    public function createRadioOption($user, $datafield, $force_create, $option_name)
+    public function createRadioOption($user, $datafield, $force_create, $option_name, $created = null)
     {
         $radio_option = null;
         if ($force_create) {
             // We're being forced to create a new radio option...
-            $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name);
+            $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name, $created);
         }
         else {
             // Otherwise, see if a radio option with this name for this datafield already exists
@@ -1743,6 +1822,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return what the other process created
+                /** @var RadioOptions $radio_option */
                 $radio_option = $this->em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                     array(
                         'optionName' => $option_name,
@@ -1753,7 +1833,7 @@ class EntityCreationService
             }
             else {
                 // Got the lock, create the radio option entry
-                $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name);
+                $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name, $created);
 
                 $this->em->persist($radio_option);
                 $this->em->flush();
@@ -1774,20 +1854,24 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param string $option_name
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioOptions
      */
-    private function createRadioOptionEntity($user, $datafield, $option_name)
+    private function createRadioOptionEntity($user, $datafield, $option_name, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         /** @var RadioOptions $radio_option */
         $radio_option = new RadioOptions();
         $radio_option->setDataField($datafield);
         $radio_option->setOptionName($option_name);     // exists to prevent potential concurrency issues, see below
-
         // All new fields require a radio option UUID
         $radio_option->setRadioOptionUuid( $this->uuid_service->generateRadioOptionUniqueId() );
+
+        $radio_option->setCreated($created);
         $radio_option->setCreatedBy($user);
-        $radio_option->setCreated(new \DateTime());
 
         // Ensure the "in-memory" version of the datafield knows about the new radio option
         $datafield->addRadioOption($radio_option);
@@ -1802,8 +1886,10 @@ class EntityCreationService
         $radio_option_meta->setDisplayOrder(0);
         $radio_option_meta->setIsDefault(false);
 
+        $radio_option_meta->setCreated($created);
+        $radio_option_meta->setUpdated($created);
         $radio_option_meta->setCreatedBy($user);
-        $radio_option_meta->setCreated( new \DateTime() );
+        $radio_option_meta->setUpdatedBy($user);
 
         // Ensure the "in-memory" version of the new radio option knows about its meta entry
         $radio_option->addRadioOptionMetum($radio_option_meta);
@@ -1822,10 +1908,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param RadioOptions $radio_option
      * @param DataRecordFields $drf
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioSelection
      */
-    public function createRadioSelection($user, $radio_option, $drf)
+    public function createRadioSelection($user, $radio_option, $drf, $created = null)
     {
         /** @var RadioSelection $radio_selection */
         $radio_selection = $this->em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
@@ -1845,6 +1932,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the radio selection that the other process created
+                /** @var RadioSelection $radio_selection */
                 $radio_selection = $this->em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
                     array(
                         'dataRecordFields' => $drf->getId(),
@@ -1862,8 +1950,11 @@ class EntityCreationService
 
                 $radio_selection->setSelected(0);    // defaults to not selected
 
-                $radio_selection->setCreated(new \DateTime());
-                $radio_selection->setUpdated(new \DateTime());
+                if ( is_null($created) )
+                    $created = new \DateTime();
+
+                $radio_selection->setCreated($created);
+                $radio_selection->setUpdated($created);
                 $radio_selection->setCreatedBy($user);
                 $radio_selection->setUpdatedBy($user);
 
@@ -1888,10 +1979,11 @@ class EntityCreationService
      * @param DataType|null $datatype
      * @param DataFields|null $datafield
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RenderPluginInstance
      */
-    public function createRenderPluginInstance($user, $render_plugin, $datatype, $datafield, $delay_flush = false)
+    public function createRenderPluginInstance($user, $render_plugin, $datatype, $datafield, $delay_flush = false, $created = null)
     {
         // Ensure a RenderPlugin for a Datatype plugin doesn't get assigned to a Datafield, or a RenderPlugin for a Datafield doesn't get assigned to a Datatype
         if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN && is_null($datatype) )
@@ -1905,6 +1997,9 @@ class EntityCreationService
         else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN )
             $datatype = null;
 
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Create the new RenderPluginInstance
         $rpi = new RenderPluginInstance();
         $rpi->setRenderPlugin($render_plugin);
@@ -1913,6 +2008,8 @@ class EntityCreationService
 
         $rpi->setActive(true);
 
+        $rpi->setCreated($created);
+        $rpi->setUpdated($created);
         $rpi->setCreatedBy($user);
         $rpi->setUpdatedBy($user);
 
@@ -1936,11 +2033,15 @@ class EntityCreationService
      * @param DataType|null $dt
      * @param DataFields|null $df
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RenderPluginMap
      */
-    public function createRenderPluginMap($user, $rpi, $rpf, $dt, $df, $delay_flush = false)
+    public function createRenderPluginMap($user, $rpi, $rpf, $dt, $df, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $rpm = new RenderPluginMap();
         $rpm->setRenderPluginInstance($rpi);
         $rpm->setRenderPluginFields($rpf);
@@ -1948,6 +2049,8 @@ class EntityCreationService
         $rpm->setDataType($dt);
         $rpm->setDataField($df);
 
+        $rpm->setCreated($created);
+        $rpm->setUpdated($created);
         $rpm->setCreatedBy($user);
         $rpm->setUpdatedBy($user);
 
@@ -1968,16 +2071,22 @@ class EntityCreationService
      * @param RenderPluginOptionsDef $render_plugin_option TODO - rename to RenderPluginOptions
      * @param string $option_value
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RenderPluginOptionsMap
      */
-    public function createRenderPluginOptionsMap($user, $render_plugin_instance, $render_plugin_option, $option_value, $delay_flush = false)
+    public function createRenderPluginOptionsMap($user, $render_plugin_instance, $render_plugin_option, $option_value, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $rpom = new RenderPluginOptionsMap();
         $rpom->setRenderPluginInstance($render_plugin_instance);
         $rpom->setRenderPluginOptionsDef($render_plugin_option);
         $rpom->setValue($option_value);
 
+        $rpom->setCreated($created);
+        $rpom->setUpdated($created);
         $rpom->setCreatedBy($user);
         $rpom->setUpdatedBy($user);
 
@@ -1998,12 +2107,13 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataRecord $datarecord
      * @param DataFields $datafield
-     * @param boolean|integer|string|\DateTime $initial_value
-     * @param boolean $fire_event
+     * @param boolean|integer|string|\DateTime $initial_value If provided, then the newly created entity will have this value
+     * @param boolean $fire_event If false, then don't fire the PostUpdateEvent
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
-    public function createStorageEntity($user, $datarecord, $datafield, $initial_value = null, $fire_event = true)
+    public function createStorageEntity($user, $datarecord, $datafield, $initial_value = null, $fire_event = true, $created = null)
     {
         // Locate the table name that will be inserted into if the storage entity doesn't exist
         $fieldtype = $datafield->getFieldType();
@@ -2072,7 +2182,7 @@ class EntityCreationService
             }
             else {
                 // Got the lock, locate/create the datarecordfield entity for this
-                $drf = self::createDatarecordField($user, $datarecord, $datafield);
+                $drf = self::createDatarecordField($user, $datarecord, $datafield, $created);
 
                 // Determine which value to use for the default value
                 $insert_value = null;
@@ -2080,6 +2190,9 @@ class EntityCreationService
                     $insert_value = $initial_value;
                 else
                     $insert_value = $default_value;
+
+                if ( is_null($created) )
+                    $created = new \DateTime();
 
                 // Create the storage entity
                 $class = "ODR\\AdminBundle\\Entity\\".$typeclass;
@@ -2097,8 +2210,8 @@ class EntityCreationService
                 if ($typeclass === 'DecimalValue')
                     $storage_entity->setOriginalValue($insert_value);
 
-                $storage_entity->setCreated(new \DateTime());
-                $storage_entity->setUpdated(new \DateTime());
+                $storage_entity->setCreated($created);
+                $storage_entity->setUpdated($created);
                 $storage_entity->setCreatedBy($user);
                 $storage_entity->setUpdatedBy($user);
 
@@ -2116,8 +2229,6 @@ class EntityCreationService
             // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
             //  event subscribers will prevent file encryption otherwise...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 $event = new PostUpdateEvent($storage_entity, $user);
                 $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
 
@@ -2127,8 +2238,8 @@ class EntityCreationService
                 // ...the event stuff is likely going to "disappear" any error it encounters, but
                 //  might as well rethrow anything caught here since there shouldn't be a critical
                 //  process downstream anyways
-                if ( $this->env === 'dev' )
-                    throw $e;
+//                if ( $this->env === 'dev' )
+//                    throw $e;
             }
         }
 
@@ -2150,16 +2261,16 @@ class EntityCreationService
      * @param bool $delay_uuid If true, don't automatically create a uuid for this tag...the caller
      *                         will need to take care of it.  Only really needs to be true during
      *                         mass tag imports.
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Tags
      */
-    public function createTag($user, $datafield, $force_create, $tag_name, $delay_uuid = false)
+    public function createTag($user, $datafield, $force_create, $tag_name, $delay_uuid = false, $created = null)
     {
-
         $tag = null;
         if ($force_create) {
             // We're being forced to create a new top-level tag...
-            $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid);
+            $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid, $created);
         }
         else {
             // Otherwise, see if a tag with this name for this datafield already exists
@@ -2182,6 +2293,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the tag the other process created
+                /** @var Tags $tag */
                 $tag = $this->em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                     array(
                         'tagName' => $tag_name,
@@ -2192,7 +2304,7 @@ class EntityCreationService
             }
             else {
                 // Got the lock, create the tag entry
-                $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid);
+                $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid, $created);
 
                 $this->em->persist($tag);
                 $this->em->flush();
@@ -2215,11 +2327,15 @@ class EntityCreationService
      * @param string $tag_name
      * @param bool $delay_uuid If true, don't automatically create a uuid for this tag...the caller
      *                         will need to take care of it
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Tags
      */
-    private function createTagEntity($user, $datafield, $tag_name, $delay_uuid)
+    private function createTagEntity($user, $datafield, $tag_name, $delay_uuid, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         /** @var Tags $tag */
         $tag = new Tags();
         $tag->setDataField($datafield);
@@ -2228,8 +2344,8 @@ class EntityCreationService
         if (!$delay_uuid)
             $tag->setTagUuid( $this->uuid_service->generateTagUniqueId() );
 
+        $tag->setCreated($created);
         $tag->setCreatedBy($user);
-        $tag->setCreated(new \DateTime());
 
         // Ensure the "in-memory" version of the datafield knows about the new tag
         $datafield->addTag($tag);
@@ -2243,8 +2359,10 @@ class EntityCreationService
         $tag_meta->setXmlTagName('');
         $tag_meta->setDisplayOrder(9999);    // append new tags to the end
 
+        $tag_meta->setCreated($created);
+        $tag_meta->setUpdated($created);
         $tag_meta->setCreatedBy($user);
-        $tag_meta->setCreated( new \DateTime() );
+        $tag_meta->setUpdatedBy($user);
 
         // Ensure the "in-memory" version of the new tag knows about its meta entry
         $tag->addTagMetum($tag_meta);
@@ -2265,10 +2383,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param Tags $parent_tag
      * @param Tags $child_tag
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagTree
      */
-    public function createTagTree($user, $parent_tag, $child_tag)
+    public function createTagTree($user, $parent_tag, $child_tag, $created = null)
     {
         // Check to see if the two tags are already linked
         /** @var TagTree $tag_tree */
@@ -2287,6 +2406,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the tag tree entity that got created
+                /** @var TagTree $tag_tree */
                 $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')->findOneBy(
                     array(
                         'parent' => $parent_tag,
@@ -2296,11 +2416,15 @@ class EntityCreationService
                 return $tag_tree;
             }
             else {
+                if ( is_null($created) )
+                    $created = new \DateTime();
+
                 // No link exists, create a new entity
                 $tag_tree = new TagTree();
                 $tag_tree->setParent($parent_tag);
                 $tag_tree->setChild($child_tag);
 
+                $tag_tree->setCreated($created);
                 $tag_tree->setCreatedBy($user);
 
                 $this->em->persist($tag_tree);
@@ -2325,10 +2449,11 @@ class EntityCreationService
      * @param ODRUser $user
      * @param Tags $tag
      * @param DataRecordFields $drf
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagSelection
      */
-    public function createTagSelection($user, $tag, $drf)
+    public function createTagSelection($user, $tag, $drf, $created = null)
     {
         /** @var TagSelection $tag_selection */
         $tag_selection = $this->em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(
@@ -2348,6 +2473,7 @@ class EntityCreationService
                 $lockHandler->acquire(true);
 
                 // ...then reload and return the tag selection that the other process created
+                /** @var TagSelection $tag_selection */
                 $tag_selection = $this->em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(
                     array(
                         'dataRecordFields' => $drf->getId(),
@@ -2357,6 +2483,9 @@ class EntityCreationService
                 return $tag_selection;
             }
             else {
+                if ( is_null($created) )
+                    $created = new \DateTime();
+
                 // Got the lock, create the tag selection
                 $tag_selection = new TagSelection();
                 $tag_selection->setTag($tag);
@@ -2366,8 +2495,8 @@ class EntityCreationService
 
                 $tag_selection->setSelected(0);    // defaults to not selected
 
-                $tag_selection->setCreated(new \DateTime());
-                $tag_selection->setUpdated(new \DateTime());
+                $tag_selection->setCreated($created);
+                $tag_selection->setUpdated($created);
                 $tag_selection->setCreatedBy($user);
                 $tag_selection->setUpdatedBy($user);
 
@@ -2390,11 +2519,15 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Theme
      */
-    public function createTheme($user, $datatype, $delay_flush = false)
+    public function createTheme($user, $datatype, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Initial create
         $theme = new Theme();
         $theme->setDataType($datatype);
@@ -2404,6 +2537,8 @@ class EntityCreationService
         $theme->setParentTheme($theme);
         $theme->setSourceTheme($theme);
 
+        $theme->setCreated($created);
+        $theme->setUpdated($created);
         $theme->setCreatedBy($user);
         $theme->setUpdatedBy($user);
 
@@ -2424,6 +2559,8 @@ class EntityCreationService
         // Currently unused...
         $theme_meta->setDisplayOrder(null);
 
+        $theme_meta->setCreated($created);
+        $theme_meta->setUpdated($created);
         $theme_meta->setCreatedBy($user);
         $theme_meta->setUpdatedBy($user);
 
@@ -2448,11 +2585,15 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param ThemeElement $theme_element
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataField
      */
-    public function createThemeDatafield($user, $theme_element, $datafield, $delay_flush = false)
+    public function createThemeDatafield($user, $theme_element, $datafield, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Create theme entry
         $theme_datafield = new ThemeDataField();
         $theme_datafield->setDataField($datafield);
@@ -2463,6 +2604,8 @@ class EntityCreationService
         $theme_datafield->setCssWidthXL('1-3');
         $theme_datafield->setHidden(0);
 
+        $theme_datafield->setCreated($created);
+        $theme_datafield->setUpdated($created);
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
 
@@ -2488,11 +2631,15 @@ class EntityCreationService
      * @param DataType $datatype
      * @param Theme $child_theme
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataType
      */
-    public function createThemeDatatype($user, $theme_element, $datatype, $child_theme, $delay_flush = false)
+    public function createThemeDatatype($user, $theme_element, $datatype, $child_theme, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Create theme entry
         $theme_datatype = new ThemeDataType();
         $theme_datatype->setDataType($datatype);
@@ -2502,6 +2649,8 @@ class EntityCreationService
         $theme_datatype->setHidden(0);
         $theme_datatype->setDisplayType(ThemeDataType::ACCORDION_HEADER);
 
+        $theme_datatype->setCreated($created);
+        $theme_datatype->setUpdated($created);
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);
 
@@ -2521,15 +2670,20 @@ class EntityCreationService
      * @param ODRUser $user
      * @param Theme $theme
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeElement
      */
-    public function createThemeElement($user, $theme, $delay_flush = false)
+    public function createThemeElement($user, $theme, $delay_flush = false, $created = null)
     {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         // Initial create
         $theme_element = new ThemeElement();
-
         $theme_element->setTheme($theme);
+
+        $theme_element->setCreated($created);
         $theme_element->setCreatedBy($user);
 
         $theme->addThemeElement($theme_element);
@@ -2543,6 +2697,8 @@ class EntityCreationService
         $theme_element_meta->setCssWidthMed('1-1');
         $theme_element_meta->setCssWidthXL('1-1');
 
+        $theme_element_meta->setCreated($created);
+        $theme_element_meta->setUpdated($created);
         $theme_element_meta->setCreatedBy($user);
         $theme_element_meta->setUpdatedBy($user);
 
@@ -2564,38 +2720,38 @@ class EntityCreationService
      * @param Group $group
      * @param ODRUser $admin_user
      * @param bool $delay_flush
-     * @param bool $check_group
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return UserGroup
      */
-    public function createUserGroup($user, $group, $admin_user, $delay_flush = false, $check_group = true)
+    public function createUserGroup($user, $group, $admin_user, $delay_flush = false, $created = null)
     {
         // Check to see if the User already belongs to this Group
-        // This will be bypassed in the case of newly created groups.
-        if ($check_group) {
-            $query = $this->em->createQuery(
-               'SELECT ug
-                FROM ODRAdminBundle:UserGroup AS ug
-                WHERE ug.user = :user_id AND ug.group = :group_id
-                AND ug.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
+        $query = $this->em->createQuery(
+           'SELECT ug
+            FROM ODRAdminBundle:UserGroup AS ug
+            WHERE ug.user = :user_id AND ug.group = :group_id
+            AND ug.deletedAt IS NULL'
+        )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
 
-            /** @var UserGroup[] $results */
-            $results = $query->getResult();
+        /** @var UserGroup[] $results */
+        $results = $query->getResult();
 
-            $user_group = null;
-            if ( count($results) > 0 ) {
-                // If an existing UserGroup entity was found, return it and don't do anything else
-                // TODO This works but is strange....
-                foreach ($results as $num => $ug)
-                    return $ug;
-            }
+        if ( count($results) > 0 ) {
+            // If the User is already in this Group, then return it and don't create a duplicate
+            foreach ($results as $num => $ug)
+                return $ug;
         }
+
+        if ( is_null($created) )
+            $created = new \DateTime();
 
         // ...otherwise, create a new UserGroup entity
         $user_group = new UserGroup();
         $user_group->setUser($user);
         $user_group->setGroup($group);
+
+        $user_group->setCreated($created);
         $user_group->setCreatedBy($admin_user);
 
         // Ensure the "in-memory" versions of both the User and Group entities know about the new UserGroup entity

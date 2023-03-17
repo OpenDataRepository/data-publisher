@@ -1115,7 +1115,7 @@ class CloneMasterDatatypeService
                 if ( !$this->user->hasRole('ROLE_SUPER_ADMIN') ) {
                     // Don't need to do this when the creating user is a super-admin, since they'll
                     //  automatically be able to see the new datatype
-                    $this->ec_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
+                    $this->ec_service->createUserGroup($this->user, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
                     // If the user's cached permissions were deleted here, the user would likely
