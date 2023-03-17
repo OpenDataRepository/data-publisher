@@ -194,6 +194,8 @@ class DisplaytemplateController extends ODRCustomController
             // deleteDatatype() will throw an exception if the datafield shouldn't be deleted
             $ed_service->deleteDatatype($datatype, $user);
 
+            // Don't need to clear any other cache entries
+
         }
         catch (\Exception $e) {
             $source = 0xa6304ef8;

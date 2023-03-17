@@ -91,7 +91,7 @@ class APIController extends ODRCustomController
 {
 
     /**
-     * Provides basic user information to entities using OAuth.
+     * Returns basic information about the currently logged-in user to the API.
      *
      * @param string $version
      * @param Request $request
@@ -132,10 +132,11 @@ class APIController extends ODRCustomController
 
             // Otherwise, user isn't allowed to do this
             throw new ODRForbiddenException();
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0xfd346a45;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -143,7 +144,10 @@ class APIController extends ODRCustomController
 
 
     /**
-     * Returns an array of all top-level datatypes the user can view.
+     * Returns an array of identifying information for all datatypes the user can view.
+     *
+     * By default, returns top-level datatypes as json to the browser...however, it can also display
+     * child datatypes and/or return the response as a file.
      *
      * @param string $version
      * @param string $type
@@ -214,7 +218,8 @@ class APIController extends ODRCustomController
                     )
                 );
                 $results = $query->getArrayResult();
-            } else {
+            }
+            else {
                 // Build/execute a query to get basic info on all top-level datatypes
                 $query = $em->createQuery(
                    'SELECT
@@ -245,14 +250,14 @@ class APIController extends ODRCustomController
                 // Store whether the user has permission to view this datatype
                 $dt_id = $dt['database_id'];
                 $can_view_datatype = false;
-                if (isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']))
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
                     $can_view_datatype = true;
 
                 // If the datatype is public, or the user doesn't have permission to view this datatype...
                 $public_date = $dt['public_date']->format('Y-m-d H:i:s');
-                unset($results[$num]['public_date']);
+                unset( $results[$num]['public_date'] );
 
-                if ($can_view_datatype || $public_date !== '2200-01-01 00:00:00')
+                if ( $can_view_datatype || $public_date !== '2200-01-01 00:00:00' )
                     // ...save it in the results array
                     $datatype_data[$dt_id] = $results[$num];
             }
@@ -265,15 +270,16 @@ class APIController extends ODRCustomController
             if ($show_child_datatypes) {
                 // Need to recursively turn this array of datatypes into an inflated array
                 foreach ($datatype_data as $dt_id => $dt) {
-                    if (in_array($dt_id, $top_level_datatype_ids)) {
+                    if ( in_array($dt_id, $top_level_datatype_ids) ) {
                         $tmp = self::inflateDatatypeArray($datatype_data, $datatree_array, $dt_id);
-                        if (count($tmp) > 0)
+                        if ( count($tmp) > 0 )
                             $dt['child_databases'] = array_values($tmp);
 
                         $final_datatype_data[$dt_id] = $dt;
                     }
                 }
-            } else {
+            }
+            else {
                 // Otherwise, this is just the top-level dataypes
                 $final_datatype_data = $datatype_data;
             }
@@ -303,10 +309,11 @@ class APIController extends ODRCustomController
             // Symfony should automatically set the response format based on the request format
             $response->setContent($data);
             return $response;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x5dc89429;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -406,7 +413,7 @@ class APIController extends ODRCustomController
 
 
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
-            if (!in_array($datatype_id, $top_level_datatypes))
+            if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Only permitted on top-level datatypes');
 
 
@@ -415,7 +422,7 @@ class APIController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-            if (!$pm_service->canViewDatatype($user, $datatype))
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -442,10 +449,11 @@ class APIController extends ODRCustomController
 
             $response->setContent($data);
             return $response;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x43dd4818;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -498,7 +506,7 @@ class APIController extends ODRCustomController
             $datatype_id = $datatype->getId();
 
             $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
-            if (!in_array($datatype_id, $top_level_datatype_ids))
+            if ( !in_array($datatype_id, $top_level_datatype_ids) )
                 throw new ODRBadRequestException('Datatype must be top-level');
 
 
@@ -508,7 +516,7 @@ class APIController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $can_view_datarecord = $pm_service->canViewNonPublicDatarecords($user, $datatype);
 
-            if (!$pm_service->canViewDatatype($user, $datatype))
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -543,14 +551,15 @@ class APIController extends ODRCustomController
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
             $params = array('datatype_id' => $datatype_id);
             if ( !$can_view_datarecord ) {
-                $str .= 'AND drm.publicDate != :public_date';
+                $str .= ' AND drm.publicDate != :public_date';
                 $params['public_date'] = '2200-01-01 00:00:00';
             }
+
             $query = $em->createQuery($str)->setParameters($params);
             $results = $query->getArrayResult();
 
-            if ($offset > count($results))
-                throw new ODRBadRequestException('This database only has ' . count($results) . ' viewable records, but a starting offset of ' . $offset . ' was specified.');
+            if ( $offset > count($results) )
+                throw new ODRBadRequestException('This database only has '.count($results).' viewable records, but a starting offset of '.$offset.' was specified.');
 
             $dr_list = array();
             foreach ($results as $result) {
@@ -565,20 +574,19 @@ class APIController extends ODRCustomController
                 );
             }
 
-            // If this datatype has an external_id field, make sure the query selects it for the
-            //  JSON response
-            if ($datatype->getExternalIdField() !== null) {
-                // Have the sort service here, so might as well use that
+            // If this datatype has an external_id field, then its values should be in the output
+            if ( !is_null($datatype->getExternalIdField()) ) {
+                // The field's contents are likely cached via the SortService, so use that
                 $external_id_values = $sort_service->sortDatarecordsByDatafield($datatype->getExternalIdField()->getId());
                 foreach ($external_id_values as $dr_id => $value)
                     $dr_list[$dr_id]['external_id'] = $value;
             }
 
-            // If this datatype has a name field, make sure the query selects it for the JSON response
+            // If this datatype has a name field, then those values should also be in the output
             if ( !empty($datatype->getNameFields()) ) {
+                // Might as well use the sort service for this too, but it's slightly trickier
+                //  since the name values could be combined from multiple fields...
                 foreach ($datatype->getNameFields() as $name_df) {
-                    // Might as well use the sort service for this too, but it's slightly trickier
-                    //  since there could be more than one field making up the name values
                     $values = $sort_service->sortDatarecordsByDatafield($name_df->getId());
                     foreach ($values as $dr_id => $value) {
                         if ($dr_list[$dr_id]['record_name'] === '')
@@ -600,7 +608,7 @@ class APIController extends ODRCustomController
             $final_datarecord_list = array();
             foreach ($sorted_datarecord_list as $dr_id => $sort_value) {
                 // Only save datarecords inside the window that the user specified
-                if (isset($dr_list[$dr_id]) && $count >= $offset && $count < $limit)
+                if ( isset($dr_list[$dr_id]) && $count >= $offset && $count < $limit )
                     $final_datarecord_list[] = $dr_list[$dr_id];
 
                 $count++;
@@ -631,10 +639,11 @@ class APIController extends ODRCustomController
 
             $response->setContent($data);
             return $response;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0xd12ec6ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -682,7 +691,7 @@ class APIController extends ODRCustomController
                 )
             );
             if ($template_datatype == null)
-                throw new ODRNotFoundException('Datatype');
+                throw new ODRNotFoundException('Template Datatype');
             $template_datatype_id = $template_datatype->getId();
 
             $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
@@ -785,10 +794,11 @@ class APIController extends ODRCustomController
 
             $response->setContent($data);
             return $response;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x1c7b55d0;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -799,16 +809,15 @@ class APIController extends ODRCustomController
      * Creates a datarecord for an existing dataset.
      * Requires a valid dataset and user permissions.
      *
-     * @param $version
+     * @param string $version
      * @param string $dataset_uuid
      * @param Request $request
-     * @return \Symfony\Component\HttpFoundation\RedirectResponse
+     *
+     * @return RedirectResponse
      */
     public function createrecordAction($version, string $dataset_uuid, Request $request)
     {
-
         try {
-
             // Only used if SuperAdmin & Present
             $user_email = null;
             if(isset($_POST['user_email']))
@@ -913,10 +922,6 @@ class APIController extends ODRCustomController
             }
 
             // ----------------------------------------
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('datatype_'.$dataset_record->getDataType()->getId().'_record_order');
-
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_dataset_record', array(
                 'version' => $version,
@@ -925,20 +930,25 @@ class APIController extends ODRCustomController
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
-
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x773df3ed;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
 
-    public function assignPermission($version, Request $request) {
+    /**
+     * TODO - this action does nothing, and isn't referenced from the routing file...delete?
+     *
+     * @param string $version
+     * @param Request $request
+     */
+    public function assignPermission($version, Request $request)
+    {
         try {
-
             // Accept JSON or POST?
             // POST Params
             // user_email:nancy.drew@detectivemysteries.com
@@ -969,7 +979,7 @@ class APIController extends ODRCustomController
             // Any user can create a dataset as long as they exist
             // No need to do further permissions checks.
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -978,7 +988,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x88a02ef3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -989,15 +999,14 @@ class APIController extends ODRCustomController
      * Creates a dataset by cloning the requested master template.
      * Requires a valid master template with metadata template
      *
-     * @param $version
+     * @param string $version
      * @param Request $request
-     * @return \Symfony\Component\HttpFoundation\RedirectResponse
+     *
+     * @return RedirectResponse
      */
     public function createdatasetAction($version, Request $request)
     {
-
         try {
-
             // Accept JSON or POST?
             // POST Params
             // user_email:nancy.drew@detectivemysteries.com
@@ -1026,7 +1035,7 @@ class APIController extends ODRCustomController
             }
             else if(!$logged_in_user->hasRole('role_super_admin')) {
                 // we are acting as a user and do not have super permissions - forbidden
-                throw new odrforbiddenexception();
+                throw new ODRForbiddenException();
             }
 
             // check if user exists & throw user not found error
@@ -1225,11 +1234,6 @@ class APIController extends ODRCustomController
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
-
-                // ----------------------------------------
-                /** @var CacheService $cache_service */
-                $cache_service = $this->container->get('odr.cache_service');
-                $cache_service->delete('datatype_'.$metadata_record->getDataType()->getId().'_record_order');
             }
 
             // Retrieve first (and only) record ...
@@ -1270,11 +1274,6 @@ class APIController extends ODRCustomController
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
-
-                    // ----------------------------------------
-                    /** @var CacheService $cache_service */
-                    $cache_service = $this->container->get('odr.cache_service');
-                    $cache_service->delete('datatype_'.$actual_data_record->getDataType()->getId().'_record_order');
                 }
 
             }
@@ -1338,23 +1337,22 @@ class APIController extends ODRCustomController
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
-
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x89adf33e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
 
     /**
-     * @param $record
+     * @param array $record
      * @param ODRUser $user
      * @param \DateTime $datetime_value
      *
-     * @return array record
+     * @return array
      */
     private function checkRecord(&$record, $user, $datetime_value) {
         if(isset($record['_record_metadata'])) {
@@ -1370,6 +1368,10 @@ class APIController extends ODRCustomController
         return $record;
     }
 
+    /**
+     * @param array $tag_tree
+     * @param array $selected_tags
+     */
     private function selectedTags($tag_tree, &$selected_tags = array())
     {
         foreach ($tag_tree as $tag) {
@@ -1386,11 +1388,11 @@ class APIController extends ODRCustomController
     /**
      * Checks if the changes can successfully be completed by the user.
      *
-     * @param $dataset
-     * @param $orig_dataset
-     * @param $user
-     * @param $top_level
-     * @param $changed
+     * @param array $dataset
+     * @param array $orig_dataset
+     * @param ODRUser $user
+     * @param bool $top_level
+     * @param bool $changed
      * @return bool  - true if capable, false if lacking permissions
      * @throws \Exception
      */
@@ -1469,12 +1471,11 @@ class APIController extends ODRCustomController
                         );
                     }
 
-                    // Deal with files and images here
-                    if(
-                        $data_field->getFieldType()->getId() == 2
-                        || $data_field->getFieldType()->getId() == 3
-                    ) {
-                        if(isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
+                    $typeclass = $data_field->getFieldType()->getTypeClass();
+                    $typename = $data_field->getFieldType()->getTypeName();
+
+                    if ( $typeclass === 'File' || $typeclass === 'Image' ) {
+                        if ( isset($field['files']) && is_array($field['files']) && count($field['files']) > 0 ) {
                             foreach ($field['files'] as $file) {
                                 if (isset($file['public_date'])) {
                                     $fields_updated = true;
@@ -1482,9 +1483,7 @@ class APIController extends ODRCustomController
                             }
                         }
                     }
-                    else if(
-                        $data_field->getFieldType()->getId() == 1
-                    ) {
+                    else if ( $typeclass === 'Boolean' ) {
                         /** @var DataRecordFields $drf */
                         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                             array(
@@ -1521,10 +1520,10 @@ class APIController extends ODRCustomController
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
-                        switch ($data_field->getFieldType()->getId()) {
+                        switch ( $typename ) {
 
                             // Tag field - need to difference hierarchy
-                            case '18':
+                            case 'Tags':
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -1637,8 +1636,7 @@ class APIController extends ODRCustomController
 
                                 break;
 
-                            // Single Radio
-                            case '8':
+                            case 'Single Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1749,8 +1747,7 @@ class APIController extends ODRCustomController
 
                                 break;
 
-                            // Multiple Radio
-                            case '13':
+                            case 'Multiple Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1863,8 +1860,7 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
-                            // Single Select
-                            case '14':
+                            case 'Single Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1976,8 +1972,7 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
-                            // Multiple Select
-                            case '15':
+                            case 'Multiple Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2259,7 +2254,7 @@ class APIController extends ODRCustomController
 
                         // If the record has a record_uuid, we just need to make the link
                         if($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
-                            /** @var DataRecord $data_record */
+                            /** @var DataRecord $linked_data_record */
                             $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                                 array(
                                     'unique_id' => $record['record_uuid']
@@ -2294,11 +2289,23 @@ class APIController extends ODRCustomController
 
             // If we made it here, the user has permission
             return true;
-        } catch (\Exception $e) {
-            throw new \Exception($e->getMessage());
+        }
+        catch (\Exception $e) {
+            $source = 0x38a6ca95;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+    /**
+     * Updates the metadata in the submitted dataset to match the database.
+     *
+     * @param array $field
+     * @param DataFields $data_field
+     * @param mixed $new_field
+     */
     private function fieldMeta(&$field, $data_field, $new_field) {
         if(isset($field['_field_metadata'])) {
             if(method_exists($new_field, 'getCreatedBy')) {
@@ -2320,6 +2327,13 @@ class APIController extends ODRCustomController
         unset($field['created']);
     }
 
+    /**
+     * Updates the given entity's created/updated dates, and createdBy/updatedBy values.
+     *
+     * @param mixed $db_obj
+     * @param ODRUser $user
+     * @param string $date
+     */
     private function setDates($db_obj, $date = null) {
         if($date == null) {
             $db_obj->setCreated(new \DateTime());
@@ -2338,11 +2352,11 @@ class APIController extends ODRCustomController
      * record.  In the acase of a metadata dataset, there is only one record.  So, this
      * was using the term dataset when record is more appropriate.
      *
-     * @param $dataset
-     * @param $orig_dataset
-     * @param $user
-     * @param $top_level
-     * @param $changed
+     * @param array $dataset
+     * @param array $orig_dataset
+     * @param ODRUser $user
+     * @param bool $top_level
+     * @param bool $changed
      * @return array
      * @throws \Exception
      */
@@ -2467,12 +2481,11 @@ class APIController extends ODRCustomController
                             )
                         );
                     }
+                    $typeclass = $data_field->getFieldType()->getTypeClass();
+                    $typename = $data_field->getFieldType()->getTypeName();
 
                     // Deal with files and images here
-                    if(
-                        $data_field->getFieldType()->getId() == 2
-                        || $data_field->getFieldType()->getId() == 3
-                    ) {
+                    if ( $typeclass === 'File' || $typeclass === 'Image' ) {
                         if(isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
                             for($j = 0; $j < count($field['files']); $j++) {
                                 $file = $field['files'][$j];
@@ -2483,8 +2496,8 @@ class APIController extends ODRCustomController
                                         $public_date = new \DateTime($file['public_date']);
                                     }
 
-                                    switch($data_field->getFieldType()->getId()) {
-                                        case 2: // File
+                                    switch( $typeclass ) {
+                                        case 'File':
                                            /** @var File $file_obj */
                                            $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
                                                array(
@@ -2506,7 +2519,8 @@ class APIController extends ODRCustomController
                                             $dataset['fields'][$i] = $field;
 
                                             break;
-                                        case 3: // Image
+
+                                        case 'Image':
                                             /** @var Image $image_obj */
                                             $image_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
                                                 array(
@@ -2539,9 +2553,7 @@ class APIController extends ODRCustomController
                             }
                         }
                     }
-                    else if(
-                        $data_field->getFieldType()->getId() == 1
-                    ) {
+                    else if ( $typeclass === 'Boolean' ) {
                         /** @var DataRecordFields $drf */
                         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                             array(
@@ -2600,10 +2612,10 @@ class APIController extends ODRCustomController
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
-                        switch ($data_field->getFieldType()->getId()) {
+                        switch ( $typename ) {
 
                             // Tag field - need to difference hierarchy
-                            case '18':
+                            case 'Tags':
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 // print $field['template_field_uuid']."\n";
@@ -2845,8 +2857,7 @@ class APIController extends ODRCustomController
 
                                 break;
 
-                            // Single Radio
-                            case '8':
+                            case 'Single Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3041,8 +3052,7 @@ class APIController extends ODRCustomController
 
                                 break;
 
-                            // Multiple Radio
-                            case '13':
+                            case 'Multiple Radio':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3236,8 +3246,7 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
-                            // Single Select
-                            case '14':
+                            case 'Single Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3431,8 +3440,7 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
-                            // Multiple Select
-                            case '15':
+                            case 'Multiple Select':
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -3689,28 +3697,28 @@ class APIController extends ODRCustomController
                                 $drf->setDataRecord($data_record);
                                 $em->persist($drf);
                             } else {
-                                switch ($data_field->getFieldType()->getId()) {
-                                    case '4':
+                                switch ( $typeclass ) {
+                                    case 'IntegerValue':
                                         $existing_field = $em->getRepository('ODRAdminBundle:IntegerValue')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '5':
+                                    case 'LongText':
                                         $existing_field = $em->getRepository('ODRAdminBundle:LongText')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '6':
+                                    case 'LongVarchar':
                                         $existing_field = $em->getRepository('ODRAdminBundle:LongVarchar')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '7':
+                                    case 'MediumVarchar':
                                         $existing_field = $em->getRepository('ODRAdminBundle:MediumVarchar')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '9':
+                                    case 'ShortVarchar':
                                         $existing_field = $em->getRepository('ODRAdminBundle:ShortVarchar')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
-                                    case '16':
+                                    case 'DecimalValue':
                                         $existing_field = $em->getRepository('ODRAdminBundle:DecimalValue')
                                             ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                         break;
@@ -3718,9 +3726,8 @@ class APIController extends ODRCustomController
 
                             }
 
-                            switch ($data_field->getFieldType()->getId()) {
-                                // IntegerValue
-                                case '4':
+                            switch ( $typeclass ) {
+                                case 'IntegerValue':
                                     /** @var IntegerValue $new_field */
                                     $new_field = new IntegerValue();
                                     if ($existing_field) {
@@ -3756,8 +3763,7 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                     break;
 
-                                // Paragraph Text
-                                case '5':
+                                case 'LongText':
                                     /** @var LongText $new_field */
                                     $new_field = new LongText();
                                     if ($existing_field) {
@@ -3793,8 +3799,7 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                     break;
 
-                                // LongVarchar
-                                case '6':
+                                case 'LongVarchar':
                                     /** @var LongVarchar $new_field */
                                     $new_field = new LongVarchar();
                                     if ($existing_field) {
@@ -3830,8 +3835,7 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                     break;
 
-                                // MediumVarchar
-                                case '7':
+                                case 'MediumVarchar':
                                     /** @var MediumVarchar $new_field */
                                     $new_field = new MediumVarchar();
                                     if ($existing_field) {
@@ -3867,8 +3871,7 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                     break;
 
-                                // ShortVarchar
-                                case '9':
+                                case 'ShortVarchar':
                                     /** @var ShortVarchar $new_field */
                                     $new_field = new ShortVarchar();
                                     if ($existing_field) {
@@ -3904,8 +3907,7 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                     break;
 
-                                // DecimalValue
-                                case '16':
+                                case 'DecimalValue':
                                     /** @var DecimalValue $new_field */
                                     $new_field = new DecimalValue();
                                     if ($existing_field) {
@@ -4302,11 +4304,20 @@ class APIController extends ODRCustomController
 
             // Check Related datatypes
             return $dataset;
-        } catch (\Exception $e) {
-            throw new \Exception($e->getMessage());
+        }
+        catch (\Exception $e) {
+            $source = 0x8c60259a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+    /**
+     * @param array $records_to_delete
+     * @param array $record
+     */
     private function getRecordsToDelete(&$records_to_delete, $record) {
         array_push($records_to_delete, $record['record_uuid']);
         if(isset($record['records']) && count($record['records']) > 0) {
@@ -4317,13 +4328,13 @@ class APIController extends ODRCustomController
     }
 
     /**
-     *
      * Accepts wrapped JSON with $user_email or $dataset/record directly
      * Updates a dataset record
      *
-     * @param $version
+     * @param string $version
      * @param Request $request
-     * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @return Response
      */
     public function updatedatasetAction($version, Request $request)
     {
@@ -4357,8 +4368,8 @@ class APIController extends ODRCustomController
 
         try {
             $content = $request->getContent();
-            if (empty($content))
-                throw new ODRException('No dataset data to update.');
+            if ( empty($content) )
+                throw new ODRBadRequestException('No dataset data to update.');
 
 
             // Rebuild data array from JSON
@@ -4465,14 +4476,14 @@ class APIController extends ODRCustomController
             $response->setContent(json_encode($dataset));
             return $response;
 
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x388847de;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
 
     /**
@@ -4480,17 +4491,16 @@ class APIController extends ODRCustomController
      * normal dataset.  If record_uuid is present, will return only that record without
      * the count wrapper.
      *
-     * @param $version
-     * @param $dataset_uuid
-     * @param $record_uuid
+     * @param string $version
+     * @param string $dataset_uuid
+     * @param string|null $record_uuid
      * @param Request $request
+     *
      * @return Response
      */
     public function getRecordsByDatasetUUIDAction($version, $dataset_uuid, $record_uuid = null, Request $request): Response
     {
-
         try {
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -4626,84 +4636,11 @@ class APIController extends ODRCustomController
                 return $response;
 
             }
-
-
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x722347a6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-    }
-
-
-    public function datasetQuotaByUUIDAction($version, $dataset_uuid, Request $request)
-    {
-        // get user from post body
-        try {
-            /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            $content = $request->getContent();
-            if (!empty($content)) {
-                $data = json_decode($content, true); // 2nd param to get as array
-                // user
-                /** @var UserManager $user_manager */
-                $user_manager = $this->container->get('fos_user.user_manager');
-
-                /** @var ODRUser $user */
-                $user = $user_manager->findUserBy(array('email' => $data['user_email']));
-                if (is_null($user))
-                    throw new ODRNotFoundException('User');
-
-                /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                    array(
-                        'unique_id' => $dataset_uuid
-                    )
-                );
-
-                // When calling with a metadata datatype, automatically delete the
-                // actual dataset data and the related metadata
-                if($data_datatype = $datatype->getMetadataFor()) {
-                    $datatype = $data_datatype;
-                }
-
-                /** @var PermissionsManagementService $pm_service */
-                $pm_service = $this->container->get('odr.permissions_management_service');
-                // Ensure user has permissions to be doing this
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
-                    throw new ODRForbiddenException();
-
-                // http://office_dev/app_dev.php/v3/dataset/quota/520cd6a
-                // Only check the datatype files
-                $query = $em->createQuery("
-                    SELECT SUM(odrf.filesize) FROM ODRAdminBundle:File AS odrf
-                    join odrf.dataRecord as dr
-                    join dr.dataType as dt
-                    where dt.id = :datatype_id ")
-                    ->setParameter("datatype_id", $datatype->getId()
-                    );
-
-                $total = $query->getScalarResult();
-
-                if($total[0][1] === null) {
-                    $total[0][1] = 0;
-                }
-
-                $result = array('total_bytes' => $total[0][1]);
-
-                $response = new JsonResponse($result);
-                return $response;
-            } else {
-                throw new ODRBadRequestException('User must be identified for permissions check.');
-            }
-        } catch (\Exception $e) {
-            $source = 0x19238491;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4711,67 +4648,135 @@ class APIController extends ODRCustomController
 
 
     /**
-     * This works with the "data" dataset by default and automatically deletes the related
-     * metadata.
+     * Returns how many bytes of files have been uplaoded to the given datatype.
      *
-     * @param $version
-     * @param $dataset_uuid
+     * @param string $version
+     * @param string $dataset_uuid
      * @param Request $request
-     * @return Response
+     *
+     * @return JsonResponse
      */
-    public function deleteDatasetByUUIDAction($version, $dataset_uuid, Request $request)
+    public function datasetQuotaByUUIDAction($version, $dataset_uuid, Request $request)
     {
-        // get user from post body
         try {
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $content = $request->getContent();
-            if (!empty($content)) {
-                $data = json_decode($content, true); // 2nd param to get as array
-                // user
-                /** @var UserManager $user_manager */
-                $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
-                /** @var ODRUser $user */
-                $user = $user_manager->findUserBy(array('email' => $data['user_email']));
-                if (is_null($user))
-                    throw new ODRNotFoundException('User');
 
-                /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                    array(
-                        'unique_id' => $dataset_uuid
-                    )
-                );
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid
+                )
+            );
+            if ( $datatype == null )
+                throw new ODRNotFoundException('Datatype');
 
-                // When calling with a metadata datatype, automatically delete the
-                // actual dataset data and the related metadata
-                if($data_datatype = $datatype->getMetadataFor()) {
-                    $datatype = $data_datatype;
-                }
+            // If called with a metadata datatype, then silently use the "actual" datatype instead
+            if ( !is_null($datatype->getMetadataFor()) )
+                $datatype = $datatype->getMetadataFor();
 
-                /** @var PermissionsManagementService $pm_service */
-                $pm_service = $this->container->get('odr.permissions_management_service');
-                // Ensure user has permissions to be doing this
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
-                    throw new ODRForbiddenException();
-                // --------------------
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-                /** @var EntityDeletionService $ed_service */
-                $ed_service = $this->container->get('odr.entity_deletion_service');
-                $ed_service->deleteDatatype($datatype, $user);
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
 
-                // Delete datatype
-                $response = new Response('Deleted', 200);
-                return $response;
-            } else {
-                throw new ODRBadRequestException('User must be identified for permissions check.');
-            }
-        } catch (\Exception $e) {
+
+            // Only check the files that have been uploaded to this datatype
+            // TODO - should it include images too?
+            // TODO - this only returns files uploaded to top-level records...shouldn't it do child records as well?
+            $query = $em->createQuery(
+               'SELECT SUM(f.filesize) FROM ODRAdminBundle:File AS f
+                JOIN f.dataRecord AS dr
+                JOIN dr.dataType AS dt
+                WHERE dt.id = :datatype_id
+                AND f.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            $total = $query->getScalarResult();
+
+            if ( is_null($total[0][1]) )
+                $total[0][1] = 0;
+
+            $result = array('total_bytes' => $total[0][1]);
+
+            $response = new JsonResponse($result);
+            return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0x19238491;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Deletes the requested Datatype.
+     *
+     * @param string $version
+     * @param string $dataset_uuid
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function deleteDatasetByUUIDAction($version, $dataset_uuid, Request $request)
+    {
+        try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid
+                )
+            );
+            if ( $datatype == null )
+                throw new ODRNotFoundException('Datatype');
+
+            // If called with a metadata datatype, then silently use the "actual" datatype instead
+            if ( !is_null($datatype->getMetadataFor()) )
+                $datatype = $datatype->getMetadataFor();
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // deleteDatatype() will throw an exception if the datafield shouldn't be deleted
+            $ed_service->deleteDatatype($datatype, $user);
+
+            // Don't need to clear any other cache entries
+
+            // Delete datatype
+            $response = new Response('Deleted', 200);
+            return $response;
+        }
+        catch (\Exception $e) {
             $source = 0x1923491;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4846,16 +4851,17 @@ class APIController extends ODRCustomController
 
 
     /**
-     * Deletes a File via the API.
+     * Deletes a File or Image.
      *
      * @param string $version
      * @param string $file_uuid
      * @param Request $request
+     *
      * @return RedirectResponse
      */
-    public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {
+    public function fileDeleteByUUIDAction($version, $file_uuid, Request $request)
+    {
         try {
-
             $user_email = '';
             $_POST = self::parse_raw_http_request();
             if(isset($post['user_email']))
@@ -4910,6 +4916,7 @@ class APIController extends ODRCustomController
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
+            $typeclass = $datafield->getFieldType()->getTypeClass();
 
             $data_record = $file->getDataRecord();
             if ($data_record->getDeletedAt() != null)
@@ -4928,15 +4935,13 @@ class APIController extends ODRCustomController
 
             // Determine if file or image
             $deleting_file = false;
-            switch($file->getFieldType()->getId()) {
-                // File
-                case 2:
+            switch( $typeclass ) {
+                case 'File':
                     $deleting_file = true;
                     $em->remove($file);
                     break;
 
-                // Image
-                case 3:
+                case 'Image':
                     /** @var Image $image */
                     $image = $file;
                     if(method_exists($image, 'getParent')) {
@@ -5007,11 +5012,11 @@ class APIController extends ODRCustomController
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
-
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x8a83ef89;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -5023,6 +5028,7 @@ class APIController extends ODRCustomController
      *
      * @param string $version
      * @param Request $request
+     *
      * @return RedirectResponse
      */
     public function publishRecordAction($version, Request $request): RedirectResponse
@@ -5152,11 +5158,11 @@ class APIController extends ODRCustomController
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
-
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x82831003;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -5164,10 +5170,11 @@ class APIController extends ODRCustomController
 
 
     /**
-     * Changes the public date of a datatype.
+     * Changes the public date of a datatype, or a datarecord and all its children.
      *
      * @param string $version
      * @param Request $request
+     *
      * @return RedirectResponse
      */
     public function publishAction($version, Request $request) {
@@ -5258,7 +5265,7 @@ class APIController extends ODRCustomController
                     )
                 );
             }
-            // Only works for Metadat Records
+            // Only works for Metadata Records
             else if (isset($data['dataset_uuid'])) {
                 /** @var DataRecord $data_record */
                 $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
@@ -5432,16 +5439,22 @@ class APIController extends ODRCustomController
 
             return $this->redirect($url);
 
-        } catch (\Exception $e) {
-            $source = 0x722347a6;
+        }
+        catch (\Exception $e) {
+            $source = 0x75e74bd7;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
-    private function makeDatarecordPublic($record_data, $pubilc_date, $user) {
+    /**
+     * @param array $record_data
+     * @param \DateTime $public_date
+     * @param ODRUser $user
+     */
+    private function makeDatarecordPublic($record_data, $public_date, $user) {
         /** @var EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
@@ -5456,12 +5469,12 @@ class APIController extends ODRCustomController
 
         if($data_record) {
             // Set public using utility
-            $data_record->setPublicDate($user, $pubilc_date, $em);
+            $data_record->setPublicDate($user, $public_date, $em);
         }
 
         if(isset($record_data['records'])) {
             foreach($record_data['records'] as $record) {
-                self::makeDatarecordPublic($record, $pubilc_date, $user);
+                self::makeDatarecordPublic($record, $public_date, $user);
             }
         }
 
@@ -5470,15 +5483,16 @@ class APIController extends ODRCustomController
     }
 
     /**
-     * @param $version
+     * Uploads a File or Image.
+     *
+     * @param string $version
      * @param Request $request
+     *
      * @return Response
      */
     public function addfileAction($version, Request $request)
     {
-
         try {
-
             // Get data from POST/Request
             $data = $request->request->all();
 
@@ -5594,6 +5608,7 @@ class APIController extends ODRCustomController
 
             if (is_null($data_field))
                 throw new ODRNotFoundException('DataField');
+            $typeclass = $data_field->getFieldType()->getTypeClass();
 
             // Check for local file on server (with name & path from data
             /*
@@ -5623,10 +5638,7 @@ class APIController extends ODRCustomController
             /** @var \Symfony\Component\HttpFoundation\File\File $file */
             foreach($file_array as $file) {
                 // Deal with files and images here
-                if(
-                    $data_field->getFieldType()->getId() == 2
-                    || $data_field->getFieldType()->getId() == 3
-                ) {
+                if ( $typeclass === 'File' || $typeclass === 'Image' ) {
                     /** @var DataRecordFields $drf */
                     $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                         array(
@@ -5651,12 +5663,12 @@ class APIController extends ODRCustomController
                         $em->persist($drf);
                         $em->flush($drf);
                     } else {
-                        switch ($data_field->getFieldType()->getId()) {
-                            case '2':
+                        switch ( $typeclass ) {
+                            case 'File':
                                 $existing_field = $em->getRepository('ODRAdminBundle:File')
                                     ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                 break;
-                            case '3':
+                            case 'Image':
                                 $existing_field = $em->getRepository('ODRAdminBundle:Image')
                                     ->findOneBy(array('dataRecordFields' => $drf->getId()));
                                 break;
@@ -5696,8 +5708,8 @@ class APIController extends ODRCustomController
                     // Rename file
                     rename($tmp_file, $destination_file);
 
-                    switch ($data_field->getFieldType()->getId()) {
-                        case '2': // File
+                    switch ( $typeclass ) {
+                        case 'File':
                             // Check for Allow Multiple
                             // If single, delete existing
                             if ($existing_field && !$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
@@ -5746,7 +5758,8 @@ class APIController extends ODRCustomController
                             $em->persist($file_meta);
 
                             break;
-                        case '3': // Image
+
+                        case 'Image':
                             // Check for Allow Multiple
                             // If single, delete existing
                             if ($existing_field && !$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
@@ -5779,7 +5792,7 @@ class APIController extends ODRCustomController
 
                             /** @var ODRUploadService  $odr_upload_service */
                             $odr_upload_service = $this->container->get('odr.upload_service');
-
+                            /** @var Image $file_obj */
                             $file_obj = $odr_upload_service->uploadNewImage(
                                 $destination_file,
                                 $user,
@@ -5841,21 +5854,21 @@ class APIController extends ODRCustomController
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
-
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x8a83ef88;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
 
     /**
-     * @param $version
-     * @param $record_uuid
+     * @param string $version
+     * @param string $record_uuid
      * @param Request $request
+     *
      * @return Response
      */
     public function getRecordAction($version, $record_uuid, Request $request): Response
@@ -5877,16 +5890,14 @@ class APIController extends ODRCustomController
                 $request,
                 $user
             );
-
-
-        } catch (\Exception $e) {
-            $source = 0x722347a6;
+        }
+        catch (\Exception $e) {
+            $source = 0x9ea474c1;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
 
     /**
@@ -5905,8 +5916,7 @@ class APIController extends ODRCustomController
         $display_metadata = false,
         $user = null,
         $flush = false
-    )
-    {
+    ) {
         // ----------------------------------------
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -5993,6 +6003,7 @@ class APIController extends ODRCustomController
      * @param $record_uuid
      * @param Request $request
      * @param null $user
+     *
      * @return Response
      */
     public function getDatarecordExportAction($version, $record_uuid, Request $request, $user = null)
@@ -6035,15 +6046,24 @@ class APIController extends ODRCustomController
 
             $response->setContent($data);
             return $response;
-        } catch (\Exception $e) {
-            $source = 0x722347a6;
+        }
+        catch (\Exception $e) {
+            $source = 0x80e2674a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+    /**
+     * @param $version
+     * @param $template_uuid
+     * @param $template_field_uuid
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function getfieldstatsbydatasetAction(
         $version,
         $template_uuid,
@@ -6211,15 +6231,23 @@ class APIController extends ODRCustomController
             $response = new Response();
             $response->setContent(json_encode($field));
             return $response;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x883def33;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+
+    /**
+     * @param $selection_array
+     * @param $data
+     * @param $item_label
+     * @return array
+     */
     function check_children(&$selection_array, $data, $item_label) {
 
         $my_level_array = [];
@@ -6261,8 +6289,7 @@ class APIController extends ODRCustomController
         $template_uuid,
         $template_field_uuid,
         Request $request
-    )
-    {
+    ) {
         try {
             // ----------------------------------------
 
@@ -6402,15 +6429,23 @@ class APIController extends ODRCustomController
 
             $response->setContent($data);
             return $response;
-        } catch (\Exception $e) {
-            $source = 0x883def33;
+        }
+        catch (\Exception $e) {
+            $source = 0x66869767;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+    /**
+     * @param $version
+     * @param $file_uuid
+     * @param Request $request
+     *
+     * @return Response|StreamedResponse
+     */
     public function fileDownloadByUUIDAction($version, $file_uuid, Request $request)
     {
         try {
@@ -6445,6 +6480,7 @@ class APIController extends ODRCustomController
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
+            $typeclass = $datafield->getFieldType()->getTypeClass();
 
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
@@ -6457,9 +6493,8 @@ class APIController extends ODRCustomController
 
             // Determine if this is an image or a file
             $is_image = false;
-            if($file->getDataField()->getFieldType()->getId() == 3) {
+            if ( $typeclass === 'Image' )
                 $is_image = true;
-            }
 
             // Files/Images that aren't done encrypting shouldn't be downloaded
             if ($file->getEncryptKey() === '')
@@ -6594,13 +6629,14 @@ class APIController extends ODRCustomController
                 return $response;
             }
 
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             // Returning an error...do it in json
             $request->setRequestFormat('json');
 
             $source = 0xbbaafae5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -6707,20 +6743,21 @@ class APIController extends ODRCustomController
 
             return $response;
 
-        } catch (\Exception $e) {
-            // Returning an error...do it in json
+        }
+        catch (\Exception $e) {
+            // Any errors should be returned in json format
             $request->setRequestFormat('json');
 
-            $source = 0xbbaafae5;
+            $source = 0x91c5c5d9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
     /**
-     * @param $version
+     * @param string $version
      * @param Request $request
      * @return Response
      */
@@ -6798,12 +6835,13 @@ class APIController extends ODRCustomController
 
             return $response;
         }
-        catch (\Exception $e)
-        {
+        catch (\Exception $e) {
+            // Any errors should be returned in json format
             $request->setRequestFormat('json');
-            $source = 0xAFAF3835;
+
+            $source = 0xafaf3835;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -6818,10 +6856,7 @@ class APIController extends ODRCustomController
      */
     public function userAction($version, Request $request)
     {
-
-
         try {
-
             $user_email = null;
             if(isset($_POST['user_email']))
                 $user_email = $_POST['user_email'];
@@ -6956,13 +6991,14 @@ class APIController extends ODRCustomController
 
             return $response;
 
-        } catch (\Exception $e) {
-            // Returning an error...do it in json
+        }
+        catch (\Exception $e) {
+            // Any errors should be returned in json format
             $request->setRequestFormat('json');
 
             $source = 0x8a8b2309;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -7094,18 +7130,18 @@ class APIController extends ODRCustomController
                 return new RedirectResponse($this->getParameter('site_baseurl') .'/uploads/images/' . $filename);
             }
 
-        } catch (\Exception $e) {
-            // Returning an error...do it in json
+        }
+        catch (\Exception $e) {
+            // Any errors should be returned in json format
             $request->setRequestFormat('json');
 
-            $source = 0x8a8b2309;
+            $source = 0x3c4842c5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
-
 
 
     /**
@@ -7201,15 +7237,21 @@ class APIController extends ODRCustomController
             $response = new Response(json_encode($options_data));
             $response->headers->set('Content-Type', 'application/json');
             return $response;
-        } catch (\Exception $e) {
-            $source = 0x883def33;
+        }
+        catch (\Exception $e) {
+            $source = 0x54b42212;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+    /**
+     * @param $record
+     * @param string $field_uuid
+     * @param array $options_data
+     */
     function optionStats($record, $field_uuid, &$options_data)
     {
         self::checkOptions($record->fields, $field_uuid, $options_data);
@@ -7231,6 +7273,11 @@ class APIController extends ODRCustomController
         }
     }
 
+    /**
+     * @param array $record_fields
+     * @param string $field_uuid
+     * @param array $options_data
+     */
     function checkOptions($record_fields, $field_uuid, &$options_data)
     {
         foreach ($record_fields as $field) {
