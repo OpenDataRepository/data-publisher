@@ -65,6 +65,7 @@ use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -75,7 +76,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Model\UserManager;
+use FOS\UserBundle\Doctrine\UserManager;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -815,94 +816,101 @@ class APIController extends ODRCustomController
      *
      * @return RedirectResponse
      */
-    public function createrecordAction($version, string $dataset_uuid, Request $request)
+    public function createrecordAction($version, $dataset_uuid, Request $request)
     {
         try {
+            $data = $request->request->all();
+
             // Only used if SuperAdmin & Present
             $user_email = null;
-            if(isset($_POST['user_email']))
-                $user_email = $_POST['user_email'];
+            if ( isset($data['user_email']) )
+                $user_email = $data['user_email'];
 
-            if($dataset_uuid == null || strlen($dataset_uuid) < 1) {
+            if ( is_null($dataset_uuid) || strlen($dataset_uuid) < 1 )
                 throw new ODRNotFoundException('Datatype');
-            }
 
-            // Check if user exists & throw user not found error
-            /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
-                // Save which user started this creation process
-                $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var ODRUser $user */
-                $user = $user_manager->findUserBy(array('email' => $user_email));
-                if (is_null($user))
-                    throw new ODRNotFoundException('User');
-            }
 
-            // Check if template is valid
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            /** @var DataType $dataset_datatype */
-            $dataset_datatype = $repo_datatype
-                ->findOneBy(array('unique_id' => $dataset_uuid));
-
-            if ($dataset_datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-            // Check if can Add Record
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-            if( !$pm_service->canAddDatarecord($user, $dataset_datatype) )
-                throw new ODRForbiddenException();
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array('unique_id' => $dataset_uuid)
+            );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
-            // Do we handle metadata datatypes??  Probably not...
-            // A metadata datarecord doesn't exist...create one
-            /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
 
-            $delay_flush = true;
-            $dataset_record = $entity_create_service
-                ->createDatarecord($user, $dataset_datatype, $delay_flush);
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            /** @var ODRUser $user */
+            $user = null;
 
-            // Check if record public date needs updating
-            // TODO Check User or LoggedInUser is SuperAdmin
-            if($dataset_record && (
-                    isset($_POST['public_date'])
-                    || isset($_POST['created'])
-                )
-            ) {
-                if ($data_record_meta = $dataset_record->getDataRecordMeta()) {
-                    if (isset($_POST['public_date']) && $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $_POST['public_date']) {
-                        $data_record_meta->setPublicDate(new \DateTime($_POST['public_date']));
-                    }
-
-                    if (isset($_POST['created'])) {
-                        self::setDates($data_record_meta, $_POST['created']);
-                        self::setDates($dataset_record, $_POST['created']);
-                    } else {
-                        self::setDates($data_record_meta, null);
-                    }
-
-                    if (
-                        !$pm_service->isDatatypeAdmin($user, $dataset_record->getDataType())
-                        && !$pm_service->canAddDatarecord($user, $dataset_record->getDataType())
-                    ) {
-                        throw new ODRForbiddenException();
-                    }
-
-                    $em->persist($data_record_meta);
-                }
+            if ( is_null($user_email) ) {
+                // If a user email wasn't provided, then use the admin user for this action
+                $user = $admin_user;
+            }
+            else if ( !is_null($user_email) && $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // If a user email was provided, and the user calling this action is a super-admin,
+                //  then attempt to locate the user for the given email
+                /** @var UserManager $user_manager */
+                $user_manager = $this->container->get('fos_user.user_manager');
+                $user = $user_manager->findUserBy(array('email' => $user_email));
             }
 
-                // Datarecord is ready, remove provisioned flag
+            if ($user == null)
+                throw new ODRNotFoundException('User');
+
+            // Ensure this user can create a record for this datatype
+            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            // This API action allows the user to set the created/updated date to something other
+            //  than today...
+            $created = null;
+            if ( isset($data['created']) )
+                $created = new \DateTime($data['created']);
+
+            // ...the user is also allowed to immediately set the public date of the new record
+            $public_date = null;
+            if ( isset($data['public_date']) )
+                $public_date = new \DateTime($data['public_date']);
+
+
+            // Create the new record
+            $datarecord = $ec_service->createDatarecord(
+                $user,
+                $datatype,
+                true,    // delay flush, incase public date needs to be set
+                true,    // select default radio options
+                $created // create the record on the given date
+            );
+
+            // Set the record's public date if it was requested
+            if ( !is_null($public_date) ) {
+                $datarecord_meta = $datarecord->getDataRecordMeta();
+                $datarecord_meta->setPublicDate($public_date);
+                $em->persist($datarecord_meta);
+            }
+
+            // Datarecord is ready, remove provisioned flag
             // TODO Naming is a little weird here
-            $dataset_record->setProvisioned(false);
-            $em->persist($dataset_record);
+            $datarecord->setProvisioned(false);
+            $em->persist($datarecord);
+
+            // Save all changes
             $em->flush();
 
+
+            // ----------------------------------------
             // This is wrapped in a try/catch block because any uncaught exceptions will abort
             //  creation of the new datarecord...
             try {
@@ -910,7 +918,7 @@ class APIController extends ODRCustomController
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordCreatedEvent($dataset_record, $user);
+                $event = new DatarecordCreatedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
@@ -923,10 +931,14 @@ class APIController extends ODRCustomController
 
             // ----------------------------------------
             $response = new Response('Created', 201);
-            $url = $this->generateUrl('odr_api_get_dataset_record', array(
-                'version' => $version,
-                'record_uuid' => $dataset_record->getUniqueId()
-            ), false);
+            $url = $this->generateUrl(
+                'odr_api_get_dataset_record',
+                array(
+                    'version' => $version,
+                    'record_uuid' => $datarecord->getUniqueId()
+                ),
+                false
+            );
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
@@ -939,6 +951,7 @@ class APIController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
+
 
     /**
      * TODO - this action does nothing, and isn't referenced from the routing file...delete?
@@ -4501,140 +4514,166 @@ class APIController extends ODRCustomController
     public function getRecordsByDatasetUUIDAction($version, $dataset_uuid, $record_uuid = null, Request $request): Response
     {
         try {
+            // TODO - record_uuid is never not null here...
+
+            // ----------------------------------------
+            // Default to only showing all info about the datatype/template...
+            $display_metadata = true;
+            if ($request->query->has('metadata') && $request->query->get('metadata') == 'false')
+                // ...but restrict to only the most useful info upon request
+                $display_metadata = false;
+
+
+            // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-
-            // This is the API User - system admin
-            /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // $user_manager = $this->container->get('fos_user.user_manager');
-            // $user = $user_manager->findUserBy(array('email' => ''));
-            // We should allow anonymous access to records they can see...
-            if (is_null($user))
-                throw new ODRNotFoundException('User');
-
-            // Find datatype for Dataset UUID
-            /** @var DataType $data_type */
-            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
-                    'unique_id' => $dataset_uuid
-                )
-            );
-
-            if (is_null($data_type))
-                throw new ODRNotFoundException('DataType');
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
+
+            // Find datatype for Dataset UUID
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid
+                )
+            );
+            if ($datatype == null)
+                throw new ODRNotFoundException('DataType');
+
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();    // Anon when nobody is logged in
+
+            // $user_manager = $this->container->get('fos_user.user_manager');
+            // $user = $user_manager->findUserBy(array('email' => ''));
+            // We should allow anonymous access to records they can see...
+            if ( is_null($user) || $user === 'anon.' )
+                throw new ODRNotFoundException('User');
+
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
             // Determine if we're searching a metadata record or a normal dataset
             // Metadata datasets have one record each
             // Regular datasets have multiple records
-            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $data_type);
+            if ( $datatype->getIsMasterType() ) {
+                // This is a metadata datatype, so this controller action is going to return the
+                //  contents of the metadata record
 
-            // print $user->getUsername() . ' ' . $is_datatype_admin; exit();
-
-
-            if($data_type->getIsMasterType()) {
-                // Find datarecord from dataset
-                /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                     array(
-                        'dataType' => $data_type->getId()
+                        'dataType' => $datatype->getId()
                     )
                 );
+                if ($datarecord == null)
+                    throw new ODRNotFoundException('Datarecord');
 
-                if (is_null($data_record))
-                    throw new ODRNotFoundException('DataRecord');
-
-                if($is_datatype_admin || $pm_service->canViewDatarecord($user, $data_record)) {
+                // If the record exists and the user can view it...
+                if ( $pm_service->canViewDatarecord($user, $datarecord) ) {
+                    // ...return its JSON version
                     return $this->getDatarecordExportAction(
                         $version,
-                        $data_record->getUniqueId(),
+                        $datarecord->getUniqueId(),
                         $request,
                         $user
                     );
                 }
                 else {
-                    throw new ODRNotFoundException('DataRecord');
+                    throw new ODRNotFoundException('Datarecord');
                 }
-
             }
             else {
-                // Find datarecord from dataset
-                /** @var DataRecord[] $data_records */
-                $data_records = [];
-                if($record_uuid == null) {
-                    $data_records = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
-                        array(
-                            'dataType' => $data_type->getId()
-                        )
-                    );
-                }
-                else {
-                    $data_records = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
-                        array(
-                            'dataType' => $data_type->getId(),
-                            'unique_id' => $record_uuid
-                        )
-                    );
+                // ...otherwise, this controller action is going to return json of every record
+                //  belonging to this datatype
+
+                // Use a targeted query instead of potentially hydrating thousands of records...
+                $query =
+                   'SELECT dr.unique_id, drm.publicDate
+                    FROM ODRAdminBundle:DataRecord dr
+                    LEFT JOIN ODRAdminBundle:DataRecordMeta drm WITH drm.dataRecord = dr
+                    WHERE dr.dataType = :datatype_id
+                    AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+                $params = array('datatype_id' => $datatype->getId());
+
+                // If a record id was specified, only retrieve that single record
+                if ( !is_null($record_uuid) ) {
+                    $query .= ' AND dr.unique_id = :record_uuid';
+                    $params['record_uuid'] = $record_uuid;
                 }
 
-                if (count($data_records) < 1)
-                    throw new ODRNotFoundException('DataRecord');
+                $results = $em->createQuery($query)->setParameters($params)->getArrayResult();
 
-                $output_records = [];
-                if($is_datatype_admin) {
-                    $output_records  = $data_records;
-                }
-                else {
-                    foreach($data_records as $data_record) {
-                        if($pm_service->canViewDatarecord($user, $data_record)) {
-                            array_push($output_records, $data_record);
-                        }
+                // Need to filter out any records the user can't view
+                $output_records = array();
+                foreach ($results as $result) {
+                    $dr_uuid = $result['unique_id'];
+                    $public_date = $result['publicDate']->format('Y-m-d H:i:s');
+
+                    // Since the records aren't hydrated, need to do the permissions "manually"...
+                    $can_view_record = false;
+                    if ( $public_date !== '2200-01-01 00:00:00' )
+                        $can_view_record = true;
+
+                    if ( isset($datatype_permissions[ $datatype->getId() ])
+                        && isset($datatype_permissions[ $datatype->getId() ]['dr_view'])
+                    ) {
+                        $can_view_record = true;
                     }
-                    if(count($output_records) < 1)
-                        throw new ODRNotFoundException('DataRecord');
+
+                    // If the user can view the record, store it for later
+                    if ( $can_view_record )
+                        $output_records[] = $dr_uuid;
                 }
 
-                $display_metadata = true;
-                if ($request->query->has('metadata') && $request->query->get('metadata') == 'false')
-                    // ...but restrict to only the most useful info upon request
-                    $display_metadata = false;
 
+                // ----------------------------------------
+                // Start building the output
                 $output = '';
-                if($data_type->getMetadataFor() == null && $record_uuid == null) {
+
+                // If the request was not for a metadata datatype, and the user didn't want a
+                //  specific record...
+                if ( is_null($datatype->getMetadataFor()) && is_null($record_uuid) ) {
+                    // ...then wrap the output with some additional info about how many records this
+                    //  datatype has
                     $output .= '{';
-                    $output .= '"count": ' . count($output_records) . ',';
+                    $output .= '"count": '.count($output_records).',';
                     $output .= '"records": [';
                 }
-                for($i=0;$i<count($output_records); $i++) {
-                    $data_record = $output_records[$i];
 
+                for ($i = 0; $i < count($output_records); $i++) {
+                    $dr_uuid = $output_records[$i];
+
+                    // Get the JSON version of this datarecord
                     $output .= self::getRecordData(
                         $version,
-                        $data_record->getUniqueId(),
-                        $request->getrequestformat(),
+                        $dr_uuid,
+                        $request->getRequestFormat(),
                         $display_metadata,
                         $user
                     );
 
-                    if($i < (count($output_records) - 1)) {
+                    // Splice in commas when needed
+                    if ( $i < (count($output_records) - 1) )
                         $output .= ',';
-                    }
-
                 }
-                if($data_type->getMetadataFor() == null && $record_uuid == null) {
+
+                // Close the additional info if required
+                if ( is_null($datatype->getMetadataFor()) && is_null($record_uuid) )
                     $output .= ']}';
-                }
 
-                // set up a response to send the datatype back
-                $response = new response();
-
-                $response->setcontent($output);
+                // Return the output back to the user
+                $response = new Response();
+                $response->setContent($output);
                 return $response;
-
             }
         }
         catch (\Exception $e) {
@@ -5031,98 +5070,90 @@ class APIController extends ODRCustomController
      *
      * @return RedirectResponse
      */
-    public function publishRecordAction($version, Request $request): RedirectResponse
+    public function publishRecordAction($version, Request $request)
     {
-        /*
-                        $response = new Response('Updated', 200);
-                        $response->headers->set('Content-Type', 'application/json');
-                        $response->setContent(json_encode(array('true' => 'yes')));
-                        return $response;
-        */
-        $content = $request->request->all();
-        if (!empty($content)) {
-            $logger = $this->get('logger');
-            $logger->info('DATA FROM PUBLISH: ' . var_export($content,true));
-        }
+//        $content = $request->request->all();
+//        if (!empty($content)) {
+//            $logger = $this->get('logger');
+//            $logger->info('DATA FROM PUBLISH: ' . var_export($content,true));
+//        }
 
         try {
             // Get data from POST/Request
             $data = $request->request->all();
+            if ( !isset($data['dataset_uuid']) || !isset($data['record_uuid']) )
+                throw new ODRBadRequestException();
 
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
+            // Public date is optional
+            $public_date = new \DateTime();
+            if ( isset($data['public_date']) )
+                $public_date = new \DateTime($data['public_date']);
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            // Only used if SuperAdmin & Present
+            $user_email = null;
+            if ( isset($data['user_email']) )
+                $user_email = $data['user_email'];
+
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var ODRUser $logged_in_user */  // Anon when nobody is logged in.
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($logged_in_user == 'anon.')
-                throw new ODRForbiddenException();
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
-            // User to act as during update
-            $user = null;
-            if (isset($data['user_email']) && $data['user_email'] !== null) {
-                // Act As user
-                $user_email = $data['user_email'];
-                if (!$logged_in_user->hasRole('ROLE_SUPER_ADMIN'))
-                    throw new ODRForbiddenException();
 
-                $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var ODRUser $user */
-                $user = $user_manager->findUserBy(array('email' => $user_email));
-                if (is_null($user))
-                    throw new ODRNotFoundException('User');
-            } else {
-                $user_email = $logged_in_user->getEmail();
-                $user = $logged_in_user;
-            }
-
-            // Find datatype for Dataset UUID
-            /** @var DataType $data_type */
-            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
-                    'unique_id' => $data['dataset_uuid']
-                )
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                array('unique_id' => $data['record_uuid'])
             );
+            if ($datarecord === null)
+                throw new ODRNotFoundException('Datarecord');
 
-            if (is_null($data_type))
-                throw new ODRNotFoundException('DataType');
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array('unique_id' => $data['dataset_uuid'])
+            );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
-            // Calculate the Public Date
-            if(isset($data['public_date'])) {
-                $public_date = new \DateTime($data['public_date']);
+            // TODO - getting rid of the requirement to use 'dataset_uuid' would be easier...
+            if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
+                throw new ODRBadRequestException();
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            /** @var ODRUser $user */
+            $user = null;
+
+            if ( is_null($user_email) ) {
+                // If a user email wasn't provided, then use the admin user for this action
+                $user = $admin_user;
             }
-            else {
-                $public_date = new \DateTime();
+            else if ( !is_null($user_email) && $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // If a user email was provided, and the user calling this action is a super-admin,
+                //  then attempt to locate the user for the given email
+                /** @var UserManager $user_manager */
+                $user_manager = $this->container->get('fos_user.user_manager');
+                $user = $user_manager->findUserBy(array('email' => $user_email));
             }
 
-            /** @var DataRecord $data_record */
-            $data_record = null;
-            if(isset($data['record_uuid'])) {
-                /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                    array(
-                        'unique_id' => $data['record_uuid']
-                    )
-                );
-            }
-            if($data_record === null)
-                throw new ODRNotFoundException('Record');
+            if ($user == null)
+                throw new ODRNotFoundException('User');
 
-            // TODO Convert this to add new meta record and delete old
-            // Ensure record is public
-            /** @var DataRecordMeta $data_record_meta */
-            $data_record_meta = clone $data_record->getDataRecordMeta();
-            $data_record_meta->setPublicDate($public_date);
-            $data_record_meta->setUpdatedBy($user);
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->canChangePublicStatus($user, $datarecord) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
 
-            $em->remove($data_record->getDataRecordMeta());
-            $em->persist($data_record_meta);
-            $em->flush();
+
+            // Change the public date of the record to the requested value
+            $properties = array('publicDate' => $public_date);
+            $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
 
 
             // ----------------------------------------
@@ -5136,7 +5167,7 @@ class APIController extends ODRCustomController
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
+                $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
             }
             catch (\Exception $e) {
@@ -5150,11 +5181,14 @@ class APIController extends ODRCustomController
 
             // Switching to get datarecord which uses user's permissions to build array
             // This is required because the user can turn databases non-public.
-            $url = $this->generateUrl('odr_api_get_dataset_record', array(
-                'version' => $version,
-                'record_uuid' => $data_record->getUniqueId()
-            ), false);
-
+            $url = $this->generateUrl(
+                'odr_api_get_dataset_record',
+                array(
+                    'version' => $version,
+                    'record_uuid' => $datarecord->getUniqueId()
+                ),
+                false
+            );
             $response->headers->set('Location', $url);
 
             return $this->redirect($url);
@@ -5874,16 +5908,13 @@ class APIController extends ODRCustomController
     public function getRecordAction($version, $record_uuid, Request $request): Response
     {
         try {
-            // Check API permission level (if SuperAPI - override user)
-            // API Super should be able to administer datatypes derived from certain templates
-
-            // $user_manager = $this->container->get('fos_user.user_manager');
-            // $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
-
+            // Apparently this controller action demands a user...
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (is_null($user))
+            if ( is_null($user) )
                 throw new ODRNotFoundException('User');
 
+            // ...but is otherwise handled by this other controller action
             return $this->getDatarecordExportAction(
                 $version,
                 $record_uuid,
@@ -5900,13 +5931,17 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
-     * @param $version
-     * @param $datarecord_uuid
-     * @param $format
+     * Loads the requested datarecord from the cache, or rebuilds it if it doesn't exist.
+     *
+     * @param string $version
+     * @param string $datarecord_uuid
+     * @param string $format
      * @param bool $display_metadata
      * @param null $user
-     * @param bool $flush
+     * @param bool $bypass_cache
+     *
      * @return array|bool|string
      */
     private function getRecordData(
@@ -5915,12 +5950,14 @@ class APIController extends ODRCustomController
         $format,
         $display_metadata = false,
         $user = null,
-        $flush = false
+        $bypass_cache = false
     ) {
         // ----------------------------------------
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
         /** @var DatarecordExportService $dre_service */
         $dre_service = $this->container->get('odr.datarecord_export_service');
         /** @var PermissionsManagementService $pm_service */
@@ -5933,14 +5970,12 @@ class APIController extends ODRCustomController
         );
         if ($datarecord == null)
             throw new ODRNotFoundException('Datarecord');
-
         $datarecord_id = $datarecord->getId();
 
         $datatype = $datarecord->getDataType();
         if (!$datatype || $datatype->getDeletedAt() != null)
             throw new ODRNotFoundException('Datatype');
 
-        // TODO Why???
         if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
             throw new ODRBadRequestException('Only permitted on top-level datarecords');
 
@@ -5948,30 +5983,20 @@ class APIController extends ODRCustomController
         // ----------------------------------------
         // Determine user privileges
         /** @var ODRUser $user */
-        if ($user === null) {
+        if ( is_null($user) )
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-        }
-
-        // If either the datatype or the datarecord is not public, and the user doesn't have
-        //  the correct permissions...then don't allow them to view the datarecord
-        if (!$pm_service->canViewDatatype($user, $datatype))
-            throw new ODRForbiddenException();
 
         if (!$pm_service->canViewDatarecord($user, $datarecord))
             throw new ODRForbiddenException();
+        // ----------------------------------------
 
 
-        // TODO - system needs to delete these keys when record is updated elsewhere
-        /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
-        $data = $cache_service
-            ->get('json_record_' . $datarecord_uuid);
+        // Attempt to get the record from its cache entry...
+        $data = $cache_service->get('json_record_'.$datarecord_uuid);
 
-        $data = false;
-        // $flush = true;
-        if (!$data || $flush) {
-
-            // Render the requested datarecord
+        // If the record isn't cached, or the cache should be bypassed...
+        if ( !$data || $bypass_cache ) {
+            // ...then re-render the requested record
             $data = $dre_service->getData(
                 $version,
                 array($datarecord_id),
@@ -5982,22 +6007,18 @@ class APIController extends ODRCustomController
                 0
             );
 
-
-            // Cache this data for faster retrieval
+            // Store the record back in the cache
             // TODO work out how to expire this data...
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->set(
-                'json_record_' . $datarecord_uuid,
-                $data
-            );
+            $cache_service->set('json_record_'.$datarecord_uuid, $data);
         }
 
         return $data;
     }
 
+
     /**
-     * Renders and returns the json/XML version of the given DataRecord.
+     * This controller action is forwarded to by APIController::getRecordAction(), as well as
+     * FacadeController::getDatarecordExportAction()
      *
      * @param $version
      * @param $record_uuid
@@ -6023,6 +6044,7 @@ class APIController extends ODRCustomController
                 $download_response = true;
 
 
+            // getRecordData() will deal with any permissions/verification checks
             $data = self::getRecordData(
                 $version,
                 $record_uuid,
