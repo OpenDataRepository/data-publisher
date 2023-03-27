@@ -18,15 +18,19 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -98,6 +102,11 @@ class EntityDeletionService
     //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
+     * @var string
+     */
+    private $odr_web_dir;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -116,6 +125,7 @@ class EntityDeletionService
      * @param TrackedJobService $tracked_job_service
      * @param ThemeInfoService $theme_info_service
      * @param EventDispatcherInterface $event_dispatcher
+     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -129,6 +139,7 @@ class EntityDeletionService
         TrackedJobService $tracked_job_service,
         ThemeInfoService $theme_info_service,
         EventDispatcherInterface $event_dispatcher,
+        string $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -141,6 +152,7 @@ class EntityDeletionService
         $this->tracked_job_service = $tracked_job_service;
         $this->theme_info_service = $theme_info_service;
         $this->event_dispatcher = $event_dispatcher;
+        $this->odr_web_dir = realpath($odr_web_dir);
         $this->logger = $logger;
     }
 
@@ -1332,6 +1344,169 @@ class EntityDeletionService
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Deletes the given file.
+     *
+     * @param File $file
+     * @param ODRUser $user
+     */
+    public function deleteFile($file, $user)
+    {
+        // Going to need these
+        $file_id = $file->getId();
+        $datafield = $file->getDataField();
+        $datarecord = $file->getDataRecord();
+
+
+        // -----------------------------------
+        // Delete the decrypted version of this file from the server, if it exists
+        $file_upload_path = $this->odr_web_dir.'/uploads/files/';
+        $filename = 'File_'.$file->getId().'.'.$file->getExt();
+        $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+        if ( file_exists($absolute_path) )
+            unlink($absolute_path);
+
+        // Delete the file and its current metadata entry
+        $file_meta = $file->getFileMeta();
+        $file_meta->setDeletedAt(new \DateTime());
+        $this->em->persist($file_meta);
+
+        $file->setDeletedBy($user);
+        $file->setDeletedAt(new \DateTime());
+        $this->em->persist($file);
+
+        $this->em->flush();
+
+
+        // -----------------------------------
+        // Notify that a file got deleted...
+        try {
+            $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
+            $this->event_dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't particularly want to rethrow the error since it'll interrupt
+            //  everything downstream of the event (such as file encryption...), but
+            //  having the error disappear is less ideal on the dev environment...
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        // ...and that something happened to the datafield...
+        try {
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        // ...and finally that something happened to the datarecord
+        try {
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+    }
+
+
+    /**
+     * Deletes the given image.
+     *
+     * @param Image $image
+     * @param ODRUser $user
+     */
+    public function deleteImage($image, $user)
+    {
+        // Ensure this only works on the original image
+        if ( !is_null($image->getParent()) )
+            $image = $image->getParent();
+
+        // Going to need these
+        $datafield = $image->getDataField();
+        $datarecord = $image->getDataRecord();
+
+
+        // -----------------------------------
+        // Load all alternate sizes of the original image (currently just a thumbnail) and delete
+        //  them
+        /** @var Image[] $images */
+        $images = $this->em->getRepository('ODRAdminBundle:Image')->findBy(
+            array('parent' => $image->getId())
+        );
+        foreach ($images as $img) {
+            // Ensure no decrypted version of any of the thumbnails exist on the server
+            $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+            $filename = 'Image_'.$img->getId().'.'.$img->getExt();
+            $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+            if ( file_exists($absolute_path) )
+                unlink($absolute_path);
+
+            // Delete the alternate sized image from the database
+            $img->setDeletedBy($user);
+            $img->setDeletedAt(new \DateTime());
+            $this->em->persist($img);
+        }
+
+        // Ensure no decrypted version of the original image exists on the server
+        $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+        $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+        $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+        if ( file_exists($absolute_path) )
+            unlink($absolute_path);
+
+
+        // Delete the image's meta entry
+        $image_meta = $image->getImageMeta();
+        $image_meta->setDeletedAt(new \DateTime());
+        $this->em->persist($image_meta);
+
+        // Delete the image
+        $image->setDeletedBy($user);
+        $image->setDeletedAt(new \DateTime());
+        $this->em->persist($image);
+
+        $this->em->flush();
+
+
+        // ----------------------------------------
+        // Notify that something happened to the datafield...
+        try {
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        // ...and to the datarecord
+        try {
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
         }
     }
 }

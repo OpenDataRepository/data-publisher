@@ -92,6 +92,8 @@ class DatarecordExportService
      * @param boolean $using_metadata  Whether to display additional metadata (who created it, public date, revision, etc)
      * @param ODRUser $user            Which user requested this
      * @param string $baseurl          The current baseurl of this ODR installation, used for file/image links
+     * @param int $show_records
+     * @param boolean $record_search
      *
      * @return string
      */

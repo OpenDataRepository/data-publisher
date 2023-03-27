@@ -1799,6 +1799,7 @@ odr_api_dataset_public:
         version: 'v\d+'
         _format: '|json|xml'
 
+# these two need to be commented out for testing API via browser
 odr_api_get_dataset_single_no_format:
     path:  /api/{version}/dataset/{dataset_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }

@@ -1267,15 +1267,30 @@ class EntityCreationService
      * @param DataRecordFields $drf
      * @param string $filepath The path to the unencrypted file on the server
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     * @param \DateTime|null $public_date If provided, then the public date is set to this
      *
      * @return File
      */
-    public function createFile($user, $drf, $filepath, $created = null)
+    public function createFile($user, $drf, $filepath, $created = null, $public_date = null)
     {
         // Ensure a file exists at the given path
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('Uploaded File');
 
+        // ----------------------------------------
+        // Set optional properties for the new file
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        if ( is_null($public_date) ) {
+            if ( $drf->getDataField()->getNewFilesArePublic() )
+                $public_date = new \DateTime();
+            else
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+        }
+
+
+        // ----------------------------------------
         // Determine several properties of the file before it gets encrypted
         $uploaded_file = new SymfonyFile($filepath);
         $extension = $uploaded_file->guessExtension();    // TODO - ...shouldn't this be based on the filename itself?
@@ -1325,10 +1340,7 @@ class EntityCreationService
         $file_meta->setDescription(null);    // TODO
         $file_meta->setExternalId('');
 
-        if ( $drf->getDataField()->getNewFilesArePublic() )
-            $file_meta->setPublicDate( new \DateTime() );
-        else
-            $file_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+        $file_meta->setPublicDate($public_date);
 
         $file_meta->setCreated($created);
         $file_meta->setUpdated($created);
@@ -1358,18 +1370,34 @@ class EntityCreationService
      * @param DataRecordFields $drf
      * @param string $filepath The path to the unencrypted image on the server
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     * @param \DateTime|null $public_date If provided, then the public date is set to this
+     * @param int|null $display_order If provided, then the display_order is set to this
      *
      * @return Image
      */
-    public function createImage($user, $drf, $filepath, $created = null)
+    public function createImage($user, $drf, $filepath, $created = null, $public_date = null, $display_order = null)
     {
         // Ensure a file exists at the given path
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('Uploaded Image');
 
+        // ----------------------------------------
+        // Set optional properties for the new image
         if ( is_null($created) )
             $created = new \DateTime();
 
+        if ( is_null($public_date) ) {
+            if ( $drf->getDataField()->getNewFilesArePublic() )
+                $public_date = new \DateTime();
+            else
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+        }
+
+        if ( is_null($display_order) )
+            $display_order = 0;
+
+
+        // ----------------------------------------
         // Determine several properties of the image before it gets encrypted
         $uploaded_file = new SymfonyFile($filepath);
         $extension = $uploaded_file->guessExtension();
@@ -1430,16 +1458,13 @@ class EntityCreationService
         // Also need to create an ImageMeta entry for this image
         $image_meta = new ImageMeta();
         $image_meta->setImage($image);
-        $image_meta->setDisplayorder(0);
+        $image_meta->setDisplayorder($display_order);
 
         $image_meta->setOriginalFileName($original_filename);
         $image_meta->setCaption(null);    // TODO
         $image_meta->setExternalId('');
 
-        if ( $drf->getDataField()->getNewFilesArePublic() )
-            $image_meta->setPublicDate( new \DateTime() );
-        else
-            $image_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+        $image_meta->setPublicDate($public_date);
 
         $image_meta->setCreated($created);
         $image_meta->setUpdated($created);

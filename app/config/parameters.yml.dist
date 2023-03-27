@@ -37,8 +37,12 @@ parameters:
     # NOTE - This should NOT have a trailing backslash or be quoted
     odr_plugin_base_classpath: ODR\OpenRepository\GraphBundle\Plugins
 
-    # TODO
-    uploaded_files_path: '/tmp/odr_uploaded_files'
+    # This directory is used by APIController::addfileAction() for when a POST request wants to
+    #  "upload" files already on the server...need to ensure this directory has a+wrx permissions,
+    #  because the process running the controller action tends to be different than the process that
+    #  actually "uploads" the files...
+#    uploaded_files_path: '/tmp/odr_uploaded_files'
+    uploaded_files_path: '/home/odr/data-publisher/odr_uploaded_files'
 
     memcached.servers:
         -
