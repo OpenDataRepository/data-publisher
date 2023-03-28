@@ -20,6 +20,7 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -453,21 +454,35 @@ class PermissionsManagementService
      *  - change public status of this datarecord
      *
      * @param ODRUser $user
-     * @param DataRecord $datarecord
+     * @param DataRecord|null $datarecord
+     * @param DataType|null $datatype If provided, then $datarecord must be null
      *
      * @return bool
      */
-    public function canChangePublicStatus($user, $datarecord)
+    public function canChangePublicStatus($user, $datarecord, $datatype = null)
     {
+        // This function must have either a datarecord or a datatype, not both
+        if ( ( is_null($datarecord) && is_null($datatype) )
+            || ( !is_null($datarecord) && !is_null($datatype) )
+        ) {
+            throw new ODRBadRequestException('Invalid arguments given to canChangePublicStatus()', 0xaf305e10);
+        }
+
         // If the user isn't logged in, they can't change public status
         if ($user === "anon.")
             return false;
 
-        // Otherwise, the user is logged in...ensure they can edit the datarecord first
-        if ( !self::canEditDatarecord($user, $datarecord) )
-            return false;
+        // Otherwise, the user is logged in...
+        if ( !is_null($datarecord) ) {
+            // ...since a datarecord was provided, ensure they can edit it
+            if ( !self::canEditDatarecord($user, $datarecord) )
+                return false;
 
-        $datatype = $datarecord->getDataType();
+            $datatype = $datarecord->getDataType();
+        }
+        else {
+            // If a datarecord wasn't provided, then use the provided datatype instead
+        }
         $datatype_permissions = self::getDatatypePermissions($user);
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
