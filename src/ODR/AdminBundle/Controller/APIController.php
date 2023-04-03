@@ -13,7 +13,7 @@
 namespace ODR\AdminBundle\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\Boolean;
+use ODR\AdminBundle\Entity\Boolean as ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
@@ -28,6 +29,7 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\IntegerValue;
+use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
@@ -44,6 +46,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
@@ -1427,7 +1430,10 @@ class APIController extends ODRCustomController
             if ( isset($dataset['record_uuid']) ) {
                 // ...but if the user is specifying a record, then it must exist
                 $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                    array('unique_id' => $dataset['record_uuid'])
+                    array(
+                        'unique_id' => $dataset['record_uuid'],
+                        'dataType' => $datatype->getId(),   // ensure the user doesn't try to change unrelated datarecords
+                    )
                 );
                 if ($datarecord == null)
                     throw new ODRNotFoundException('Datarecord');
@@ -1440,6 +1446,9 @@ class APIController extends ODRCustomController
 
             // Need to check whether the datarecord's public date is getting changed...
             if ( isset($dataset['public_date']) ) {
+                if ( !ValidUtility::isValidDatetime($dataset['public_date'], "Y-m-d H:i:s") )
+                    throw new ODRBadRequestException('public_date "'.$dataset['public_date'].'" is not a valid Datetime');
+
                 $changed = true;
                 if ( !is_null($datarecord) ) {
                     // Record currently exists
@@ -1456,6 +1465,11 @@ class APIController extends ODRCustomController
 
             // Need to check whether the datarecord is getting created, or its created date is
             //  getting changed...
+            if ( isset($dataset['created']) ) {
+                if ( !ValidUtility::isValidDatetime($dataset['created'], "Y-m-d H:i:s") )
+                    throw new ODRBadRequestException('public_date "'.$dataset['created'].'" is not a valid Datetime');
+            }
+
             if ( is_null($datarecord) || isset($dataset['created']) ) {
                 $changed = true;
                 if ( !$pm_service->canAddDatarecord($user, $datatype) )
@@ -1466,7 +1480,7 @@ class APIController extends ODRCustomController
 
             // ----------------------------------------
             // Need to check every field in the datarecord for changes...
-            if ( isset($dataset['fields']) ) {
+            if ( !empty($dataset['fields']) ) {
                 for ($i = 0; $i < count($dataset['fields']); $i++) {
                     $field = $dataset['fields'][$i];
 
@@ -1477,7 +1491,7 @@ class APIController extends ODRCustomController
                         $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'templateFieldUuid' => $field['template_field_uuid'],
-                                'dataType' => $datatype->getId()
+                                'dataType' => $datatype->getId()   // ensure the user doesn't try to change unrelated datafields
                             )
                         );
                     }
@@ -1485,7 +1499,7 @@ class APIController extends ODRCustomController
                         $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'fieldUuid' => $field['field_uuid'],
-                                'dataType' => $datatype->getId()
+                                'dataType' => $datatype->getId()   // ensure the user doesn't try to change unrelated datafields
                             )
                         );
                     }
@@ -1501,6 +1515,8 @@ class APIController extends ODRCustomController
                                 if ( isset($file['public_date']) ) {
                                     // This section is only used to change the file/image's public
                                     //  date...uploading/deleting files is done with other API calls
+                                    if ( !ValidUtility::isValidDatetime($file['public_date'], "Y-m-d H:i:s") )
+                                        throw new ODRBadRequestException('public_date "'.$file['public_date'].'" for File '.$file['file_uuid'].' is not a valid Datetime');
 
                                     // Need to ensure the file/image objects exist...
                                     /** @var FileMeta|ImageMeta $meta_entry */
@@ -1509,7 +1525,11 @@ class APIController extends ODRCustomController
                                         case 'File':
                                             /** @var File $file_obj */
                                             $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
-                                                array('unique_id' => $file['file_uuid'])
+                                                array(
+                                                    'unique_id' => $file['file_uuid'],
+                                                    'dataField' => $datafield->getId(),   // ensure the user doesn't try to change unrelated files
+                                                    'dataRecord' => $datarecord->getId(),
+                                                )
                                             );
                                             if ($file_obj == null)
                                                 throw new ODRNotFoundException('File');
@@ -1523,7 +1543,11 @@ class APIController extends ODRCustomController
                                         case 'Image':
                                             /** @var Image $image_obj */
                                             $image_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
-                                                array('unique_id' => $file['file_uuid'])
+                                                array(
+                                                    'unique_id' => $file['file_uuid'],
+                                                    'dataField' => $datafield->getId(),   // ensure the user doesn't try to change unrelated images
+                                                    'dataRecord' => $datarecord->getId(),
+                                                )
                                             );
                                             if ($image_obj == null)
                                                 throw new ODRNotFoundException('Image');
@@ -1629,22 +1653,24 @@ class APIController extends ODRCustomController
             }
 
 
-            // Remove deleted [related] records
-            if ( $orig_dataset && isset($orig_dataset['records']) ) {
+            // ----------------------------------------
+            // Need to delete child/linked records that no longer exist
+            if ( $orig_dataset && !empty($orig_dataset['records']) ) {
                 // Check if old record exists and delete if necessary...
                 for ($i = 0; $i < count($orig_dataset['records']); $i++) {
-                    $o_record = $orig_dataset['records'][$i];
+                    $o_descendant_record = $orig_dataset['records'][$i];
 
                     $record_found = false;
                     // Check if record_uuid and template_uuid match - if so we're differencing
-                    for ($j = 0; $j < count($dataset['records']); $j++) {
-                        $record = $dataset['records'][$j];
+                    foreach ($dataset['records'] as $descendant_record) {
+                        if ( !isset($descendant_record['database_uuid']) )
+                            throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
+
                         // New records don't have UUIDs and need to be ignored in this check
-                        if ( isset($record['template_uuid'])
-                            && isset($record['record_uuid'])
-                            && !empty($record['record_uuid'])
-                            && $record['template_uuid'] == $o_record['template_uuid']
-                            && $record['record_uuid'] == $o_record['record_uuid']
+                        if ( isset($descendant_record['record_uuid'])
+                            && !empty($descendant_record['record_uuid'])
+                            && $descendant_record['database_uuid'] == $o_descendant_record['database_uuid']
+                            && $descendant_record['record_uuid'] == $o_descendant_record['record_uuid']
                         ) {
                             $record_found = true;
                         }
@@ -1653,19 +1679,32 @@ class APIController extends ODRCustomController
                     if (!$record_found) {
                         // The dataset submitted by the user doesn't have a record that currently
                         //  exists...
-                        /** @var DataRecord $del_record */
-                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                            array('unique_id' => $o_record['record_uuid'])
+                        $query = $em->createQuery(
+                           'SELECT dr
+                            FROM ODRAdminBundle:DataRecord dr
+                            JOIN ODRAdminBundle:DataType dt WITH dr.dataType = dt
+                            WHERE dr.unique_id = :record_uuid AND dt.unique_id = :database_uuid
+                            AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
+                        )->setParameters(
+                            array(
+                                'record_uuid' => $o_descendant_record['record_uuid'],
+                                'database_uuid' => $o_descendant_record['database_uuid'],    // ensure the user doesn't attempt to delete unrelated records
+                            )
                         );
-                        if ($del_record == null)
+                        $result = $query->getResult();
+                        if ( !isset($result[0]) )
                             throw new ODRNotFoundException('Del Datarecord');
+
+                        /** @var DataRecord $del_record */
+                        $del_record = $result[0];
+                        $descendant_datatype = $del_record->getDataType();
 
                         // ...which means the existing record needs to get deleted/unlinked
                         $changed = true;
 
                         // Need to determine whether it's a child or a linked record
                         $grandparent_datatype = $datatype->getGrandparent();
-                        $del_record_grandparent_datatype = $del_record->getDataType()->getGrandparent();
+                        $del_record_grandparent_datatype = $descendant_datatype->getGrandparent();
 
                         if ( $grandparent_datatype->getId() === $del_record_grandparent_datatype->getId() ) {
                             // $del_record is a child record, and will be deleted
@@ -1684,6 +1723,16 @@ class APIController extends ODRCustomController
                             if ( !$pm_service->canEditDatarecord($user, $datarecord) )
                                 throw new ODRForbiddenException('Not allowed to unlink the Record '.$del_record->getUniqueId());
 
+                            /** @var LinkedDataTree $ldt */
+                            $ldt = $em->getRepository('ODRAdminBundle:LinkedDataTree')->findOneBy(
+                                array(
+                                    'ancestor' => $datarecord->getId(),
+                                    'descendant' => $del_record->getId(),
+                                )
+                            );
+                            if ($ldt == null)
+                                throw new ODRNotFoundException('Datarecord Link');
+
                             // TODO - might still want to delete the record if the template_group matches?
                         }
 
@@ -1692,16 +1741,19 @@ class APIController extends ODRCustomController
                 }
             }
 
-            // Need to check for child & linked records
-            // Create child if new one added
-            // Create link if needed (possibly creating record in link)
-            // Search for record to link??
-            if ( isset($dataset['records']) ) {
+
+            // ----------------------------------------
+            // Need to check for child/linked records that don't exist yet
+            if ( !empty($dataset['records']) ) {
                 /** @var DataType[] $datatype_lookup */
                 $datatype_lookup = array();
 
-                for ($i = 0; $i < count($dataset['records']); $i++) {
-                    $descendant_record = $dataset['records'][$i];
+                // Keep track of whether this record has descendants for a given child/linked
+                //  datatype, in order to make checking the 'multiple_allowed' condition easier
+                $has_descendants = array();
+                foreach ($dataset['records'] as $descendant_record) {
+                    // Pull the identifying information for this descendant record from the array
+                    //  the user submitted
                     if ( !isset($descendant_record['database_uuid']) )
                         throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
                     $descendant_datatype_uuid = $descendant_record['database_uuid'];
@@ -1716,16 +1768,27 @@ class APIController extends ODRCustomController
 
                         $datatype_lookup[$descendant_datatype_uuid] = $dt;
                     }
+
+                    // Store that this record has at least one descendant record for this datatype
+                    if ( !isset($has_descendants[$descendant_datatype_uuid]) )
+                        $has_descendants[$descendant_datatype_uuid] = 0;
+                    $has_descendants[$descendant_datatype_uuid] += 1;
+                }
+
+                foreach ($dataset['records'] as $descendant_record) {
+                    // Due to the previous loop, don't need to check anything...
+                    $descendant_datatype_uuid = $descendant_record['database_uuid'];
                     $descendant_datatype = $datatype_lookup[$descendant_datatype_uuid];
 
+                    // Attempt to find the original version of the record the user specified
                     $record_found = false;
-                    if ( $orig_dataset && isset($orig_dataset['records']) ) {
+                    if ( $orig_dataset && !empty($orig_dataset['records']) ) {
                         // Check if record_uuid and template_uuid match - if so we're differencing
-                        for ($j = 0; $j < count($orig_dataset['records']); $j++) {
-                            $o_descendant_record = $orig_dataset['records'][$j];
-                            if ( isset($descendant_record['template_uuid'])
+                        for ($i = 0; $i < count($orig_dataset['records']); $i++) {
+                            $o_descendant_record = $orig_dataset['records'][$i];
+                            if ( isset($descendant_record['database_uuid'])
                                 && isset($descendant_record['record_uuid'])
-                                && $descendant_record['template_uuid'] == $o_descendant_record['template_uuid']
+                                && $descendant_record['database_uuid'] == $o_descendant_record['database_uuid']
                                 && $descendant_record['record_uuid'] == $o_descendant_record['record_uuid']
                             ) {
                                 // Found the expected child/linked descendant record in the submitted
@@ -1795,10 +1858,71 @@ class APIController extends ODRCustomController
                                 );
                                 if ($linked_descendant_record == null)
                                     throw new ODRNotFoundException('Datarecord '.$descendant_record['record_uuid']);
+
+
+                                // Also need to verify that the user isn't attempting to link more
+                                //  than one record into a link that only allows a single record...
+                                if ( !$datatree->getMultipleAllowed() ) {
+                                    // ...if they are, then throw an error
+                                    if ( isset($has_descendants[$descendant_datatype_uuid]) && $has_descendants[$descendant_datatype_uuid] > 1 ) {
+                                        if ( !is_null($datarecord) )
+                                            throw new ODRBadRequestException('The Record '.$datarecord->getUniqueId().' is only allowed to have a single descendant of the Database '.$descendant_datatype_uuid);
+                                        else
+                                            throw new ODRBadRequestException('Records of the Database '.$datatype->getUniqueId().' are only allowed to have single descendants of the Database '.$descendant_datatype_uuid);
+                                    }
+                                }
+
+                                // If no error thrown, then there will be a record linked
+                                if ( !isset($has_descendants[$descendant_datatype_uuid]) )
+                                    $has_descendants[$descendant_datatype_uuid] = 0;
+                                $has_descendants[$descendant_datatype_uuid] += 1;
+
+
+                                // Need to load the cached version of the datarecord that just got
+                                //  linked, since it also needs to be run through datasetDiff()...
+                                $new_linked_record = self::getRecordData(
+                                    'v4',
+                                    $descendant_record['record_uuid'],
+                                    'json',
+                                    true,    // TODO - the rest of the API stuff demands that metadata exist...
+                                    $user
+                                );
+                                $new_linked_record = json_decode($new_linked_record, true);
+
+                                // Also need to determine if the requested changes to the newly
+                                //  linked record will cause any issues
+                                self::checkUpdatePermissions(
+                                    $em,
+                                    $pm_service,
+                                    $user,
+                                    $descendant_datatype,
+                                    $descendant_record, // compare the user's requested changes...
+                                    $new_linked_record  // ...against the newly-linked record
+                                );
+
+                                // Don't need to check for $changed here...it's already true as a result
+                                //  of creating a new child/linked record
                             }
                         }
                         else {
                             // ...otherwise, this is going to be a new child/linked record
+
+                            // Also need to verify that the user isn't attempting to create more
+                            //  than one child record when only one is allowed...
+                            if ( !$datatree->getMultipleAllowed() ) {
+                                // ...if they are, then throw an error
+                                if ( isset($has_descendants[$descendant_datatype_uuid]) && $has_descendants[$descendant_datatype_uuid] > 1 ) {
+                                    if ( !is_null($datarecord) )
+                                        throw new ODRBadRequestException('The Record '.$datarecord->getUniqueId().' is only allowed to have a single descendant of the Database '.$descendant_datatype_uuid);
+                                    else
+                                        throw new ODRBadRequestException('Records of the Database '.$datatype->getUniqueId().' are only allowed to have single descendants of the Database '.$descendant_datatype_uuid);
+                                }
+                            }
+
+                            // If no error thrown, then there will be a record created
+                            if ( !isset($has_descendants[$descendant_datatype_uuid]) )
+                                $has_descendants[$descendant_datatype_uuid] = 0;
+                            $has_descendants[$descendant_datatype_uuid] += 1;
 
                             // Ensure the user can create new records in this descendant datatype
                             if ( !$pm_service->canAddDatarecord($user, $descendant_datatype) )
@@ -1836,6 +1960,7 @@ class APIController extends ODRCustomController
                     }
                 }
             }
+
 
             // ----------------------------------------
             // If we made it here, the user has permission
@@ -2329,6 +2454,7 @@ class APIController extends ODRCustomController
         unset($field['created']);
     }
 
+
     /**
      * Updates the given entity's created/updated dates, and createdBy/updatedBy values.
      *
@@ -2349,268 +2475,201 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
      * The param dataset is misnamed in this output.  This is really editing a single
      * record.  In the acase of a metadata dataset, there is only one record.  So, this
      * was using the term dataset when record is more appropriate.
      *
-     * @param array $dataset
-     * @param array $orig_dataset
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EventDispatcherInterface $event_dispatcher
+     * @param EntityCreationService $ec_service
+     * @param EntityDeletionService $ed_service
+     * @param EntityMetaModifyService $emm_service
      * @param ODRUser $user
-     * @param bool $top_level
-     * @param bool $changed
+     * @param array $dataset The array of potential changes the user wants to make to the record
+     * @param array|null $orig_dataset The current version of the record the user might be modifying
+     * @param bool $is_original_record Whether this is the top-level of recursion for datasetDiff()
+     * @param array $link_change_datatypes An array of datatypes to fire LinkStatusChange events on
+     *
      * @return array
-     * @throws \Exception
+     * @throws ODRException
      */
-    private function datasetDiff($dataset, $orig_dataset, $user, $top_level, &$changed)
+    private function datasetDiff($em, $event_dispatcher, $ec_service, $ed_service, $emm_service, $user, $dataset, $orig_dataset, $is_original_record, &$link_change_datatypes)
     {
-        // Check if radio options are added or updated
-        /*
-            {
-                "name": "geochemistry",
-                "template_radio_option_uuid": "0730d71",
-                "updated_at": "2018-09-25 16:44:54",
-                "id": 58272,
-                "selected": "1"
-            },
-        */
-
         // Check if fields are added or updated
-        $fields_updated = false;
         $radio_option_created = false;
         $tag_created = false;
 
         try {
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-            // Check Fields
-            /** @var DataRecord $data_record */
-            $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                array(
-                    'unique_id' => $dataset['record_uuid']
-                )
+            // ----------------------------------------
+            // The datarecord should always exist...checkUpdatePermissions() would've thrown an error
+            //  if it didn't
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                array('unique_id' => $dataset['record_uuid'])
             );
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+            $datarecord_meta = $datarecord->getDataRecordMeta();
+            $datatype = $datarecord->getDataType();
 
-            // Check if record public date needs updating
-            // TODO Check User or LoggedInUser is SuperAdmin
-            if($data_record && (
-                isset($dataset['public_date'])
-                || isset($dataset['created'])
-                )
-            ) {
-                if($data_record_meta = $data_record->getDataRecordMeta()) {
-                    $new_data_record_meta = clone $data_record_meta;
-                    if(isset($dataset['public_date']) && $data_record_meta->getPublicDate()->format("Y-m-d H:i:s") !== $dataset['public_date']) {
-                        $new_data_record_meta->setPublicDate(new \DateTime($dataset['public_date']));
-                        unset($dataset['public_date']);
-                    }
+            // Need to keep track of whether the user made a change to this datarecord...
+            $record_updated = false;
 
-                    if(isset($dataset['created'])) {
-                        self::setDates($new_data_record_meta, $dataset['created']);
-                        self::setDates($data_record, $dataset['created']);
-                    }
-                    else {
-                        self::setDates($new_data_record_meta, null);
-                    }
 
-                    if (
-                        !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                        && !$pm_service->canAddDatarecord($user, $data_record->getDataType())
-                    ) {
-                        throw new ODRForbiddenException();
-                    }
+            // The request may want to change the record's created/public date...
+            $public_date = null;
+            if ( isset($dataset['public_date']) )
+                $public_date = new \DateTime($dataset['public_date']);
+            $created = null;
+            if ( isset($dataset['created']) )
+                $created = new \DateTime($dataset['created']);
 
-                    // Need to persist and flush
-                    $em->remove($data_record_meta);
-                    if(isset($dataset['created'])) {
-                        unset($dataset['created']);
-                        $em->persist($data_record);
-                    }
-                    $em->persist($new_data_record_meta);
-                    $em->flush();
-                    $em->refresh($data_record);
+            // Handle a request to change the datarecord's public date...
+            if ( isset($dataset['public_date']) ) {
+                if ( $public_date->format("Y-m-d H:i:s") !== $datarecord_meta->getPublicDate()->format("Y-m-d H:i:s") ) {
+                    // The public date is different, so the record will be modified
+                    $record_updated = true;
+                    $props = array('publicDate' => $public_date);
+                    $datarecord_meta = $emm_service->updateDatarecordMeta($user, $datarecord, $props, false, $created);
 
-                    // Set metadata
-                    $fields_updated = true;
-
+                    // Updating the array version of the datarecord entry will happen later
                 }
 
+                // No longer want this entry
+                unset( $dataset['public_date'] );
+            }
+
+            // Handle a request to change the datarecord's created date...
+            if ( isset($dataset['created']) ) {
+                if ( $created->format("Y-m-d H:i:s") !== $datarecord->getCreated()->format("Y-m-d H:i:s") ) {
+                    // The created date is different, so the record will be modified
+                    $record_updated = true;
+
+                    self::setDates($datarecord, $user, $created);
+                    $em->persist($datarecord);
+
+                    self::setDates($datarecord_meta, $user, $created);
+                    $em->persist($datarecord_meta);
+
+                    $em->flush();
+                    $em->refresh($datarecord);
+                    $em->refresh($datarecord_meta);
+
+                    // Updating the array version of the datarecord entry will happen later
+                }
+
+                // No longer want this entry
+                unset( $dataset['created'] );
             }
 
 
-
-            // TODO Need to check if user can edit record
-            if (
-                !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                && !$pm_service->canEditDatarecord($user, $data_record)
-            ) {
-                throw new ODRForbiddenException();
-            }
-            if (isset($dataset['fields'])) {
-                for ($i = 0; $i < count($dataset['fields']); $i++) {
-                    $field = $dataset['fields'][$i];
-
-                    if(!isset($field['created']))
+            // ----------------------------------------
+            // Need to check every field in the datarecord for changes...
+            if ( isset($dataset['fields']) ) {
+                foreach ($dataset['fields'] as $field) {
+                    // Filling in this entry if it doesn't exist makes later logic easier
+                    if ( !isset($field['created']) )
                         $field['created'] = null;
 
-                    // Determine field type
-                    $data_field = null;
-                    if(isset($field['template_field_uuid']) && $field['template_field_uuid'] !== null) {
-                        /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                    // Load the requested datafield
+                    /** @var DataFields $datafield */
+                    $datafield = null;
+                    if ( isset($field['template_field_uuid']) && $field['template_field_uuid'] !== null ) {
+                        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'templateFieldUuid' => $field['template_field_uuid'],
-                                'dataType' => $data_record->getDataType()->getId()
+                                'dataType' => $datatype->getId()
                             )
                         );
                     }
-                    else {
-                        /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                    else if ( isset($field['field_uuid']) ) {
+                        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
                             array(
                                 'fieldUuid' => $field['field_uuid'],
-                                'dataType' => $data_record->getDataType()->getId()
+                                'dataType' => $datatype->getId()
                             )
                         );
                     }
-                    $typeclass = $data_field->getFieldType()->getTypeClass();
-                    $typename = $data_field->getFieldType()->getTypeName();
+                    if ($datafield == null)
+                        throw new ODRNotFoundException('Datafield');
 
+                    $typeclass = $datafield->getFieldType()->getTypeClass();
+                    $typename = $datafield->getFieldType()->getTypeName();
+
+                    // Need to keep track of whether the user made a change to this field...
+                    $field_updated = false;
+                    // ...and need the index of this field in the original dataset in case an
+                    //  update is made
+                    $field_index = self::findFieldIndex($orig_dataset, $datafield);
+
+
+                    // ----------------------------------------
                     // Deal with files and images here
                     if ( $typeclass === 'File' || $typeclass === 'Image' ) {
-                        if(isset($field['files']) && is_array($field['files']) && count($field['files']) > 0) {
-                            for($j = 0; $j < count($field['files']); $j++) {
-                                $file = $field['files'][$j];
-                                if(isset($file['public_date'])) {
-                                    // Calculate the Public Date
-                                    $public_date = new \DateTime('2200-01-01T00:00:00.0Z');
-                                    if(isset($file['public_date'])) {
-                                        $public_date = new \DateTime($file['public_date']);
-                                    }
+                        if ( isset($field['files']) && is_array($field['files']) && count($field['files']) > 0 ) {
+                            // $field_index is guaranteed to have a value here, since the field
+                            //  has at least one file/image
+                            $orig_field = $orig_dataset['fields'][$field_index];
 
-                                    switch( $typeclass ) {
-                                        case 'File':
-                                           /** @var File $file_obj */
-                                           $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
-                                               array(
-                                                   'unique_id' => $file['file_uuid']
-                                               )
-                                           );
-                                            if ($file_obj == null)
-                                                throw new ODRNotFoundException('File');
+                            // Update the database with the value the user submitted, if needed
+                            $changed = false;
+                            $new_field = self::updateFileImageField(
+                                $em,
+                                $emm_service,
+                                $user,
+                                $datafield,
+                                $orig_field,
+                                $field,
+                                $changed
+                            );
 
-                                            $file_meta = clone $file_obj->getFileMeta();
-                                            $file_meta->setPublicDate($public_date);
+                            // If the field got modified...
+                            if ($changed) {
+                                // ...then need to fire off an event later
+                                $field_updated = true;
 
-                                            $em->remove($file_obj->getFileMeta());
-                                            $em->persist($file_meta);
-                                            $fields_updated = true;
-
-                                            unset($file['public_date']);
-                                            $field['files'][$j] = $file;
-                                            $dataset['fields'][$i] = $field;
-
-                                            break;
-
-                                        case 'Image':
-                                            /** @var Image $image_obj */
-                                            $image_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
-                                                array(
-                                                    'unique_id' => $file['file_uuid']
-                                                )
-                                            );
-                                            if ($image_obj == null)
-                                                throw new ODRNotFoundException('File');
-
-                                            // Only act on items with image meta
-                                            if($image_meta = $image_obj->getImageMeta()) {
-                                                $new_image_meta = clone $image_meta;
-                                                $new_image_meta->setPublicDate($public_date);
-
-
-                                                $em->remove($image_meta);
-                                                $em->persist($new_image_meta);
-                                                $fields_updated = true;
-                                            }
-
-                                            // Set this for all?  How do we know if it updated the parent
-                                            $file['_file_metadata']['_public_date'] = date_format($public_date,"Y-m-d H:i:s");
-                                            unset($file['public_date']);
-                                            $field['files'][$j] = $file;
-                                            $dataset['fields'][$i] = $field;
-
-                                            break;
-                                    }
-                                }
+                                // Ensure the cached version of the datarecord is correct
+                                $orig_dataset['fields'][$field_index] = $new_field;
                             }
                         }
                     }
                     else if ( $typeclass === 'Boolean' ) {
-                        /** @var DataRecordFields $drf */
-                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                            array(
-                                'dataRecord' => $dataset['internal_id'],
-                                'dataField' => $data_field->getId()
-                            )
+                        // The original dataset isn't guaranteed to have an entry for the field
+                        $orig_field = null;
+                        if ( !is_null($field_index) )
+                            $orig_field = $orig_dataset['fields'][$field_index];
+
+                        // Update the database with the value the user submitted, if needed
+                        $changed = false;
+                        $new_field = self::updateStorageField(
+                            $em,
+                            $ec_service,
+                            $emm_service,
+                            $user,
+                            $datarecord,
+                            $datafield,
+                            $orig_field,
+                            $field,
+                            $changed
                         );
 
-                        if (!$drf) {
-                            // If drf entry doesn't exist, create new
-                            $drf = new DataRecordFields();
-                            $drf->setCreatedBy($user);
-                            self::setDates($drf, $field['created']);
-                            $drf->setDataField($data_field);
-                            $drf->setDataRecord($data_record);
-                            $em->persist($drf);
-                        }
+                        // If the field got modified...
+                        if ($changed) {
+                            // ...then need to fire off an event later
+                            $field_updated = true;
 
-                        // Lookup Boolean by DRF & Field ID
-                        /** @var Boolean $bool */
-                        $bool = $em->getRepository('ODRAdminBundle:Boolean')->findOneBy(
-                            array(
-                                'dataRecordFields' => $drf->getId()
-                            )
-                        );
-
-                        if($bool) {
-                            // check if value matches field->selected
-                            if($bool->getValue() !== $field['selected']) {
-                                // remove old entity
-                                $em->remove($bool);
-                                /** @var Boolean $new_field */
-                                $new_field = new Boolean();
-                                $new_field->setDataRecordFields($drf);
-                                $new_field->setCreatedBy($user);
-                                $new_field->setUpdatedBy($user);
-                                self::setDates($new_field, $field['created']);
-                                $new_field->setValue($field['selected']);
-                                $em->persist($new_field);
-                                $fields_updated = true;
+                            if ( !is_null($orig_field) ) {
+                                // Ensure the cached version of the datarecord is correct
+                                $orig_dataset['fields'][$field_index] = $new_field;
+                            }
+                            else {
+                                // The cached version of the datarecord didn't have an entry for this
+                                //  field, so save what self::updateStorageField() returned
+                                $orig_dataset['fields'][] = $new_field;
                             }
                         }
-                        else {
-                            /** @var Boolean $new_field */
-                            $new_field = new Boolean();
-                            $new_field->setDataRecordFields($drf);
-                            $new_field->setCreatedBy($user);
-                            $new_field->setUpdatedBy($user);
-                            self::setDates($new_field, $field['created']);
-                            $new_field->setValue($field['selected']);
-                            $em->persist($new_field);
-                            $fields_updated = true;
-                        }
-                        self::fieldMeta($field, $data_field, $new_field);
-                        $dataset['fields'][$i] = $field;
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
@@ -3644,668 +3703,500 @@ class APIController extends ODRCustomController
                                 break;
                         }
                     }
-                    else if (isset($field['value'])) {
-                        // Field is singular data field
-                        $drf = false;
-                        $field_changes = true;
-                        if ($orig_dataset) {
-                            foreach ($orig_dataset['fields'] as $o_field) {
-                                // If we find a matching field....
-                                if (isset($o_field['value']) && !is_array($o_field['value'])
-                                    && (
-                                        (
-                                            isset($o_field['template_field_uuid'])
-                                            && isset($field['template_field_uuid'])
-                                            && $o_field['template_field_uuid'] !== null
-                                            && $o_field['template_field_uuid'] == $field['template_field_uuid']
-                                        )
-                                        || (
-                                            isset($field['field_uuid']) && $o_field['field_uuid'] == $field['field_uuid']
-                                        )
-                                    )
-                                ) {
-                                    if ($o_field['value'] !== $field['value']) {
-                                        // print $o_field['template_field_uuid'] . ' ';
-                                        // print $o_field['field_uuid'] . ' ';
-                                        // print $field['field_uuid'] . ' ';
-                                        // print $data_field->getFieldUuid() . ' ';
-                                        // print $field['value'] . " ";
-                                        // print $data_field->getFieldType()->getId(); exit();
-                                        // Update value to new value (delete and enter new data)
-                                        /** @var DataRecordFields $drf */
-                                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                            array(
-                                                'dataRecord' => $dataset['internal_id'],
-                                                'dataField' => $data_field->getId()
-                                            )
-                                        );
-                                    } else {
-                                        // No changes necessary - field values match
-                                        $field_changes = false;
-                                    }
-                                }
+                    else if ( isset($field['value']) ) {
+                        // This handles all text/number/datetime fields
+
+                        // The original dataset isn't guaranteed to have an entry for the field
+                        $orig_field = null;
+                        if ( !is_null($field_index) )
+                            $orig_field = $orig_dataset['fields'][$field_index];
+
+                        // Update the database with the value the user submitted, if needed
+                        $changed = false;
+                        $new_field = self::updateStorageField(
+                            $em,
+                            $ec_service,
+                            $emm_service,
+                            $user,
+                            $datarecord,
+                            $datafield,
+                            $orig_field,
+                            $field,
+                            $changed
+                        );
+
+                        // If the field got modified...
+                        if ($changed) {
+                            // ...then need to fire off an event later
+                            $field_updated = true;
+
+                            if ( !is_null($orig_field) ) {
+                                // Ensure the cached version of the datarecord is correct
+                                $orig_dataset['fields'][$field_index] = $new_field;
+                            }
+                            else {
+                                // The cached version of the datarecord didn't have an entry for this
+                                //  field, so save what self::updateStorageField() returned
+                                $orig_dataset['fields'][] = $new_field;
                             }
                         }
-                        if ($field_changes) {
-                            // Changes are required or a field needs to be added.
-
-                            $existing_field = null;
-                            if (!$drf) {
-                                // If drf entry doesn't exist, create new
-                                $drf = new DataRecordFields();
-                                $drf->setCreatedBy($user);
-                                self::setDates($drf, $field['created']);
-                                $drf->setDataField($data_field);
-                                $drf->setDataRecord($data_record);
-                                $em->persist($drf);
-                            } else {
-                                switch ( $typeclass ) {
-                                    case 'IntegerValue':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:IntegerValue')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'LongText':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:LongText')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'LongVarchar':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:LongVarchar')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'MediumVarchar':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:MediumVarchar')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'ShortVarchar':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:ShortVarchar')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                    case 'DecimalValue':
-                                        $existing_field = $em->getRepository('ODRAdminBundle:DecimalValue')
-                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                        break;
-                                }
-
-                            }
-
-                            switch ( $typeclass ) {
-                                case 'IntegerValue':
-                                    /** @var IntegerValue $new_field */
-                                    $new_field = new IntegerValue();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                case 'LongText':
-                                    /** @var LongText $new_field */
-                                    $new_field = new LongText();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                case 'LongVarchar':
-                                    /** @var LongVarchar $new_field */
-                                    $new_field = new LongVarchar();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                case 'MediumVarchar':
-                                    /** @var MediumVarchar $new_field */
-                                    $new_field = new MediumVarchar();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                case 'ShortVarchar':
-                                    /** @var ShortVarchar $new_field */
-                                    $new_field = new ShortVarchar();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                case 'DecimalValue':
-                                    /** @var DecimalValue $new_field */
-                                    $new_field = new DecimalValue();
-                                    if ($existing_field) {
-                                        // clone and update?
-                                        $new_field = clone $existing_field;
-                                    } else {
-                                        $new_field->setDataField($data_field);
-                                        $new_field->setDataRecord($data_record);
-                                        $new_field->setDataRecordFields($drf);
-                                        $new_field->setFieldType($data_field->getFieldType());
-                                    }
-
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    self::setDates($new_field, $field['created']);
-                                    $new_field->setValue($field['value']);
-
-                                    $em->persist($new_field);
-                                    if ($existing_field) {
-                                        $em->remove($existing_field);
-                                    }
-                                    $fields_updated = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Assign the updated field back to the dataset.
-                                    $field['value'] = $new_field->getValue();
-                                    $field['id'] = $new_field->getId();
-                                    // $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                    self::fieldMeta($field, $data_field, $new_field);
-                                    $dataset['fields'][$i] = $field;
-                                    break;
-
-                                default:
-                                    break;
-                            }
+                    }
 
 
-
-                            // Check if field is "name" field for datatype
-                            /*
-                            if(
-                                $data_record->getDataType()->getNameField()->getId() == $data_field->getId()
-                                && $data_record->getDataType()->getMetadataFor() !== null
-                            ) {
-                                // This is the name field so update database name
-                                // TODO Update database name
-
-                            }
-                            */
+                    // ----------------------------------------
+                    // If this field got modified...
+                    if ($field_updated) {
+                        // ...fire off a DatafieldModified event
+                        try {
+                            $event = new DatafieldModifiedEvent($datafield, $user);
+                            $event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                         }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
+
+                        // ...need to eventually fire off a DatarecordModified event too
+                        $record_updated = true;
                     }
                 }
             }
 
 
-            // Remove deleted [related] records
+            // ----------------------------------------
+            // Need to delete child/linked records that no longer exist
             // TODO Only allow if user can delete related records
-            if ($orig_dataset && isset($orig_dataset['records'])) {
+            if ($orig_dataset && !empty($orig_dataset['records'])) {
                 // Check if old record exists and delete if necessary...
+                $deleted_records = array();
+
                 for ($i = 0; $i < count($orig_dataset['records']); $i++) {
-                    $o_record = $orig_dataset['records'][$i];
+                    $o_descendant_record = $orig_dataset['records'][$i];
 
                     $record_found = false;
                     // Check if record_uuid and template_uuid match - if so we're differencing
-                    for ($j = 0; $j < count($dataset['records']); $j++) {
-                        $record = $dataset['records'][$j];
+                    foreach ($dataset['records'] as $descendant_record) {
+                        if ( !isset($descendant_record['database_uuid']) )
+                            throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
+
                         // New records don't have UUIDs and need to be ignored in this check
-                        if (
-                            isset($record['record_uuid'])
-                            && !empty($record['record_uuid'])
-                            && $record['template_uuid'] == $o_record['template_uuid']
-                            && $record['record_uuid'] == $o_record['record_uuid']
+                        if ( isset($descendant_record['record_uuid'])
+                            && !empty($descendant_record['record_uuid'])
+                            && $descendant_record['database_uuid'] == $o_descendant_record['database_uuid']
+                            && $descendant_record['record_uuid'] == $o_descendant_record['record_uuid']
                         ) {
                             $record_found = true;
                         }
                     }
 
-                    // TODO Check here if user has permission to delete
                     if (!$record_found) {
-                        // Recursively build list of record ids
-                        $records_to_delete = [];
-                        // print var_export($o_record);exit();
-                        self::getRecordsToDelete($records_to_delete, $o_record);
+                        // The dataset submitted by the user doesn't have a record that currently
+                        //  exists...
+                        /** @var DataRecord $del_record */
+                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                            array('unique_id' => $o_descendant_record['record_uuid'])
+                        );
+                        if ($del_record == null)
+                            throw new ODRNotFoundException('Del Datarecord');
+                        $descendant_datatype = $del_record->getDataType();
 
-                        foreach($records_to_delete as $record_to_delete) {
-                            // Use delete record
-                            /** @var DataRecord $del_record */
-                            $del_record = $em->getRepository('ODRAdminBundle:DataRecord')
-                                ->findOneBy(
-                                    array(
-                                        'unique_id' => $record_to_delete
-                                    )
-                                );
+                        // ...which means the existing record needs to get deleted/unlinked
+                        $record_updated = true;
 
+                        // Need to determine whether it's a child or a linked record...the deletion
+                        //  of top-level records is done via a different API action
+                        $grandparent_datatype = $datatype->getGrandparent();
+                        $del_record_grandparent_datatype = $del_record->getDataType()->getGrandparent();
 
-                            // TODO Need to recursively delete records here....
-                            if ($del_record) {
-                                if (
-                                    !$pm_service->isDatatypeAdmin($user, $del_record->getDataType())
-                                    && !$pm_service->canDeleteDatarecord($user, $del_record->getDataType())
-                                ) {
-                                    throw new ODRForbiddenException();
-                                }
-                                $em->remove($del_record);
-                                $changed = true;
-                            }
+                        if ( $grandparent_datatype->getId() === $del_record_grandparent_datatype->getId() ) {
+                            // $del_record is a child record, and will be deleted
+                            $ed_service->deleteDatarecord(
+                                $del_record,
+                                $user,
+                                false  // want datasetDiff() to fire the DatarecordModified Event instead
+                            );
+
+                            // Don't need to recursively locate children of this child...they've
+                            //  been deleted by EntityDeletionService::deleteDatarecord()
                         }
-                        // Commit Deletions
-                        $em->flush();
+                        else {
+                            // $del_record is a linked record...going to unlink instead of deleting it
+                            // TODO - might still want to delete the record if the template_group matches?
+                            /** @var LinkedDataTree $ldt */
+                            $ldt = $em->getRepository('ODRAdminBundle:LinkedDataTree')->findOneBy(
+                                array(
+                                    'ancestor' => $datarecord->getId(),
+                                    'descendant' => $del_record->getId(),
+                                )
+                            );
+                            if ($ldt == null)
+                                throw new ODRNotFoundException('Datarecord Link');
+
+                            $ldt->setDeletedBy($user);
+                            $ldt->setDeletedAt(new \DateTime());
+                            $em->persist($ldt);
+                            $em->flush();
+
+                            // LinkStatusChange events need the grandparent datarecord (which we have
+                            //  due to recursion), and the datatype of the datarecord that got
+                            //  linked/unliked to...so save it for later
+                            $link_change_datatypes[ $descendant_datatype->getId() ] = 1;
+                        }
+
+                        // Don't want to leave this deleted record or its children in the cached
+                        //  json array...but can't unset it right this moment because it'll screw
+                        //  up the for loop
+                        $deleted_records[$i] = 1;
                     }
+                }
+
+                // If at least one record was deleted...
+                if ( !empty($deleted_records) ) {
+                    // ...then redo the array of descendant records so that the keys are all
+                    //  contiguous, ignoring the records that got deleted
+                    $tmp = array();
+                    foreach ($orig_dataset['records'] as $num => $dr) {
+                        if ( !isset($deleted_records[$num]) )
+                            $tmp[] = $dr;
+                    }
+                    $orig_dataset['records'] = $tmp;
                 }
             }
 
-            // Need to check for child & linked records
-            // Create child if new one added
-            // Create link if needed (possibly creating record in link)
-            // Search for record to link??
-            if (isset($dataset['records'])) {
-                for ($i = 0; $i < count($dataset['records']); $i++) {
-                    $record = $dataset['records'][$i];
 
+            // ----------------------------------------
+            // Need to check for child/linked records that don't exist yet
+            if ( !empty($dataset['records']) ) {
+                /** @var DataType[] $datatype_lookup */
+                $datatype_lookup = array();
+
+                // self::checkUpdatePermissions() already checked whether the 'multiple_allowed'
+                //  property will be followed...don't need to do it again
+
+                foreach ($dataset['records'] as $descendant_record) {
+                    // Pull the identifying information for this descendant record from the array
+                    //  the user submitted
+                    if ( !isset($descendant_record['database_uuid']) )
+                        throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
+                    $descendant_datatype_uuid = $descendant_record['database_uuid'];
+
+                    if ( !isset($datatype_lookup[$descendant_datatype_uuid]) ) {
+                        /** @var DataType $dt */
+                        $dt = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                            array('unique_id' => $descendant_datatype_uuid)
+                        );
+                        if ($dt == null)
+                            throw new ODRNotFoundException('Datatype');
+
+                        $datatype_lookup[$descendant_datatype_uuid] = $dt;
+                    }
+                    $descendant_datatype = $datatype_lookup[$descendant_datatype_uuid];
+
+                    // Attempt to find the original version of the record the user specified
                     $record_found = false;
-                    if ($orig_dataset && isset($orig_dataset['records'])) {
+                    if ( $orig_dataset && isset($orig_dataset['records']) ) {
                         // Check if record_uuid and template_uuid match - if so we're differencing
-                        for ($j = 0; $j < count($orig_dataset['records']); $j++) {
-                            $o_record = $orig_dataset['records'][$j];
-                            if (
-                                isset($record['record_uuid'])
-                                && (
-                                    $record['template_uuid'] == $o_record['template_uuid']
-                                    && $record['record_uuid'] == $o_record['record_uuid']
-                                )
+                        for ($i = 0; $i < count($orig_dataset['records']); $i++) {
+                            $o_descendant_record = $orig_dataset['records'][$i];
+                            if ( isset($descendant_record['database_uuid'])
+                                && isset($descendant_record['record_uuid'])
+                                && $descendant_record['database_uuid'] == $o_descendant_record['database_uuid']
+                                && $descendant_record['record_uuid'] == $o_descendant_record['record_uuid']
                             ) {
+                                // Found the expected child/linked descendant record in the submitted
+                                //  dataset...
                                 $record_found = true;
-                                // Check for differences
-                                // Permissions will be implicit here
-                                $dataset['records'][$i] = self::datasetDiff($record, $o_record, $user, false, $changed);
+
+                                // Ensure that this child/linked datarecord is up to date
+                                $new_record = self::datasetDiff(
+                                    $em,
+                                    $event_dispatcher,
+                                    $ec_service,
+                                    $ed_service,
+                                    $emm_service,
+                                    $user,
+                                    $descendant_record,   // compare the user's requested changes...
+                                    $o_descendant_record, // ...against the existing record
+                                    false,                // this next call is no longer top-level
+                                    $link_change_datatypes
+                                );
+
+                                // Save any modifications of the datarecord to the cached version
+                                $orig_dataset['records'][$i] = $new_record;
                             }
                         }
                     }
-                    if (!$record_found) {
 
-                        /** @var DataType $record_data_type */
-                        $record_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                            array(
-                                'unique_id' => $record['database_uuid']
-                            )
-                        );
+                    if ( !$record_found ) {
+                        // User submitted a child/linked record that doesn't exist in the database...
+                        $record_updated = true;
 
-                        if (
-                            !$pm_service->isDatatypeAdmin($user, $record_data_type)
-                            && !$pm_service->canAddDatarecord($user, $record_data_type)
-                        ) {
-                            throw new ODRForbiddenException();
-                        }
+                        // The user might have specified a create date...
+                        $descendant_created = null;
+                        if ( isset($descendant_record['created']) )
+                            $descendant_created = new \DateTime($descendant_record['created']);
+                        // ...and/or a public_date
+                        $descendant_public_date = null;
+                        if ( isset($descendant_record['public_date']) )
+                            $descendant_public_date = new \DateTime($descendant_record['public_date']);
 
-                        // Determine if datatype is a link
+                        // Determine if the descendant datatype is a child or a link
                         $is_link = false;
                         /** @var DataTree $datatree */
                         $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
                             array(
-                                'ancestor' => $data_record->getDataType()->getId(),
-                                'descendant' => $record_data_type->getId()
+                                'ancestor' => $datatype->getId(),
+                                'descendant' => $descendant_datatype->getId()
                             )
                         );
                         if ($datatree == null)
                             throw new ODRNotFoundException('Datatree');
-
-
-                        if ($datatree->getIsLink()) {
+                        if ($datatree->getIsLink())
                             $is_link = true;
-                        }
 
-                        // If the record has a record_uuid, we just need to make the link
-                        if($is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
-                            print 'A LINK HAS BEEN ADDED';
-                            /** @var DataRecord $linked_data_record */
-                            $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+
+                        // If a record uuid was specified...
+                        if ( isset($descendant_record['record_uuid']) && strlen($descendant_record['record_uuid']) > 0) {
+                            // ...then the descendant datatype will be a link, and the descendant
+                            //  datarecord will already exist
+                            /** @var DataRecord $linked_descendant_record */
+                            $linked_descendant_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                                 array(
-                                    'unique_id' => $record['record_uuid']
+                                    'unique_id' => $descendant_record['record_uuid'],
+                                    'dataType' => $descendant_datatype->getId(),
                                 )
                             );
+                            if ($linked_descendant_record == null)
+                                throw new ODRNotFoundException('Datarecord '.$descendant_record['record_uuid']);
 
-                            if (is_null($linked_data_record))
-                                throw new ODRNotFoundException('DataRecord');
+                            // Create a link between the current datarecord and its descendant
+                            $ec_service->createDatarecordLink(
+                                $user,
+                                $datarecord,
+                                $linked_descendant_record,
+                                $descendant_created    // Create the link on this date
+                            );
 
-                            /** @var EntityCreationService $ec_service */
-                            $ec_service = $this->container->get('odr.entity_creation_service');
-                            $ec_service->createDatarecordLink($user, $data_record, $linked_data_record);
+                            // LinkStatusChange events need the grandparent datarecord (which we have
+                            //  due to recursion), and the datatype of the datarecord that got
+                            //  linked/unliked to...so save it for later
+                            $link_change_datatypes[ $descendant_datatype->getId() ] = 1;
 
-                            // TODO - Should we allow changes to the record here - not practical I think
-                            $dataset['records'][$i] = $record;
+                            // Need to load the cached version of the datarecord that just got
+                            //  linked, since it also needs to be run through datasetDiff()...
+                            $new_linked_record = self::getRecordData(
+                                'v4',
+                                $descendant_record['record_uuid'],
+                                'json',
+                                true,    // TODO - the rest of the API stuff demands that metadata exist...
+                                $user
+                            );
+                            $new_linked_record = json_decode($new_linked_record, true);
 
-                            // TODO - need to clear the correct cache entries
+                            // Update the newly linked record with datasetDiff()
+                            $new_linked_record = self::datasetDiff(
+                                $em,
+                                $event_dispatcher,
+                                $ec_service,
+                                $ed_service,
+                                $emm_service,
+                                $user,
+                                $descendant_record,
+                                $new_linked_record,
+                                false,                // this next call is no longer top-level
+                                $link_change_datatypes
+                            );
 
+                            // Save any changes made to the array
+                            $orig_dataset['records'][] = $new_linked_record;
                         }
-                        else if(!$is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
-                            throw new ODRBadRequestException('New child records (non-linked) can not have pre-existing UUIDs.');
-                        } else {
-                            /** @var EntityCreationService $ec_service */
-                            $ec_service = $this->container->get('odr.entity_creation_service');
-                            $new_record = $ec_service->createDatarecord($user, $record_data_type, true, false);
-                            $new_record_meta = $new_record->getDataRecordMeta();
+                        else {
+                            // When a record_uuid isn't specified, create a new datarecord
+                            $new_descendant_datarecord = $ec_service->createDatarecord(
+                                $user,
+                                $descendant_datatype,
+                                true,    // don't flush
+                                true,    // might as well select default radio options...
+                                $descendant_created    // Create the record on this date
+                            );
 
-                            // Don't want this to remain true
-                            $new_record->setProvisioned(false);
-
-                            if ( isset($record['created']) ) {
-                                // The API call specified the record was created at a specific
-                                //  time in the past, so ODR needs to store that
-                                $new_record->setCreated(new \DateTime($record['created']));
-                                $new_record->setUpdated(new \DateTime($record['created']));
-                                $new_record_meta->setCreated(new \DateTime($record['created']));
-                                $new_record_meta->setUpdated(new \DateTime($record['created']));
+                            // If the user specified a public date, then set that
+                            if ( !is_null($descendant_public_date) ) {
+                                $new_dr_meta = $new_descendant_datarecord->getDataRecordMeta();
+                                $new_dr_meta->setPublicDate($descendant_public_date);
+                                $em->persist($new_dr_meta);
                             }
 
-                            if ( isset($record['public_date']) ) {
-                                // The API call specified when the record was changed to public, so
-                                //  ODR needs to also store that
-                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
-                            }
-
+                            // If the API call is creating a child record...
                             if ( !$is_link ) {
-                                // This API call could be creating a child record...ensure its
-                                //  parents are properly set
-                                $new_record->setParent($data_record);
-                                $new_record->setGrandparent($data_record->getGrandparent());
-                            }
-
-
-
-
-//                            // TODO - this should be using entitycreationservice
-//                            /** @var UUIDService $uuid_service */
-//                            $uuid_service = $this->container->get('odr.uuid_service');
-//
-//                            // TODO Check if user can create record in DataType
-//                            /** @var DataRecord $new_record */
-//                            $new_record = new DataRecord();
-//                            $new_record->setDataType($record_data_type);
-//                            if (isset($record['created'])) {
-//                                $new_record->setCreated(new \DateTime($record['created']));
-//                                $new_record->setUpdated(new \DateTime($record['created']));
-//                            } else {
-//                                $new_record->setCreated(new \DateTime());
-//                                $new_record->setUpdated(new \DateTime());
-//                            }
-//                            $new_record->setCreatedBy($user);
-//                            $new_record->setUpdatedBy($user);
-//                            $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
-//                            $new_record->setProvisioned(0);
-//
-//                            if ($is_link) {
-//                                $new_record->setParent($new_record);
-//                                $new_record->setGrandparent($new_record);
-//                            } else {
-//                                $new_record->setParent($data_record);
-//                                $new_record->setGrandparent($data_record->getGrandparent());
-//                            }
-//
-//                            /** @var DataRecordMeta $new_record_meta */
-//                            $new_record_meta = new DataRecordMeta();
-//                            $new_record_meta->setCreatedBy($user);
-//                            $new_record_meta->setUpdatedBy($user);
-//                            if (isset($record['created'])) {
-//                                $new_record_meta->setCreated(new \DateTime($record['created']));
-//                                $new_record_meta->setUpdated(new \DateTime($record['created']));
-//                            } else {
-//                                $new_record_meta->setCreated(new \DateTime());
-//                                $new_record_meta->setUpdated(new \DateTime());
-//                            }
-//                            $new_record_meta->setDataRecord($new_record);
-//                            // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
-//                            if (isset($record['public_date'])) {
-//                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
-//                            } else {
-//                                $new_record_meta->setPublicDate(new \DateTime());
-//                            }
-
-                            // Need to persist and flush
-                            $em->persist($new_record);
-                            $em->persist($new_record_meta);
-                            $em->flush();
-                            $em->refresh($new_record);
-
-                            if ( $is_link ) {
-                                $ec_service->createDatarecordLink($user, $data_record, $new_record);
-
-                                // TODO - need to clear the correct cache entries
+                                // ...ensure the new record's parents are properly set
+                                $new_descendant_datarecord->setParent($datarecord);
+                                $new_descendant_datarecord->setGrandparent($datarecord->getGrandparent());
                             }
 
                             // This is wrapped in a try/catch block because any uncaught exceptions will abort
                             //  creation of the new datarecord...
                             try {
-                                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                                /** @var EventDispatcherInterface $event_dispatcher */
-                                $dispatcher = $this->get('event_dispatcher');
-                                $event = new DatarecordCreatedEvent($new_record, $user);
-                                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                                $event = new DatarecordCreatedEvent($new_descendant_datarecord, $user);
+                                $event_dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                             }
                             catch (\Exception $e) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
-                                //  event.  In this case, a datarecord gets created, but the rest of the values
-                                //  aren't saved and the provisioned flag never gets changed to "false"...leaving
-                                //  the datarecord in a state that the user can't view/edit
+                                //  event
 //                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                                    throw $e;
                             }
 
-                            // Populate the UUID of the newly added record
-                            $record['record_uuid'] = $new_record->getUniqueId();
-                            $record['internal_id'] = $new_record->getId();
-                            $record['updated_at'] = $new_record->getUpdated()->format('Y-m-d H:i:s');
-                            $record['created_at'] = $new_record->getCreated()->format('Y-m-d H:i:s');
-                            if(!isset($record['database_uuid'])) {
-                                $record['database_uuid'] = $record_data_type->getUniqueId();
+                            // New datarecord is ready...persist and flush
+                            $new_descendant_datarecord->setProvisioned(false);
+                            $em->persist($new_descendant_datarecord);
+                            $em->flush();
+
+                            // If this is a link...
+                            if ( $is_link ) {
+                                // ...then create a link between the current record and the new one
+                                $ec_service->createDatarecordLink(
+                                    $user,
+                                    $datarecord,
+                                    $new_descendant_datarecord,
+                                    $descendant_created    // Create the link on this date
+                                );
+
+                                // LinkStatusChange events need the grandparent datarecord (which we
+                                //  have due to recursion), and the datatype of the datarecord that
+                                //  got linked/unliked to...so save it for later
+                                $link_change_datatypes[ $descendant_datatype->getId() ] = 1;
                             }
 
-                            // Difference with null
-                            $null_record = false;
-                            $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, false, $changed);
+
+                            // ----------------------------------------
+                            // Need to fill in this entry in the user's submitted array, otherwise
+                            //  the next level of datasetDiff() will choke
+                            $descendant_record['record_uuid'] = $new_descendant_datarecord->getUniqueId();
+
+                            // Create a block of json data for the new datarecord
+                            $new_record = array(
+                                'database_uuid' => $descendant_datatype->getUniqueId(),
+                                'internal_id' => $new_descendant_datarecord->getId(),
+                                'record_name' => $new_descendant_datarecord->getId(),    // records without namefield values use the id
+                                'record_uuid' => $new_descendant_datarecord->getUniqueId(),
+
+                                '_record_metadata' => array(
+                                    '_create_date' => $new_descendant_datarecord->getCreated()->format("Y-m-d H:i:s"),
+                                    '_update_date' => $new_descendant_datarecord->getUpdated()->format("Y-m-d H:i:s"),
+                                    '_create_auth' => $new_descendant_datarecord->getCreatedBy()->getUserString(),
+                                    '_public_date' => $new_descendant_datarecord->getPublicDate()->format("Y-m-d H:i:s"),
+                                ),
+                                'fields' => array(),
+                                'records' => array(),
+                            );
+                            if ( !is_null($descendant_datatype->getMasterDataType()) )
+                                $new_record['template_uuid'] = $descendant_datatype->getMasterDataType()->getUniqueId();
+
+                            // Ensure the new child/linked record's contents are up to date
+                            $new_record = self::datasetDiff(
+                                $em,
+                                $event_dispatcher,
+                                $ec_service,
+                                $ed_service,
+                                $emm_service,
+                                $user,
+                                $descendant_record,
+                                $new_record, // this is a new record, so it'll only have minimal entries
+                                false,                // this next call is no longer top-level
+                                $link_change_datatypes
+                            );
+
+                            // Save the modified data back in the array
+                            $orig_dataset['records'][] = $new_record;
                         }
-
-
-                        // Mark Changed
-                        $changed = true;
-
-
                     }
                 }
             }
 
-            if ($fields_updated ||
-                ($top_level && $changed)
-            ) {
-                // Mark this datarecord as updated
-                if(isset($record['created'])) {
-                    $data_record->setUpdated(new \DateTime($record['created']));
+
+            // ----------------------------------------
+            // If this is the top-level record...
+            if ( $is_original_record ) {
+                // ...and something got linked
+                if ( !empty($link_change_datatypes) ) {
+                    $link_change_datatypes = array_keys($link_change_datatypes);
+                    $query = $em->createQuery(
+                       'SELECT dt
+                        FROM ODRAdminBundle:DataType dt
+                        WHERE dt.id IN (:datatypes)'
+                    )->setParameters( array('datatypes' => $link_change_datatypes) );
+                    $results = $query->getResult();
+
+                    // Need to fire off one event per descendant datatype that had a record linked/unliked
+                    foreach ($results as $dt) {
+                        /** @var DataType $dt */
+                        try {
+                            $event = new DatarecordLinkStatusChangedEvent(array($datarecord->getId()), $dt, $user);
+                            $event_dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
+                    }
+
+                    // Also should update the record
+                    $record_updated = true;
                 }
-                else {
-                    $data_record->setUpdated(new \DateTime());
-                }
-                $data_record->setUpdatedBy($user);
+            }
 
-                // Need to set changed for higher levels
-                $changed = true;
-
-                $em->flush();
-                $em->refresh($data_record);
-
-                $dataset['_record_metadata']['_public_date'] = $data_record->getDataRecordMeta()->getPublicDate()->format('Y-m-d H:i:s');
-                $dataset['_record_metadata']['_create_auth'] = $data_record->getCreatedBy()->getEmailCanonical();
-                $dataset['_record_metadata']['_create_date'] = $data_record->getCreated()->format('Y-m-d H:i:s');
-                $dataset['_record_metadata']['_update_date'] = $data_record->getDataRecordMeta()->getUpdated()->format('Y-m-d H:i:s');
-
-                // TODO - does this need to distinguish between a DatarecordPublicStatusChanged event and a DatarecordModified event?
+            // Fire off another event if this datarecord got modified...
+            if ( $record_updated ) {
+                // NOTE - need to fire off these events due to search caching...the setUpdated()
+                //  calls "bubbling up" from child records is somewhat less than ideal, but currently
+                //  don't seem bad enough to modify the event to stop...
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
-                    $event = new DatarecordModifiedEvent($data_record, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    // At the moment, there's no need to distinguish between a DatarecordModified
+                    //  and a DatarecordPublicStatusChanged event...they currently trigger the same
+                    //  cache rebuilds
+                    $event = new DatarecordModifiedEvent($datarecord, $user);
+                    $event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
+
+                // Update the record's metadata since something changed
+                $em->refresh($datarecord);
+                $orig_dataset['_record_metadata'] = array(
+                    '_create_date' => $datarecord->getCreated()->format("Y-m-d H:i:s"),
+                    '_update_date' => $datarecord->getUpdated()->format("Y-m-d H:i:s"),
+                    '_create_auth' => $datarecord->getCreatedBy()->getUserString(),
+                    '_public_date' => $datarecord->getPublicDate()->format("Y-m-d H:i:s"),
+                );
             }
 
             if ( $radio_option_created || $tag_created ) {
                 // Mark the new child datatype's parent as updated
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
-                    $event = new DatatypeModifiedEvent($data_record->getDataType(), $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $event = new DatatypeModifiedEvent($datatype, $user);
+                    $event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
             }
 
-            // Check Related datatypes
-            return $dataset;
+
+            // ----------------------------------------
+            // Return the current array version of this record (including updates)
+            return $orig_dataset;
         }
         catch (\Exception $e) {
             $source = 0x8c60259a;
@@ -4315,6 +4206,264 @@ class APIController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
+
+
+    /**
+     * Locates and returns the index of the given datafield in $orig_dataset, so that $orig_dataset
+     * can be updated with any changes later on
+     *
+     * @param array $orig_dataset
+     * @param DataFields $datafield
+     * @return int|null
+     */
+    private function findFieldIndex($orig_dataset, $datafield)
+    {
+        // If this datarecord has no data in any of its fields, then this entry will not exist
+        if ( empty($orig_dataset['fields']) )
+            return null;
+
+        for ($i = 0; $i < count($orig_dataset['fields']); $i++) {
+            // Attempt to find the datafield by its field_uuid...
+            $field = $orig_dataset['fields'][$i];
+            if ($datafield->getFieldUuid() === $field['field_uuid'])
+                return $i;
+        }
+
+        // ...if no matching field was found, then have to return null
+        return null;
+    }
+
+
+    /**
+     * Saves any modifications the user wants to make to this file/image field, and returns an
+     * updated array entry to be saved back in the cache.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EntityMetaModifyService $emm_service
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param array $orig_field The currently cached version of the field's data
+     * @param array $field The potential modification the user wants to make this field
+     * @param bool $changed Returns whether a changed was made
+     *
+     * @return array The updated version of the currently cached field's data
+     */
+    private function updateFileImageField($em, $emm_service, $user, $datafield, $orig_field, $field, &$changed)
+    {
+        // Going to need these
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        foreach ($field['files'] as $file) {
+            if ( isset($file['public_date']) ) {
+                // Going to ensure this file/image has this public date...
+                $public_date = new \DateTime($file['public_date']);
+
+                // Because of how the cached array is structured, any changes made to an image need
+                //  to also be made to all of its resized children... TODO - remove metadata from resized images in json export?
+                $all_images = null;
+
+                // Load the file/image the given uuid is referring to
+                $obj = null;
+                if ($typeclass === 'File') {
+                    /** @var File $obj */
+                    $obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                        array('unique_id' => $file['file_uuid'])
+                    );
+                }
+                else {
+                    /** @var Image $obj */
+                    $obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                        array('unique_id' => $file['file_uuid'])
+                    );
+
+                    // Only the original image has metadata, so use the original even if the user
+                    //  specified a resized image
+                    if ( !is_null($obj->getParent()) )
+                        $obj = $obj->getParent();
+
+                    // Grab all children of the original image...their cached array entries need
+                    //  to be modified too
+                    /** @var Image[] $all_images */
+                    $all_images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+                        array('parent' => $obj->getId())
+                    );
+                    $all_images[] = $obj;
+                }
+                /** @var File|Image $obj */
+
+                // If the public date has changed...
+                if ($public_date->format("Y-m-d H:i:s") !== $obj->getPublicDate()->format("Y-m-d H:i:s") ) {
+                    // ...then the database entity needs to be updated
+                    $changed = true;
+                    $props = array('publicDate' => $public_date);
+
+                    if ($typeclass === 'File') {
+                        // Make the change...
+                        $emm_service->updateFileMeta($user, $obj, $props);
+
+                        // ...then find the file in $orig_field that this entry is referring to, so
+                        //  its array entry can be updated with the new public date
+                        for ($i = 0; $i < count($orig_field['files']); $i++) {
+                            $orig_file = $orig_field['files'][$i];
+                            if ($orig_file['file_uuid'] === $obj->getUniqueId()) {
+                                $orig_field['files'][$i]['_file_metadata']['_public_date'] = $public_date->format("Y-m-d H:i:s");
+                                break;
+                            }
+                        }
+
+                        if ( !$obj->isPublic() ) {
+                            // If the file is no longer public, then need to delete the decrypted
+                            //  version of the file, if it exists
+                            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+                            $filename = 'File_'.$obj->getId().'.'.$obj->getExt();
+                            $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+                            if ( file_exists($absolute_path) )
+                                unlink($absolute_path);
+                        }
+                    }
+                    else {
+                        // Make the change...
+                        $emm_service->updateImageMeta($user, $obj, $props);
+
+                        // ...then find all images in $orig_field that are related to this entry
+                        //  so their array entries can be updated with the new public date
+                        foreach ($all_images as $img) {
+                            for ($i = 0; $i < count($orig_field['files']); $i++) {
+                                $orig_img = $orig_field['files'][$i];
+                                if ($orig_img['file_uuid'] === $img->getUniqueId()) {
+                                    $orig_field['files'][$i]['_file_metadata']['_public_date'] = $public_date->format("Y-m-d H:i:s");
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ( !$obj->isPublic() ) {
+                            // If the image is no longer public, then need to delete the decrypted
+                            //  version of the image and all of its children, if any exist
+                            foreach ($all_images as $img) {
+                                $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
+                                $filename = 'Image_'.$img->getId().'.'.$img->getExt();
+                                $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+                                if ( file_exists($absolute_path) )
+                                    unlink($absolute_path);
+                            }
+                        }
+                    }
+                }
+
+                // TODO - change the display order of images?
+            }
+        }
+
+        return $orig_field;
+    }
+
+
+    /**
+     * Saves any modifications the user wants to make to this text/number/date field, and returns
+     * an updated array entry to be saved back in the cache.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EntityCreationService $ec_service
+     * @param EntityMetaModifyService $emm_service
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param DataFields $datafield
+     * @param array $orig_field The currently cached version of the field's data
+     * @param array $field The potential modification the user wants to make this field
+     * @param bool $changed Returns whether a changed was made
+     *
+     * @return array The updated version of the currently cached field's data
+     */
+    private function updateStorageField($em, $ec_service, $emm_service, $user, $datarecord, $datafield, $orig_field, $field, &$changed)
+    {
+        $created = null;
+        if ( isset($field['created']) )
+            $created = new \DateTime($field['created']);
+
+        $key = 'value';
+        if ($datafield->getFieldType()->getTypeClass() === 'Boolean')
+            $key = 'selected';
+
+        // Because the user could submit a blank value, and we would prefer for ODR to have to
+        //  create storage entities just to store a blank value...
+        $desired_value = $field[$key];
+
+        // ...need to attempt to load the storage entity first
+        /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+            array(
+                'dataRecord' => $datarecord->getId(),
+                'dataField' => $datafield->getId()
+            )
+        );
+
+        if ( is_null($storage_entity) && $desired_value !== '' ) {
+            // If the storage entity does not exist and the user doesn't want a blank value in it,
+            //  then create the entity with the desired value
+            $changed = true;
+            $storage_entity = $ec_service->createStorageEntity(
+                $user,
+                $datarecord,
+                $datafield,
+                $field[$key], // use this value when creating the entity
+                true,         // always fire events
+                $created      // use this date when creating the entity
+            );
+
+            // Most likely, the original array version doesn't have any data for this field, so
+            //  construct and return the relevant data
+            $new_field = array(
+                'id' => $datafield->getId(),    // TODO - can this get renamed?
+                'field_name' => $datafield->getFieldName(),
+                'field_uuid' => $datafield->getFieldUuid(),
+                'template_field_uuid' => $datafield->getTemplateFieldUuid(),
+
+                $key => $storage_entity->getValue(),
+
+                '_field_metadata' => array(
+                    '_public_date' => $datafield->getPublicDate()->format("Y-m-d H:i:s"),
+                    '_create_date' => $storage_entity->getCreated()->format("Y-m-d H:i:s"),
+                    '_update_date' => $storage_entity->getUpdated()->format("Y-m-d H:i:s"),
+                    '_create_auth' => $storage_entity->getCreatedBy()->getUserString(),
+                )
+            );
+
+            return $new_field;
+        }
+        else if ( !is_null($storage_entity) && $storage_entity->getValue() != $desired_value ) {
+            // If the storage entity exists and its value is different than what the user wants,
+            //  then update the entity to have the desired value
+            $changed = true;
+            $props = array('value' => $field[$key]);
+
+            $storage_entity = $emm_service->updateStorageEntity(
+                $user,
+                $storage_entity,
+                $props,
+                false,   // do not delay flush
+                true,    // always fire events
+                $created // make the database think the change happened on this date
+            );
+
+            // The original array version should exist for this field, so only need to update a
+            //  few of its entries
+            $orig_field[$key] = $storage_entity->getValue();
+            $orig_field['_field_metadata']['_create_date'] = $storage_entity->getCreated()->format("Y-m-d H:i:s");
+            $orig_field['_field_metadata']['_update_date'] = $storage_entity->getUpdated()->format("Y-m-d H:i:s");
+            $orig_field['_field_metadata']['_create_auth'] = $storage_entity->getCreatedBy()->getUserString();
+
+            return $orig_field;
+        }
+        else {
+            // No change made...don't need to do anything
+            return $orig_field;
+        }
+    }
+
 
     /**
      * @param array $records_to_delete
@@ -4344,16 +4493,16 @@ class APIController extends ODRCustomController
             // Extract the submitted data from the POST request
             $content = $request->getContent();
             if ( empty($content) )
-                throw new ODRBadRequestException('No dataset data to update.');
+                throw new ODRBadRequestException('No POST data');
             $content = json_decode($content, true); // 2nd param to get as array
 
             // This parameter is required...
             if ( !isset($content['dataset']) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('missing dataset parameter');
             $dataset = $content['dataset'];
             // ...as is the uuid of the record to update
             if ( !isset($dataset['record_uuid']) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('missing record_uuid parameter');
             $record_uuid = $dataset['record_uuid'];
 
             // This API call allows the user to "act as" somebody else in certain situations
@@ -4364,9 +4513,19 @@ class APIController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $event_dispatcher = $this->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -4424,10 +4583,25 @@ class APIController extends ODRCustomController
             // If the user has permissions to make all the changes they're requesting...
             $response = null;
             if ( self::checkUpdatePermissions($em, $pm_service, $user, $datatype, $dataset, $orig_dataset) ) {
-                throw new ODRNotImplementedException('do not continue');
+//                throw new ODRNotImplementedException('do not continue');
+
+                // The top-level of recursion with datasetDiff() may need to fire off LinkStatusChange
+                //  events...
+                $link_change_datatypes = array();
 
                 // ...then update the record with the requested changes
-                $dataset = self::datasetDiff($dataset, $orig_dataset, $user, true);
+                $dataset = self::datasetDiff(
+                    $em,
+                    $event_dispatcher,
+                    $ec_service,
+                    $ed_service,
+                    $emm_service,
+                    $user,
+                    $dataset,
+                    $orig_dataset,
+                    true,                // this is the initial call to datasetDiff()
+                    $link_change_datatypes
+                );
 
                 // Save any changes made to the record
                 $cache_service->set('json_record_'.$record_uuid, json_encode($dataset));
@@ -5880,7 +6054,7 @@ class APIController extends ODRCustomController
                 $version,
                 array($datarecord_id),
                 $format,
-                $display_metadata,
+                true,    // TODO - the rest of the API stuff demands that metadata exist...
                 $user,
                 $this->container->getParameter('site_baseurl'),
                 0

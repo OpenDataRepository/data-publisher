@@ -2154,10 +2154,8 @@ class EntityCreationService
                 break;
 
             // Both of these use null as their default value
-            case 'DecimalValue':
-                $default_value = null;
-                break;
             case 'IntegerValue':
+            case 'DecimalValue':
                 $default_value = null;
                 break;
 
@@ -2174,7 +2172,7 @@ class EntityCreationService
             case 'Tag':
             case 'Markdown':
             default:
-                throw new \Exception('ODR_addStorageEntity() called on invalid fieldtype "'.$typeclass.'"');
+                throw new \Exception('createStorageEntity() called on invalid fieldtype "'.$typeclass.'"');
                 break;
         }
 
@@ -2246,25 +2244,20 @@ class EntityCreationService
 
                 // Now that the storage entity is created, release the lock on it
                 $lockHandler->release();
-            }
-        }
 
-        if ( !is_null($initial_value) && $fire_event ) {
-            // ----------------------------------------
-            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-            //  event subscribers will prevent file encryption otherwise...
-            try {
-                $event = new PostUpdateEvent($storage_entity, $user);
-                $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+                // Only want to fire this event when the storage entity gets created
+                if ($fire_event) {
+                    try {
+                        $event = new PostUpdateEvent($storage_entity, $user);
+                        $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
 
-                // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
-            }
-            catch (\Exception $e) {
-                // ...the event stuff is likely going to "disappear" any error it encounters, but
-                //  might as well rethrow anything caught here since there shouldn't be a critical
-                //  process downstream anyways
-//                if ( $this->env === 'dev' )
-//                    throw $e;
+                        // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
+                    }
+                    catch (\Exception $e) {
+//                        if ( $this->env === 'dev' )
+//                            throw $e;
+                    }
+                }
             }
         }
 

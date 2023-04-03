@@ -556,10 +556,11 @@ class EntityDeletionService
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
+     * @param bool $fire_datarecord_modified_event The API typically doesn't want to fire this event...
      *
      * @throws \Exception
      */
-    public function deleteDatarecord($datarecord, $user)
+    public function deleteDatarecord($datarecord, $user, $fire_datarecord_modified_event = true)
     {
         $conn = null;
 
@@ -755,15 +756,17 @@ class EntityDeletionService
             else {
                 // ...if not, then mark this now-deleted datarecord's parent (and all its parents)
                 //  as updated
-                try {
-                    $event = new DatarecordModifiedEvent($parent_datarecord, $user);
-                    $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
-                }
-                catch (\Exception $e) {
-                    // ...don't want to rethrow the error since it'll interrupt everything after this
-                    //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                        throw $e;
+                if ( $fire_datarecord_modified_event ) {
+                    try {
+                        $event = new DatarecordModifiedEvent($parent_datarecord, $user);
+                        $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
                 }
             }
 
