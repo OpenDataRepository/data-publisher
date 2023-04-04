@@ -21,10 +21,23 @@
     </php>
 
     <testsuites>
+        <!-- Due to different testsuites requiring different databases, this one doesn't work
         <testsuite name="ODR Test Suite">
             <directory>../src/*/*Bundle/Tests</directory>
             <directory>../src/*/Bundle/*Bundle/Tests</directory>
             <directory>../src/*Bundle/Tests</directory>
+        </testsuite>
+        -->
+
+        <testsuite name="services">
+            <directory>../src/ODR/AdminBundle/Tests/Component/Service</directory>
+            <directory>../src/ODR/OpenRepository/*Bundle/Tests/Component/Service</directory>
+        </testsuite>
+        <testsuite name="api">
+            <file>../src/ODR/AdminBundle/Tests/Controller/APIControllerTest.php</file>
+        </testsuite>
+        <testsuite name="fieldstats">
+            <file>../src/ODR/AdminBundle/Tests/Controller/SearchAPIService_fieldstatsTest.php</file>
         </testsuite>
     </testsuites>
 
