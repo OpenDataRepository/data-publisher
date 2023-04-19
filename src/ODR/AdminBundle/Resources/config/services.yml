@@ -164,6 +164,8 @@ services:
             $datatree_info_service: "@odr.datatree_info_service"
             $search_api_service: "@odr.search_api_service"
             $logger: "@logger"
+            $user_manager: "@fos_user.user_manager"
+            $wordpress_integrated: "%odr_wordpress_integrated%"
 
     odr.user_group_management_service:
         class: ODR\AdminBundle\Component\Service\ODRUserGroupMangementService

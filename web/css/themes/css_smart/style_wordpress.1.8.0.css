@@ -9,7 +9,7 @@ Color Palette:
 body text: #666666;
 label text : #000000;
 page header: #1f8dd6
-child header/h1: #6fa5c7
+child header/h1: rgba(58, 161, 107, 0.90)
 file_header: #7fb9d8;
  */
 
@@ -73,7 +73,7 @@ input,
 .ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,  /* rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement > .ODRInnerBox,  /* not-rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
-    border: 1px solid #7fb9d8;
+    border: 1px solid #3AA16B;
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
@@ -141,14 +141,14 @@ h3.ODRHeader,
     font-size: 16px;
     color: white;
     width: 100%;
-    background-color: #6fa5c7;
+    background-color: rgba(58, 161, 107, 0.90);
     font-weight: bold;
 }
 
 .ODRResults label {
     font-size: 0.8em;
     font-weight: normal;
-    color: #6fa5c7;
+    color: rgba(58, 161, 107, 0.90);
     padding-left: 0.5em;
 }
 
@@ -172,11 +172,11 @@ label.ODRResults_radio {
     box-sizing: border-box;
     box-shadow: none;
     background: none;
-    border: 2px solid #1c81d0;
+    border: 2px solid rgba(58, 161, 107, 0.89);
     border-radius: 4px;
     background: white none;
     padding: 8px;
-    color: #1c81d0;
+    color: rgba(58, 161, 107, 0.89);
     margin-right: 12px;
 }
 
@@ -185,9 +185,9 @@ label.ODRResults_radio {
     box-sizing: border-box;
     box-shadow: none;
     background: none;
-    border: 2px solid #1c81d0;
+    border: 2px solid rgba(58, 161, 107, 0.89);
     border-radius: 4px;
-    background: #1c81d0 none;
+    background: rgba(58, 161, 107, 0.89) none;
     padding: 8px;
     color: white;
     margin-right: 12px;
@@ -227,7 +227,7 @@ label.ODRResults_radio {
 .pure-skin-odr .pure-menu.pure-menu-open,
 #toolbar {
     background-image: none;
-    background-color: #1c81d0;
+    background-color: rgba(58, 161, 107, 0.89);
     box-shadow: none;
     color: white;
     height: 42px;
@@ -245,11 +245,17 @@ h3.ui-accordion-header a:visited,
 h3.ui-accordion-header a:hover,
 h3.ui-accordion-header a {
     background-image: none;
-    background-color: #6fa5c7;
+    background-color: #3AA16B;
     box-shadow: none;
     color: white;
 }
 
+.ODRFileDatafield_header {
+    background-image: none;
+    background-color: #3AA16B;
+    box-shadow: none;
+    color: white;
+}
 
 .ODRThemeElement {
     background-image: none;
@@ -292,11 +298,11 @@ h3.ui-accordion-header a {
 .pure-skin-odr .pure-table th,
 .NotODRTable thead {
     color: white;
-    background: #7fb9d8;
+    background: #3AA16B;
     padding: 4px 8px 4px 8px;
 }
 .pure-skin-odr .pure-table td i {
-    color: #1c81d0;
+    color: rgba(58, 161, 107, 0.89);
 }
 
 /* END File list tables */
@@ -339,10 +345,10 @@ h3.ui-accordion-header a {
 .pure-skin-odr .ODRTabButtonHeader .pure-button-active {
     box-shadow: none;
     background: white none;
-    border: 2px solid #1c81d0;
+    border: 2px solid rgba(58, 161, 107, 0.89);
     border-radius: 4px;
     padding: 8px;
-    color: #1c81d0;
+    color: rgba(58, 161, 107, 0.89);
     margin-right: 12px;
 }
 /* END Tab Header */
@@ -360,23 +366,23 @@ h3.ui-accordion-header a {
     background: transparent none;
 }
 
-footer {
+.odr-footer {
     color: white;
-    background: #1C81D0 none;
+    background: #3AA16B none;
     height: 48px;
 }
 
-footer ul {
+.odr-footer ul {
     height: 48px;
 }
 
-footer .ODRLogoImage img {
+.odr-footer .ODRLogoImage img {
     height: 38px;
     padding: 5px 6px 5px 6px;
     background: white;
 }
 
-footer ul li:first-child {
+.odr-footer ul li:first-child {
     background: white;
 }
 
@@ -389,12 +395,12 @@ footer ul li:first-child {
 }
 
 #search_form label {
-    color: #6fa5c7;
+    color: rgba(58, 161, 107, 0.90);
 }
 
 .ODRAdvSearch_header {
     background: #b8e8fa;
-    color: #1c81d0;
+    color: rgba(58, 161, 107, 0.89);
 }
 
 .ODRAdvSearch_datafield {
@@ -456,7 +462,7 @@ footer ul li:first-child {
     padding: 0 2px 0 4px;
     background: #ECF7FB none;
     border: 1px solid rgba(184,232,250, 0.7);
-    color: #1c81d0;
+    color: rgba(58, 161, 107, 0.89);
     -webkit-appearance: none;
     -moz-appearance: none;
     -webkit-box-sizing: border-box;
@@ -523,7 +529,7 @@ footer ul li:first-child {
     padding: 8px;
     background: white none;
     border-radius: 4px;
-    border: 1px solid #7fb9d8;
+    border: 1px solid #3AA16B;
 }
 
 #ODRDatatypeList_filter input {
@@ -556,7 +562,7 @@ footer ul li:first-child {
 
 #ODRPagePopup {
     background: white none;
-    border: 1px solid #7fb9d8;
+    border: 1px solid #3AA16B;
     padding: 1em;
     margin: 1em;
     box-sizing: border-box;
@@ -609,7 +615,7 @@ footer ul li:first-child {
 .ODRMenuWrapper ul,
 #ODRMainMenu {
     background-image: none;
-    background-color: #1c81d0;
+    background-color: rgba(58, 161, 107, 0.89);
     box-shadow: none;
     color: white;
 }
@@ -1004,12 +1010,12 @@ ul#wizardStatus li.completed:before{
 
     /* background: url('/img/elements/loading/bg.png'); */
     background: white;
-    border: 2px solid #7fb9d8;
+    border: 2px solid #3AA16B;
     border-radius: 8px;
     -webkit-box-shadow: 0 10px 6px -6px #777;
     -moz-box-shadow: 0 10px 6px -6px #777;
     box-shadow: 0 10px 6px -6px #777;
-    color: #6fa5c7;
+    color: rgba(58, 161, 107, 0.90);
 
     position: fixed;
     z-index: 999;
@@ -1046,7 +1052,7 @@ ul#wizardStatus li.completed:before{
 }
 
 .ODRShortResults {
-    border: 2px solid #7fb9d8;
+    border: 2px solid #3AA16B;
     border-radius: 6px;
     background: white;
     margin-bottom: 5px
@@ -1056,25 +1062,9 @@ ul#wizardStatus li.completed:before{
     padding-left: 10px;
     font-weight: 400;
 }
-.ODRShortResultsTitle {
-    width: 100% !important;
-    color: #666666 !important;
-}
-.ODRShortResultsHeaderLeft {
-}
-.ODRShortResultsHeaderRight {
-    float: right !important;
-    font-size: 10px;
-    color: #888888;
-}
 .ODRShortResultsHeader_edit {
     float: right;
     margin-right: 20px;
-}
-.ODRShortResultsUUID {
-    margin-left: 20px !important;
-    font-size: 10px !important;
-    color: #bbbbbb !important;
 }
 
 .ODRShortResults .ODRFormWrap {
@@ -1112,7 +1102,7 @@ ul#wizardStatus li.completed:before{
     max-width: 400px;
     font-size: 12px;
     background: #b8e8fa none repeat scroll 0 0;
-    color: #3b8bba;
+    color: rgba(58, 161, 107, 0.89);
     -webkit-box-shadow: 2px 1px 10px 0px rgba(50, 50, 50, 0.3);
     -moz-box-shadow:    2px 1px 10px 0px rgba(50, 50, 50, 0.3);
     box-shadow:         2px 1px 10px 0px rgba(50, 50, 50, 0.3);
@@ -1120,7 +1110,7 @@ ul#wizardStatus li.completed:before{
     opacity: 1;
 }
 .jGrowl-closer {
-    background-color: #6fa5c7;
+    background-color: rgba(58, 161, 107, 0.90);
     color: white;
     -webkit-box-shadow: 2px 1px 10px 0px rgba(50, 50, 50, 0.3);
     -moz-box-shadow:    2px 1px 10px 0px rgba(50, 50, 50, 0.3);
@@ -1371,7 +1361,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     right: 2px;
     top: 1px;
     display: none;
-    color: #1c81d0 !important;
+    color: rgba(58, 161, 107, 0.89) !important;
 }
 
 .ODRSelectWrap {
@@ -1387,7 +1377,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     content: "▼";
     padding: 1px 8px;
     position: absolute;
-    color: #1c81d0 !important;
+    color: rgba(58, 161, 107, 0.89) !important;
     font-size: 12px;
     left: 0;
     top: 0;
@@ -1532,7 +1522,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 
 /** Accordion Nesting Colors **/
 .ODRAccordionPrimary {
-    background-color: #6fa5c7 !important;
+    background-color: rgba(58, 161, 107, 0.90) !important;
 }
 .ODRAccordionPrimary a,
 .ODRAccordionPrimary a:active,
@@ -1585,13 +1575,14 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 }
 
 #ODRSearchContent {
+    min-height: 600px;
     margin-bottom: 20px;
 }
 .ODRPaginationLabel {
-    color: #6fa5c7;
+    color: rgba(58, 161, 107, 0.90);
 }
 .ODRPrimarySearchLabel {
-    color: #3b8bba !important;
+    color: rgba(58, 161, 107, 0.89) !important;
     font-weight: 600 !important;
     font-size: 1.1em !important;
 }

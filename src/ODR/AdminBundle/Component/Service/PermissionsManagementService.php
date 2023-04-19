@@ -13,11 +13,15 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+// use FOS\UserBundle\Doctrine\UserManager;
+// use ODR\AdminBundle\Component\Service\UserManager;
+use FOS\UserBundle\Model\UserManagerInterface;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
+use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -56,6 +60,15 @@ class PermissionsManagementService
      */
     private $logger;
 
+    /**
+     * @var UserManagerInterface
+     */
+    private $user_manager;
+
+    /**
+     * @var WordpressIntegrated
+     */
+    private $wordpress_integrated;
 
     /**
      * PermissionsManagementService constructor.
@@ -64,20 +77,31 @@ class PermissionsManagementService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchAPIService $search_api_service
+     * @param UserManager $user_manager
      * @param Logger $logger
+     * @param $wordpress_integrated
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         SearchAPIService $search_api_service,
-        Logger $logger
+        UserManagerInterface $user_manager,
+        Logger $logger,
+        $wordpress_integrated
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
         $this->search_api_service = $search_api_service;
+        $this->user_manager = $user_manager;
         $this->logger = $logger;
+        if(isset($wordpress_integrated)) {
+            $this->wordpress_integrated = $wordpress_integrated;
+        }
+        else {
+            $this->wordpress_integrated = false;
+        }
     }
 
 
@@ -90,6 +114,7 @@ class PermissionsManagementService
      */
     public function getDatatypePermissions($user)
     {
+
         if ($user === "anon." || $user == null)
             return array();
 
@@ -326,6 +351,16 @@ class PermissionsManagementService
      */
     public function canEditDatatype($user, $datatype)
     {
+        // Check for Wordpress Integration
+        if($this->wordpress_integrated) {
+            $odr_wordpress_user = getenv("WORDPRESS_USER");
+            if ($odr_wordpress_user) {
+                // print $odr_wordpress_user . ' ';
+                /** @var ODRUser $user */
+                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
+            }
+        }
+
         // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
             return false;
@@ -371,6 +406,16 @@ class PermissionsManagementService
      */
     public function canEditDatarecord($user, $datarecord)
     {
+        // Check for Wordpress Integration
+        if($this->wordpress_integrated) {
+            $odr_wordpress_user = getenv("WORDPRESS_USER");
+            if ($odr_wordpress_user) {
+                // print $odr_wordpress_user . ' ';
+                /** @var ODRUser $user */
+                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
+            }
+        }
+
         // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
             return false;
@@ -582,6 +627,16 @@ class PermissionsManagementService
      */
     public function canEditDatafield($user, $datafield, $datarecord = null)
     {
+        // Check for Wordpress Integration
+        if($this->wordpress_integrated) {
+            $odr_wordpress_user = getenv("WORDPRESS_USER");
+            if ($odr_wordpress_user) {
+                // print $odr_wordpress_user . ' ';
+                /** @var ODRUser $user */
+                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
+            }
+        }
+
         // If the user isn't logged in, they can't edit any Datafield
         if ($user === "anon.")
             return false;
@@ -715,6 +770,16 @@ class PermissionsManagementService
     public function getUserPermissionsArray($user)
     {
         try {
+            // Check for Wordpress Integration
+            if($this->wordpress_integrated) {
+                $odr_wordpress_user = getenv("WORDPRESS_USER");
+                if($odr_wordpress_user) {
+                    // print $odr_wordpress_user . ' ';
+                    /** @var ODRUser $user */
+                    $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
+                }
+            }
+
             // Users that aren't logged in don't have permissions
             if ($user == null || $user === 'anon.') {
                 return array(
@@ -727,7 +792,7 @@ class PermissionsManagementService
             //  whenever they make a change that would invalidate the user's permissions
             $user_id = $user->getId();
             $user_permissions = $this->cache_service->get('user_'.$user_id.'_permissions');
-            if ($user_permissions != false)
+            if ($user_permissions !== false)
                 return $user_permissions;
 
 

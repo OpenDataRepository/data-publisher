@@ -64,7 +64,7 @@ odr_search_results:
 
 odr_inline_link_search:
     path:  /search/inline_link
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:inlinelinksearch }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:inlinelinksearch, offset: 0, limit: 1000000 }
     methods: [ POST ]
 
 odr_search_render:
@@ -95,6 +95,29 @@ odr_reload_search_sidebar:
         force_rebuild: 0|1
         search_key: '[a-zA-Z0-9\-\_]*'
         intent: 'searching|linking|'
+
+
+odr_random_network_search:
+    path: /network
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:networkSearchAPI, dataset_uuid: 'd13809001373aafcdf7b506162c3', offset: 0, limit: 1000000, version: 'v5' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        limit: '\d+'
+        offset: '\d+'
+
+
+odr_search_list_records_admin_bundle:
+    path: /elastic
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:listRecordsAPI, dataset_uuid: 'fb6f69c3bd16119659b4d058967a', offset: 0, limit: 1000000, version: 'v5' }
+    #defaults: { _controller: ODROpenRepositorySearchBundle:Facade:listRecordsAPI, dataset_uuid: '07955891a40d597da4285a5c6b9e', offset: 0, limit: 1000000, version: 'v5' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        limit: '\d+'
+        offset: '\d+'
 
 # ----------------------------------------
 

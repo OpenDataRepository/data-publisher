@@ -143,7 +143,7 @@ Forms Core
 }
 
 /* Define consistent border, margin, and padding.*/
- 
+
 
 .pure-skin-odr .pure-form fieldset {
     border: 1px solid #c0c0c0;
@@ -302,7 +302,7 @@ Forms Core
         margin-bottom: 0.3em;
         display: block;
     }
-    
+
     .pure-skin-odr .pure-group input[type="text"],
     .pure-skin-odr .pure-group input[type="password"],
     .pure-skin-odr .pure-group input[type="email"],
@@ -559,7 +559,7 @@ Forms Core
 .pure-skin-odr .pure-form-aligned textarea,
 .pure-skin-odr .pure-form-aligned select,
 /* note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
-.pure-skin-odr .pure-form-aligned .pure-help-inline, 
+.pure-skin-odr .pure-form-aligned .pure-help-inline,
 .pure-skin-odr .pure-form-message-inline {
     display: inline-block;
     *display: inline; /* IE7 inline-block hack */
@@ -633,7 +633,7 @@ Forms Core
 }
 
 /* Inline help for forms */
-/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */ 
+/* Note: pure-help-inline is deprecated. Use .pure-form-message-inline instead */
 .pure-skin-odr .pure-form .pure-help-inline,
 .pure-skin-odr .pure-form-message-inline {
     display: inline-block;
@@ -650,6 +650,8 @@ Forms Core
     font-size: 90%;
 }
 /* note no template for forms-r.css. no skinnable properties */
+
+
 
 /* foundational CSS */
 .pure-skin-odr .pure-table {
@@ -819,7 +821,7 @@ h4 {
 }
 
 a {
-    color: #3b8bba; /* block-background-text-normal */
+    color: rgba(58, 161, 107, 1.00); /* block-background-text-normal */
     text-decoration: none;
 }
 
@@ -840,8 +842,10 @@ dd {
     top: -20px;
 }
 
+/* same color as selected state on site menu */
+/*
 aside {
-    background: #1f8dd6; /* same color as selected state on site menu */
+    background: #1f8dd6;
     padding: 0.3em 1em;
     border-radius: 3px;
 }
@@ -849,6 +853,7 @@ aside {
 aside a, aside a:visited {
     color: rgb(169, 226, 255);
 }
+ */
 
 
 /* --------------------------
@@ -890,13 +895,15 @@ aside a, aside a:visited {
  * --------------------------
 */
 
+
+
+/*
 .header {
      font-family: "omnes-pro", sans-serif;
      max-width: 768px;
      margin: 0 auto;
      padding: 1em;
      text-align: center;
-     /* border-bottom: 1px solid #eee; */
      background: #fff;
  }
     .header h1 {
@@ -913,10 +920,14 @@ aside a, aside a:visited {
     }
 
 
+ */
+
  /* --------------------------
   * Content Module Styles
   * --------------------------
  */
+
+/* 20221126 Error Below This line */
 
 /* The content div is placed as a wrapper around all the docs */
 .content {
@@ -1046,10 +1057,12 @@ code {
  * --------------------------
 */
 
+/* 20221126 Error Below This line */
+
 /* Add transition to containers so they can push in and out */
 #layout,
 #menu,
-.menu-link {
+.odr-menu-link {
     -webkit-transition: all 0.2s ease-out;
     -moz-transition: all 0.2s ease-out;
     -ms-transition: all 0.2s ease-out;
@@ -1057,7 +1070,7 @@ code {
     transition: all 0.2s ease-out;
 }
 
-#layout.active .menu-link {
+#layout.active .odr-menu-link {
     left: 160px;
 }
 
@@ -1097,6 +1110,7 @@ a.pure-button-primary {
 }
 
 
+/* 20221126 Error Below This line */
 
 /* -------------
  * Table Styles
@@ -1209,21 +1223,23 @@ a.pure-button-primary {
 
 }
 
+/* 20221126 Error Below This Line */
+
 @media (min-width: 58em) {
 
     #layout {
-        padding-left: 160px; /* left col width "#menu" */
+        padding-left: 160px;
         left: 0;
     }
     #menu {
         left: 160px;
     }
-    .menu-link {
+    .odr-menu-link {
         position: fixed;
         left: 160px;
         display: none;
     }
-    #layout.active .menu-link {
+    #layout.active .odr-menu-link {
         left: 160px;
     }
 
@@ -1315,6 +1331,7 @@ a.pure-button-primary {
     max-height: 35em;
 }
 
+/* 20221126 Error above this line */
 .offset-1-12 {
     margin-left: 8.33%;
 }
@@ -1759,12 +1776,14 @@ body {
 }
 
 .odr-footer {
+    /*
     position: absolute;
     left: 0;
     bottom: 0;
     height: 38px;
     background-color: #eee;
     width: 100%;
+     */
 }
 
 
@@ -1955,11 +1974,11 @@ body {
 }
 
 
-header {
+.odr-header {
     min-height: 30px;
 }
 
-header a {
+.odr-header a {
     display: none;
 }
 
@@ -2020,7 +2039,7 @@ header a {
     box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
 }
 
-/* 
+/*
 #ODRNav:hover {
     -webkit-transform: translate(200px, 0px);
        -moz-transform: translate(200px, 0px);
@@ -2029,8 +2048,8 @@ header a {
             transform: translate(200px, 0px);
 }
 
-#ODRNav:hover {    
-    opacity: 1;    
+#ODRNav:hover {
+    opacity: 1;
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
         -ms-transition: all 0.15s ease-out;
@@ -2107,9 +2126,9 @@ header a {
     -o-transform: translate(0px, 0px);
     transform-origin: 100% 50%;
     transform: translate(0px, 0px);
-    position: relative; 
-    right: 400px;    
-    opacity: 1;    
+    position: relative;
+    right: 400px;
+    opacity: 1;
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
         -ms-transition: all 0.15s ease-out;
@@ -2117,13 +2136,15 @@ header a {
             transition: all 0.15s ease-out;
 }
 
-#ODRNavRight ul {    
+#ODRNavRight ul {
     list-style-type: none;
 }
 
+/*
 aside:after {
     background: none;
 }
+ */
 
 #toolbar {
     left: 0;
@@ -2185,7 +2206,7 @@ h1:after {
 }
 
 #ElementDataWrapper {
-    padding-left: 4px; 
+    padding-left: 4px;
     margin: 0px;
 }
 
@@ -2404,7 +2425,7 @@ h3 .DatatypeTools,
     margin-top: 8px;
     margin-bottom: 4px;
 }
-    
+
 .ShortText {
     max-height: 38px;
 }
@@ -2569,7 +2590,7 @@ form .row {
     /* background-color: rgba(0,0,0,0.045); */
     box-sizing:border-box;
     -moz-box-sizing:border-box;
-    -webkit-box-sizing:border-box; 
+    -webkit-box-sizing:border-box;
     padding: 0.3em;
     /* border: 2px solid rgba(185, 186, 246, 0.25);  */
     border-radius: 4px;
@@ -2584,7 +2605,7 @@ form .row {
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
     box-sizing:border-box;
     -moz-box-sizing:border-box;
-    -webkit-box-sizing:border-box; 
+    -webkit-box-sizing:border-box;
     padding-right: 0.4em;
     /* border: 1px solid rgba(185, 186, 246, 0.8); */
 }
@@ -2619,7 +2640,7 @@ form .row {
 .ODRDesign .ODRPseudoField {
     /* border: 1px solid #ddd; */
     padding: 0.48em 0.3em;
-    /* min-height: 18px; */ 
+    /* min-height: 18px; */
     min-height: 1em;
     line-height: normal;
     margin-right: 0.4em;
@@ -2677,7 +2698,7 @@ form .row {
 /* input {
     border: none;
     box-shadow: none;
-} */ 
+} */
 
 .ODRRenderPluginField {
     border: medium none;
@@ -2851,7 +2872,7 @@ form .row {
     font-size: 12.8px;
 }
 
-/* 
+/*
 .ODRResults input[readonly],
 .ODRResults textarea[readonly] {
     font-size: 1em;
@@ -4041,6 +4062,30 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     }
 }
 
+
+.ODRShortResultsTitle {
+    width: 100% !important;
+    color: #666666 !important;
+}
+.ODRShortResultsHeaderLeft {
+}
+.ODRShortResultsHeaderRight {
+    float: right !important;
+    font-size: 10px;
+    color: #888888;
+    vertical-align: middle;
+}
+.ODRShortResultsHeader_edit {
+    float: right;
+    margin-right: 20px;
+}
+.ODRShortResultsUUID {
+    margin-left: 20px !important;
+    font-size: 10px !important;
+    color: #bbbbbb !important;
+    vertical-align: middle;
+}
+
 .ODRShortResults_empty {
     text-align: center;
     padding-top: 50px;
@@ -4278,9 +4323,9 @@ i {
 #ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
   background-image:
     linear-gradient(
-      to right, 
+      to right,
       RGBA(90, 154, 190, 0.2),
-      #ffffff 5%, 
+      #ffffff 5%,
       #ffffff
     );
     padding-left: 40px;
@@ -4324,9 +4369,6 @@ i {
 }
 .bold {
     font-weight: bold;
-}
-.overbar {
-    text-decoration: overline;
 }
 
 #ODRTrackingDatafieldList {
@@ -4412,35 +4454,6 @@ i {
     top: 8px !important;
 }
 
-.ODRCellparamPlugin_button {
-    min-width: 0 !important;
-    padding: 3px !important;
-    margin: 5px 5px 0 5px !important;
-}
-.ODRCellparamPlugin_popup {
-    position: absolute;
-    z-index: 100;
-    background: white;
-    border: 2px solid black;
-    border-radius: 4px;
-    display: none;
-    font-weight: 400;
-    padding: 5px;
-}
-.ODRCellparamPlugin_popup > .ODRPseudoField {
-    margin-top: 5px;
-}
-.ODRCellparamPlugin_input {
-    /*margin: 5px !important;*/
-    font-size: 100% !important;
-}
-.ODRCellparamPlugin_textarea {
-    margin: 5px 0 0 0 !important;
-    font-size: 100% !important;
-}
-.ODRCellparamPlugin_SaveIndicator {
-    top: 8px !important;
-}
 
 .ODRMultiDatafield_fieldtype {
     width: 100%;

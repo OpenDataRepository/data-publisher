@@ -12,6 +12,27 @@ parameters:
     locale: en
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
 
+
+    #
+    # Wordpress Integration variables
+    #
+
+    # Is this a Wordpress-integrated Installation
+    odr_wordpress_integrated: false
+
+    # Determine if advanced search is shown on default results page
+    use_advanced_search: true
+
+    # Default search results limit
+    default_search_results_limit: 100
+
+    # Use search overlay
+    use_search_overlay: true
+
+    #
+    # END Wordpress Integration variables
+    #
+
     # This is used to generate redirects and file download links in the site
     # NOTE - no protocol, and no trailing forward slash  e.g. "//odr.io"
     site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]

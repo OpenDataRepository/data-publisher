@@ -53,7 +53,7 @@ class ODRTabHelperService
         $this->request_stack = $request_stack;
         $this->token_generator = $token_generator;
 
-        $this->default_page_length = 100;
+        $this->default_page_length = 25;
     }
 
 

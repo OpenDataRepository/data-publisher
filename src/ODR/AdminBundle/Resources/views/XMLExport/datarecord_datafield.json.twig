@@ -57,13 +57,32 @@
         "fieldtype": "{{ field_typename }}",
 #}
 
-
-{% if version == 'v3' or version == 'v4' %}
+{% if version == 'v5' %}
 {
+    {% if
+        datafield.dataField.templateFieldUuid is defined
+        and datafield.dataField.templateFieldUuid is not empty
+     %}
+    "field_{{ datafield.dataField.templateFieldUuid }}": {
+    {% elseif
+        datafield.templateFieldUuid is defined
+        and datafield.templateFieldUuid is not empty
+     %}
+    "field_{{ datafield.templateFieldUuid }}": {
+    {% elseif
+        datafield.dataField is defined
+        and datafield.dataField is not empty
+    %}
+    "field_{{ datafield.dataField.fieldUuid }}": {
+    {% else %}
+    "field_{{ datafield.fieldUuid }}": {
+    {% endif %}
+{% elseif version == 'v3' or version == 'v4' %}
+    {
 {% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
 {% endif %}
-{% if version == 'v1' or version == 'v3' or version == 'v4' %}
+{% if version == 'v1' or version == 'v3' or version == 'v4' or version == 'v5' %}
     "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
     {% if datafield.dataField is defined %}
         "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
@@ -74,100 +93,114 @@
     {% endif %}
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
-    {% if datafield.dataField is defined %}
-        "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
-        "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
-    {% else %}
-        "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
-        "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
-    {% endif %}
-    "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
-{% endif %}
-        "id": {{ datafield.id }},
+        {% if datafield.dataField is defined %}
+        "field_uuid":
+        {{ datafield.dataField.fieldUuid|json_encode|raw }},
+        "template_field_uuid":
+        {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
+        {% else %}
+        "field_uuid":
+        {{ datafield.fieldUuid|json_encode|raw }},
+        "template_field_uuid":
+        {{ datafield.templateFieldUuid|json_encode|raw }},
+        {% endif %}
+        "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
+        {% endif %}
+        "id":
+        {{ datafield.id }},
         {% if field_typename == "File" %}
 
         "files": [
-          {% for file in valuefield %}
-              {
-                  "id": {{ file.id }},
-                  "file_uuid": "{{ file.unique_id }}",
-                  "file_size": "{{ file.filesize }}",
-                  "href": "{{ url('odr_file_download', {'file_id': file.id}) }}",
-                  {% set file_meta = file.fileMeta %}
-                  {% if using_metadata == true %}
-                  "_file_metadata": {
-                      "_external_id": "{{ file_meta.external_id }}",
-                      "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
-                      "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
-                      "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
-                  },
-                  {% endif %}
-                  "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
-            }{% if not loop.last %},{% endif %}
-        {% endfor %}
-        ]   {# end of files #}
+            {% for file in valuefield %}
+            {
+                "id":
+                {{ file.id }},
+                "file_uuid": "{{ file.unique_id }}",
+                "file_size": "{{ file.filesize }}",
+                "href": "{{ url('odr_file_download', {'file_id': file.id}) }}",
+                {% set file_meta = file.fileMeta %}
+                {% if using_metadata == true %}
+                "_file_metadata": {
+                    "_external_id": "{{ file_meta.external_id }}",
+                    "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
+                    "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
+                    "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
+                },
+                {% endif %}
+                "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
+            }
+            {% if not loop.last %},
+            {% endif %}
+            {% endfor %}
+        ]
+        {# end of files #}
 
-    {% elseif field_typename == "Image" %}
+        {% elseif field_typename == "Image" %}
         "files": [
             {% set oimage = "" %}
             {% for image in valuefield %}
-                {% set oimage = image.parent %}
-                {% set image_ext = oimage.ext %}
+            {% set oimage = image.parent %}
+            {% set image_ext = oimage.ext %}
 
-                {% set oimage_meta = oimage.imageMeta %}
-                {% set image_caption = oimage_meta.caption %}
-                {% set image_filename = oimage_meta.originalFileName %}
-                {% if not oimage == "" %}
-                    {% set oimage_meta = oimage.imageMeta %}
-                    {% set image_caption = oimage_meta.caption %}
-                    {% set image_filename = oimage_meta.originalFileName %}
-                    {
-                        {% if using_metadata == true %}
-                        "_file_metadata": {
-                            "_external_id": "{{ oimage_meta.external_id }}",
-                            "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
-                            "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
-                            "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
-                            "_display_order": "{{ oimage_meta.displayorder}}"
-                        },
-                        {% endif %}
-                        "id": {{ oimage.id }},
-                        "file_uuid": "{{ oimage.unique_id }}",
-                        "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
-                        "href": "{{ url('odr_image_download', {'image_id': oimage.id}) }}",
-                        "caption": "{{ image_caption|raw }}",
-                        "width": "{{ oimage.imageWidth }}",
-                        "height": "{{ oimage.imageHeight }}"
-                    },
+            {% set oimage_meta = oimage.imageMeta %}
+            {% set image_caption = oimage_meta.caption %}
+            {% set image_filename = oimage_meta.originalFileName %}
+            {% if not oimage == "" %}
+            {% set oimage_meta = oimage.imageMeta %}
+            {% set image_caption = oimage_meta.caption %}
+            {% set image_filename = oimage_meta.originalFileName %}
+            {
+                {% if using_metadata == true %}
+                "_file_metadata": {
+                    "_external_id": "{{ oimage_meta.external_id }}",
+                    "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
+                    "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
+                    "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
+                    "_display_order": "{{ oimage_meta.displayorder}}"
+                },
                 {% endif %}
-                {
-                    {% if using_metadata == true %}
-                        "_file_metadata": {
-                            "_external_id": "{{ oimage_meta.external_id }}",
-                            "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
-                            "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
-                            "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
-                            "_display_order": "{{ oimage_meta.displayorder}}"
-                        },
-                    {% endif %}
-                    "id": {{ image.id }},
-                    "file_uuid": "{{ image.unique_id }}",
-                    "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ image.id }}{% endif %}",
-                    "href": "{{ url('odr_image_download', {'image_id': image.id}) }}",
-                    "caption": "{{ image_caption|raw }}",
-                    "width": "{{ image.imageWidth }}",
-                    "height": "{{ image.imageHeight }}"
-                }{% if not loop.last %},{% endif %}
+                "id":
+                {{ oimage.id }},
+                "file_uuid": "{{ oimage.unique_id }}",
+                "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
+                "href": "{{ url('odr_image_download', {'image_id': oimage.id}) }}",
+                "caption": "{{ image_caption|raw }}",
+                "width": "{{ oimage.imageWidth }}",
+                "height": "{{ oimage.imageHeight }}"
+            },
+            {% endif %}
+            {
+                {% if using_metadata == true %}
+                "_file_metadata": {
+                    "_external_id": "{{ oimage_meta.external_id }}",
+                    "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
+                    "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
+                    "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
+                    "_display_order": "{{ oimage_meta.displayorder}}"
+                },
+                {% endif %}
+                "id":
+                {{ image.id }},
+                "file_uuid": "{{ image.unique_id }}",
+                "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ image.id }}{% endif %}",
+                "href": "{{ url('odr_image_download', {'image_id': image.id}) }}",
+                "caption": "{{ image_caption|raw }}",
+                "width": "{{ image.imageWidth }}",
+                "height": "{{ image.imageHeight }}"
+            }
+            {% if not loop.last %},
+            {% endif %}
             {% endfor %}
-        ]   {# end of images #}
+        ]
+        {# end of images #}
 
-    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
-        "value": [
+        {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
+        "values": [
             {% if datarecordfield.radioSelection is defined %}
-                {% set radio_block %}
-                    {% include 'ODRAdminBundle:XMLExport:datarecord_radio_selections.json.twig' with { 'radio_selections': datarecordfield.radioSelection } %}
-                {% endset %}
-                {{ radio_block|comma|raw }}
+            {% set radio_block %}
+            {% include 'ODRAdminBundle:XMLExport:datarecord_radio_selections.json.twig' with { 'radio_selections': datarecordfield.radioSelection } %}
+            {% endset %}
+            {{ radio_block|comma|raw }}
             {% endif %}
         ]
         {#
@@ -177,21 +210,21 @@
         } %}
         #}
 
-    {% elseif field_typename == "Tags" %}
+        {% elseif field_typename == "Tags" %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
             'datafield': datafield,
             'drf': datarecordfield,
         } %}
-{#
-        {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
-            'datafield': datafield,
-            'drf': datarecordfield,
-        } %}
-#}
+        {#
+                {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
+                    'datafield': datafield,
+                    'drf': datarecordfield,
+                } %}
+        #}
 
-{% else %}
+        {% else %}
 
-    {% if field_typename == "Boolean" %}
+        {% if field_typename == "Boolean" %}
         "_field_metadata": {
             "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
             "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
@@ -203,8 +236,9 @@
                         "_tracking_master_version": "{{ datafield_meta.tracking_master_revision }}",
              #}
         },
-        "selected": {% if valuefield_value == 1 %}1{% else %}0{% endif %}
-    {% elseif field_typename == "DateTime" %}
+        "selected": {% if valuefield_value == 1 %}1{% else %}0
+        {% endif %}
+        {% elseif field_typename == "DateTime" %}
         "_field_metadata": {
             "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
             "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
@@ -217,7 +251,7 @@
              #}
         },
         "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
-    {% else %}
+        {% else %}
         "_field_metadata": {
             "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
             "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
@@ -229,13 +263,16 @@
                         "_tracking_master_version": "{{ datafield_meta.tracking_master_revision }}",
              #}
         },
-        "value": {{ valuefield_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
-    {% endif %}
+        "value":
+        {{ valuefield_value|json_encode|raw }}
+        {# lack of surrounding quotation marks necessary #}
+        {% endif %}
 
+        {% endif %}
+
+{% if version == 'v5' %}
+    }
 {% endif %}
-
-
-
 }  {# end of datafield #}
 
 

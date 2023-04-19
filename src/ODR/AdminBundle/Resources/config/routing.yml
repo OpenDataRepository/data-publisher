@@ -7,6 +7,8 @@ odr_admin_homepage:
 odr_logout:
     path:  /logout
 
+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1529,12 +1531,13 @@ odr_api_userdata:
         version: 'v1'
         _format: '|json|xml'
 
+
 odr_api_get_datatype_list:
     path: /api/{version}/search/databases.{_format}
     defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
     methods: [ GET ]
     requirements:
-        version: 'v1'
+        version: 'v\d+'
         _format: '|json|xml'
 
 odr_api_get_template_list:
@@ -1848,6 +1851,7 @@ odr_api_dataset_quota:
         dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
+
 #
 # API Update dataset
 # PUT /api/vX/dataset
@@ -1942,7 +1946,7 @@ odr_api_record_public:
 # Get an individual dataset record
 #
 odr_api_get_dataset_record:
-    path: /api/{version}/dataset/record/{record_uuid}
+    path: ^/api/{version}/dataset/record/{record_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
     methods: [ GET ]
     requirements:
@@ -1959,7 +1963,7 @@ odr_api_user_permissions:
         _format: '|json|xml'
 
 odr_api_user_check:
-    path: /api/{version}/user
+    path: ^/api/{version}/user
     defaults: { _controller: ODRAdminBundle:API:user, _format: json, version: 'v3' }
     methods: [ POST ]
     requirements:

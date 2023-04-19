@@ -1,4 +1,4 @@
-{% macro write(logged_in) %}
+{% macro write(logged_in, site_baseurl) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
@@ -120,6 +120,9 @@
             searchToggle();
         });
 
+        // Start with Search Hidden...
+        searchToggle();
+
         {% if logged_in == true %}
         updateDashboardLink();
         {% endif %}
@@ -226,6 +229,9 @@
             redirect_url = '/login';
         else
             redirect_url += '/login';
+
+        redirect_url = '{{ site_baseurl }}{{ path('fos_user_security_login') }}';
+        alert(redirect_url);
 
         // Append the fragment if it exists
         if (fragment !== '')

@@ -1,13 +1,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-
     <IfModule mod_vhost_alias.c>
-        RewriteBase /ahed-api
+        RewriteBase /odr_rruff
     </IfModule>
-
     RewriteCond %{HTTP:Authorization} ^(.*)
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
-
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^(.*)$ app.php [QSA,L]
 </IfModule>

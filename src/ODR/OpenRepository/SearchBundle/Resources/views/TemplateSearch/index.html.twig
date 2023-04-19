@@ -48,12 +48,12 @@
 {# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODRAdminBundle:Default:index.html.twig #}
 {% block body %}
     <div id="ODRSearchSidebar" class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchHidden">
-        {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' %}
+        {# include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' #}
     </div>
     <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide">
-        {% include 'ODROpenRepositorySearchBundle:Default:search.html.twig' %}
+        {{ search_results|raw }}
     </div>
 
-    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
-    {{ js.write(logged_in, site_baseurl) }}
+    {# import "ODRAdminBundle:Default:common_js.html.twig" as js #}
+    {# js.write(logged_in, site_baseurl) #}
 {% endblock %}

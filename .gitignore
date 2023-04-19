@@ -1,6 +1,7 @@
 # Cache and logs (Symfony2)
 /app/cache/*
 /app/crypto_dir/*
+/app/crypto_dir
 /app/logs/*
 /app/tmp/*
 !app/cache/.gitkeep
@@ -30,6 +31,7 @@
 # Assets and user uploads
 /web/bundles/
 /web/uploads/
+/web/uploads
 /web/node_modules/
 /web/chemin-map-demo/
 

@@ -777,7 +777,7 @@ class SearchAPIServiceNoConflict
      * @param bool $flush
      * @return array|bool|string
      */
-    private function getRecordData(
+    public function getRecordData(
         $version,
         $datarecord_uuid,
         $baseurl,

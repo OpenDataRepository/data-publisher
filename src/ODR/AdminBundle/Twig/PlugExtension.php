@@ -37,7 +37,6 @@ class PlugExtension extends \Twig_Extension
         $this->container = $container;
     }
 
-
     /**
      * Returns a list of filters to add to the existing list.
      *
@@ -59,9 +58,177 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('filesize', array($this, 'filesizeFilter')),
             new \Twig\TwigFilter('is_empty', array($this, 'isEmptyFilter')),
             new \Twig\TwigFilter('is_filtered', array($this, 'isFilteredDivFilter')),
+
+            new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
+            new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
+            new \Twig\TwigFilter('chemistry', array($this, 'chemistryFilter')),
         );
     }
 
+    public function chemistryFilter($str) {
+
+        // Extract subscript/superscript characters from render plugin options
+        $sub = "_";
+        $super = "^";
+        /*
+        if ( isset($options['subscript_delimiter']) && $options['subscript_delimiter'] != '' )
+            $sub = $options['subscript_delimiter'];
+        else
+            $sub = "_";
+        if ( isset($options['superscript_delimiter']) && $options['superscript_delimiter'] != '' )
+            $super = $options['superscript_delimiter'];
+        else
+            $super = "^";
+        */
+
+        // Apply the subscripts...
+        $sub = preg_quote($sub);
+        $str = preg_replace('/'.$sub.'([^'.$sub.']+)'.$sub.'/', '<sub>$1</sub>', $str);
+
+        // Apply the superscripts...
+        $super = preg_quote($super);
+        $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
+
+        // Redo the boxes...
+        // TODO - replace with a css class? or with the '□' character? (0xE2 0x96 0xA1)
+        return preg_replace('/\[box\]/', '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>', $str);
+
+    }
+
+    /**
+     * Takes an array from a Twig Template and returns the desired value.
+     *
+     * @param $record
+     * @param $child_uuid
+     * @param $field_uuid
+     * @return mixed|string
+     */
+    public function getFieldValueFilter($record, $field_uuid)
+    {
+        $field_array = [];
+        if(
+            isset($record['template_uuid'])
+            && strlen($record['template_uuid']) > 0
+            && isset($record['fields_' . $record['template_uuid']])
+        ) {
+            $field_array = $record['fields_' . $record['template_uuid']];
+        }
+        else if(
+            isset($record['database_uuid'])
+            && strlen($record['database_uuid']) > 0
+            && isset($record['fields_' . $record['database_uuid']])
+        ) {
+            $field_array = $record['fields_' . $record['database_uuid']];
+        }
+        if(count($field_array) > 0) {
+            foreach ($field_array as $field_data_obj) {
+                foreach($field_data_obj as $key => $field_data ) {
+                    if ($field_data['template_field_uuid'] == $field_uuid) {
+                        if (isset($field_data['value'])) {
+                            return $field_data['value'];
+                        }
+                        else if(isset($field_data['files'])) {
+                            return  $field_data['files'][0]['href'];
+                        }
+                    }
+                    else if ($field_data['field_uuid'] == $field_uuid) {
+                        if (isset($field_data['value'])) {
+                            return $field_data['value'];
+                        }
+                        else if(isset($field_data['files'])) {
+                            return  $field_data['files'][0]['href'];
+                        }
+                    }
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * 332d054904501b02d23e4414fd7b
+     * Takes an array from a Twig Template and returns the desired value.
+     *
+     * @param $record
+     * @param $child_uuid
+     * @param $field_uuid
+     * @return mixed|string
+     */
+    public function getValueFilter($record, $child_uuid, $field_uuid)
+    {
+        $record_children = [];
+        if(
+            isset($record['template_uuid'])
+            && strlen($record['template_uuid']) > 0
+            && isset($record['records_' . $record['template_uuid']])
+        ) {
+            $record_children = $record['records_' . $record['template_uuid']];
+        }
+        else if(
+            isset($record['database_uuid'])
+            && strlen($record['database_uuid']) > 0
+            && isset($record['records_' . $record['database_uuid']])
+        ) {
+            $record_children = $record['records_' . $record['database_uuid']];
+        }
+        if(count($record_children) > 0) {
+            foreach($record_children as $record_child) {
+               if(
+                   $record_child['database_uuid'] == $child_uuid
+                   || $record_child['template_uuid'] == $child_uuid
+               ) {
+                   // This is our child.  Check for Fields
+                   $field_array = [];
+                   if (
+                       isset($record_child['template_uuid'])
+                       && strlen($record_child['template_uuid']) > 0
+                       && isset($record_child['fields_' . $record_child['template_uuid']])
+                   ) {
+                       // check for fields array based on template_uuid
+                       $field_array = $record_child['fields_' . $record_child['template_uuid']];
+                   }
+                   else if (
+                       isset($record_child['database_uuid'])
+                       && strlen($record_child['database_uuid']) > 0
+                       && isset($record_child['fields_' . $record_child['database_uuid']])
+                   ) {
+                       $field_array = $record_child['fields_' . $record_child['database_uuid']];
+                   }
+                   foreach ($field_array as $field_data_obj) {
+                       foreach($field_data_obj as $key => $field_data ) {
+                           if ($field_data['template_field_uuid'] == $field_uuid) {
+                               if (isset($field_data['value'])) {
+                                   return $field_data['value'];
+                               }
+                               else if(isset($field_data['files'])) {
+                                   return  $field_data['files'][0]['href'];
+                               }
+                           }
+                           else if ($field_data['field_uuid'] == $field_uuid) {
+                               if (isset($field_data['value'])) {
+                                   return $field_data['value'];
+                               }
+                               else if(isset($field_data['files'])) {
+                                   return  $field_data['files'][0]['href'];
+                               }
+                           }
+                       }
+                   }
+               }
+            }
+        }
+
+        // Recurse to find correct child
+        foreach($record_children as $child) {
+            $result = self::getValueFilter($child, $child_uuid, $field_uuid);
+            if($result !== null) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Returns whether the Datatype RenderPlugin should be run in the current context.

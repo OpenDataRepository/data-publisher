@@ -177,7 +177,7 @@
         // Request search results
         var url = '{{ path('odr_search_results') }}';
 
-        showSearchOverlay( $("#ODRSearchIntent").val() );
+        // showSearchOverlay( $("#ODRSearchIntent").val() );
 
         // TODO - need to communicate which theme to use...
 
@@ -229,7 +229,7 @@
                             $("#ODRSidebarSearchKey").val(data.d.search_key);
                             $("#ODRSearchBoxContent").html(data.d.html);
 
-                            hideSearchOverlay();
+                            // hideSearchOverlay();
                         }
                     });
                 }

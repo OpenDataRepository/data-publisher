@@ -77,7 +77,6 @@ class DefaultController extends Controller
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
-
             $cookies = $request->cookies;
 
 
@@ -85,6 +84,17 @@ class DefaultController extends Controller
             // Grab user and their permissions if possible
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            // If using Wordpress - check for Wordpress User and Log them in.
+            if($this->container->getParameter('odr_wordpress_integrated')) {
+                $odr_wordpress_user = getenv("WORDPRESS_USER");
+                if($odr_wordpress_user) {
+                    // print $odr_wordpress_user . ' ';
+                    $user_manager = $this->container->get('fos_user.user_manager');
+                    /** @var User $admin_user */
+                    $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
+                }
+            }
+
             $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -94,7 +104,6 @@ class DefaultController extends Controller
             if ($admin_user === 'anon.')
                 $logged_in = false;
             // ------------------------------
-
 
             // Locate the datatype referenced by the search slug, if possible...
             if ($search_slug == '') {
@@ -265,7 +274,6 @@ class DefaultController extends Controller
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
 
-
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
@@ -302,11 +310,16 @@ class DefaultController extends Controller
                 )
             );
 
+            // print "WP Header: " . $request->wordpress_header; exit();
+            $html = $request->wordpress_header . $html . $request->wordpress_footer;
+            // $html = $request->wordpress_header . "<div style='min-height: 500px'></div>" . $request->wordpress_footer;
+
             // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
             $session = $request->getSession();
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
+            print $e; exit();
             $source = 0xd75fa46d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
