@@ -251,8 +251,9 @@ class ODRCustomController extends Controller
                 $theme_service->stackThemeArray($theme_array, $theme->getId());
 
             // Determine which datatypes are going to actually be visible to the user
-            $rendered_dt_ids = array( $datatype->getId() => '' );
-            self::getRenderedDatatypes($stacked_theme_array, $rendered_dt_ids);
+            $rendered_dt_ids = self::getRenderedDatatypes($stacked_theme_array);
+            // Ensure the current datatype id is going to be displayed
+            $rendered_dt_ids[ $datatype->getId() ] = '';
 
             // Locate all datarecords that could potentially be visible on a search results page
             //  as a result of using this specific theme
@@ -451,43 +452,66 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Recursively crawls through a stacked theme array to determine which datatypes are getting
-     * displayed to the user.
+     * Recursively crawls through a stacked theme array to determine which datatypes the user could
+     * see on a SearchResults page.  This intentionally doesn't care about permissions.
      *
      * @param array $stacked_theme_array
-     * @param array &$rendered_dt_ids
+     * @return array
      */
-    private function getRenderedDatatypes($stacked_theme_array, &$rendered_dt_ids)
+    private function getRenderedDatatypes($stacked_theme_array)
     {
+        $rendered_dt_ids = array();
+
         foreach ($stacked_theme_array as $t_id => $t) {
             // For each datatype in this theme that has layout data...
             $dt_id = $t['dataType']['id'];
 
-            // ...if this theme has theme_elements...
+            // ...if this datatype has at least one themeElement...
             if ( isset($t['themeElements']) ) {
                 foreach ($t['themeElements'] as $te_num => $te) {
-                    // ...and the theme_element isn't hidden...
+                    // ...and the themeElement isn't hidden...
                     if ( $te['themeElementMeta']['hidden'] === 0 ) {
                         if ( isset($te['themeDataFields']) ) {
-                            // ...and the theme_element contains at least one datafield...
+                            // ...and the themeElement contains at least one datafield...
                             foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                                // ...then this datatype is rendered only if at least one datafield
-                                //  is not hidden
-                                if ( $tdf['hidden'] === 0 )
+                                // ...then the user will be able to see the datatype when at least
+                                //  one of its datafields is not hidden
+                                if ( $tdf['hidden'] === 0 ) {
                                     $rendered_dt_ids[$dt_id] = '';
+
+                                    // No point checking the other datafields in this themeElement
+                                    break;
+
+                                    // ...don't want to do a  break 2;  however, because the datatype
+                                    //  could have child/linked descendants that need to be checked
+                                }
                             }
                         }
                         else if ( isset($te['themeDataType']) ) {
-                            // ...and the theme_element contains a child/linked datatype...
+                            // ...and the theme_element contains a child/linked descendant...
                             $tdt = $te['themeDataType'][0];
 
-                            // ...then check whether the child/linked datatype should be rendered
-                            self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
+                            // ...then check whether the child/linked descendant should be rendered
+                            $tmp = self::getRenderedDatatypes($tdt['childTheme']['theme']);
+
+                            // If the recursion returned something...
+                            if ( !empty($tmp) ) {
+                                // ...then the user needs to be able to see this datatype
+                                $rendered_dt_ids[$dt_id] = '';
+
+                                // Need to save each of the child/linked descendants that the user
+                                //  can view
+                                foreach ($tmp as $descendant_dt_id => $val)
+                                    $rendered_dt_ids[$descendant_dt_id] = '';
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Done checking this theme
+        return $rendered_dt_ids;
     }
 
 
