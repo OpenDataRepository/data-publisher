@@ -186,6 +186,11 @@ class ReferencesPlugin implements DatatypePluginInterface
                 }
             }
 
+            // Need to ensure urls have an https prefix if they don't already
+            if ( $datafield_mapping['url'] !== '' ) {
+                if ( strpos($datafield_mapping['url'], 'http') !== 0 )
+                    $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
+            }
 
             // Going to render the reference differently if it's top-level...
             $is_top_level = $rendering_options['is_top_level'];
