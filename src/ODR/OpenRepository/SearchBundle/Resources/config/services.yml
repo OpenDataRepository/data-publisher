@@ -52,6 +52,7 @@ services:
     odr.search_key_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService
         arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"

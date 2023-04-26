@@ -1111,6 +1111,77 @@ class ValidationController extends ODRCustomController
 
 
     /**
+     * @param Request $request
+     * @return Response
+     */
+    public function findduplicatespecialfieldsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+            $conn = $em->getConnection();
+            $query =
+               'SELECT dtsf.id AS dtsf_id, dtsf.field_purpose, dtsf.display_order, dtsf.data_type_id AS dt_id, df.id AS df_id
+                FROM odr_data_type_special_fields dtsf
+                LEFT JOIN odr_data_fields df ON dtsf.data_field_id = df.id
+                WHERE dtsf.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            print '<pre>';
+
+            $entries = array();
+            $duplicates = array();
+            foreach ($results as $result) {
+                $dtsf_id = $result['dtsf_id'];
+                $dt_id = $result['dt_id'];
+                $df_id = $result['df_id'];
+                $field_purpose = $result['field_purpose'];
+                $display_order = $result['display_order'];
+
+                if ( !isset($entries[$dt_id]) )
+                    $entries[$dt_id] = array();
+                if ( !isset($entries[$dt_id][$field_purpose]) )
+                    $entries[$dt_id][$field_purpose] = array();
+
+                if ( !isset($entries[$dt_id][$field_purpose][$df_id]) )
+                    $entries[$dt_id][$field_purpose][$df_id] = $display_order;
+                else {
+                    print 'duplicate entry for dt '.$dt_id.' df '.$df_id.' field_purpose '.$field_purpose."\n";
+                    $duplicates[] = $dtsf_id;
+                }
+            }
+
+            $query = 'UPDATE odr_data_type_special_fields dtsf SET dtsf.deletedAt = NOW() WHERE dtsf.id IN ('.implode(',', $duplicates).') AND deletedAt IS NULL';
+            print "\n\n".$query."\n";
+
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x8bc7022b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
      * Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the
      * entries in the DataTree table.
      *

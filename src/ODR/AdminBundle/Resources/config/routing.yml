@@ -1440,6 +1440,10 @@ odr_fix_missing_meta_entries:
 odr_find_duplicate_meta_entries:
     path: /admin/find_duplicate_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatemetaentries }
+# Locates duplicate datatypeSpecialField entries
+odr_find_duplicate_dtsf_entries:
+    path: /admin/find_duplicate_dtsf_entries
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatespecialfields }
 
 # Locate/delete a pile of child entities that make no sense when their parent entities are deleted
 # This needs to be run repeatedly until it stops making changes

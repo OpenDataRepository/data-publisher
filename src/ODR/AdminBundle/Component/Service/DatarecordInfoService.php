@@ -288,6 +288,15 @@ class DatarecordInfoService
     {
         // This function is only called when the cache entry doesn't exist
 
+        // These two are kept separate from the primary query because it's slightly easier on
+        //  doctrine's array hydrator
+        $radio_selections = self::getRadioSelections($grandparent_datarecord_id);
+        $tag_selections = self::getTagSelections($grandparent_datarecord_id);
+
+        // Unlike datatype hydration, it seems that separating out the sort/name fields has no benefit
+        //  ...but separating out query to find the child/linked datarecords has a massive benefit
+        $descendants = self::getDescendants($grandparent_datarecord_id);
+
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
            'SELECT
@@ -302,7 +311,7 @@ class DatarecordInfoService
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
-               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro, ts, t,
+               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv,
 
                partial e_b_ub.{id, username, email, firstName, lastName},
                partial e_iv_ub.{id, username, email, firstName, lastName},
@@ -311,12 +320,7 @@ class DatarecordInfoService
                partial e_lvc_ub.{id, username, email, firstName, lastName},
                partial e_mvc_ub.{id, username, email, firstName, lastName},
                partial e_svc_ub.{id, username, email, firstName, lastName},
-               partial e_dtv_ub.{id, username, email, firstName, lastName},
-               partial rs_ub.{id, username, email, firstName, lastName},
-               partial ts_ub.{id, username, email, firstName, lastName},
-
-               partial cdr.{id}, partial cdr_dt.{id},
-               ldt, partial ldr.{id}, partial ldr_dt.{id}
+               partial e_dtv_ub.{id, username, email, firstName, lastName}
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -365,30 +369,15 @@ class DatarecordInfoService
             LEFT JOIN drf.datetimeValue AS e_dtv
             LEFT JOIN e_dtv.updatedBy AS e_dtv_ub
 
-            LEFT JOIN drf.radioSelection AS rs
-            LEFT JOIN rs.updatedBy AS rs_ub
-            LEFT JOIN rs.radioOption AS ro
-
-            LEFT JOIN drf.tagSelection AS ts
-            LEFT JOIN ts.updatedBy AS ts_ub
-            LEFT JOIN ts.tag AS t
-
             LEFT JOIN drf.dataField AS df
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN dfm.fieldType AS ft
-
-            LEFT JOIN dr.children AS cdr
-            LEFT JOIN cdr.dataType AS cdr_dt
-
-            LEFT JOIN dr.linkedDatarecords AS ldt
-            LEFT JOIN ldt.descendant AS ldr
-            LEFT JOIN ldr.dataType AS ldr_dt
 
             WHERE
                 dr.grandparent = :grandparent_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND (e_i.id IS NULL OR e_i.original = 0)'
-        )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
+        )->setParameters( array('grandparent_id' => $grandparent_datarecord_id) );
 
         $datarecord_data = $query->getArrayResult();
 
@@ -490,6 +479,13 @@ class DatarecordInfoService
 
 
             // Need to store a list of child/linked datarecords by their respective datatype ids
+            $dr['children'] = array();
+            $dr['linkedDatarecords'] = array();
+            if ( isset($descendants[$dr_id]) ) {
+                $dr['children'] = $descendants[$dr_id]['children'];
+                $dr['linkedDatarecords'] = $descendants[$dr_id]['linkedDatarecords'];
+            }
+
             $child_datarecords = array();
             foreach ($dr['children'] as $child_num => $cdr) {
                 $cdr_id = $cdr['id'];
@@ -622,33 +618,41 @@ class DatarecordInfoService
                     }
                 }
 
-                // Organize radio selections by radio option id
-                $new_rs_array = array();
-                foreach ($drf['radioSelection'] as $rs_num => $rs) {
-                    $rs['updatedBy'] = UserUtility::cleanUserData( $rs['updatedBy'] );
+                // Organize any radio selections by radio option id
+                if ( isset($radio_selections[$dr_id][$df_id]) ) {
+                    $drf['radioSelection'] = $radio_selections[$dr_id][$df_id];
 
-                    $ro_id = $rs['radioOption']['id'];
-                    $new_rs_array[$ro_id] = $rs;
-                }
-                $drf['radioSelection'] = $new_rs_array;
+                    $new_rs_array = array();
+                    foreach ($drf['radioSelection'] as $rs_num => $rs) {
+                        $rs['updatedBy'] = UserUtility::cleanUserData( $rs['updatedBy'] );
 
-                // Organize tag selections by tag id
-                $new_ts_array = array();
-                foreach ($drf['tagSelection'] as $ts_num => $ts) {
-                    $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
-
-                    if ( $ts['tag']['userCreated'] > 0 ) {
-                        // TODO - shouldn't this 'tag_parent_uuid' entry always be in the array?
-                        // TODO - ...and in the tag data, not the tagSelection data?
-                        $tag_uuid = $ts['tag']['tagUuid'];
-                        if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
-                            $ts['tag_parent_uuid'] = $inversed_tag_uuid_tree[$tag_uuid];
+                        $ro_id = $rs['radioOption']['id'];
+                        $new_rs_array[$ro_id] = $rs;
                     }
-
-                    $t_id = $ts['tag']['id'];
-                    $new_ts_array[$t_id] = $ts;
+                    $drf['radioSelection'] = $new_rs_array;
                 }
-                $drf['tagSelection'] = $new_ts_array;
+
+                // Organize any tag selections by tag id
+                if ( isset($tag_selections[$dr_id][$df_id]) ) {
+                    $drf['tagSelection'] = $tag_selections[$dr_id][$df_id];
+
+                    $new_ts_array = array();
+                    foreach ($drf['tagSelection'] as $ts_num => $ts) {
+                        $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
+
+                        if ( $ts['tag']['userCreated'] > 0 ) {
+                            // TODO - shouldn't this 'tag_parent_uuid' entry always be in the array?
+                            // TODO - ...and in the tag data, not the tagSelection data?
+                            $tag_uuid = $ts['tag']['tagUuid'];
+                            if ( isset($inversed_tag_uuid_tree[$tag_uuid]) )
+                                $ts['tag_parent_uuid'] = $inversed_tag_uuid_tree[$tag_uuid];
+                        }
+
+                        $t_id = $ts['tag']['id'];
+                        $new_ts_array[$t_id] = $ts;
+                    }
+                    $drf['tagSelection'] = $new_ts_array;
+                }
 
                 // Delete everything that isn't strictly needed in this $drf array
                 foreach ($drf as $k => $v) {
@@ -708,6 +712,135 @@ class DatarecordInfoService
 
 
     /**
+     * Because of the complexity/depth of the main query in buildDatarecordData(), it's a lot harder
+     * for mysql if the database also has hundreds of radio options...so it's better to get radio
+     * options in a separate query.
+     *
+     * @param int $grandparent_datarecord_id
+     *
+     * @return array
+     */
+    private function getRadioSelections($grandparent_datarecord_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT rs, ro, partial rs_ub.{id, username, email, firstName, lastName},
+                    partial drf.{id}, partial df.{id}, partial dr.{id}
+            FROM ODRAdminBundle:RadioSelection AS rs
+            LEFT JOIN rs.radioOption AS ro
+            LEFT JOIN rs.updatedBy AS rs_ub
+            LEFT JOIN rs.dataRecordFields AS drf
+            LEFT JOIN drf.dataField AS df
+            LEFT JOIN drf.dataRecord AS dr
+            WHERE dr.grandparent = :grandparent_datarecord_id
+            AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
+            ORDER BY dr.id, df.id'
+        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        $results = $query->getArrayResult();
+
+        $radio_selections = array();
+        foreach ($results as $result) {
+            // Need these ids out of the array...
+            $ro_id = $result['radioOption']['id'];
+            $df_id = $result['dataRecordFields']['dataField']['id'];
+            $dr_id = $result['dataRecordFields']['dataRecord']['id'];
+            // Don't want to keep this entry
+            unset( $result['dataRecordFields'] );
+
+            if ( !isset($radio_selections[$dr_id]) )
+                $radio_selections[$dr_id] = array();
+            if ( !isset($radio_selections[$dr_id][$df_id]) )
+                $radio_selections[$dr_id][$df_id] = array();
+            $radio_selections[$dr_id][$df_id][$ro_id] = $result;
+        }
+
+        return $radio_selections;
+    }
+
+
+    /**
+     * Because of the complexity/depth of the main query in buildDatarecordData(), it's a lot harder
+     * for mysql if the database also has hundreds of tags...so it's better to get all the tags in
+     * in a separate query.
+     *
+     * @param int $grandparent_datarecord_id
+     *
+     * @return array
+     */
+    private function getTagSelections($grandparent_datarecord_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT ts, t, partial ts_ub.{id, username, email, firstName, lastName},
+                    partial drf.{id}, partial df.{id}, partial dr.{id}
+            FROM ODRAdminBundle:TagSelection AS ts
+            LEFT JOIN ts.tag AS t
+            LEFT JOIN ts.updatedBy AS ts_ub
+            LEFT JOIN ts.dataRecordFields AS drf
+            LEFT JOIN drf.dataField AS df
+            LEFT JOIN drf.dataRecord AS dr
+            WHERE dr.grandparent = :grandparent_datarecord_id
+            AND ts.deletedAt IS NULL AND t.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
+            ORDER BY dr.id, df.id'
+        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        $results = $query->getArrayResult();
+
+        $tag_selections = array();
+        foreach ($results as $result) {
+            // Need these ids out of the array...
+            $t_id = $result['tag']['id'];
+            $df_id = $result['dataRecordFields']['dataField']['id'];
+            $dr_id = $result['dataRecordFields']['dataRecord']['id'];
+            // Don't want to keep this entry
+            unset( $result['dataRecordFields'] );
+
+            if ( !isset($tag_selections[$dr_id]) )
+                $tag_selections[$dr_id] = array();
+            if ( !isset($tag_selections[$dr_id][$df_id]) )
+                $tag_selections[$dr_id][$df_id] = array();
+            $tag_selections[$dr_id][$df_id][$t_id] = $result;
+        }
+
+        return $tag_selections;
+    }
+
+
+    /**
+     * Apparently, mysql REALLY doesn't like getting the child/linked descendant records with the
+     * rest of the data that self::buildDatarecordData() loads.
+     *
+     * @param int $grandparent_datarecord_id
+     * @return array
+     */
+    private function getDescendants($grandparent_datarecord_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT partial dr.{id}, partial cdr.{id}, partial cdr_dt.{id},
+                    partial ldt.{id}, partial ldr.{id}, partial ldr_dt.{id}
+            FROM ODRAdminBundle:DataRecord dr
+            LEFT JOIN dr.children AS cdr
+            LEFT JOIN cdr.dataType AS cdr_dt
+            LEFT JOIN dr.linkedDatarecords AS ldt
+            LEFT JOIN ldt.descendant AS ldr
+            LEFT JOIN ldr.dataType AS ldr_dt
+            WHERE dr.grandparent = :grandparent_datarecord_id
+            AND dr.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        $results = $query->getArrayResult();
+
+        $descendants = array();
+        foreach ($results as $result) {
+            $dr_id = $result['id'];
+
+            $descendants[$dr_id]['children'] = $result['children'];
+            $descendants[$dr_id]['linkedDatarecords'] = $result['linkedDatarecords'];
+        }
+
+        return $descendants;
+    }
+
+
+    /**
      * Multiple places in ODR need to have quick/easy access to the name/sort values for a datarecord.
      * This function does the work of locating the values, combining them together if there's more
      * than one of them, and then saving the values back in the cached datarecord array.
@@ -722,7 +855,8 @@ class DatarecordInfoService
             // Don't want this data in the final array
             unset( $dr_array[$dr_id]['dataType']['dataTypeSpecialFields'] );
 
-            // Convert that list into two arrays...one for datarecord names, another for datarecord sort
+            // Going to determine what the "name" and the "sort value" of the datarecord are, so
+            //  they can be cached
             $name_fields = array();
             $sort_fields = array();
             // Also need to track which datatype the special field came from

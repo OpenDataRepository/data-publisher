@@ -207,8 +207,12 @@ class TextResultsController extends ODRCustomController
 //                    return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
 //                }
 
-                // No problems, so continue on
+                // No problems, so ensure the tab refers to the given search key
+                $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
+                if ( $expected_search_key !== $search_key )
+                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
             }
+            $search_params = $search_key_service->decodeSearchKey($search_key);
 
 
             // ----------------------------------------
@@ -240,7 +244,7 @@ class TextResultsController extends ODRCustomController
                 // ----------------------------------------
                 // If the sorting criteria has changed for the lists of datarecord ids...
                 if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_datafields, $sort_directions) ) {
-                    // ...then store the new criteria they will be using here
+                    // ...then change (or delete) the criteria stored in the user's session
                     $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
                     $odr_tab_service->clearSearchResults($odr_tab_id);
                 }
@@ -248,7 +252,23 @@ class TextResultsController extends ODRCustomController
                 // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
                 //  will display stuff in a different order
                 $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
-                if ( is_null($sort_criteria) ) {
+                if ( !is_null($sort_criteria) ) {
+                    // Prefer the criteria from the user's session whenever possible
+                    $sort_datafields = $sort_criteria['datafield_ids'];
+                    $sort_directions = $sort_criteria['sort_directions'];
+                }
+                else if ( isset($search_params['sort_by']) ) {
+                    // If the user's session doesn't have anything but the search key does, then
+                    //  use that
+                    foreach ($search_params['sort_by'] as $display_order => $data) {
+                        $sort_datafields[$display_order] = intval($data['sort_df_id']);
+                        $sort_directions[$display_order] = $data['sort_dir'];
+                    }
+
+                    // Store this in the user's session
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
+                }
+                else {
                     // No criteria set...get this datatype's current list of sort fields, and convert
                     //  into a list of datafield ids for storing this tab's criteria
                     foreach ($datatype->getSortFields() as $display_order => $df) {
@@ -256,11 +276,6 @@ class TextResultsController extends ODRCustomController
                         $sort_directions[$display_order] = 'asc';
                     }
                     $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
-                }
-                else {
-                    // Load the criteria from the user's session
-                    $sort_datafields = $sort_criteria['datafield_ids'];
-                    $sort_directions = $sort_criteria['sort_directions'];
                 }
 
                 // No problems, so get the datarecords that match the search
@@ -353,8 +368,15 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // Get the rows that will fulfill the datatables request
             $data = array();
-            if ( $datarecord_count > 0 )
+            if ( $datarecord_count > 0 ) {
                 $data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
+
+                // It's impossible for this function to determine the correct order these datarecords
+                //  should be in based on the values in their datafields...fortunately, the search
+                //  system has already done this, and $data is already in the correct order
+                foreach ($data as $sort_order => $dr_data)
+                    $data[$sort_order][1] = $sort_order;
+            }
 
             // Build the json array to return to the datatables request
             $json = array(
@@ -448,24 +470,27 @@ class TextResultsController extends ODRCustomController
         try {
             // Grab data from post...
             $post = $request->request->all();
-
-            /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
-
             if ( !isset($post['odr_tab_id']) )
                 throw new ODRBadRequestException('invalid request');
 
             $odr_tab_id = $post['odr_tab_id'];
 
-            // Determine whether the requested state array exists in the user's session...
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+
+            // The datatables.js instance used for the search results page needs to know both its
+            //  previous state (to restore the table when returning from Display/Edit mode), and
+            //  also needs to know any sort_criteria used for the tab
+            $return = array('state' => array(), 'sort_criteria' => array());
+
             $tab_data = $odr_tab_service->getTabData($odr_tab_id);
-            if ( is_null($tab_data) || !isset($tab_data['state']) ) {
-                // ...doesn't exist, just return an empty array
-                $return = array();
-            }
-            else {
-                // ...return the requested state array
-                $return = $tab_data['state'];
+            if ( !is_null($tab_data) ) {
+                // Since the tab data exists, extract and return the 'state' and 'sort_criteria' arrays
+                //  to datatables.js if possible
+                if ( isset($tab_data['state']) )
+                    $return['state'] = $tab_data['state'];
+                if ( isset($tab_data['sort_criteria']) )
+                    $return['sort_criteria'] = $tab_data['sort_criteria'];
             }
         }
         catch (\Exception $e) {
