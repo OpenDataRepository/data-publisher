@@ -829,7 +829,7 @@ class APIController extends ODRCustomController
                 /** @var User $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
-                    throw new ODRNotFoundException('User');
+                    throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
             }
 
             // Check if template is valid
@@ -978,7 +978,7 @@ class APIController extends ODRCustomController
             /** @var User $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
-                throw new ODRNotFoundException('User');
+                throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
 
         }
         catch (\Exception $e) {
@@ -1042,7 +1042,7 @@ class APIController extends ODRCustomController
             /** @var user $user */
             $user = $user_manager->finduserby(array('email' => $user_email));
             if (is_null($user))
-                throw new ODRNotFoundException('user');
+                throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
 
             // Check if template is valid
             /** @var EntityManager $em */
@@ -2159,7 +2159,8 @@ class APIController extends ODRCustomController
                         if (
                             isset($record['record_uuid'])
                             && !empty($record['record_uuid'])
-                            && $record['template_uuid'] == $o_record['template_uuid']
+//                            && $record['template_uuid'] == $o_record['template_uuid']
+                            && $record['database_uuid'] == $o_record['database_uuid']
                             && $record['record_uuid'] == $o_record['record_uuid']
                         ) {
                             $record_found = true;
@@ -2216,7 +2217,8 @@ class APIController extends ODRCustomController
                             if (
                                 isset($record['record_uuid'])
                                 && (
-                                    $record['template_uuid'] == $o_record['template_uuid']
+//                                    $record['template_uuid'] == $o_record['template_uuid']
+                                    $record['database_uuid'] == $o_record['database_uuid']
                                     && $record['record_uuid'] == $o_record['record_uuid']
                                 )
                             ) {
@@ -3963,7 +3965,8 @@ class APIController extends ODRCustomController
                         if (
                             isset($record['record_uuid'])
                             && !empty($record['record_uuid'])
-                            && $record['template_uuid'] == $o_record['template_uuid']
+//                            && $record['template_uuid'] == $o_record['template_uuid']
+                            && $record['database_uuid'] == $o_record['database_uuid']
                             && $record['record_uuid'] == $o_record['record_uuid']
                         ) {
                             $record_found = true;
@@ -4022,7 +4025,8 @@ class APIController extends ODRCustomController
                             if (
                                 isset($record['record_uuid'])
                                 && (
-                                    $record['template_uuid'] == $o_record['template_uuid']
+//                                    $record['template_uuid'] == $o_record['template_uuid']
+                                    $record['database_uuid'] == $o_record['database_uuid']
                                     && $record['record_uuid'] == $o_record['record_uuid']
                                 )
                             ) {
@@ -4302,7 +4306,7 @@ class APIController extends ODRCustomController
                 /** @var User $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
-                    throw new ODRNotFoundException('User');
+                    throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
             } else {
                 $user_email = $logged_in_user->getEmail();
                 $user = $logged_in_user;
@@ -4572,7 +4576,7 @@ class APIController extends ODRCustomController
                 /** @var ODRUser $user */
                 $user = $user_manager->findUserBy(array('email' => $data['user_email']));
                 if (is_null($user))
-                    throw new ODRNotFoundException('User');
+                    throw new ODRNotFoundException('unrecognized email: "'.$data['user_email'].'"');
 
                 /** @var DataType $datatype */
                 $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -4652,7 +4656,7 @@ class APIController extends ODRCustomController
                 /** @var ODRUser $user */
                 $user = $user_manager->findUserBy(array('email' => $data['user_email']));
                 if (is_null($user))
-                    throw new ODRNotFoundException('User');
+                    throw new ODRNotFoundException('unrecognized email: "'.$data['user_email'].'"');
 
                 /** @var DataType $datatype */
                 $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -4788,7 +4792,7 @@ class APIController extends ODRCustomController
             /** @var User $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
-                throw new ODRNotFoundException('User');
+                throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
 
 
             // ----------------------------------------
@@ -4933,7 +4937,7 @@ class APIController extends ODRCustomController
                 /** @var User $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
-                    throw new ODRNotFoundException('User');
+                    throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
             } else {
                 $user_email = $logged_in_user->getEmail();
                 $user = $logged_in_user;
@@ -5069,7 +5073,7 @@ class APIController extends ODRCustomController
                 /** @var User $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
-                    throw new ODRNotFoundException('User');
+                    throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
             } else {
                 $user_email = $logged_in_user->getEmail();
                 $user = $logged_in_user;
@@ -5328,7 +5332,7 @@ class APIController extends ODRCustomController
             /** @var User $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
-                throw new ODRNotFoundException('User');
+                throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
 
             // Find datatype for Dataset UUID
             /** @var DataType $data_type */
@@ -6591,7 +6595,7 @@ class APIController extends ODRCustomController
             /** @var User $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
-                throw new ODRNotFoundException('User');
+                throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();

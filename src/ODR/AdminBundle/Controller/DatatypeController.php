@@ -1450,8 +1450,8 @@ class DatatypeController extends ODRCustomController
                 if ($short_name == '' || $long_name == '')
                     $form->addError( new FormError('New databases require a database name') );
 
-                if ( strlen($short_name) > 32)
-                    $form->addError( new FormError('Shortname has a maximum length of 32 characters') );    // underlying database column only permits 32 characters
+                if ( strlen($short_name) > 128)
+                    $form->addError( new FormError('Shortname has a maximum length of 128 characters') );    // underlying database column only permits 128 characters
 
                 if ($form['is_master_type']->getData() > 0 && $form['master_type_id']->getData() > 0)
                     $form->addError( new FormError('Currently unable to copy a new Master Template from an existing Master Template') );

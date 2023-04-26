@@ -17,7 +17,7 @@
         </label>
         <div class="ODRFieldWrapper">
             {{ form_errors(form.shortName) }}
-            {{ form_widget(form.shortName, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(form.shortName, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline', 'maxlength': '128' } }) }}
         </div>
         <label class="ODRFieldLabel pure-u-1" for="{{ form.description.vars.id }}">
             <strong>{{ form.description.vars.label }}</strong>

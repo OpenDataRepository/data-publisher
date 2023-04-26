@@ -109,4 +109,9 @@ odr_plugins.rruff.powder_diffraction:
             properties:
                 - single_uploads_only
 
+        other_files:
+            name: Other Files
+            description:
+            type: File
+
     config_options:

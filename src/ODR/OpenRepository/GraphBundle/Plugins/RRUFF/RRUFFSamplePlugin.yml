@@ -14,12 +14,12 @@ odr_plugins.rruff.rruff_sample:
 
         # ----------------------------------------
         # These fields are temporary...they only exist to make it easier to import
-#        sample_id:
-#            name: Sample ID
-#            description:
-#            type: ShortVarchar
-#            properties:
-#                - must_be_unique
+        sample_id:
+            name: Sample ID
+            description:
+            type: ShortVarchar
+            properties:
+                - must_be_unique
         rruff_id:
             name: RRUFF ID
             description:
