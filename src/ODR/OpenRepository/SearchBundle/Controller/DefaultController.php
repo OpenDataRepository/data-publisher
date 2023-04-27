@@ -1150,35 +1150,10 @@ class DefaultController extends Controller
 
                 $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
 
-                // Twig can figure out which radio options/tags are selected or unselected, but it's
-                //  difficult to actually set them inside the template file...easier to use php
-                //  to tweak the search params array here
-                foreach ($datatype_array as $dt_id => $dt) {
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                        if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
-                            if ( isset($search_params[$df_id]) ) {
-                                // This search has criteria for a radio/tag datafield
-                                $ids = explode(',', $search_params[$df_id]);
-
-                                $selected_ids = array();
-                                $unselected_ids = array();
-                                foreach ($ids as $id) {
-                                    if ( strpos($id, '-') !== false )
-                                        $unselected_ids[] = substr($id, 1);
-                                    else
-                                        $selected_ids[] = $id;
-                                }
-
-                                // Save everything and continue
-                                $search_params[$df_id] = array(
-                                    'selected' => $selected_ids,
-                                    'unselected' => $unselected_ids
-                                );
-                            }
-                        }
-                    }
-                }
+                // Twig can technically figure out which radio options/tags are selected or
+                //  unselected from the search key, but it's irritating to do so...it's easier to
+                //  use php instead.
+                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
 
                 $templating = $this->get('templating');
                 $return['d'] = array(

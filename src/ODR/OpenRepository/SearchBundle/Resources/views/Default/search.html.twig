@@ -87,13 +87,16 @@
     }
 
     function doSearch() {
+        // Ensure this only works on the actual search sidebar...
+        var context = $("#content").children("#ODRSearchSidebar").first();
+
         // Values for Radio datafields need to be manually set
-        $(".ODRRadioSearchDiv").each(function () {
+        $(context).find(".ODRRadioSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
 
             // Reset the input's value since this is rebuilding the search value from scratch
-            var datafield = $("#datafield_" + datafield_id);
+            var datafield = $(this).children("#datafield_" + datafield_id);
             datafield.val('');
 
             var str = '';
@@ -108,7 +111,7 @@
 
                 has_selections = true;
 
-                if (!first_selection) {
+                if ( !first_selection ) {
                     str += ',' + value;
                 }
                 else {
@@ -122,27 +125,28 @@
         });
 
         // Same for tag datafields
-        $(".ODRTagSearchDiv").each(function () {
+        $(context).find(".ODRTagSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
 
             // Reset the input's value since this is rebuilding the search value from scratch
-            var datafield = $("#datafield_" + datafield_id);
+            var datafield = $(this).children("#datafield_" + datafield_id);
             datafield.val('');
 
             var str = '';
             var first_selection = true;
             var has_selections = false;
 
-            $(this).find('input')/*.not('.ODRSearchParentTag')*/.each(function () {
+            $(this).find('input').each(function () {
                 // Grab the tag
                 var value = $(this).val().trim();
                 if (value == '')
                     return;
 
                 has_selections = true;
+                console.log(value);
 
-                if (!first_selection) {
+                if ( !first_selection ) {
                     str += ',' + value;
                 }
                 else {
@@ -156,7 +160,7 @@
         });
 
         // Ensure the two parts of the search criteria for a file/image match
-        $(".ODRFileDatafieldName").each(function () {
+        $(context).find(".ODRFileDatafieldName").each(function () {
             var df_id_data = $(this).attr('id').split(/_/);
             var df_id = df_id_data[1];
 
@@ -181,11 +185,20 @@
 
         // TODO - need to communicate which theme to use...
 
+        var search_form = $(context).find("#search_form");
+        // console.log(search_form);
+        var post_data = $(search_form).serialize();
+        // console.log( post_data );
+
+        // NOTE: due to advanced search removing all disabled attributes, the resulting post will
+        //  typically have a bunch of blank entries...ODR automatically filters these superfluous
+        //  entries out when it returns the search key
+
         $.ajax({
             type: 'POST',
             url: url,
             dataType: 'json',
-            data: $("#search_form").serialize(),
+            data: post_data,
             success: function (data, textStatus, jqXHR) {
                 if ( $("#ODRSearchIntent").val() === 'searching' ) {
                     // Overwrite any currently existing tab id, since a new search was performed
@@ -209,13 +222,13 @@
                     url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
                     // Save the search key so TODO
-                    $("#ODRSidebarSearchKey").val(data.d.search_key);
+                    $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
 
                     // UpdateURL() will end up forcing a hashchange event one way or another
                     UpdateURL(url);
                     // hideSearchOverlay();    // Don't hide search overlay here, rendering takes longer than searching
                 }
-                else if ( $("#ODRSearchIntent").val() === 'linking' ) {
+                else if ( $(context).find("#ODRSearchIntent").val() === 'linking' ) {
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length - 10);
                     url += data.d.search_key + '/1/linking';
@@ -226,8 +239,8 @@
                         url: url,
                         dataType: 'json',
                         success: function (data, textStatus, jqXHR) {
-                            $("#ODRSidebarSearchKey").val(data.d.search_key);
-                            $("#ODRSearchBoxContent").html(data.d.html);
+                            $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
+                            $(context).find("#ODRSearchBoxContent").html(data.d.html);
 
                             hideSearchOverlay();
                         }
@@ -259,7 +272,7 @@
 <script>
 
     var search_content = "";
-
+{#
     $(function() {
         setupBackgroundImage();
     });
@@ -275,6 +288,7 @@
         }
         {% endif %}
     }
+#}
 </script>
 
 {% endspaceless %}

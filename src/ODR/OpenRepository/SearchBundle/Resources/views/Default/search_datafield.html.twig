@@ -31,6 +31,13 @@
                 </span>
             </span>
         {% endif %}
+        {% if field_typeclass == "Radio" or field_typeclass == "Tag" %}
+            <input id="df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
+                   title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
+                   placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
+                   size="15" maxlength="15"
+            />
+        {% endif %}
         </label>
     </span>
 
@@ -106,7 +113,7 @@
 
     <span class="pure-u-1 ODRTagSearchDiv ODRSearchScrollbox" id="Input_{{ datafield_id }}" rel="{{ datatype_id }}">
     {% if datafield['tags'] is defined %}
-        <input type="hidden" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
+        <input type="hidden" class="ODRInput" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
 
         {% include 'ODROpenRepositorySearchBundle:Default:tag_wrapper.html.twig' with {
             'stacked_tags': datafield['tags'],

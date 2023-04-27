@@ -1512,7 +1512,7 @@ pre .support.value  {
         margin: 0.5em 0;
     }
     .ODRTagSearchDiv {
-        max-height: 200px;
+        max-height: 400px;
         overflow-y: auto;
         overflow-x: hidden;
     }
@@ -3849,13 +3849,14 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagWrapper .ODRTagLabel {
     cursor: default;
+    display: inline !important;
 }
 .ODRTagWrapper .ODRTagLabel p {
     display: inline;
 }
 .ODRTagGroup {
     position: relative;
-    padding-left: 15px;
+    padding-left: 6px;
     margin-top: 5px;
 }
 .ODRTagGroup:before {
@@ -3875,7 +3876,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagSpacer {
     display: inline-block;
-    padding-left: 9px;
+    width: 15px;
 }
 
 
@@ -4522,4 +4523,12 @@ i {
 }
 .DynamicGraphSettingsDiv_close {
     text-align: right;
+}
+
+.ODRSearchDatafieldFilter {
+    display: inline;
+    float: right;
+
+    font-size: 12px;
+    color: black;
 }
