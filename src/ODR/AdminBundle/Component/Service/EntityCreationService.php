@@ -55,6 +55,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagSelection;
@@ -2133,6 +2134,40 @@ class EntityCreationService
         }
 
         return $storage_entity;
+    }
+
+
+    /**
+     * Creates and returns a new StoredSearchKey entity.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param string $search_key
+     * @param string $label
+     * @param boolean $delay_flush
+     *
+     * @return StoredSearchKey
+     */
+    public function createStoredSearchKey($user, $datatype, $search_key, $label, $delay_flush = false)
+    {
+        /** @var StoredSearchKey $stored_search_key */
+        $stored_search_key = new StoredSearchKey();
+        $stored_search_key->setDataType($datatype);
+        $stored_search_key->setSearchKey($search_key);
+        $stored_search_key->setStorageLabel($label);
+
+        $stored_search_key->setIsDefault(false);
+        $stored_search_key->setIsPublic(false);
+
+        $stored_search_key->setCreatedBy($user);
+        $stored_search_key->setUpdatedBy($user);
+
+        $this->em->persist($stored_search_key);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $stored_search_key;
     }
 
 

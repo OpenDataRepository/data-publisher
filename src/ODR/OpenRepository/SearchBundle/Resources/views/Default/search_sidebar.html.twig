@@ -53,7 +53,7 @@
         <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
 
         <div class="ODRInnerBox">
-            {% if intent != 'default_settings' %}
+            {% if intent != 'stored_search_keys' %}
             <span class="ODRSearchToggle">
                 <i class="fa fa-lg fa-arrow-circle-left hidden"></i>
                 <i class="fa fa-lg fa-arrow-circle-right"></i>
@@ -70,11 +70,11 @@
 
             <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
                 <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
-                {% if intent != 'default_settings' %}
+                {% if intent != 'stored_search_keys' %}
                 <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}"/>
                 {% endif %}
 
-                {% if intent != 'default_settings' %}
+                {% if intent != 'stored_search_keys' %}
                 <fieldset id="search_top">
                     <div>
                         <div class="pure-u-1">
@@ -94,26 +94,26 @@
                     <div class="pure-u-1">
                         <label for="textbox_general" class="pure-u-1 ODRPrimarySearchLabel">
                             Search for:
-                            {% if intent != 'default_settings' %}
+                            {% if intent != 'stored_search_keys' %}
                             <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"
                                style="padding-left:5px;" title="Search Help"></i>
                             <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList"
                                style="padding-left:5px;" title="Fields searched when using general search:"></i>
                             {% endif %}
-                            {% if is_datatype_admin and intent != 'default_settings' %}
+                            {% if is_datatype_admin and intent != 'stored_search_keys' %}
                                 <i class="fa fa-lg fa-edit Pointer ODREditSearchNotes"
                                    style="padding-left:5px;" title="Edit the search page notes."></i>
                             {% endif %}
                         </label>
                         <input id="textbox_general" class="pure-u-1" type="text" name="gen"
                             {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
-                            {% if search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
+                            {% if search_params is defined and search_params['gen'] is defined %}value="{{ search_params['gen'] }}"{% endif %}
                             {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %}
                         />
                         <input type="hidden" id="search_type" value="basic" />
                     </div>
 
-                    {% if intent != 'default_settings' %}
+                    {% if intent != 'stored_search_keys' %}
                     <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
                         {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
                     </div>
@@ -150,7 +150,7 @@
                             {% endif %}
                         {% endfor %}
 
-                        {% if intent != 'default_settings' %}
+                        {% if intent != 'stored_search_keys' %}
                             {# created/modified by, created/modified date, public status of child datarecord #}
                             {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
                                 'search_params': search_params,
@@ -197,7 +197,7 @@
                                     {% endif %}
                                 {% endfor %}
 
-                                {% if intent != 'default_settings' %}
+                                {% if intent != 'stored_search_keys' %}
                                     {# created/modified by, created/modified date, public status of child datarecord #}
                                     {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
                                         'search_params': search_params,
@@ -246,7 +246,7 @@
                                     {% endif %}
                                 {% endfor %}
 
-                                {% if intent != 'default_settings' %}
+                                {% if intent != 'stored_search_keys' %}
                                     {# created/modified by, created/modified date, public status of datarecord #}
                                     {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
                                         'search_params': search_params,
@@ -262,7 +262,7 @@
                     {% endif %}
                 {% endfor %}
 
-                {% if intent != 'default_settings' %}
+                {% if intent != 'stored_search_keys' %}
                 <fieldset>
                     <div class="pure-u-1">
                         <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced
@@ -289,6 +289,7 @@
 <script>
     /**
      * Initializes the search sidebar.
+     *
      * @param {HTMLElement} context
      */
     function InitSearchSidebar(context = undefined) {
@@ -301,8 +302,8 @@
         // Prevent normal form behavior
         $(context).find("#search_form").unbind('submit').submit(function (event) {
             event.preventDefault();
-            {% if intent != 'default_settings' %}
-            doSearch();
+            {% if intent != 'stored_search_keys' %}
+            doSearch('{{ path('odr_search_results') }}');
             {% endif %}
         });
 
@@ -334,6 +335,26 @@
                         if ( name_value == '' && exist_value == '' )
                             $(this).parent().slideUp(200);
                     }
+                    else if ( $(this).hasClass("ODRDatePicker") ) {
+                        // Datepickers need to check both start/end fields...
+                        var id = $(this).attr('id');
+                        var id_data = id.split('_');
+
+                        var start_id = '';
+                        var end_id = '';
+                        if (id_data.length == 3) {
+                            start_id = '#' + id_data[0] + '_' + id_data[1] + '_start';
+                            end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
+                        }
+                        else if (id_data.length == 4) {
+                            start_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_start';
+                            end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
+                        }
+
+                        // If nothing in start and nothing in end, hide this datafield
+                        if ($(start_id).val() == '' && $(end_id).val() == '')
+                            $(this).parent().slideUp(200);
+                    }
                     else if ( $(this).val() == ''
                         && !$(this).parent().hasClass('ODRTagSearchDiv')
                         && !$(this).parent().hasClass('ODRRadioSearchDiv')
@@ -342,22 +363,6 @@
                         //  when they don't have a value
                         $(this).parent().slideUp(200);
                     }
-                });
-
-                // Datepickers need special treatment...
-                $(content_div).find(".ODRDatePicker[name$='_s']").each(function () {
-                    var id = $(this).attr('id');
-                    var id_data = id.split('_');
-
-                    var end_id = '';
-                    if (id_data.length == 3)
-                        end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
-                    else if (id_data.length == 4)
-                        end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
-
-                    // If nothing in start and nothing in end, hide this datafield
-                    if ($(this).val() == '' && $(end_id).val() == '')
-                        $(this).parent().slideUp(200);
                 });
 
                 // Radio fields also need special treatment...
@@ -540,8 +545,8 @@
             onSelect: function (dateText, inst) {
 
                 var field_id = $(this).attr('rel');
-                var start_date = $("#" + field_id + "_start");
-                var end_date = $("#" + field_id + "_end");
+                var start_date = $(context).find("#" + field_id + "_start");
+                var end_date = $(context).find("#" + field_id + "_end");
 
                 var start_date_value = $(start_date).val();
                 var end_date_value = $(end_date).val();
@@ -572,6 +577,28 @@
             }
         });
 
+        $(context).find(".ODRDatePickerSearch_clear").unbind('click').click(function() {
+            var id_data = $(this).attr('id').split(/_/);
+
+            var inputs = [];
+            if ( id_data.length == 3 ) {
+                inputs.push( $(context).find("#df_" + id_data[1] + "_start") );
+                inputs.push( $(context).find("#df_" + id_data[1] + "_end") );
+            }
+            else if ( id_data.length == 4 ) {
+                inputs.push( $(context).find("#dt_" + id_data[1] + "_" + id_data[2] + "_start") );
+                inputs.push( $(context).find("#dt_" + id_data[1] + "_" + id_data[2] + "_end") );
+            }
+            // console.log(inputs);
+
+            $.each(inputs, function(index,elem) {
+                $(elem).datepicker("setDate", null);
+                $(elem).datepicker("option", "minDate", null);
+                $(elem).datepicker("option", "maxDate", null);
+                $(elem).datepicker('refresh');
+            });
+        });
+
         // Slide out the help menu
         $(context).find(".ODRSearchHelp").unbind('click').click(function () {
             $(context).find("#ODRSearchHelp_div").slideToggle();
@@ -580,7 +607,7 @@
             $(context).find("#ODRGeneralSearchList_div").slideToggle();
         });
 
-{% if is_datatype_admin and intent != 'default_settings' %}
+{% if is_datatype_admin and intent != 'stored_search_keys' %}
         $(context).find(".ODRMarkdownHelp_open").unbind('click').click(function(event) {
             event.preventDefault();
 
@@ -652,7 +679,7 @@
         $(context).find("#textbox_general").focus();
     }
 
-{% if is_datatype_admin and intent != 'default_settings' %}
+{% if is_datatype_admin and intent != 'stored_search_keys' %}
     /**
      * Toggles the upper/lower search notes editing functionality of the search sidebar.
      * Doesn't need context passed in, because it only works in one area.

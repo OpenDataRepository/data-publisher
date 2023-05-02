@@ -13,7 +13,10 @@
     {% endif %}
 
     <span class="pure-u-1">
-        <label for="datafield_{{ datafield_id }}" class="pure-u-1"><span title="{{ description }}">{{ fieldname }}:</span>
+        <label {% if field_typename != "DateTime" and field_typeclass != "Radio" and field_typeclass != "Tag"%}for="datafield_{{ datafield_id }}"{% endif %}
+               class="pure-u-1">
+
+            <span title="{{ description }}">{{ fieldname }}:</span>
         {% if field_typeclass == "Radio" %}
             <span class="pure-u-1 ODRSelectAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Select all options">
                 <span class="ODRTristateCheckbox" rel="multiple">
@@ -37,6 +40,9 @@
                    placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
                    size="15" maxlength="15"
             />
+        {% endif %}
+        {% if field_typename == "DateTime" %}
+            <span id="df_{{ datafield_id }}_clear" class="ODRDatePickerSearch_clear">Clear Dates</span>
         {% endif %}
         </label>
     </span>

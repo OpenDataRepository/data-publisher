@@ -52,7 +52,7 @@ odr_legacy_render:
     requirements:
         search_key: '[^\/]*'
         offset: \d+
-        source: searching|linking
+        source: 'searching|linking|'
 #
 # END Support for old routes and GET routes
 #
@@ -74,7 +74,7 @@ odr_search_render:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
-        intent: searching|linking
+        intent: 'searching|linking|'
 
 odr_default_search_render:
     path: /search/render_default/{datatype_id}
@@ -94,7 +94,7 @@ odr_reload_search_sidebar:
     requirements:
         force_rebuild: 0|1
         search_key: '[a-zA-Z0-9\-\_]*'
-        intent: 'searching|linking|'
+        intent: 'searching|linking|stored_search_keys|'
 
 # ----------------------------------------
 

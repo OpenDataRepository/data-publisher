@@ -531,6 +531,23 @@ odr_design_save_special_datafield_properties:
     requirements:
         datatype_id:  \d+
 
+odr_design_get_stored_search_keys:
+    path:  /design/displaytemplate/search_keys/get/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getstoredsearchkeys }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_convert_to_stored_search_key:
+    path:  /design/displaytemplate/search_keys/create
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:converttostoredsearchkey }
+    methods: [ POST ]
+
+odr_design_save_stored_search_keys:
+    path:  /design/displaytemplate/search_keys/save/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savestoredsearchkeys }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }

@@ -153,6 +153,11 @@ class DataType
     private $dataTypeSpecialFields;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $storedSearchKeys;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $metadata_datatype;
@@ -209,6 +214,7 @@ class DataType
         $this->groupDatatypePermissions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->renderPluginInstances = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataTypeSpecialFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->storedSearchKeys = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -867,6 +873,42 @@ class DataType
     public function getDataTypeSpecialFields()
     {
         return $this->dataTypeSpecialFields;
+    }
+
+    /**
+     * Add storedSearchKey.
+     *
+     * @param \ODR\AdminBundle\Entity\StoredSearchKey $storedSearchKey
+     *
+     * @return DataType
+     */
+    public function addStoredSearchKey(\ODR\AdminBundle\Entity\StoredSearchKey $storedSearchKey)
+    {
+        $this->storedSearchKeys[] = $storedSearchKey;
+
+        return $this;
+    }
+
+    /**
+     * Remove storedSearchKey.
+     *
+     * @param \ODR\AdminBundle\Entity\StoredSearchKey $storedSearchKey
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeStoredSearchKey(\ODR\AdminBundle\Entity\StoredSearchKey $storedSearchKey)
+    {
+        return $this->storedSearchKeys->removeElement($storedSearchKey);
+    }
+
+    /**
+     * Get storedSearchKeys.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getStoredSearchKeys()
+    {
+        return $this->storedSearchKeys;
     }
 
     /**

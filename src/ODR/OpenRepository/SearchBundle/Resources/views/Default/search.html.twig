@@ -47,13 +47,18 @@
         // If user is on the base search page for a datatype...
         if (window.location.hash.length === 0) {
             // ...then immediately trigger a search with "default" criteria
-            doSearch();
+            doSearch('{{ path('odr_search_results') }}');
 
             // Don't immediately return...the search controls need initialization
             // return;
         }
     });
 
+    /**
+     * Toggles the search sidebar between "basic" and "advanced" modes.  In "basic" mode, only the
+     * general search box can be modified...in "advanced" mode, all datafields and metadata can be
+     * modified.
+     */
     function changeSearch() {
         if ($("#search_type").val() === 'basic') {
             // Show all advanced search datafields
@@ -81,15 +86,40 @@
         }
     }
 
+    /**
+     * Reloads the page so the default search is guaranteed to display.
+     */
     function doReset() {
         {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
         window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
     }
 
-    function doSearch() {
-        // Ensure this only works on the actual search sidebar...
-        var context = $("#content").children("#ODRSearchSidebar").first();
+    /**
+     * Serializes the search sidebar and POSTs the data to the given URL.
+     *
+     * If the given URL is equivalent to the path for the route 'odr_search_results', then a
+     * regular search is triggered, and the user is redirected to the search results afterwards.
+     *
+     * If a callback function is provided, then it will be given whatever the POST returned.
+     *
+     * @param {String} target_url
+     * @param {HTMLElement} context
+     * @param {Function} callback
+     */
+    function doSearch(target_url, context = undefined, callback = undefined) {
+        // ----------------------------------------
+        var is_actual_search = true;
+        if ( target_url != '{{ path('odr_search_results') }}' )
+            is_actual_search = false;
 
+        if (context == undefined)
+            context = $("#content").children("#ODRSearchSidebar").first();
+
+        if (callback == undefined)
+            callback = function() {}
+
+
+        // ----------------------------------------
         // Values for Radio datafields need to be manually set
         $(context).find(".ODRRadioSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
@@ -110,7 +140,6 @@
                     return;
 
                 has_selections = true;
-
                 if ( !first_selection ) {
                     str += ',' + value;
                 }
@@ -144,8 +173,6 @@
                     return;
 
                 has_selections = true;
-                console.log(value);
-
                 if ( !first_selection ) {
                     str += ',' + value;
                 }
@@ -178,12 +205,6 @@
             }
         });
 
-        // Request search results
-        var url = '{{ path('odr_search_results') }}';
-
-        showSearchOverlay( $("#ODRSearchIntent").val() );
-
-        // TODO - need to communicate which theme to use...
 
         var search_form = $(context).find("#search_form");
         // console.log(search_form);
@@ -194,12 +215,29 @@
         //  typically have a bunch of blank entries...ODR automatically filters these superfluous
         //  entries out when it returns the search key
 
+
+        // ----------------------------------------
+        // TODO - need to communicate which theme to use...
+
+        // Request search results
+        if ( is_actual_search )
+            showSearchOverlay( $("#ODRSearchIntent").val() );
+
         $.ajax({
             type: 'POST',
-            url: url,
+            url: target_url,
             dataType: 'json',
             data: post_data,
             success: function (data, textStatus, jqXHR) {
+                // If this wasn't a "regular" search request, then execute the given callback
+                if ( !is_actual_search ) {
+                    callback(data);
+                    return true;
+                }
+
+                // ----------------------------------------
+                // If this was a "regular" search request, then do required setup before redirecting
+                //  the user
                 if ( $("#ODRSearchIntent").val() === 'searching' ) {
                     // Overwrite any currently existing tab id, since a new search was performed
                     if (window.sessionStorage.getItem('odr_tab_id')) {
@@ -250,6 +288,11 @@
             error: function (jqXHR, textStatus, errorThrown) {
                 // TODO - should everything get reset on an error?
                 // doReset();
+
+                // If an error was encountered and this wasn't a real search, it was most likely
+                //  a request from one of ODR's modals...close the modal so the error can be seen
+                if ( !is_actual_search )
+                    closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
 

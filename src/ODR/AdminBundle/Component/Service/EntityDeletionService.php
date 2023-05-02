@@ -1020,6 +1020,19 @@ class EntityDeletionService
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
+
+            // ----------------------------------------
+            // Delete all StoredSearchKey entries for the datatypes that are getting deleted
+            $query_str =
+               'UPDATE odr_stored_search_keys AS ssk
+                SET ssk.deletedAt = NOW(), ssk.deletedBy = '.$user->getId().'
+                WHERE ssk.data_type_id IN (?)
+                AND ssk.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
             // ----------------------------------------
 /*
             // Delete all ThemeDatatype entries

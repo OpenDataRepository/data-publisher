@@ -1783,7 +1783,8 @@ class SearchKeyService
 
 
     /**
-     * Converts a search key into an array that's more human readable.
+     * Converts a search key into an array that's more human readable.  Attempts to compensate for
+     * any errors in the search key.
      *
      * @param string $search_key
      *
@@ -1826,10 +1827,14 @@ class SearchKeyService
                     $df_lookup[$df_id][$key] = array();
                     foreach ($df_data[$key] as $num => $entity) {
                         $id = $entity['id'];
-                        if ( $key === 'radioOptions' )
+                        if ( $key === 'radioOptions' ) {
                             $df_lookup[$df_id][$key][$id] = $entity['optionName'];
-                        else
-                            $df_lookup[$df_id][$key][$id] = $entity['tagName'];
+                        }
+                        else {
+                            $tag_names = self::getTagNames($entity);
+                            foreach ($tag_names as $tag_id => $tag_name)
+                                $df_lookup[$df_id][$key][$tag_id] = $tag_name;
+                        }
                     }
                 }
             }
@@ -1851,6 +1856,13 @@ class SearchKeyService
                 $readable_search_key['General Search'] = $value;
             }
             else if ( is_numeric($key) ) {
+                // If this datafield doesn't exist (most likely due to deletion), then don't fully
+                //  process it
+                if ( !isset($df_lookup[$key]) ) {
+                    $readable_search_key['unrecognized df_id '.$key] = '<ERROR: inaccessible/deleted datafield>';
+                    continue;
+                }
+
                 $df_name = $df_lookup[$key]['fieldName'];
                 $df_typeclass = $df_lookup[$key]['typeClass'];
 
@@ -1886,7 +1898,7 @@ class SearchKeyService
                         }
 
                         $entity_name = $df_lookup[$key][$entity_key][$entity_id];
-                        $readable_search_key[$df_name][$entity_id] = $entity_name.' '.$selected;
+                        $readable_search_key[$df_name][$entity_id] = '"'.$entity_name.'" '.$selected;
                     }
                 }
                 else {
@@ -1911,6 +1923,13 @@ class SearchKeyService
                 $pieces = explode('_', $key);
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
+                    // If this datafield doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($df_lookup[ $pieces[0] ]) ) {
+                        $readable_search_key['unrecognized df_id '.$pieces[0]] = '<ERROR: inaccessible/deleted datafield>';
+                        continue;
+                    }
+
                     // This is a DatetimeValue field...locate/deal with both possible pieces at once
                     $df_name = $df_lookup[$pieces[0]]['fieldName'];
 
@@ -1934,6 +1953,13 @@ class SearchKeyService
                         $readable_search_key[$df_name] = 'Before "'.$end.'"';
                 }
                 else if ( count($pieces) === 3 ) {
+                    // If this datatype doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($dt_lookup[ $pieces[1] ]) ) {
+                        $readable_search_key['unrecognized dt_id '.$pieces[1]] = '<ERROR: inaccessible/deleted datatype>';
+                        continue;
+                    }
+
                     $dt_name = $dt_lookup[ $pieces[1] ];
 
                     // $key is the public status entry
@@ -1943,6 +1969,13 @@ class SearchKeyService
                         $readable_search_key[$dt_name]['pub'] = 'Non-public records';
                 }
                 else if ( $pieces[3] === 'by' ) {
+                    // If this datatype doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($dt_lookup[ $pieces[1] ]) ) {
+                        $readable_search_key['unrecognized dt_id '.$pieces[1]] = '<ERROR: inaccessible/deleted datatype>';
+                        continue;
+                    }
+
                     $dt_name = $dt_lookup[ $pieces[1] ];
 
                     // $key is either createdBy or modifiedBy
@@ -1959,6 +1992,13 @@ class SearchKeyService
                     $readable_search_key[$dt_name][$sub_key] = $type.' by '.$user_name;
                 }
                 else {
+                    // If this datatype doesn't exist (most likely due to deletion), then don't fully
+                    //  process it
+                    if ( !isset($dt_lookup[ $pieces[1] ]) ) {
+                        $readable_search_key['unrecognized dt_id '.$pieces[1]] = '<ERROR: inaccessible/deleted datatype>';
+                        continue;
+                    }
+
                     $dt_name = $dt_lookup[ $pieces[1] ];
 
                     // $key is either created or modified
@@ -1992,5 +2032,32 @@ class SearchKeyService
         }
 
         return $readable_search_key;
+    }
+
+
+    /**
+     * Converts a tag from the cached datatype array, including all of its children, into a new
+     * array.
+     *
+     * @param array $tag
+     * @return array
+     */
+    private function getTagNames($tag)
+    {
+        // Save the current tag
+        $tmp = array($tag['id'] => $tag['tagName']);
+
+        // If the tag has children...
+        if ( !empty($tag['children']) ) {
+            // ...then get the names of all of the child tags
+            foreach ($tag['children'] as $num => $child_tag) {
+                $child_tags = self::getTagNames($child_tag);
+
+                foreach ($child_tags as $child_tag_id => $child_tag_name)
+                    $tmp[$child_tag_id] = $tag['tagName'].' >> '.$child_tag_name;
+            }
+        }
+
+        return $tmp;
     }
 }
