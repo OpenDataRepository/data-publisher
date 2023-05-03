@@ -208,6 +208,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     {
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -215,6 +218,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             // Retrieve mapping between datafields and render plugin fields
             $plugin_fields = array();
             $editable_datafields = array();
+
+            // Want to locate the values for most of the mapped datafields
+            $optional_fields = array(
+                // ...I don't think any of AMCSD's fields qualify as "optional", actually
+            );
+
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -223,8 +232,40 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
+                if ($df == null) {
+                    // Optional fields don't have to exist for this plugin to work
+                    if ( isset($optional_fields[$rpf_name]) )
+                        continue;
+
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // Technically, the plugin isn't really affected when the user can't see a field...
+                    if ( !$is_datatype_admin )
+                        // ...but there are zero compelling reasons to run the plugin if something is missing
+                        return '';
+                    else
+                        // ...if a datatype admin is seeing this, then they need to fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
+                else {
+                    // The non-optional fields really should all be public...so actually throw an
+                    //  error if any of them aren't and the user can do something about it
+                    if ( isset($optional_fields[$rpf_name]) )
+                        continue;
+
+                    // If the datafield is non-public...
+                    $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
+                    if ( $df_public_date == '2200-01-01 00:00:00' ) {
+                        if ( !$is_datatype_admin )
+                            // ...but the user can't do anything about it, then just refuse to execute
+                            return '';
+                        else
+                            // ...the user can do something about it, so they need to fix it
+                            throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are a part of this render plugin MUST be public.');
+                    }
+                }
 
                 // Need to tweak display parameters for several of the fields...
                 $plugin_fields[$rpf_df_id] = $rpf_df;
@@ -360,6 +401,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
+
+                        'is_datatype_admin' => $is_datatype_admin,
 
                         'plugin_fields' => $plugin_fields,
                     )
@@ -1250,6 +1293,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Convert it back into the expected format so the storage entity can get created
         $new_value = str_pad($val, 5, '0', STR_PAD_LEFT);
         $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->logger->debug('Setting df '.$datafield->getId().' "fileno" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
         $lockHandler->release();

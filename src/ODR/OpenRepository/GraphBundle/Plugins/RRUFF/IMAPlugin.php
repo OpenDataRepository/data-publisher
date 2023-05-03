@@ -229,11 +229,14 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // ----------------------------------------
             // If no rendering context set, then return nothing so ODR's default templating will
             //  do its job
-            if (!isset($rendering_options['context']))
+            if ( !isset($rendering_options['context']) )
                 return '';
 
 
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -249,12 +252,22 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null) {
-                    // The Reference A/B fields are allowed to be non-public...which means they
-                    //  may not be in this array.  The rest of the plugin should still work though
-                    if ( $rpf_name !== 'Reference A' && $rpf_name !== 'Reference B' )
-                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
-                }
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
 
+                    // The IMA Plugin doesn't require the existence of any of its fields to execute
+                    //  properly...Display and Edit modes are merely warning when certain fields are
+                    //  blank when they shouldn't be, and FakeEdit can set Mineral ID regardless.
+
+                    // I can't fathom why you would want to have non-public fields in this datatype...
+                    //  but unlike references or cell parameters, it's not objectively wrong to do so.
+
+                    if ( $is_datatype_admin )
+                        // If a datatype admin is seeing this, then they need to fix something in
+                        //  the plugin's config
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
 
                 // Need to tweak display parameters for several of the fields...
                 $plugin_fields[$rpf_df_id] = $rpf_df;
@@ -356,6 +369,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
+
+                        'is_datatype_admin' => $is_datatype_admin,
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
@@ -628,6 +643,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Create a new storage entity with the new value
         $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->logger->debug('Setting df '.$datafield->getId().' "Mineral ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
         $lockHandler->release();

@@ -7,6 +7,13 @@
     and datatype_permissions[ childtype.id ][ 'dr_edit' ] is defined %}
     {% set can_edit_child_record = true %}
 {% endif %}
+
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ childtype.id ] is defined
+    and datatype_permissions[ childtype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 {#
 --------------------<br>
 edit_fieldarea_childtype.html.twig<br>
@@ -28,6 +35,8 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'target_datatype_id': target_datatype_id,
         'parent_datarecord': parent_datarecord,
         'target_theme_id': target_theme_id,
+
+        'is_datatype_admin': is_datatype_admin,
 
         'is_top_level': 0,
         'is_link': is_link,

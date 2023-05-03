@@ -133,7 +133,7 @@
                         {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
                     {% endif %}
 
-                    {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+                    {% include 'ODRAdminBundle:FakeEdit:fake_edit_fieldarea_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'datarecord_array': datarecord_array,
                         'theme_array': child_theme,

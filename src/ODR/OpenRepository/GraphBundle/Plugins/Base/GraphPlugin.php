@@ -212,6 +212,9 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     {
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -230,8 +233,25 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ( $df == null && !$is_optional )
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
+                if ( $df == null && !$is_optional ) {
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // The plugin can't continue executing in either case...
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+
+                    // NOTE: this only triggers when the Graph File rpf is missing, since the three
+                    //  other fields are optional
+
+                    // NOTE: the parts of ODR that re-render a graph completely ignore public status
+                    //  of the related datafields
+                }
 
                 // Grab the field name specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
@@ -370,6 +390,8 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'display_type' => $rendering_options['display_type'],
                 'multiple_allowed' => $rendering_options['multiple_allowed'],
                 'display_graph' => $display_graph,
+
+                'is_datatype_admin' => $is_datatype_admin,
 
                 // Options for graph display
                 'plugin_options' => $options,

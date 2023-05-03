@@ -85,6 +85,9 @@ class ReferencesPlugin implements DatatypePluginInterface
 
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Grab various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
 
@@ -105,8 +108,34 @@ class ReferencesPlugin implements DatatypePluginInterface
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
+                if ($df == null) {
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // The plugin can't continue executing in either case...
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
+                else {
+                    // All of this plugin's fields really should be public...so actually throw an
+                    //  error if any of them aren't and the user can do something about it
+
+                    // If the datafield is non-public...
+                    $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
+                    if ( $df_public_date == '2200-01-01 00:00:00' ) {
+                        if ( !$is_datatype_admin )
+                            // ...but the user can't do anything about it, then just refuse to execute
+                            return '';
+                        else
+                            // ...the user can do something about it, so they need to fix it
+                            throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are part of a reference MUST be public.');
+                    }
+                }
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 

@@ -5,7 +5,7 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'display'} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'display', 'is_datatype_admin': is_datatype_admin} %}
 
 {# Determine whether a render plugin needs to be run #}
 {% set render_plugin_instance = null %}
@@ -86,6 +86,8 @@
                             'target_datatype_id': target_datatype_id,
                             'target_datarecord_id': datarecord.id,
                             'target_theme_id': target_theme_id,
+
+                            'is_datatype_admin': is_datatype_admin,
 
                             'is_top_level': is_top_level,
                             'is_link': is_link,

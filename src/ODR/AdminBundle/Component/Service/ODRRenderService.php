@@ -307,6 +307,10 @@ class ODRRenderService
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
 
+        // Need to provide this bit of info so render plugins can decide whether to simply not
+        //  execute, or throw errors instead
+        $extra_parameters['is_datatype_admin'] = $this->pm_service->isDatatypeAdmin($user, $datarecord->getDataType());
+
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
