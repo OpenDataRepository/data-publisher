@@ -51,3 +51,6 @@
 
 # Do not track Chemin Map Demo
 web/chemin-map-demo
+
+
+/puppeteer_graphs/node_modules/

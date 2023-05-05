@@ -1,0 +1,14 @@
+{
+  "name": "puppeteer_graphs",
+  "version": "1.0.0",
+  "description": "Creates pre-rendered graphs for pages.",
+  "main": "graph_renderer.js",
+  "dependencies": {
+    "puppeteer": "^20.1.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
