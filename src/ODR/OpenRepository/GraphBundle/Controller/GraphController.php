@@ -189,7 +189,8 @@ class GraphController extends ODRCustomController
             $svc = $this->container->get($plugin_classname);
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
 
-            return $this->redirect($filename);
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+            return $this->redirect($site_baseurl.$filename);
         }
         catch (\Exception $e) {
             $message = $e->getMessage();
