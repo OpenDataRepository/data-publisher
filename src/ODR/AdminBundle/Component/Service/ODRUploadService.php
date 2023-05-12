@@ -24,6 +24,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -58,6 +59,9 @@ class ODRUploadService
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var Pheanstalk
@@ -158,8 +162,6 @@ class ODRUploadService
         // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
         //  event subscribers will prevent file encryption otherwise...
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new FilePreEncryptEvent($file, $drf->getDataField());
             $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
         }
@@ -176,6 +178,8 @@ class ODRUploadService
         //  check for and handle the event dispatching completion...
 
         // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+
+        // Additionally, CryptoService handles firing all other events for files
 
         // ----------------------------------------
         // Reload the file incase the FilePreEncryptEvent screwed with the filepath
@@ -255,8 +259,6 @@ class ODRUploadService
         // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
         //  event subscribers will prevent file encryption otherwise...
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new FilePreEncryptEvent($image, $drf->getDataField());
             $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
         }
@@ -308,8 +310,17 @@ class ODRUploadService
         $datafield = $image->getDataField();
 
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new FilePostEncryptEvent($image, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
@@ -321,8 +332,6 @@ class ODRUploadService
         }
 
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
@@ -364,6 +373,8 @@ class ODRUploadService
 
         // Encrypt the given file, storing its relevant information back in $existing_file
         $this->crypto_service->encryptFile($existing_file->getId(), $filepath);
+
+        // CryptoService handles firing events for files
     }
 
 
@@ -435,8 +446,17 @@ class ODRUploadService
         $datafield = $existing_image->getDataField();
 
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new FilePostEncryptEvent($existing_image, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
@@ -448,8 +468,6 @@ class ODRUploadService
         }
 
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }

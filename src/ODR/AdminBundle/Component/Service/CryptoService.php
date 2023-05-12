@@ -20,6 +20,7 @@ use ODR\AdminBundle\Entity\ImageChecksum;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -49,6 +50,9 @@ class CryptoService
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var SecureRandom
@@ -394,8 +398,17 @@ class CryptoService
         $user = $file->getCreatedBy();
 
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new FilePostEncryptEvent($file, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
@@ -407,8 +420,6 @@ class CryptoService
         }
 
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }

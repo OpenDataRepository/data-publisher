@@ -103,8 +103,8 @@ class ODREventSubscriber implements EventSubscriberInterface
         $this->search_service = $search_service;
         $this->logger = $logger;
 
-        $this->debug = false;
-//        $this->debug = true;
+//        $this->debug = false;
+        $this->debug = true;
     }
 
 
@@ -136,6 +136,7 @@ class ODREventSubscriber implements EventSubscriberInterface
 
             // Files/Images
             FileDeletedEvent::NAME => 'onFileDeleted',
+            FilePostEncryptEvent::NAME => 'onFilePostEncrypt',
             FilePreEncryptEvent::NAME => 'onFilePreEncrypt',
             // Other storage entities
             PostUpdateEvent::NAME => 'onPostUpdate',
@@ -1144,6 +1145,47 @@ class ODREventSubscriber implements EventSubscriberInterface
     {
         if ( $this->debug )
             $this->logger->debug('ODREventSubscriber::onFileDeleted()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $datafield = $event->getDatafield();
+            $datatype = $datafield->getDataType();
+
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
+            if ( !empty($relevant_plugins) ) {
+                // If so, then load each plugin and call their required function
+                self::relayEvent($relevant_plugins, $event);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
+     * Handles dispatched FilePostEncrypt events
+     *
+     * @param FilePostEncryptEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onFilePostEncrypt(FilePostEncryptEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onFilePostEncrypt()', $event->getErrorInfo());
 
         try {
             // Determine whether any render plugins should run something in response to this event
