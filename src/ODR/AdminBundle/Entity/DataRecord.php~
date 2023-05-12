@@ -553,34 +553,6 @@ class DataRecord
     }
 
     /**
-     * Is public
-     *
-     * @return boolean
-     */
-    public function isPublic()
-    {
-        // TODO - This function is not correct...... Public should regard today's date.
-        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
-            return true;
-    }
-
-    public function setPublicDate($user, $date, $em) {
-        // Always create new meta record when setting public
-        $new_meta = clone $this->getDataRecordMeta();
-        $new_meta->setCreatedBy($user);
-        $new_meta->setUpdatedBy($user);
-        $new_meta->setPublicDate($date);
-        $new_meta->setUpdated(new \DateTime());
-        $new_meta->setCreated(new \DateTime());
-        $em->persist($new_meta);
-        $em->remove($this->getDataRecordMeta());
-
-        return $new_meta;
-    }
-
-    /**
      * Get publicDate
      *
      * @return \DateTime
@@ -589,6 +561,25 @@ class DataRecord
     {
         return $this->getDataRecordMeta()->getPublicDate();
     }
+
+    /**
+     * Is public
+     *
+     * @return boolean
+     */
+    public function isPublic()
+    {
+        $current_date = new \DateTime();
+        $interval = $current_date->diff($this->getPublicDate());
+
+        // If the current date is after the public date, then the datarecord is public
+        if ($interval->invert == 1)
+            return true;
+        else
+            return false;
+    }
+
+
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
@@ -648,7 +639,6 @@ class DataRecord
      * @var \Doctrine\Common\Collections\Collection
      */
     private $tagSelection;
-
 
     /**
      * Add boolean.

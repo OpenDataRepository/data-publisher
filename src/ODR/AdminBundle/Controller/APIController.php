@@ -1016,6 +1016,7 @@ class APIController extends ODRCustomController
     /**
      * Creates a dataset by cloning the requested master template.
      * Requires a valid master template with metadata template
+     * TODO
      *
      * @param string $version
      * @param Request $request
@@ -1421,6 +1422,9 @@ class APIController extends ODRCustomController
         // Need to track whether any changes are made
         $changed = false;
 
+        /** @var Logger $logger */
+        $logger = $this->container->get('logger');
+
         try {
             // ----------------------------------------
             // Because the user could be creating a new datarecord, there's no guarantee that a
@@ -1754,20 +1758,35 @@ class APIController extends ODRCustomController
                 foreach ($dataset['records'] as $descendant_record) {
                     // Pull the identifying information for this descendant record from the array
                     //  the user submitted
-                    if ( !isset($descendant_record['database_uuid']) )
-                        throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
-                    $descendant_datatype_uuid = $descendant_record['database_uuid'];
+//                    if ( !isset($descendant_record['database_uuid']) ) {
+//                        if ( !is_null($datarecord) )
+//                            $logger->debug('current datarecord: '.$datarecord->getId());
+//                        else
+//                            $logger->debug('current datarecord: null');
+//
+//                        $logger->debug('current datatype: '.$datatype->getId());
+//                        $logger->debug('requested_datatype: '.$descendant_record['template_uuid']);
+//
+//                        throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
+//                    }
+//
+//                    $descendant_datatype_uuid = $descendant_record['database_uuid'];
+//
+//                    if ( !isset($datatype_lookup[$descendant_datatype_uuid]) ) {
+//                        /** @var DataType $dt */
+//                        $dt = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+//                            array('unique_id' => $descendant_datatype_uuid)
+//                        );
+//                        if ($dt == null)
+//                            throw new ODRNotFoundException('Datatype');
+//
+//                        $datatype_lookup[$descendant_datatype_uuid] = $dt;
+//                    }
 
-                    if ( !isset($datatype_lookup[$descendant_datatype_uuid]) ) {
-                        /** @var DataType $dt */
-                        $dt = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                            array('unique_id' => $descendant_datatype_uuid)
-                        );
-                        if ($dt == null)
-                            throw new ODRNotFoundException('Datatype');
-
-                        $datatype_lookup[$descendant_datatype_uuid] = $dt;
-                    }
+                    // TODO
+                    $descendant_datatype = self::getDescendantDatatype($em, $datatype_lookup, $descendant_record);
+                    $descendant_datatype_uuid = $descendant_datatype->getUniqueId();
+                    $descendant_record['database_uuid'] = $descendant_datatype_uuid;
 
                     // Store that this record has at least one descendant record for this datatype
                     if ( !isset($has_descendants[$descendant_datatype_uuid]) )
@@ -1973,6 +1992,83 @@ class APIController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+    }
+
+
+    /**
+     * Descendant datatypes are ideally identified via database uuids, but can also be identified
+     * via template group (uuids).  The latter is somewhat irritating to do, so both are handled in
+     * their own function.
+     *
+     * TODO - the deletion check is different enough that it kind of needs its own function...
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array &$datatype_lookup
+     * @param array $descendant_record
+     *
+     * @throws \Exception
+     * @return DataType
+     */
+    private function getDescendantDatatype($em, &$datatype_lookup, $descendant_record)
+    {
+        if ( isset($descendant_record['database_uuid']) ) {
+            // Hopefully this information is cached...
+            $descendant_datatype_uuid = $descendant_record['database_uuid'];
+            if ( isset($datatype_lookup['unique_id'][$descendant_datatype_uuid]) )
+                return $datatype_lookup['unique_id'][$descendant_datatype_uuid];
+
+            // ...but if not, then load and cache it
+            /** @var DataType $dt */
+            $dt = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array('unique_id' => $descendant_datatype_uuid)
+            );
+
+            $datatype_lookup['unique_id'][$descendant_datatype_uuid] = $dt;
+            return $dt;
+        }
+        else if ( isset($descendant_record['template_uuid']) ) {
+            // Hopefully this information is cached...
+            // TODO - can't cache it like this
+            $descendant_datatype_group = $descendant_record['template_uuid'];
+//            if ( isset($datatype_lookup['template_group'][$descendant_datatype_group]) )
+//                return $datatype_lookup['template_group'][$descendant_datatype_group];
+
+            // ...but if not, then load it    TODO - how to cache it?
+            if ( $descendant_record instanceof DataRecord ) {
+                $params = array(
+                    'template_group' => $descendant_datatype_group,
+                    'record_uuid' => $descendant_record->getUniqueId(),
+                );
+            }
+            else {
+                $params = array(
+                    'template_group' => $descendant_datatype_group,
+                    'record_uuid' => $descendant_record['record_uuid'],    // TODO - this doesn't exist when checking a new child record
+                );
+            }
+
+            $query = $em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS mdt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                WHERE mdt.unique_id = :template_group AND dr.unique_id = :record_uuid
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters( $params );
+            $results = $query->getResult();
+
+            $logger = $this->container->get('logger');
+            $logger->debug( '<pre>'.print_r($params, true).'</pre>' );
+
+            if ( empty($results) )
+                throw new ODRNotFoundException('Master Datatype');
+            $dt = $results[0];
+
+            return $dt;
+        }
+
+        // If the given datarecord doesn't have either piece of identifying info, then complain
+        throw new ODRBadRequestException('No database/template uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
     }
 
 
@@ -2430,10 +2526,10 @@ class APIController extends ODRCustomController
      * Updates the metadata in the submitted dataset to match the database.
      *
      * @param array $field
-     * @param DataFields $data_field
+     * @param DataFields $datafield
      * @param mixed $new_field
      */
-    private function fieldMeta(&$field, $data_field, $new_field) {
+    private function fieldMeta(&$field, $datafield, $new_field) {
         if(isset($field['_field_metadata'])) {
             if(method_exists($new_field, 'getCreatedBy')) {
                 $field['_field_metadata']['_create_auth'] = $new_field->getCreatedBy()->getEmailCanonical();
@@ -2447,8 +2543,8 @@ class APIController extends ODRCustomController
                 $field['_field_metadata']['_update_date'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                 // print $field['_field_metadata']['_update_date'];
             }
-            if(method_exists($data_field, 'getPublicDate')) {
-                $field['_field_metadata']['_public_date'] = $data_field->getPublicDate()->format('Y-m-d H:i:s');
+            if(method_exists($datafield, 'getPublicDate')) {
+                $field['_field_metadata']['_public_date'] = $datafield->getPublicDate()->format('Y-m-d H:i:s');
             }
         }
         unset($field['created']);
@@ -2460,19 +2556,27 @@ class APIController extends ODRCustomController
      *
      * @param mixed $db_obj
      * @param ODRUser $user
-     * @param string $date
+     * @param string|\DateTime $date
      */
-    private function setDates($db_obj, $date = null) {
-        if($date == null) {
-            $db_obj->setCreated(new \DateTime());
-            if(method_exists($db_obj, 'setUpdated'))
-                $db_obj->setUpdated(new \DateTime());
+    private function setDates($db_obj, $user, $date = null)
+    {
+        if ( !is_null($date) ) {
+            if ( !($date instanceof \DateTime) )
+                $date = new \DateTime($date);
         }
-        else {
-            $db_obj->setCreated(new \DateTime($date));
-            if(method_exists($db_obj, 'setUpdated'))
-                $db_obj->setUpdated(new \DateTime($date));
-        }
+        else
+            $date = new \DateTime();
+
+
+        if ( method_exists($db_obj, 'setCreated') )
+            $db_obj->setCreated($date);
+        if ( method_exists($db_obj, 'setCreatedBy') )
+            $db_obj->setCreatedBy($user);
+
+        if ( method_exists($db_obj, 'setUpdated') )
+            $db_obj->setUpdated($date);
+        if ( method_exists($db_obj, 'setUpdatedBy') )
+            $db_obj->setUpdatedBy($user);
     }
 
 
@@ -2733,7 +2837,7 @@ class APIController extends ODRCustomController
                                     ->findOneBy(
                                         array(
                                             'dataRecord' => $dataset['internal_id'],
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
 
@@ -2743,7 +2847,7 @@ class APIController extends ODRCustomController
                                     $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                                         array(
                                             'tagUuid' => $tag_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
                                     /** @var TagSelection $tag_selection */
@@ -2770,7 +2874,7 @@ class APIController extends ODRCustomController
                                     $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                                         array(
                                             'tagUuid' => $tag_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
 
@@ -2778,12 +2882,12 @@ class APIController extends ODRCustomController
                                     if(!$tag) {
                                         if(!$tag) {
                                             // We need Datatype Admin Perms
-                                            if (
-                                                !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                                && !$pm_service->canEditDatatype($user, $data_record->getDataType())
-                                            ) {
-                                                throw new ODRForbiddenException();
-                                            }
+//                                            if (
+//                                                !$pm_service->isDatatypeAdmin($user, $datarecord->getDataType())
+//                                                && !$pm_service->canEditDatatype($user, $datarecord->getDataType())
+//                                            ) {
+//                                                throw new ODRForbiddenException();
+//                                            }
                                         }
                                         // Create tag and set as user created
                                         $tag = new Tags();
@@ -2798,7 +2902,7 @@ class APIController extends ODRCustomController
                                         $tag->setCreatedBy($user);
                                         self::setDates($tag, $field['created']);
                                         $tag->setUserCreated(1);
-                                        $tag->setDataField($data_field);
+                                        $tag->setDataField($datafield);
                                         $em->persist($tag);
 
                                         // Search $field['value'] for tag and find parent
@@ -2818,7 +2922,7 @@ class APIController extends ODRCustomController
                                         $tag_parent = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                                             array(
                                                 'tagUuid' => $tag_parent_uuid,
-                                                'dataField' => $data_field->getId()
+                                                'dataField' => $datafield->getId()
                                             )
                                         );
 
@@ -2850,8 +2954,8 @@ class APIController extends ODRCustomController
                                         $drf = new DataRecordFields();
                                         $drf->setCreatedBy($user);
                                         self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
+                                        $drf->setDataField($datafield);
+                                        $drf->setDataRecord($datarecord);
                                         $em->persist($drf);
                                     }
 
@@ -2859,14 +2963,14 @@ class APIController extends ODRCustomController
                                     $new_field = new TagSelection();
                                     $new_field->setTag($tag);
                                     $new_field->setDataRecordFields($drf);
-                                    $new_field->setDataRecord($data_record);
+                                    $new_field->setDataRecord($datarecord);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
                                     self::setDates($new_field, $field['created']);
                                     $new_field->setSelected(1);
                                     $em->persist($new_field);
 
-                                    self::fieldMeta($field, $data_field, $new_field);
+                                    self::fieldMeta($field, $datafield, $new_field);
                                     $fields_updated = true;
 
 
@@ -2953,7 +3057,7 @@ class APIController extends ODRCustomController
                                 }
 
                                 if (count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);    // TODO - the stuff that saves really can't be throwing errors
+                                    throw new \Exception('Invalid option count: Field ' . $datafield['field_uuid']);    // TODO - the stuff that saves really can't be throwing errors
                                 }
 
                                 // Check for deleted options
@@ -2973,7 +3077,7 @@ class APIController extends ODRCustomController
                                 $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                                     array(
                                         'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
+                                        'dataField' => $datafield->getId()
                                     )
                                 );
 
@@ -2983,7 +3087,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
                                     /** @var RadioSelection $option_selection */
@@ -3010,15 +3114,15 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
 
                                     // User Added Options
                                     if(!$option) {
                                         if (
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
+                                            !$pm_service->isDatatypeAdmin($user, $datarecord->getDataType())
+                                            && !$pm_service->canEditDatatype($user, $datarecord->getDataType())
                                         ) {
                                             throw new ODRForbiddenException();
                                         }
@@ -3036,7 +3140,7 @@ class APIController extends ODRCustomController
                                         $option->setCreatedBy($user);
                                         self::setDates($option, $field['created']);
                                         $option->setUserCreated(1);
-                                        $option->setDataField($data_field);
+                                        $option->setDataField($datafield);
                                         $em->persist($option);
 
                                         /** @var RadioOptionsMeta $option_meta */
@@ -3056,15 +3160,15 @@ class APIController extends ODRCustomController
                                         $drf = new DataRecordFields();
                                         $drf->setCreatedBy($user);
                                         self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
+                                        $drf->setDataField($datafield);
+                                        $drf->setDataRecord($datarecord);
                                         $em->persist($drf);
                                     }
 
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
-                                    $new_field->setDataRecord($data_record);
+                                    $new_field->setDataRecord($datarecord);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -3079,7 +3183,7 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
-                                    self::fieldMeta($field, $data_field, $new_field);
+                                    self::fieldMeta($field, $datafield, $new_field);
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
@@ -3149,7 +3253,7 @@ class APIController extends ODRCustomController
 
                                 /*
                                 if(count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
+                                    throw new \Exception('Invalid option count: Field ' . $datafield['field_uuid']);
                                 }
                                 */
 
@@ -3170,7 +3274,7 @@ class APIController extends ODRCustomController
                                 $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                                     array(
                                         'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
+                                        'dataField' => $datafield->getId()
                                     )
                                 );
 
@@ -3180,7 +3284,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
                                     /** @var RadioSelection $option_selection */
@@ -3207,7 +3311,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
 
                                         )
                                     );
@@ -3215,8 +3319,8 @@ class APIController extends ODRCustomController
                                     // User Added Options
                                     if(!$option) {
                                         if (
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
+                                            !$pm_service->isDatatypeAdmin($user, $datarecord->getDataType())
+                                            && !$pm_service->canEditDatatype($user, $datarecord->getDataType())
                                         ) {
                                             throw new ODRForbiddenException();
                                         }
@@ -3234,7 +3338,7 @@ class APIController extends ODRCustomController
                                         $option->setCreatedBy($user);
                                         self::setDates($option, $field['created']);
                                         $option->setUserCreated(1);
-                                        $option->setDataField($data_field);
+                                        $option->setDataField($datafield);
                                         $em->persist($option);
 
                                         /** @var RadioOptionsMeta $option_meta */
@@ -3254,15 +3358,15 @@ class APIController extends ODRCustomController
                                         $drf = new DataRecordFields();
                                         $drf->setCreatedBy($user);
                                         self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
+                                        $drf->setDataField($datafield);
+                                        $drf->setDataRecord($datarecord);
                                         $em->persist($drf);
                                     }
 
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
-                                    $new_field->setDataRecord($data_record);
+                                    $new_field->setDataRecord($datarecord);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -3302,7 +3406,7 @@ class APIController extends ODRCustomController
                                         }
                                     }
                                     // Assign the updated field back to the dataset.
-                                    self::fieldMeta($field, $data_field, $new_field);
+                                    self::fieldMeta($field, $datafield, $new_field);
                                     $dataset['fields'][$i] = $field;
                                 }
                                 break;
@@ -3343,7 +3447,7 @@ class APIController extends ODRCustomController
 
                                 /*
                                 if(count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
+                                    throw new \Exception('Invalid option count: Field ' . $datafield['field_uuid']);
                                 }
                                 */
 
@@ -3364,7 +3468,7 @@ class APIController extends ODRCustomController
                                 $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                                     array(
                                         'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
+                                        'dataField' => $datafield->getId()
                                     )
                                 );
 
@@ -3374,7 +3478,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
                                     /** @var RadioSelection $option_selection */
@@ -3401,7 +3505,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
 
                                         )
                                     );
@@ -3409,8 +3513,8 @@ class APIController extends ODRCustomController
                                     // User Added Options
                                     if(!$option) {
                                         if (
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
+                                            !$pm_service->isDatatypeAdmin($user, $datarecord->getDataType())
+                                            && !$pm_service->canEditDatatype($user, $datarecord->getDataType())
                                         ) {
                                             throw new ODRForbiddenException();
                                         }
@@ -3428,7 +3532,7 @@ class APIController extends ODRCustomController
                                         $option->setCreatedBy($user);
                                         self::setDates($option, $field['created']);
                                         $option->setUserCreated(1);
-                                        $option->setDataField($data_field);
+                                        $option->setDataField($datafield);
                                         $em->persist($option);
 
                                         /** @var RadioOptionsMeta $option_meta */
@@ -3448,15 +3552,15 @@ class APIController extends ODRCustomController
                                         $drf = new DataRecordFields();
                                         $drf->setCreatedBy($user);
                                         self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
+                                        $drf->setDataField($datafield);
+                                        $drf->setDataRecord($datarecord);
                                         $em->persist($drf);
                                     }
 
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
-                                    $new_field->setDataRecord($data_record);
+                                    $new_field->setDataRecord($datarecord);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -3470,7 +3574,7 @@ class APIController extends ODRCustomController
                                     // Maybe the references will be stored in the variable anyway?
                                     $em->flush();
                                     $em->refresh($new_field);
-                                    self::fieldMeta($field, $data_field, $new_field);
+                                    self::fieldMeta($field, $datafield, $new_field);
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
@@ -3538,7 +3642,7 @@ class APIController extends ODRCustomController
 
                                 /*
                                 if (count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
+                                    throw new \Exception('Invalid option count: Field ' . $datafield['field_uuid']);
                                 }
                                 */
 
@@ -3559,7 +3663,7 @@ class APIController extends ODRCustomController
                                 $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
                                     array(
                                         'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
+                                        'dataField' => $datafield->getId()
                                     )
                                 );
 
@@ -3569,7 +3673,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
                                         )
                                     );
                                     /** @var RadioSelection $option_selection */
@@ -3599,7 +3703,7 @@ class APIController extends ODRCustomController
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
                                             'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
+                                            'dataField' => $datafield->getId()
 
                                         )
                                     );
@@ -3608,8 +3712,8 @@ class APIController extends ODRCustomController
                                     // User added option requires Datatype Admin Permissions
                                     if(!$option) {
                                         if(
-                                            !$pm_service->isDatatypeAdmin($user, $data_record->getDataType())
-                                            && !$pm_service->canEditDatatype($user, $data_record->getDataType())
+                                            !$pm_service->isDatatypeAdmin($user, $datarecord->getDataType())
+                                            && !$pm_service->canEditDatatype($user, $datarecord->getDataType())
                                         ) {
                                             throw new ODRForbiddenException();
                                         }
@@ -3628,7 +3732,7 @@ class APIController extends ODRCustomController
                                         $option->setCreatedBy($user);
                                         self::setDates($option, $field['created']);
                                         $option->setUserCreated(1);
-                                        $option->setDataField($data_field);
+                                        $option->setDataField($datafield);
                                         $em->persist($option);
 
                                         /** @var RadioOptionsMeta $option_meta */
@@ -3649,15 +3753,15 @@ class APIController extends ODRCustomController
                                         $drf = new DataRecordFields();
                                         $drf->setCreatedBy($user);
                                         self::setDates($drf, $field['created']);
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
+                                        $drf->setDataField($datafield);
+                                        $drf->setDataRecord($datarecord);
                                         $em->persist($drf);
                                     }
 
                                     /** @var RadioSelection $new_field */
                                     $new_field = new RadioSelection();
                                     $new_field->setRadioOption($option);
-                                    $new_field->setDataRecord($data_record);
+                                    $new_field->setDataRecord($datarecord);
                                     $new_field->setDataRecordFields($drf);
                                     $new_field->setCreatedBy($user);
                                     $new_field->setUpdatedBy($user);
@@ -3672,7 +3776,7 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
-                                    self::fieldMeta($field, $data_field, $new_field);
+                                    self::fieldMeta($field, $datafield, $new_field);
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
                                         if(
@@ -3739,6 +3843,8 @@ class APIController extends ODRCustomController
                                 //  field, so save what self::updateStorageField() returned
                                 $orig_dataset['fields'][] = $new_field;
                             }
+
+                            // TODO - update the record_name...
                         }
                     }
 
@@ -3878,21 +3984,33 @@ class APIController extends ODRCustomController
                 foreach ($dataset['records'] as $descendant_record) {
                     // Pull the identifying information for this descendant record from the array
                     //  the user submitted
-                    if ( !isset($descendant_record['database_uuid']) )
-                        throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
-                    $descendant_datatype_uuid = $descendant_record['database_uuid'];
+//                    if ( !isset($descendant_record['database_uuid']) )
+//                        throw new ODRBadRequestException('No database uuid provided for Descendant Datarecord '.$descendant_record['record_uuid']);
+//                    $descendant_datatype_uuid = $descendant_record['database_uuid'];
+//
+//                    // TODO - this won't work for the AHED shit
+//
+//                    // TODO - https://github.com/OpenDataRepository/data-publisher/blob/4da207fc27b58f1f417d82e3a4b5731c2d8686d1/src/ODR/AdminBundle/Controller/APIController.php#L2862
+//                    // TODO - ...is how it used to work...but that's not entirely correct either.
+//
+//                    // TODO - probably need something like this in all four of these places where this particular 400 error is otherwise thrown
+////                    $descendant_datatype = self::determineDescendantDatatype($datarecord, $descendant_record, $datatype, $datatype_lookup);
+//
+//                    if ( !isset($datatype_lookup[$descendant_datatype_uuid]) ) {
+//                        /** @var DataType $dt */
+//                        $dt = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+//                            array('unique_id' => $descendant_datatype_uuid)
+//                        );
+//                        if ($dt == null)
+//                            throw new ODRNotFoundException('Datatype');
+//
+//                        $datatype_lookup[$descendant_datatype_uuid] = $dt;
+//                    }
+//                    $descendant_datatype = $datatype_lookup[$descendant_datatype_uuid];
 
-                    if ( !isset($datatype_lookup[$descendant_datatype_uuid]) ) {
-                        /** @var DataType $dt */
-                        $dt = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                            array('unique_id' => $descendant_datatype_uuid)
-                        );
-                        if ($dt == null)
-                            throw new ODRNotFoundException('Datatype');
-
-                        $datatype_lookup[$descendant_datatype_uuid] = $dt;
-                    }
-                    $descendant_datatype = $datatype_lookup[$descendant_datatype_uuid];
+                    // TODO
+                    $descendant_datatype = self::getDescendantDatatype($em, $datatype_lookup, $descendant_record);
+                    $descendant_record['database_uuid'] = $descendant_datatype->getUniqueId();
 
                     // Attempt to find the original version of the record the user specified
                     $record_found = false;
@@ -4361,6 +4479,18 @@ class APIController extends ODRCustomController
     }
 
 
+    private function updateRadioField()
+    {
+
+    }
+
+
+    private function updateTagField()
+    {
+
+    }
+
+
     /**
      * Saves any modifications the user wants to make to this text/number/date field, and returns
      * an updated array entry to be saved back in the cache.
@@ -4478,6 +4608,29 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    private function resetdataset($dataset, $is_top_level)
+    {
+        $tmp = $dataset;
+        unset( $tmp['internal_id'] );
+        unset( $tmp['record_name'] );
+        if ( !$is_top_level )
+            unset( $tmp['record_uuid'] );
+        unset( $tmp['_record_metadata'] );
+        unset( $tmp['metadata_for_uuid'] );
+
+        foreach ($tmp['fields'] as $num => $df) {
+            unset( $tmp['fields'][$num]['id'] );
+            unset( $tmp['fields'][$num]['_field_metadata'] );
+        }
+
+        foreach ($tmp['records'] as $num => $dr)
+            $tmp['records'][$num] = self::resetdataset($dr, false);
+
+        return $tmp;
+    }
+
+
     /**
      * Accepts wrapped JSON with $user_email or $dataset/record directly
      * Updates a dataset record
@@ -4490,6 +4643,7 @@ class APIController extends ODRCustomController
     public function updatedatasetAction($version, Request $request)
     {
         try {
+/**/
             // Extract the submitted data from the POST request
             $content = $request->getContent();
             if ( empty($content) )
@@ -4504,11 +4658,26 @@ class APIController extends ODRCustomController
             if ( !isset($dataset['record_uuid']) )
                 throw new ODRBadRequestException('missing record_uuid parameter');
             $record_uuid = $dataset['record_uuid'];
-
+/**/
             // This API call allows the user to "act as" somebody else in certain situations
             $user_email = null;
             if ( isset($content['user_email']) )
                 $user_email = $content['user_email'];
+
+//$user_email = 'test_1@opendatarepository.org';
+
+
+//$record_uuid = '7ae1486800953d89475fcf8735ef';    // reference 1
+//$record_uuid = '2c2999d7096bb793c40617e4d308';    // abelsonite
+//$record_uuid = '3dc34968eecfb9a2abdd8bc8529c';    // R070007
+
+//$record_uuid = '5e63acbb1e8523d3fd8d904362b3';    // R040054 raman spectra, has 3 children
+//$record_uuid = 'd4ebd496977e7102462c2862e2e9';    // R050610 raman spectra, has spectra comment
+
+//$record_uuid = '0ee36962990db9a13bc2582be4f7';    // cell parameter
+
+
+//$record_uuid = '26debfe26d606e164e9d32879f0d';
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -4570,6 +4739,236 @@ class APIController extends ODRCustomController
             // ----------------------------------------
 
 
+//$dataset = self::getRecordData('v4', $record_uuid, 'json', true, $logged_in_user, false);
+//$dataset = json_decode($dataset, true);
+
+// Don't want anything in here
+//$dataset = array('record_uuid' => $record_uuid);
+// Setting public date...
+//$dataset['public_date'] = "2300-01-01 00:00:00";
+// Setting create date...
+//$dataset['created'] = "1900-01-01 00:00:00";
+
+// Pretend the user is submitting everything
+//$dataset = self::resetdataset($dataset, true);
+
+// Delete child/linked records
+//$dataset['records'] = array();
+// Delete one child/linked record
+//unset( $dataset['records'][0] );
+
+// Change a field's value
+//$dataset['fields'][0]['value'] = 'asdf';
+// Give an invalid value to a shortvarchar field
+//$dataset['fields'][3]['value'] = '1234567890123456789012345678901234567890';
+// Give an invalid value to an integervalue field
+//$dataset['fields'][8]['value'] = 'asdf';
+
+
+// ----------------------------------------
+// Change a value
+//$dataset['fields'][0]['value'] = 'asdf';
+//$dataset['fields'][0]['created'] = '1950-01-01 00:00:00';
+//// Add a value to a field without a value
+//$dataset['fields'][] = array(
+//    'field_uuid' => '9bececb5e3d08eb6d8e9b3f14e49',
+//    'value' => 'qwer',
+//    'created' => '2000-01-01 00:00:00'
+//);
+
+// add a child record
+//$dataset['records'][] = array(
+//    'database_uuid' => '983063396ef3855b3446ea20d178',
+//);
+// add a value for a child record
+//$dataset['records'][] = array(
+//    'database_uuid' => '983063396ef3855b3446ea20d178',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => '63c7253af136cff254e0d5fea189',
+//            'value' => 1,
+//            'created' => '1900-01-01 00:00:00'
+//        )
+//    )
+//);
+//$dataset['records'][] = array(
+//    'database_uuid' => '983063396ef3855b3446ea20d178',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => '63c7253af136cff254e0d5fea189',
+//            'value' => 2,
+//            'created' => '2000-01-01 00:00:00'
+//        )
+//    )
+//);
+//$dataset['records'][] = array(
+//    'database_uuid' => '983063396ef3855b3446ea20d178',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => '63c7253af136cff254e0d5fea189',
+//            'value' => 3,
+//            'created' => '2100-01-01 00:00:00'
+//        )
+//    )
+//);
+
+// ----------------------------------------
+// Link to an existing record
+//$dataset['records'][] = array(
+//    'database_uuid' => 'e9d5f179f8bad32eaf7cc41f4eee',
+//    'record_uuid' => '87fd9d7f83ed46ebaae3330c34d6',
+////    'created' => '1900-01-01 00:00:00',
+//);
+// Link to an existing record and change its value
+//$dataset['records'][] = array(
+//    'database_uuid' => 'e9d5f179f8bad32eaf7cc41f4eee',
+//    'record_uuid' => '87fd9d7f83ed46ebaae3330c34d6',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => 'b1dee7aaa1c64928977ead068c56',
+//            'value' => 'aaaaa'
+//        )
+//    )
+//);
+
+// Create and link to a new blank record
+//$dataset['records'][] = array(
+//    'database_uuid' => 'e9d5f179f8bad32eaf7cc41f4eee',
+//);
+// Create and link to a new blank record and set its value
+//$dataset['records'][] = array(
+//    'database_uuid' => 'e9d5f179f8bad32eaf7cc41f4eee',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => 'b1dee7aaa1c64928977ead068c56',
+//            'value' => 'aaaaa'
+//        )
+//    )
+//);
+//$dataset['records'][] = array(
+//    'database_uuid' => 'e9d5f179f8bad32eaf7cc41f4eee',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => 'b1dee7aaa1c64928977ead068c56',
+//            'value' => 'bbbbb'
+//        )
+//    )
+//);
+//$dataset['records'][] = array(
+//    'database_uuid' => 'e9d5f179f8bad32eaf7cc41f4eee',
+//    'fields' => array(
+//        0 => array(
+//            'field_uuid' => 'b1dee7aaa1c64928977ead068c56',
+//            'value' => 'ccccc'
+//        )
+//    )
+//);
+
+// ----------------------------------------
+// Set a file to public
+//foreach ($dataset['fields'] as $num => $field) {
+//    if ( $field['field_uuid'] === '3fbd20317257402bdc8fa7df6f2e') {
+//        $dataset['fields'][$num]['files'][0] = array(
+//            'file_uuid' => $field['files'][0]['file_uuid'],
+//            'public_date' => '1900-01-01 00:00:00',
+//        );
+//    }
+//}
+// Set all public files to not-public
+//foreach ($dataset['fields'] as $num => $field) {
+//    if ( $field['field_uuid'] === '3fbd20317257402bdc8fa7df6f2e') {
+//        foreach ($field['files'] as $file_num => $file) {
+//            if ( $file['_file_metadata']['_public_date'] !== '2200-01-01 00:00:00') {
+//                $dataset['fields'][$num]['files'][$file_num] = array(
+//                    'file_uuid' => $file['file_uuid'],
+//                    'public_date' => '2300-01-01 00:00:00',
+//                );
+//            }
+//        }
+//    }
+//}
+// Set all non-public files to public
+//foreach ($dataset['fields'] as $num => $field) {
+//    if ( $field['field_uuid'] === '3fbd20317257402bdc8fa7df6f2e') {
+//        foreach ($field['files'] as $file_num => $file) {
+//            if ( $file['_file_metadata']['_public_date'] === '2200-01-01 00:00:00') {
+//                $dataset['fields'][$num]['files'][$file_num] = array(
+//                    'file_uuid' => $file['file_uuid'],
+//                    'public_date' => '1900-01-01 00:00:00',
+//                );
+//            }
+//        }
+//    }
+//}
+// Set an image to public
+//foreach ($dataset['fields'] as $num => $field) {
+//    if ( $field['field_uuid'] === 'd33d623628542a991099823b1264') {
+//        $dataset['fields'][$num]['files'][0] = array(
+//            'file_uuid' => $field['files'][0]['file_uuid'],
+//            'public_date' => '1900-01-01 00:00:00',
+//        );
+//    }
+//}
+// Set a different image to public (theoretically this one is a thumbnail)
+//foreach ($dataset['fields'] as $num => $field) {
+//    if ( $field['field_uuid'] === 'd33d623628542a991099823b1264') {
+//        $dataset['fields'][$num]['files'][1] = array(
+//            'file_uuid' => $field['files'][1]['file_uuid'],
+//            'public_date' => '1900-01-01 00:00:00',
+//        );
+//    }
+//}
+// Set all images to not-public
+//foreach ($dataset['fields'] as $num => $field) {
+//    if ( $field['field_uuid'] === 'd33d623628542a991099823b1264') {
+//        foreach ($field['files'] as $file_num => $file) {
+//            if ( $file['_file_metadata']['_public_date'] !== '2200-01-01 00:00:00') {
+//                $dataset['fields'][$num]['files'][$file_num] = array(
+//                    'file_uuid' => $file['file_uuid'],
+//                    'public_date' => '2300-01-01 00:00:00',
+//                );
+//                break;
+//            }
+//        }
+//    }
+//}
+
+// Select a radio option when it has no currently selected options
+//$dataset['fields'][] = array(
+//    'field_uuid' => '26e135a2b17ec9c4afdc0c73717e',
+//    'value' => array(
+//        0 => array(
+//            'template_radio_option_uuid' => '9546ac71a4dbae6bf01f36b74f94'
+//        )
+//    )
+//);
+
+// Select an additional radio option
+//$dataset['fields'][1]['value'][] = array(
+//    0 => array(
+//        'template_radio_option_uuid' => '9546ac71a4dbae6bf01f36b74f94'
+//    )
+//);
+
+// Deselect a radio option
+//$dataset['fields'][1]['value'] = array();
+
+// Select a different radio option
+//$dataset['fields'][1]['value'] = array(
+//    0 => array(
+//        'template_radio_option_uuid' => 'asdf'
+//    )
+//);
+
+// Splice in an existing tag
+//$dataset['fields'][17]['value'][] = array('template_tag_uuid' => 'fbf65a111a946f581ee153f0974e');
+// Splice in a new tag
+//$dataset['fields'][17]['value'][] = array('template_tag_uuid' => 'fbf65a111a946f581ee153f0974f');
+// Replace an existing tag
+//$dataset['fields'][17]['value'][0] = array('template_tag_uuid' => 'fbf65a111a946f581ee153f0974e');
+// Delete a pile of tags
+//$dataset['fields'][17]['value'] = array();
+
             // Load the current version of the requested record in ODR
             $orig_dataset = self::getRecordData(
                 $version,
@@ -4579,6 +4978,14 @@ class APIController extends ODRCustomController
                 $user
             );
             $orig_dataset = json_decode($orig_dataset, true);
+
+// Pretend the original record is blank
+//$orig_dataset = array(
+//    'database_uuid' => $datarecord->getDataType()->getUniqueId(),
+//    'record_uuid' => $datarecord->getUniqueId(),
+//    'fields' => array(),
+//    'records' => array(),
+//);
 
             // If the user has permissions to make all the changes they're requesting...
             $response = null;
@@ -4692,11 +5099,15 @@ class APIController extends ODRCustomController
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
+            // TODO - APIControllerTest::testGetDataRecord() seems to assume it gets back a single record without the wrapping
+            // TODO - ...but nothing has fundamentally changed from https://github.com/OpenDataRepository/data-publisher/blob/develop/src/ODR/AdminBundle/Controller/APIController.php#L4445
+            // TODO - $record_uuid is always null in this function, and whichever test creates the relevant dataset doesn't seem to have magically created a template datatype earlier
 
-            // Determine if we're searching a metadata record or a normal dataset
-            // Metadata datasets have one record each
-            // Regular datasets have multiple records
-            if ( $datatype->getIsMasterType() ) {
+            // TODO - ...unfortunately, seems like I need to revert back to develop to see wtf is happening
+
+            // Determine if we're searching a template or a metadata database...both of those
+            //  are only supposed to have a single record
+            if ( $datatype->getIsMasterType() || !is_null($datatype->getMetadataFor()) ) {
                 // This is a metadata datatype, so this controller action is going to return the
                 //  contents of the metadata record
 
@@ -4771,9 +5182,8 @@ class APIController extends ODRCustomController
                 // Start building the output
                 $output = '';
 
-                // If the request was not for a metadata datatype, and the user didn't want a
-                //  specific record...
-                if ( is_null($datatype->getMetadataFor()) && is_null($record_uuid) ) {
+                // If the request was not for a template or a metadata datatype...
+                if ( !$datatype->getIsMasterType() && is_null($datatype->getMetadataFor()) ) {
                     // ...then wrap the output with some additional info about how many records this
                     //  datatype has
                     $output .= '{';
@@ -4799,7 +5209,7 @@ class APIController extends ODRCustomController
                 }
 
                 // Close the additional info if required
-                if ( is_null($datatype->getMetadataFor()) && is_null($record_uuid) )
+                if ( !$datatype->getIsMasterType() && is_null($datatype->getMetadataFor()) )
                     $output .= ']}';
 
                 // Return the output back to the user
@@ -5304,6 +5714,7 @@ class APIController extends ODRCustomController
 
     /**
      * Changes the public date of a datatype, or a datarecord and all its children.
+     * TODO
      *
      * @param string $version
      * @param Request $request
@@ -5388,11 +5799,11 @@ class APIController extends ODRCustomController
                 $public_date = new \DateTime();
             }
 
-            /** @var DataRecord $data_record */
-            $data_record = null;
+            /** @var DataRecord $datarecord */
+            $datarecord = null;
             if(isset($data['record_uuid'])) {
-                /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                     array(
                         'unique_id' => $data['record_uuid']
                     )
@@ -5400,15 +5811,15 @@ class APIController extends ODRCustomController
             }
             // Only works for Metadata Records
             else if (isset($data['dataset_uuid'])) {
-                /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                     array(
                         'dataType' => $data_type->getId()
                     )
                 );
             }
 
-            if ( $data_record == null )
+            if ( $datarecord == null )
                 throw new ODRNotFoundException('Datarecord');
 
 
@@ -5420,15 +5831,15 @@ class APIController extends ODRCustomController
             $em->persist($data_type_meta);
 
             // Ensure record is public
-            /** @var DataRecordMeta $data_record_meta */
-            $data_record_meta = $data_record->getDataRecordMeta();
-            $data_record_meta->setPublicDate($public_date);
-            $data_record_meta->setUpdatedBy($user);
+            /** @var DataRecordMeta $datarecord_meta */
+            $datarecord_meta = $datarecord->getDataRecordMeta();
+            $datarecord_meta->setPublicDate($public_date);
+            $datarecord_meta->setUpdatedBy($user);
 
             // Change permissions for all related datarecords
             $json_data = self::getRecordData(
                 $version,
-                $data_record->getUniqueId(),
+                $datarecord->getUniqueId(),
                 'json',
                 1,
                 $user
@@ -5441,7 +5852,7 @@ class APIController extends ODRCustomController
                 self::makeDatarecordPublic($json_record, $public_date, $user);
             }
 
-            $em->persist($data_record_meta);
+            $em->persist($datarecord_meta);
 
 
             $actual_data_record = "";
@@ -5462,7 +5873,7 @@ class APIController extends ODRCustomController
                 );
 
                 // Ensure record is public
-                /** @var DataRecordMeta $data_record_meta */
+                /** @var DataRecordMeta $datarecord_meta */
                 $actual_data_record_meta = $actual_data_record->getDataRecordMeta();
                 $actual_data_record_meta->setPublicDate($public_date);
                 $actual_data_record_meta->setUpdatedBy($user);
@@ -5500,7 +5911,7 @@ class APIController extends ODRCustomController
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
+                $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
             }
             catch (\Exception $e) {
@@ -5565,7 +5976,7 @@ class APIController extends ODRCustomController
             // This is required because the user can turn databases non-public.
             $url = $this->generateUrl('odr_api_get_dataset_single_no_format', array(
                 'version' => $version,
-                'dataset_uuid' => $data_record->getDataType()->getUniqueId()
+                'dataset_uuid' => $datarecord->getDataType()->getUniqueId()
             ), false);
 
             $response->headers->set('Location', $url);
@@ -5593,16 +6004,16 @@ class APIController extends ODRCustomController
 
         // Probably should check if user owns record here?
 
-        /** @var DataRecord $data_record */
-        $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+        /** @var DataRecord $datarecord */
+        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
             array(
                 'unique_id' => $record_data['record_uuid']
             )
         );
 
-        if($data_record) {
+        if($datarecord) {
             // Set public using utility
-            $data_record->setPublicDate($user, $public_date, $em);
+//            $datarecord->setPublicDate($user, $public_date, $em);    // TODO
         }
 
         if(isset($record_data['records'])) {
@@ -6132,6 +6543,7 @@ class APIController extends ODRCustomController
     }
 
     /**
+     * TODO
      * @param $version
      * @param $template_uuid
      * @param $template_field_uuid
@@ -6353,6 +6765,7 @@ class APIController extends ODRCustomController
     /**
      * Returns a list of radio options in the given template field, and a count of how many
      * datarecords from datatypes derived from the given template have those options selected.
+     * TODO
      *
      * @param $version
      * @param $template_uuid
@@ -6801,7 +7214,9 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
+     * TODO
      * @param string $version
      * @param Request $request
      * @return Response
@@ -6895,6 +7310,7 @@ class APIController extends ODRCustomController
     /**
      * Retrieve user info and list of created databases (that have metadata).
      * Creates user if not exists.
+     * TODO
      *
      * @param $version
      * @param Request $request
@@ -7051,6 +7467,7 @@ class APIController extends ODRCustomController
 
 
     /**
+     * TODO
      * @param $template_uuid
      * @param $template_field_uuid
      * @param Request $request

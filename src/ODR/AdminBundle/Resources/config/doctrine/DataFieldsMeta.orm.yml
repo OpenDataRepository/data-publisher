@@ -155,6 +155,8 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: 0
             nullable: false
 
+        # TODO - if ODR is going to have the ability to "suggest matching values from the same field", then there needs to be an option here to enable it...
+
         publicDate:
             type: datetime
             nullable: false

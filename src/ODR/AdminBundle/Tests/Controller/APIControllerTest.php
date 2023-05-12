@@ -15,7 +15,7 @@ class APIControllerTest extends WebTestCase
     // public static $base_url = "https://ahed-dev.nasawestprime.com/ahed-api/api/v3";
     // public static $base_url = "http://office-dev/app_dev.php/api/v3";
     // public static $base_url = "http://localhost:8000/app_dev.php/api/v3";
-    public static $base_url = "http://eta.odr.io/api/v3";
+    public static $base_url = "https://theta.odr.io/api/v3";
 
     public static $template_uuid = "2ea627b";
 
@@ -32,6 +32,7 @@ class APIControllerTest extends WebTestCase
     public function testToken()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
         // $timer = (getenv("TIMER") == "1" ? true : false);
 
         $post_data = json_encode(array(
@@ -51,12 +52,12 @@ class APIControllerTest extends WebTestCase
         $content = $response['response'];
 
         // Show the actual content if debug enabled.
-        ($debug ? fwrite(STDERR, 'Token Data:' . $content) : '');
+        ($debug ? fwrite(STDOUT, 'Token Data:' . $content) : '');
 
         $token = json_decode($content, true);
 
         if (!is_array($token)) {
-            ($debug ? fwrite(STDERR, $token) . "\n" : '');
+            ($debug ? fwrite(STDOUT, $token) . "\n" : '');
         }
 
         // Token value should be set
@@ -67,7 +68,7 @@ class APIControllerTest extends WebTestCase
             'HTTP_AUTHORIZATION' => "Bearer {$token['token']}",
         );
 
-        ($debug ? fwrite(STDERR, print_r(self::$headers, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, print_r(self::$headers, true) . "\n") : '');
     }
 
     /**
@@ -78,11 +79,14 @@ class APIControllerTest extends WebTestCase
     public function testTemplate()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
 
-        ($debug ? fwrite(STDERR, "Getting template.\n") : '');
+        $url = self::$base_url . '/search/template/' . self::$template_uuid;
+        ($debug ? fwrite(STDOUT, "Getting template from ".$url."\n") : '');
+
         $cp = new CurlUtility(
             self::$base_url . '/search/template/' . self::$template_uuid,
             $headers,
@@ -95,20 +99,19 @@ class APIControllerTest extends WebTestCase
         $content = $response['response'];
 
         // Show the actual content if debug enabled.
-        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Content pulled.' . "\n") : '');
 
         $template = json_decode($content, true);
 
-        if (!is_array($template)) {
-            ($debug ? fwrite(STDERR, $content) . "\n" : '');
-        }
+        if (!is_array($template))
+            ($debug ? fwrite(STDOUT, print_r($template, true) ) . "\n" : '');
 
         // Should redirect to login
-        $this->assertTrue(isset($template['name']));
+        $this->assertTrue( isset($template['name']) );
 
         if ($debug && isset($template['name'])) {
             self::$template_data = $template;
-            fwrite(STDERR, $template['name'] . "\n");
+            fwrite(STDOUT, $template['name'] . "\n");
         }
     }
 
@@ -118,10 +121,11 @@ class APIControllerTest extends WebTestCase
     public function testUser()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        ($debug ? fwrite(STDERR, 'Content: ' . print_r($headers, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Content: ' . print_r($headers, true) . "\n") : '');
 
         $post_data = array(
             'user_email' => 'nathan.a.stone@nasa.gov',
@@ -138,10 +142,10 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->post($post_data);
-        ($debug ? fwrite(STDERR, 'Content: ' . print_r($response, true) . "\n") : '');
+//        ($debug ? fwrite(STDOUT, 'Content: ' . print_r($response, true) . "\n") : '');
 
         $user = json_decode($response['response'], true);
-        ($debug ? fwrite(STDERR, 'User: ' . print_r($user, true) . "\n") : '');
+//        ($debug ? fwrite(STDOUT, 'User: ' . print_r($user, true) . "\n") : '');
 
         // Should have the user_email at least
         $this->assertTrue(isset($user['user_email']));
@@ -153,6 +157,7 @@ class APIControllerTest extends WebTestCase
     public function testCreate()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
@@ -172,15 +177,29 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->post($post_data);
         $code = $response['code'];
-        ($debug ? fwrite(STDERR, 'Response Code: ' . $code . "\n") : '');
-        ($debug ? fwrite(STDERR, 'Dataset: ' . $response['response']) : '');
+        ($debug ? fwrite(STDOUT, 'Response Code: ' . $code . "\n") : '');
+
         $created_dataset = json_decode($response['response'], true);
-        ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($created_dataset, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Dataset: ' . print_r($created_dataset, true) . "\n") : '');    // TODO - ...is this actually the correct return?  it seems to be a metadata record...
+
+        // TODO - so the codebase from 3 years ago returns an actual record with Dataset Name, Dataset Description, etc
+        // TODO - the created record still belongs to a metadata database, but the codebase as of 2023 doesn't seem to create any fields in it
+
+        // TODO - so either APIController::createDatasetAction() got fucked up sometime in the past 3 years...which isn't terribly likely because the 2023 codebase still creates the correct stuff...
+        // TODO - ...or one of the 3? cloning services got fucked up sometime in the past 3 years...which is more likely because metadata databases were a hack in the first place
+        // TODO - fml.
+
+        // TODO - https://github.com/OpenDataRepository/data-publisher/commit/4da207fc27b58f1f417d82e3a4b5731c2d8686d1 (Sep 8, 2022) works
+        // TODO - https://github.com/OpenDataRepository/data-publisher/commit/c9af57b1fe943a035e708159506c81070d68da02 (Sep 9, 2022) does not
+
+        // TODO - ...seems like the first part of the issues was that twig changed something, so datarecord_childtype.json.twig wasn't outputting datafields when it should
+        // TODO - the next issue seems to be my fault, because these NASA tests use the less precise 'template_uuid' instead of the more precise 'database_uuid'
+
         self::$created_dataset = array(
             'user_email' => 'nathan.a.stone@nasa.gov',
             'dataset' => $created_dataset
         );
-        ($debug ? fwrite(STDERR, 'Dataset UUID AA: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Dataset UUID AA: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
         $this->assertTrue($code == 200);
@@ -192,13 +211,14 @@ class APIControllerTest extends WebTestCase
     public function testUpdateName()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         for ($i = 0; $i < count(self::$created_dataset['dataset']['fields']); $i++) {
             $field = self::$created_dataset['dataset']['fields'][$i];
-            if ($field['template_field_uuid'] == '08088a9') {
+            if ($field['template_field_uuid'] == '08088a9') {                                   // TODO - ...the created dataset returned from the previous function doesn't have any fields in it
                 // Name field update name
-                $field['value'] = "Test Dataset " . rand(1000000, 9999999);
+                $field['value'] = "Test Dataset " . rand(1000000, 9999999);                     // TODO - swapping back to the original 2021 database doesn't fix it...something must've changed in APIController
                 self::$created_dataset['dataset']['fields'][$i] = $field;
             }
         }
@@ -214,11 +234,15 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->put($put_data);
         $code = json_decode($response['code'], true);
+
+        $response = json_decode($response['response'], true);
+        ($debug ? fwrite(STDOUT, 'Dataset: ' . print_r($response, true) . "\n") : '');
+
         /*
         $updated_dataset = json_decode($response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
         */
-        ($debug ? fwrite(STDERR, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
         $this->assertTrue($code == 302 || $code == 200);
@@ -302,9 +326,10 @@ class APIControllerTest extends WebTestCase
                 ]
             }';
 
-        $person_data = json_decode($add_person);
+        $person_data = json_decode($add_person, true);
 
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         self::$created_dataset['dataset']['records'][] = $person_data;
@@ -320,11 +345,11 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->put($put_data);
         $code = json_decode($response['code'], true);
-        /*
-        $updated_dataset = json_decode($response['response'], true);
-        self::$created_dataset['dataset'] = $updated_dataset;
-        */
-        ($debug ? fwrite(STDERR, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
+
+        ($debug ? fwrite(STDOUT, 'Response: ' . print_r($response['response'], true) . "\n") : '');
+//        self::$created_dataset['dataset'] = $updated_dataset;
+
+        ($debug ? fwrite(STDOUT, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
         $this->assertTrue($code == 302 || $code == 200);
@@ -381,7 +406,7 @@ class APIControllerTest extends WebTestCase
                     ]
                 }
             ]
-                
+
         }';
 
 
@@ -403,8 +428,8 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->put($put_data);
         $code = json_decode($response['code'], true);
-        ($debug ? fwrite(STDERR, 'Code: ' . $code . ' -- Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
-        ($debug ? fwrite(STDERR, 'Dataset (updated): ' . $response['response'] . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Code: ' . $code . ' -- Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Dataset (updated): ' . $response['response'] . "\n") : '');
 
         self::$created_dataset['dataset'] = json_decode($response['response'], true);
 
@@ -417,13 +442,16 @@ class APIControllerTest extends WebTestCase
     public function testGetDataset()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
 
-        ($debug ? fwrite(STDERR, "Getting data record.\n") : '');
+        ($debug ? fwrite(STDOUT, 'self::$created_dataset: ' . print_r(self::$created_dataset, true) ) : '');
+
+        ($debug ? fwrite(STDOUT, "Getting data record.\n") : '');
         $url = self::$base_url . '/dataset/' . self::$created_dataset['dataset']['database_uuid'];
-        ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
+        ($debug ? fwrite(STDOUT, "URL: " . $url . "\n") : '');
         $cp = new CurlUtility(
             $url,
             $headers,
@@ -433,12 +461,13 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->get();
-        $content = $response['response'];
+        $content = json_decode($response['response'], true);
 
         // Show the actual content if debug enabled.
-        ($debug ? fwrite(STDERR, 'Dataset Content Pulled: ' . $content . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Dataset Content Pulled: ' . print_r($content, true) . "\n") : '');
 
-        self::$created_dataset['dataset'] = json_decode($content, true);
+        self::$created_dataset['dataset'] = $content;
+//        ($debug ? fwrite(STDOUT, 'self::$created_dataset: ' . print_r(self::$created_dataset, true) ) : '');
 
         // Should redirect to login
         $this->assertTrue(isset(self::$created_dataset['dataset']['record_uuid']));
@@ -449,13 +478,16 @@ class APIControllerTest extends WebTestCase
     public function testGetDataRecord()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
 
-        ($debug ? fwrite(STDERR, "Getting data record.\n") : '');
+        ($debug ? fwrite(STDOUT, 'self::$created_dataset: ' . print_r(self::$created_dataset, true) ) : '');
+
+        ($debug ? fwrite(STDOUT, "Getting data record.\n") : '');
         $url = self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'];
-        ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
+        ($debug ? fwrite(STDOUT, "URL: " . $url . "\n") : '');
         $cp = new CurlUtility(
             $url,
             $headers,
@@ -465,30 +497,33 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->get();
-        $content = $response['response'];
+        $content = json_decode($response['response'], true);
 
 
         // Show the actual content if debug enabled.
-        ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Content pulled: ' . print_r($content, true) . "\n") : '');
 
         self::$created_datarecord = self::$created_dataset;
-        self::$created_datarecord['dataset'] = json_decode($content, true);
+        self::$created_datarecord['dataset'] = $content;
+
+        ($debug ? fwrite(STDOUT, 'self::$created_datarecord: ' . print_r(self::$created_datarecord, true) ) : '');
 
         if (!is_array(self::$created_datarecord['dataset'])) {
-            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+            ($debug ? fwrite(STDOUT, $content) . "\n" : '');
         }
 
         // Should redirect to login
         $this->assertTrue(isset(self::$created_datarecord['dataset']['record_uuid']));
 
         if ($debug && isset(self::$created_datarecord['dataset']['record_uuid'])) {
-            fwrite(STDERR, "Record UUID:: " . self::$created_datarecord['dataset']['record_uuid'] . "\n");
+            fwrite(STDOUT, "Record UUID:: " . self::$created_datarecord['dataset']['record_uuid'] . "\n");
         }
     }
 
     public function testAddDataFile()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         // Add Data File Record
         $datafile_template = '
@@ -509,8 +544,8 @@ class APIControllerTest extends WebTestCase
 
         $put_data = json_encode(self::$created_datarecord);
         $url = self::$base_url . '/dataset';
-        ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
-        ($debug ? fwrite(STDERR, "PUT CONTENT: " . $put_data . "\n") : '');
+        ($debug ? fwrite(STDOUT, "URL: " . $url . "\n") : '');
+        ($debug ? fwrite(STDOUT, "PUT CONTENT: " . print_r(json_decode($put_data, true), true) . "\n") : '');
         $cp = new CurlUtility(
             $url,
             $headers,
@@ -522,10 +557,10 @@ class APIControllerTest extends WebTestCase
         $response = $cp->put($put_data);
         $updated_dataset = json_decode($response['response'], true);
         // self::$created_datarecord['dataset'] = $updated_dataset;
-        ($debug ? fwrite(STDERR, 'Updated dataset: ' . var_export($updated_dataset, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Updated dataset: ' . print_r($updated_dataset, true) . "\n") : '');
 
         $code = json_decode($response['code'], true);
-        ($debug ? fwrite(STDERR, 'Datarecord UUID: ' . self::$created_datarecord['dataset']['database_uuid'] . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Datarecord UUID: ' . self::$created_datarecord['dataset']['database_uuid'] . "\n") : '');
 
         $this->assertTrue($code == 302 || $code == 200);
     }
@@ -534,11 +569,12 @@ class APIControllerTest extends WebTestCase
     public function testUpdateDataRecord()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        $debug = true;
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
 
-        ($debug ? fwrite(STDERR, "Getting Updated Data Record.\n") : '');
+        ($debug ? fwrite(STDOUT, "Getting Updated Data Record.\n") : '');
         $cp = new CurlUtility(
             self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
             $headers,
@@ -551,19 +587,19 @@ class APIControllerTest extends WebTestCase
         $content = $response['response'];
 
         // Show the actual content if debug enabled.
-        ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Content pulled: ' . $content . "\n") : '');
 
         self::$created_datarecord['dataset'] = json_decode($content, true);
 
         if (!is_array(self::$created_datarecord['dataset'])) {
-            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+            ($debug ? fwrite(STDOUT, $content) . "\n" : '');
         }
 
         // Should redirect to login
         $this->assertTrue(isset(self::$created_datarecord['dataset']['record_uuid']));
 
         if ($debug && isset(self::$created_datarecord['dataset']['record_uuid'])) {
-            fwrite(STDERR, "Record UUID:: " . self::$created_datarecord['dataset']['record_uuid'] . "\n");
+            fwrite(STDOUT, "Record UUID:: " . self::$created_datarecord['dataset']['record_uuid'] . "\n");
         }
     }
 
@@ -573,7 +609,7 @@ class APIControllerTest extends WebTestCase
     public function testDataRecordFile()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__ || getenv("DEBUG") == "DataRecordFile") ? true : false);
-
+        $debug = true;
 
         // Figure out which record of datarecord is the new file placeholder
 
@@ -589,15 +625,15 @@ class APIControllerTest extends WebTestCase
         ));
 
         $file_name = __DIR__  . '/../../TestResources/Image_14044.jpeg';
-        ($debug ? fwrite(STDERR, $file_name) : '');
+        ($debug ? fwrite(STDOUT, $file_name) : '');
 
         $curl_file = '@' . realpath($file_name);
         if (function_exists('curl_file_create')) { // php 5.5+
             $curl_file = curl_file_create($file_name);
         }
 
-        ($debug ? fwrite(STDERR, 'dataset_uuid => ' . self::$created_datarecord['dataset']['records'][0]['database_uuid']) : '');
-        ($debug ? fwrite(STDERR, 'record_uuid => ' . self::$created_datarecord['dataset']['records'][0]['record_uuid']) : '');
+        ($debug ? fwrite(STDOUT, 'dataset_uuid => ' . self::$created_datarecord['dataset']['records'][0]['database_uuid']) : '');
+        ($debug ? fwrite(STDOUT, 'record_uuid => ' . self::$created_datarecord['dataset']['records'][0]['record_uuid']) : '');
 
         curl_setopt(
             $request,
@@ -612,14 +648,14 @@ class APIControllerTest extends WebTestCase
             ));
 
         // output the response
-        ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');
+        ($debug ? fwrite(STDOUT, 'TESZ TEST TEST TSETSTE STE STET') : '');
         curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($request);
-        ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');
-        ($debug ? fwrite(STDERR, '\nHELLO: ' . print_r($response)) : '');
+        ($debug ? fwrite(STDOUT, 'TESZ TEST TEST TSETSTE STE STET') : '');
+        ($debug ? fwrite(STDOUT, '\nHELLO: ' . print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
-        ($debug ? fwrite(STDERR, $http_status) : '');
+        ($debug ? fwrite(STDOUT, $http_status) : '');
         $this->assertTrue($http_status == 302 || $http_status == 200);
 
         // close the session
@@ -648,7 +684,7 @@ class APIControllerTest extends WebTestCase
         ));
 
         $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
-        ($debug ? fwrite(STDERR, $file_name) : '');
+        ($debug ? fwrite(STDOUT, $file_name) : '');
 
         $curl_file = '@' . realpath($file_name);
         if (function_exists('curl_file_create')) { // php 5.5+
@@ -671,10 +707,10 @@ class APIControllerTest extends WebTestCase
         curl_setopt($request, CURLOPT_FOLLOWLOCATION, true);
 
         $response = curl_exec($request);
-        ($debug ? fwrite(STDERR, print_r($response)) : '');
+        ($debug ? fwrite(STDOUT, print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
-        ($debug ? fwrite(STDERR, $http_status) : '');
+        ($debug ? fwrite(STDOUT, $http_status) : '');
         $this->assertTrue($http_status == 302 || $http_status == 200);
 
         // close the session
@@ -706,12 +742,12 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->post($post_data);
-        ($debug ? fwrite(STDERR, 'Publish response: ' . print_r($response, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Publish response: ' . print_r($response, true) . "\n") : '');
 
         $updated_dataset = json_decode($response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
 
-        ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');
 
         // Should have the user_email at least
         $this->assertTrue(isset($updated_dataset['database_uuid']));
@@ -739,9 +775,9 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->post($post_data);
         $results = json_decode($response['response'], true);
-        // ($debug ? fwrite(STDERR, 'Results: ' . print_r($results, true) . "\n") : '');
-        ($debug ? fwrite(STDERR, 'Result Count: ' . count($results['records']) . "\n") : '');
-        // ($debug ? fwrite(STDERR, 'Result Count: ' . count($results) . "\n") : '');
+        // ($debug ? fwrite(STDOUT, 'Results: ' . print_r($results, true) . "\n") : '');
+        ($debug ? fwrite(STDOUT, 'Result Count: ' . count($results['records']) . "\n") : '');
+        // ($debug ? fwrite(STDOUT, 'Result Count: ' . count($results) . "\n") : '');
         // Should have the user_email at least
         $this->assertTrue(count($results) > 0);
     }

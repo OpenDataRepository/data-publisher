@@ -23,7 +23,7 @@
             </div>
             {% endif %}
             <div class="ODRTagMoveHelpDiv">
-                To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving.
+                To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving. {# TODO - this is only correct when moving tags #}
             </div>
             {% if sort_by_name == true %}
             <div class="ODRTagMoveHelpDiv">
@@ -32,7 +32,7 @@
             {% endif %}
         </div>
 
-        <div class="ODRThemeElement" style="margin-top: 15px;">
+        <div class="ODRThemeElement" style="margin-top: 15px;">    {# TODO - really should have the ability to collapse/expand tags...IMA List is ridiculous #}
             {# this form is for renaming tags #}
             <form id="ODRTagForm" rel="{{ datafield.id }}">
                 {% include 'ODRAdminBundle:Tags:tag_wrapper.html.twig' with {

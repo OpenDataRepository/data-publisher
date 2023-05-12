@@ -133,6 +133,9 @@ odr_plugins.rruff.amcsd:
                 - no_user_edits
                 - is_derived
 
+        # TODO - need pressure/temperature fields from the AMC file
+        # TODO - need chemistry field from the CIF file
+
         # The following isn't needed for operation of the plugin, but should exist anyways
         reference_file:
             name: Reference File

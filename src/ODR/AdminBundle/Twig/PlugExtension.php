@@ -285,10 +285,14 @@ class PlugExtension extends \Twig_Extension
     {
         try {
             if ( $obj instanceof \DateTime ) {
-                if ($obj->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                    return false;
-                else
+                $current_date = new \DateTime();
+                $interval = $current_date->diff($obj);
+
+                // If the current date is after the given date, then the entity is public
+                if ($interval->invert == 1)    // TODO - test this, and fix everywhere else
                     return true;
+                else
+                    return false;
             }
             else {
                 throw new \Exception();

@@ -555,10 +555,14 @@ class File
      */
     public function isPublic()
     {
-        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
+        $current_date = new \DateTime();
+        $interval = $current_date->diff($this->getPublicDate());
+
+        // If the current date is after the public date, then the file is public
+        if ($interval->invert == 1)
             return true;
+        else
+            return false;
     }
 
     /*

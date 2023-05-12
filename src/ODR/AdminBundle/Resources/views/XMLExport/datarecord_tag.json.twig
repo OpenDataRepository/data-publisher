@@ -21,7 +21,7 @@
 {% if is_selected == 1 %}
 {
     "id": {{ tag.id }},
-    "using_tagSelection2": "true",
+{#    "using_tagSelection2": "true",#}
     "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
     "name": "{{ tag.tagName }}",
     "created_at": "{{ tag.created|date('Y-m-d H:i:s') }}",

@@ -1916,6 +1916,7 @@ odr_api_update_dataset_record:
     path: /api/{version}/dataset/record
     defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v4' }
     methods: [ POST ]
+#    methods: [ GET ]
     requirements:
         version: 'v\d+'
         _format: '|json|xml'

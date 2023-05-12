@@ -869,6 +869,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // ...and the datafield that triggered the onFilePreEncrypt/onFileDeleted event
                     //  is the "AMC File" datafield
                     return true;
+
+                    // TODO - also need to extract the chemistry field from the CIF file...
                 }
             }
         }
@@ -1121,6 +1123,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $value_mapping['gamma'] = $pieces[5];
                 $value_mapping['Space Group'] = $pieces[6];
             }
+
+            // TODO - these regexes are from /www/html/rruff/mineral_list/functions.php, starting at around line 1508
+
+            // TODO - pressure looks like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"...can also have a tolerance
+            // TODO - currently uses the regex "/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/"
+
+            // TODO - temp looks like "T = 200 K" or "T = 359.4K" or "T = 500K"
+            // TODO - ...it can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
+            // TODO - currently uses two regexes... "/T\s\=\s(-?[0-9\.]+)\s?(C|K)/"  and  "/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/"
+
+            // TODO - chemistry comes from the CIF file, and uses the regex "/\_chemical\_formula\_sum\s\'([^\']+)\'/"
 
             // Save every line from the file, as well
             $all_lines[] = $line;

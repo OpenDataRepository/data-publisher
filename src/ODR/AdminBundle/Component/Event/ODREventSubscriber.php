@@ -104,7 +104,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         $this->logger = $logger;
 
         $this->debug = false;
-//        $this->debug = true;
+        $this->debug = true;
     }
 
 

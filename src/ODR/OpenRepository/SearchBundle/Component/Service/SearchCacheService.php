@@ -90,7 +90,7 @@ class SearchCacheService implements EventSubscriberInterface
 
 
         $this->debug = false;
-//        $this->debug = true;
+        $this->debug = true;
     }
 
 

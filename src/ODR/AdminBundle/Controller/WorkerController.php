@@ -1136,15 +1136,186 @@ $ret .= '  Set current to '.$count."\n";
     }
 
 
-    /**
-     * Unfortunately, can't transfer the name/sort field to the new DatatypeSpecialFields table
-     * without using php...
-     *
-     * @param integer $field_purpose
-     * @param Request $request
-     * @return Response
-     */
-    public function asdfAction($field_purpose, Request $request)
+//    /**
+//     * Unfortunately, can't transfer the name/sort field to the new DatatypeSpecialFields table
+//     * without using php...
+//     *
+//     * @param integer $field_purpose
+//     * @param Request $request
+//     * @return Response
+//     */
+//    public function asdfAction($field_purpose, Request $request)
+//    {
+//        $return = array();
+//        $return['r'] = 0;
+//        $return['t'] = '';
+//        $return['d'] = '';
+//
+//        try {
+//            $field_purpose = intval($field_purpose);
+//
+//            /** @var \Doctrine\ORM\EntityManager $em */
+//            $em = $this->getDoctrine()->getManager();
+//
+//            // --------------------
+//            // Determine user privileges
+//            /** @var ODRUser $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+//                throw new ODRForbiddenException();
+//            // --------------------
+//
+//            $query = '';
+//            if ( $field_purpose === DataTypeSpecialFields::NAME_FIELD ) {
+//                $query =
+//                   'SELECT dtm.data_type_id AS dt_id, dtm.type_name_datafield_id AS df_id, '.DataTypeSpecialFields::NAME_FIELD.' AS field_purpose, dtm.created, dtm.createdBy, dtm.updated, dtm.updatedBy, dtm.deletedAt
+//                    FROM odr_data_type_meta dtm
+//                    WHERE 1=1
+//                    ORDER BY dtm.data_type_id, dtm.id';
+//            }
+//            else if ( $field_purpose === DataTypeSpecialFields::SORT_FIELD ) {
+//                $query =
+//                   'SELECT dtm.data_type_id AS dt_id, dtm.sort_datafield_id AS df_id, '.DataTypeSpecialFields::SORT_FIELD.' AS field_purpose, dtm.created, dtm.createdBy, dtm.updated, dtm.updatedBy, dtm.deletedAt
+//                    FROM odr_data_type_meta dtm
+//                    WHERE 1=1
+//                    ORDER BY dtm.data_type_id, dtm.id';
+//            }
+//            else {
+//                throw new ODRBadRequestException();
+//            }
+//
+//            $conn = $em->getConnection();
+//            $results = $conn->executeQuery($query);
+//
+//            $dt_data = array();
+//            foreach ($results as $result) {
+//                $dt_id = intval($result['dt_id']);
+//                if ( !isset($dt_data[$dt_id]) )
+//                    $dt_data[$dt_id] = array();
+//
+//                $dt_data[$dt_id][] = array(
+//                    'df_id' => $result['df_id'],
+//                    'field_purpose' => $result['field_purpose'],
+//                    'created' => $result['created'],
+//                    'createdBy' => $result['createdBy'],
+//                    'updated' => $result['updated'],
+//                    'updatedBy' => $result['updatedBy'],
+//                    'deletedAt' => $result['deletedAt'],
+//                );
+//            }
+//
+//            foreach ($dt_data as $dt_id => $data) {
+//                $last_good_field = null;
+//                for ($i = 0; $i < count($data); $i++) {
+//                    if ( is_null($last_good_field) ) {
+//                        // If this is currently the earliest entry for this datatype...
+//                        if ( is_null($data[$i]['df_id']) ) {
+//                            // ...then get rid of the entry if it doesn't actually define a field
+//                            unset( $dt_data[$dt_id][$i] );
+//                            $last_good_field = null;
+//                        }
+//                        else if ( is_null($data[$i]['df_id']) ) {
+//                            // ...discard the current entry if the name/sort field was set to null
+//                            unset( $dt_data[$dt_id][$i] );
+//                        }
+//                        else {
+//                            // ...then the entry defines a valid field
+//                            $last_good_field = $i;
+//                        }
+//                    }
+//                    else {
+//                        // Otherwise, this is not the earliest entry...
+//                        if ( $data[$last_good_field]['df_id'] === $data[$i]['df_id'] ) {
+//                            // ...transfer over the deletedAt date
+//                            $dt_data[$dt_id][$last_good_field]['deletedAt'] = $data[$i]['deletedAt'];
+//                            // ...and discard the current entry since the name/sort field hasn't changed
+//                            unset( $dt_data[$dt_id][$i] );
+//                        }
+//                        else if ( is_null($data[$i]['df_id']) ) {
+//                            // ...discard the current entry if the name/sort field was set to null
+//                            unset( $dt_data[$dt_id][$i] );
+//                        }
+//                        else {
+//                            // ...keep the current entry if the name/sort field has changed
+//                            $last_good_field = $i;
+//                        }
+//                    }
+//                }
+//
+//                // No sense creating entries when the datatype doesn't have a name/sort field
+//                if ( empty($dt_data[$dt_id]) )
+//                    unset( $dt_data[$dt_id] );
+//            }
+//
+//            $insert = 'INSERT INTO odr_data_type_special_fields (data_type_id, data_field_id, display_order, field_purpose, created, createdBy, updated, updatedBy, deletedAt)'."\nVALUES\n";
+//            $values = array();
+//            $warnings = array();
+//            foreach ($dt_data as $dt_id => $data) {
+//
+//                $tmp = array();
+//                foreach ($data as $num => $fields) {
+//                    $tmp = array(
+//                        $dt_id,
+//                    );
+//
+//                    if ( !is_null($fields['df_id']) )
+//                        $tmp[] = $fields['df_id'];
+//                    else {
+//                        $tmp[] = 'null';
+//                        $warnings[] = 'datatype '.$dt_id.' has a null datafield in it...the new table should not have nulls';
+//                    }
+//
+//                    $tmp[] = 0;    // display_order will be zero always
+//                    $tmp[] = $field_purpose;
+//
+//                    if ( !is_null($fields['created']) )
+//                        $tmp[] = "'".$fields['created']."'";
+//                    else
+//                        $tmp[] = 'null';
+//
+//                    if ( !is_null($fields['createdBy']) )
+//                        $tmp[] = $fields['createdBy'];
+//                    else
+//                        $tmp[] = 'null';
+//
+//                    if ( !is_null($fields['updated']) )
+//                        $tmp[] = "'".$fields['updated']."'";
+//                    else
+//                        $tmp[] = 'null';
+//
+//                    if ( !is_null($fields['updatedBy']) )
+//                        $tmp[] = $fields['updatedBy'];
+//                    else
+//                        $tmp[] = 'null';
+//
+//                    if ( !is_null($fields['deletedAt']) )
+//                        $tmp[] = "'".$fields['deletedAt']."'";
+//                    else
+//                        $tmp[] = 'null';
+//
+//                    $values[] = '('.implode(', ', $tmp).')';
+//                }
+//            }
+//
+//            $insert = $insert.implode(",\n", $values).';';
+//            print '<pre>'.implode("\n", $warnings).'</pre>';
+//            print '<pre>'.$insert.'</pre>';
+//        }
+//        catch (\Exception $e) {
+//            $source = 0xd3cdfe7c;
+//            if ($e instanceof ODRException)
+//                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+//            else
+//                throw new ODRException($e->getMessage(), 500, $source, $e);
+//        }
+//
+//        $response = new Response(json_encode($return));
+//        $response->headers->set('Content-Type', 'text/html');
+//        return $response;
+//    }
+
+
+    public function asdfAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1152,157 +1323,36 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         try {
-            $field_purpose = intval($field_purpose);
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $site_baseurl = $this->getParameter('site_baseurl');
 
-            // --------------------
-            // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
-            // --------------------
 
-            $query = '';
-            if ( $field_purpose === DataTypeSpecialFields::NAME_FIELD ) {
-                $query =
-                   'SELECT dtm.data_type_id AS dt_id, dtm.type_name_datafield_id AS df_id, '.DataTypeSpecialFields::NAME_FIELD.' AS field_purpose, dtm.created, dtm.createdBy, dtm.updated, dtm.updatedBy, dtm.deletedAt
-                    FROM odr_data_type_meta dtm
-                    WHERE 1=1
-                    ORDER BY dtm.data_type_id, dtm.id';
-            }
-            else if ( $field_purpose === DataTypeSpecialFields::SORT_FIELD ) {
-                $query =
-                   'SELECT dtm.data_type_id AS dt_id, dtm.sort_datafield_id AS df_id, '.DataTypeSpecialFields::SORT_FIELD.' AS field_purpose, dtm.created, dtm.createdBy, dtm.updated, dtm.updatedBy, dtm.deletedAt
-                    FROM odr_data_type_meta dtm
-                    WHERE 1=1
-                    ORDER BY dtm.data_type_id, dtm.id';
-            }
-            else {
-                throw new ODRBadRequestException();
-            }
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-            $conn = $em->getConnection();
-            $results = $conn->executeQuery($query);
+            /** @var DataRecord $dr */
+            $dr = $em->getRepository('ODRAdminBundle:DataRecord')->find(180712);
 
-            $dt_data = array();
-            foreach ($results as $result) {
-                $dt_id = intval($result['dt_id']);
-                if ( !isset($dt_data[$dt_id]) )
-                    $dt_data[$dt_id] = array();
+            $cache_service->delete('cached_datarecord_'.$dr->getId());
+            $cache_service->delete('json_record_'.$dr->getUniqueId());
+//            $dr_json = $cache_service->get('json_record_'.$dr->getUniqueId());
+//            $dr_array = json_decode($dr_json, true);
 
-                $dt_data[$dt_id][] = array(
-                    'df_id' => $result['df_id'],
-                    'field_purpose' => $result['field_purpose'],
-                    'created' => $result['created'],
-                    'createdBy' => $result['createdBy'],
-                    'updated' => $result['updated'],
-                    'updatedBy' => $result['updatedBy'],
-                    'deletedAt' => $result['deletedAt'],
-                );
-            }
+            /** @var DatarecordExportService $dre_service */
+            $dre_service = $this->container->get('odr.datarecord_export_service');
+            $dr_json = $dre_service->getData('v3', array($dr->getId()), 'json', true, $user, $site_baseurl);
+            $dr_array = json_decode($dr_json, true);
 
-            foreach ($dt_data as $dt_id => $data) {
-                $last_good_field = null;
-                for ($i = 0; $i < count($data); $i++) {
-                    if ( is_null($last_good_field) ) {
-                        // If this is currently the earliest entry for this datatype...
-                        if ( is_null($data[$i]['df_id']) ) {
-                            // ...then get rid of the entry if it doesn't actually define a field
-                            unset( $dt_data[$dt_id][$i] );
-                            $last_good_field = null;
-                        }
-                        else if ( is_null($data[$i]['df_id']) ) {
-                            // ...discard the current entry if the name/sort field was set to null
-                            unset( $dt_data[$dt_id][$i] );
-                        }
-                        else {
-                            // ...then the entry defines a valid field
-                            $last_good_field = $i;
-                        }
-                    }
-                    else {
-                        // Otherwise, this is not the earliest entry...
-                        if ( $data[$last_good_field]['df_id'] === $data[$i]['df_id'] ) {
-                            // ...transfer over the deletedAt date
-                            $dt_data[$dt_id][$last_good_field]['deletedAt'] = $data[$i]['deletedAt'];
-                            // ...and discard the current entry since the name/sort field hasn't changed
-                            unset( $dt_data[$dt_id][$i] );
-                        }
-                        else if ( is_null($data[$i]['df_id']) ) {
-                            // ...discard the current entry if the name/sort field was set to null
-                            unset( $dt_data[$dt_id][$i] );
-                        }
-                        else {
-                            // ...keep the current entry if the name/sort field has changed
-                            $last_good_field = $i;
-                        }
-                    }
-                }
-
-                // No sense creating entries when the datatype doesn't have a name/sort field
-                if ( empty($dt_data[$dt_id]) )
-                    unset( $dt_data[$dt_id] );
-            }
-
-            $insert = 'INSERT INTO odr_data_type_special_fields (data_type_id, data_field_id, display_order, field_purpose, created, createdBy, updated, updatedBy, deletedAt)'."\nVALUES\n";
-            $values = array();
-            $warnings = array();
-            foreach ($dt_data as $dt_id => $data) {
-
-                $tmp = array();
-                foreach ($data as $num => $fields) {
-                    $tmp = array(
-                        $dt_id,
-                    );
-
-                    if ( !is_null($fields['df_id']) )
-                        $tmp[] = $fields['df_id'];
-                    else {
-                        $tmp[] = 'null';
-                        $warnings[] = 'datatype '.$dt_id.' has a null datafield in it...the new table should not have nulls';
-                    }
-
-                    $tmp[] = 0;    // display_order will be zero always
-                    $tmp[] = $field_purpose;
-
-                    if ( !is_null($fields['created']) )
-                        $tmp[] = "'".$fields['created']."'";
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['createdBy']) )
-                        $tmp[] = $fields['createdBy'];
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['updated']) )
-                        $tmp[] = "'".$fields['updated']."'";
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['updatedBy']) )
-                        $tmp[] = $fields['updatedBy'];
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['deletedAt']) )
-                        $tmp[] = "'".$fields['deletedAt']."'";
-                    else
-                        $tmp[] = 'null';
-
-                    $values[] = '('.implode(', ', $tmp).')';
-                }
-            }
-
-            $insert = $insert.implode(",\n", $values).';';
-            print '<pre>'.implode("\n", $warnings).'</pre>';
-            print '<pre>'.$insert.'</pre>';
+            print '<pre>'.print_r($dr_json, true).'</pre>';
         }
         catch (\Exception $e) {
-            $source = 0xd3cdfe7c;
+
+            $source = 0xffffffff;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1310,7 +1360,7 @@ $ret .= '  Set current to '.$count."\n";
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'text/html');
+        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 }
