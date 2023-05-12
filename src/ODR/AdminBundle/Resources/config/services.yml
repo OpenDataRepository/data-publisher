@@ -282,6 +282,7 @@ services:
             $tracked_job_service: "@odr.tracked_job_service"
             $theme_info_service: "@odr.theme_info_service"
             $event_dispatcher: "@event_dispatcher"
+            $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
     odr.render_service:

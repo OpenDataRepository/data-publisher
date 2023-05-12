@@ -38,7 +38,6 @@ use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
-use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -522,6 +521,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -558,69 +559,10 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Delete the decrypted version of this file from the server, if it exists
-            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
-            $filename = 'File_'.$file_id.'.'.$file->getExt();
-            $absolute_path = realpath($file_upload_path).'/'.$filename;
+            // Delete the file
+            $ed_service->deleteFile($file, $user);
 
-            if ( file_exists($absolute_path) )
-                unlink($absolute_path);
-
-
-            // Delete the file and its current metadata entry
-            $file_meta = $file->getFileMeta();
-            $file_meta->setDeletedAt(new \DateTime());
-            $em->persist($file_meta);
-
-            $file->setDeletedBy($user);
-            $file->setDeletedAt(new \DateTime());
-            $em->persist($file);
-
-            $em->flush();
-
-
-            // -----------------------------------
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-            /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
-
-            // Notify that a file got deleted...
-            try {
-                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
-                $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
-            }
-
-            // ...and that something happened to the datafield...
-            try {
-                $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-            }
-
-            // ...and finally that something happened to the datarecord
-            try {
-                $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-            }
+            // Don't need to fire off any events
 
 
             // -----------------------------------
@@ -1003,6 +945,8 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1016,7 +960,6 @@ class EditController extends ODRCustomController
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
-            $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
@@ -1041,78 +984,17 @@ class EditController extends ODRCustomController
             // --------------------
 
 
-            // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
-            /** @var Image[] $images */
-            $images = $repo_image->findBy( array('parent' => $image->getId()) );
-            foreach ($images as $img) {
-                // Ensure no decrypted version of any of the thumbnails exist on the server
-                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
-                if ( file_exists($local_filepath) )
-                    unlink($local_filepath);
-
-                // Delete the alternate sized image from the database
-                $img->setDeletedBy($user);
-                $img->setDeletedAt(new \DateTime());
-                $em->persist($img);
-            }
-
-            // Ensure no decrypted version of the original image exists on the server
-            $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
-            if ( file_exists($local_filepath) )
-                unlink($local_filepath);
-
-            // Delete the image's meta entry
-            $image_meta = $image->getImageMeta();
-            $image_meta->setDeletedAt(new \DateTime());
-            $em->persist($image_meta);
-
             // Delete the image
-            $image->setDeletedBy($user);
-            $image->setDeletedAt(new \DateTime());
-            $em->persist($image);
+            $ed_service->deleteImage($image, $user);
 
-            $em->flush();
+            // Don't need to fire off any events
 
 
+            // -----------------------------------
             // If this datafield only allows a single upload, tell edit_ajax.html.twig to show the
             //  the upload button again since this datafield's only image got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
-
-
-            // ----------------------------------------
-            // Fire off an event notifying that the modification of the datafield is done
-            try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-            }
-
-            // Need to fire off a DatarecordModified event because an image got deleted
-            try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
-            }
-            catch (\Exception $e) {
-                // ...don't want to rethrow the error since it'll interrupt everything after this
-                //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-            }
-
         }
         catch (\Exception $e) {
             $source = 0xee8e8649;

@@ -749,12 +749,15 @@ class DisplayController extends ODRCustomController
 
 
             // Ensure file exists before attempting to download it
-            $filename = 'Image_'.$image_id.'.'.$image->getExt();
+            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
             if ( !$image->isPublic() ) {
+                // If image isn't public, then it needs to have this filename instead...
+                $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
 
+                // Ensure the image exists in decrypted format
                 $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image->isPublic() || !$image_path )
-                    $image_path = $crypto_service->decryptImage($image_id, $filename);
+                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
                 $handle = fopen($image_path, 'r');
                 if ($handle === false)
@@ -779,7 +782,7 @@ class DisplayController extends ODRCustomController
                 // Attach the image's original name to the headers...
                 $display_filename = $image->getOriginalFileName();
                 if ($display_filename == null)
-                    $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
+                    $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
                 $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
 
                 $response->sendHeaders();
@@ -816,11 +819,10 @@ class DisplayController extends ODRCustomController
                 // If image is public but doesn't exist, decrypt now
                 $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image_path )
-                    $image_path = $crypto_service->decryptImage($image_id, $filename);
+                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
                 $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
                 return $this->redirect($url, 301);
-
             }
         }
         catch (\Exception $e) {
