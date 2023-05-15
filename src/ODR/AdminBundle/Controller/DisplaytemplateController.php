@@ -27,6 +27,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -64,6 +65,8 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
@@ -4538,6 +4541,418 @@ if ($debug)
         }
         catch (\Exception $e) {
             $source = 0x556cb893;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders and returns a form to view/change stored search keys for the datatype.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getstoredsearchkeysAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatafieldInfoService $dfi_service */
+            $dfi_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchSidebarService $ssb_service */
+            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            if ( $datatype->getId() !== $datatype->getParent()->getId() )
+                throw new ODRBadRequestException('Not allowed for child datatypes');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Going to attempt to render the regular search sidebar here, which would allow the
+            //  use of the SearchSidebarService...
+            $datatype_array = $ssb_service->getSidebarDatatypeArray($user, $datatype->getId());
+            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $datatype->getId());
+            $datafields = $dfi_service->getDatafieldProperties($datatype_array);
+            // Don't want the user list or the preferred theme id
+
+
+            // TODO - going to need multiple stored search keys, eventually...
+            // Load the current stored search key for the datatype, if one exists...
+            $stored_search_keys = array();
+            $search_key_descriptions = array();
+            foreach ($datatype->getStoredSearchKeys() as $ssk) {
+                /** @var StoredSearchKey $ssk */
+                // Don't really want to use id to identify these things...due to soft-deletion,
+                //  any modifications would always require reloads
+                $uuid = md5($ssk->getSearchKey().'_'.$ssk->getCreatedBy()->getId());
+
+                $stored_search_keys[$uuid] = array(
+                    'search_key' => $ssk->getSearchKey(),
+                    'label' => $ssk->getStorageLabel(),
+                    'createdBy' => $ssk->getCreatedBy()->getUserString(),
+
+                    'isDefault' => $ssk->getIsDefault(),
+                    'isPublic' => $ssk->getIsPublic(),
+
+                    'has_non_public_fields' => false,
+                );
+
+                // Need to also keep track of whether the search key is valid or not...which is
+                //  made somewhat irritating because validateSearchKey() throws an error when it's
+                //  not...
+                try {
+                    $search_key_service->validateSearchKey( $ssk->getSearchKey() );
+                    // If no error thrown, then search key is valid
+                    $stored_search_keys[$uuid]['is_valid'] = true;
+                }
+                catch (ODRBadRequestException $e) {
+                    // If an error was thrown, then search key is not valid...but need to keep
+                    //  checking the other search keys
+                    $stored_search_keys[$uuid]['is_valid'] = false;
+                }
+
+                // Need to display a warning when search keys contain non-public fields, since they
+                //  won't work properly with users that can't view said fields...
+                $search_params = $search_key_service->decodeSearchKey( $ssk->getSearchKey() );
+                foreach ($search_params as $key => $value) {
+                    if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {
+                        $stored_search_keys[$uuid]['has_non_public_fields'] = true;
+                        break;
+                    }
+                }
+
+                // Also need a more readable description
+                $search_key_descriptions[$uuid] = $search_key_service->getReadableSearchKey( $ssk->getSearchKey() );
+            }
+
+            // Need the default search key for this dataype so the sidebar inside the dialog can be reset
+            $empty_search_key = $search_key_service->encodeSearchKey(
+                array('dt_id' => $datatype->getId())
+            );
+
+            // If a search key exists, decode it into search parameters so that the sidebar will
+            //  show them by default
+            $default_search_key = '';
+            $default_search_params = array();
+            if ( !empty($stored_search_keys) ) {
+                foreach ($stored_search_keys as $ssk) {
+                    // Should only be one stored search key, for the moment
+                    $default_search_key = $ssk['search_key'];
+                    $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+                    $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $default_search_params);
+                    break;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Render and return the dialog
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Displaytemplate:stored_search_keys_dialog_form.html.twig',
+                    array(
+                        'search_key' => $default_search_key,
+                        'search_params' => $default_search_params,
+
+                        'stored_search_keys' => $stored_search_keys,
+                        'search_key_descriptions' => $search_key_descriptions,
+                        'empty_search_key' => $empty_search_key,
+
+                        // required twig/javascript parameters
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+
+//                        'user_list' => $user_list,
+                        'logged_in' => true,
+                        'intent' => 'default_settings',
+//                        'sidebar_reload' => true,
+
+                        // datatype/datafields to search
+                        'target_datatype' => $datatype,
+                        'datatype_array' => $datatype_array,
+                        'datatype_relations' => $datatype_relations,
+
+                        // theme selection
+//                        'preferred_theme_id' => $preferred_theme_id,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0xad30a31e;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Takes a POST from the version of search_sidebar.html.twig that exists in the stored search
+     * key dialog form, and returns the resulting search key/description.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function converttostoredsearchkeyAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Ensure required variables exist
+            $search_params = $request->request->all();
+            if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException();
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var DatafieldInfoService $dfi_service */
+            $dfi_service = $this->container->get('odr.datafield_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            /** @var DataType $datatype */
+            $dt_id = $search_params['dt_id'];
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            if ( $datatype->getId() !== $datatype->getParent()->getId() )
+                throw new ODRBadRequestException('Not allowed for child datatypes');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Convert the POST request into a search key and validate it
+            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params);
+            $search_key_service->validateSearchKey($search_key);
+
+            $search_params = $search_key_service->decodeSearchKey($search_key);
+            $readable_search_key = $search_key_service->getReadableSearchKey($search_key);
+
+
+            // Need to display a warning when the search key contains non-public fields, since it
+            //  won't work properly with users that can't view said fields...
+            $datatype_array = $dbi_service->getDatatypeArray($datatype->getId());
+            $datafields = $dfi_service->getDatafieldProperties($datatype_array);
+
+            // NOTE: don't need to use the SearchSidebarService to get the datatype array...the
+            //  current user is a datatype admin, so the filtering done by that service is useless
+
+            $contains_non_public_fields = false;
+            foreach ($search_params as $key => $value) {
+                if ( isset($datafields[$key]) && $datafields[$key]['is_public'] === false ) {
+                    $contains_non_public_fields = true;
+                    break;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Render and return the dialog
+            $return['d'] = array(
+                'search_key' => $search_key,
+                'readable_search_key' => $readable_search_key,
+
+                'contains_non_public_fields' => $contains_non_public_fields,
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x90291cc3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Creates/modifies/deletes the datatype's default search key, based on the POST from the
+     * stored search key dialog form.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function savestoredsearchkeysAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Ensure required variables exist
+            $post = $request->request->all();
+            if ( !isset($post['search_key']) )
+                throw new ODRBadRequestException();
+            $search_key = $post['search_key'];
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            if ( $datatype->getId() !== $datatype->getParent()->getId() )
+                throw new ODRBadRequestException('Not allowed for child datatypes');
+
+            // Verify that the search key is at least minimally correct if it exists
+            if ( $search_key !== '' ) {
+                $search_params = $search_key_service->decodeSearchKey($search_key);
+                if ( !isset($search_params['dt_id']) || !is_numeric($search_params['dt_id']) )
+                    throw new ODRBadRequestException('Invalid search key');
+                if ( intval($search_params['dt_id']) !== $datatype->getId() )
+                    throw new ODRBadRequestException('Invalid search key');
+            }
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // If a non-blank search key was submitted...
+            if ( $search_key !== '' ) {
+                // ...perform a more complete verification on it
+                $search_key_service->validateSearchKey($search_key);
+
+                // Determine whether the datatype has an existing stored search key entry...
+                $stored_search_keys = $datatype->getStoredSearchKeys();
+                if ( $stored_search_keys->count() > 0 && $stored_search_keys->first() !== false ) {
+                    // ...if so, then attempt to update it
+                    /** @var StoredSearchKey $ssk */
+                    $ssk = $stored_search_keys->first();
+                    $props = array(
+                        'searchKey' => $search_key,
+                    );
+                    $emm_service->updateStoredSearchKey($user, $ssk, $props);
+                }
+                else {
+                    // ...if no entry, then create a new one
+                    $ssk = $ec_service->createStoredSearchKey(
+                        $user,
+                        $datatype,
+                        $search_key,
+                        'Default',
+                        true    // don't flush here, going to modify it immediately...
+                    );
+
+                    // TODO - these are more for later, when a datatype is allowed to have more than one stored search key...
+                    $ssk->setIsDefault(true);
+                    $ssk->setIsPublic(true);
+
+                    // Persist and flush the changes
+                    $em->persist($ssk);
+                    $em->flush();
+                }
+            }
+            else {
+                // ...otherwise, going to delete any existing stored search key entry for this
+                //  datatype
+                $stored_search_keys = $datatype->getStoredSearchKeys();
+                if ( $stored_search_keys->count() > 0 && $stored_search_keys->first() !== false ) {
+                    // ...if so, then attempt to update it
+                    /** @var StoredSearchKey $ssk */
+                    $ssk = $stored_search_keys->first();
+
+                    $ssk->setDeletedBy($user);
+                    $ssk->setDeletedAt(new \DateTime());
+
+                    $em->persist($ssk);
+                    $em->flush();
+                }
+            }
+
+            // For the moment, don't need to clear any cache entries...but probably should refresh
+            //  the datatype
+            $em->refresh($datatype);
+        }
+        catch (\Exception $e) {
+            $source = 0x051c341a;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

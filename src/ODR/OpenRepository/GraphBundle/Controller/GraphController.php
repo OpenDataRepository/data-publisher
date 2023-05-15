@@ -106,6 +106,7 @@ class GraphController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
 
             // If the user isn't allowed to view either the datatype or the datarecord, don't continue
             if ( !$pm_service->canViewDatarecord($user, $datarecord) )
@@ -170,6 +171,8 @@ class GraphController extends ODRCustomController
                 'display_type' => ThemeDataType::ACCORDION_HEADER,
                 'multiple_allowed' => 0,
                 'theme_type' => 'master',
+
+                'is_datatype_admin' => $is_datatype_admin,
             );
 
             if ($is_rollup)
@@ -186,7 +189,8 @@ class GraphController extends ODRCustomController
             $svc = $this->container->get($plugin_classname);
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
 
-            return $this->redirect($filename);
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+            return $this->redirect($site_baseurl.$filename);
         }
         catch (\Exception $e) {
             $message = $e->getMessage();

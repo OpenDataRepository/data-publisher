@@ -1,6 +1,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # SSL Redirect
+    RewriteCond %{HTTPS} off
+    RewriteRule .* https://%{HTTP_HOST}%{REQUEST_URI} [NE,L,R=301]
+
     <IfModule mod_vhost_alias.c>
         RewriteBase /ahed-api
     </IfModule>

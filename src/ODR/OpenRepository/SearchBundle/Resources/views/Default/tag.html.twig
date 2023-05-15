@@ -8,19 +8,25 @@
 {% endif %}
 
 <li class="ODRTagItem">
-    <label id="Label_{{ tag_id }}" for="Tag_{{ tag_id }}" class="ODRTagLabel pure-u-1">
+{% if has_children %}
+    {# Have the tag tree start out collapsed since it's displaying all tags #}
+    <span class="ODRTagSpacer ODRTagParent ODRTagCollapsed"><i class="fa fa-caret-right Pointer"></i></span>
+{% else %}
+    <span class="ODRTagSpacer"></span>
+{% endif %}
+
+    <label id="Label_{{ tag_id }}" for="Tag_{{ tag_id }}" class="ODRTagLabel">
         <span id="Tag_{{ tag_id }}" class="ODRTristateCheckbox">
             <i class="fa {% if tag_id in selected_tags %}fa-check{% elseif tag_id in unselected_tags %}fa-ban{% endif %}"></i>
             <input type="hidden" rel="{{ tag_id }}"
-                {#{% if has_children %}class="ODRSearchParentTag"{% endif %}#}
-                value="{% if tag_id in selected_tags %}{{ tag_id }}{% elseif tag_id in unselected_tags %}-{{ tag_id }}{% endif %}"
+                   value="{% if tag_id in selected_tags %}{{ tag_id }}{% elseif tag_id in unselected_tags %}-{{ tag_id }}{% endif %}"
             />
         </span>
-        {{ tag.tagMeta.tagName }}
+        {{ tag.tagMeta.tagName|markdown }}
     </label>
 
 {% if has_children %}
-    <ul class="ODRTagGroup">
+    <ul class="ODRTagGroup" style="display: none;">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
                 'tag': child_tag,

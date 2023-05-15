@@ -62,7 +62,7 @@
         {% else %}
             {# Despite the underlying field being an integer, we don't want to render the integer value #}
             {# Instead, we want to render the related reference if it exists #}
-            {% set rendering_options = {'is_top_level': false, 'context': 'text'} %}
+            {% set rendering_options = {'is_top_level': false, 'context': 'text', 'is_datatype_admin': is_datatype_admin} %}
 
             {# The render plugin should always be able to be run, so just extract the render plugin instance #}
             {% set render_plugin_instance = null %}

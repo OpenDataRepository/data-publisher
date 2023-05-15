@@ -36,6 +36,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
+use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
@@ -386,6 +387,11 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
     {
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
+            // This render plugin has no fields to deal with
+
             // The datatype array shouldn't be wrapped with its ID number here...
             $initial_datatype_id = $datatype['id'];
 
@@ -461,24 +467,48 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
             //  that it ends up displaying correctly
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
-                $output = $this->templating->render(
-                    'ODRAdminBundle:Display:display_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord' => $datarecord,
-                        'theme_array' => array($initial_theme_id => $theme),
+                $theme_type = $rendering_options['theme_type'];
+                if ( $theme_type !== ThemeDataType::DATATABLES_CONTENT ) {
+                    $output = $this->templating->render(
+                        'ODRAdminBundle:Display:display_fieldarea.html.twig',
+                        array(
+                            'datatype_array' => array($initial_datatype_id => $datatype),
+                            'datarecord' => $datarecord,
+                            'theme_array' => array($initial_theme_id => $theme),
 
-                        'target_datatype_id' => $initial_datatype_id,
-                        'parent_datarecord' => $parent_datarecord,
-                        'target_datarecord_id' => $datarecord['id'],
-                        'target_theme_id' => $initial_theme_id,
+                            'target_datatype_id' => $initial_datatype_id,
+                            'parent_datarecord' => $parent_datarecord,
+                            'target_datarecord_id' => $datarecord['id'],
+                            'target_theme_id' => $initial_theme_id,
 
-                        'is_top_level' => $rendering_options['is_top_level'],
-                        'is_link' => $rendering_options['is_link'],
-                        'display_type' => $rendering_options['display_type'],
-                        'multiple_allowed' => $rendering_options['multiple_allowed'],
-                    )
-                );
+                            'is_datatype_admin' => $is_datatype_admin,
+
+                            'is_top_level' => $rendering_options['is_top_level'],
+                            'is_link' => $rendering_options['is_link'],
+                            'display_type' => $rendering_options['display_type'],
+                            'multiple_allowed' => $rendering_options['multiple_allowed'],
+                        )
+                    );
+                }
+                else {
+                    $output = $this->templating->render(
+                        'ODRAdminBundle:Display:display_setup_table_layout.html.twig',
+                        array(
+                            'datatype_array' => array($initial_datatype_id => $datatype),
+                            'datarecord' => array($datarecord['id'] => $datarecord),
+                            'theme_array' => array($initial_theme_id => $theme),
+
+                            'target_datatype_id' => $initial_datatype_id,
+                            'parent_datarecord' => $parent_datarecord,
+                            'target_theme_id' => $initial_theme_id,
+
+                            'is_top_level' => $rendering_options['is_top_level'],
+                            'is_link' => $rendering_options['is_link'],
+                            'display_type' => $rendering_options['display_type'],
+                            'multiple_allowed' => $rendering_options['multiple_allowed'],
+                        )
+                    );
+                }
             }
 
             return $output;

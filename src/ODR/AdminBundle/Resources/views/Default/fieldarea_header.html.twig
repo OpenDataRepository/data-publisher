@@ -5,6 +5,7 @@
 {% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 {% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
+{% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
 
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 
@@ -169,7 +170,7 @@
             {% endif %}
         </h3>
 
-{% elseif display_type == LIST_HEADER %}  {# list display_type #}
+{% elseif display_type == LIST_HEADER or display_type == TABLE_CONTENT %}  {# list/table display_type #}
     {# just a header here...accordion_footer.html.twig doesn't need a closing tag #}
     <h3 class="ODRListDisplayHeader ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ datatype.dataTypeMeta.shortName }}</a>

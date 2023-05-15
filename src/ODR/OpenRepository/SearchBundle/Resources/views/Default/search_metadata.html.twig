@@ -17,7 +17,10 @@
         {% if search_params[key] is defined %}
             {% set value = search_params[key] %}
         {% endif %}
-        <label class="pure-u-1" for="dt_{{ datatype_id }}_m_start" title="Find records based on when they were last modified">Modified Date:</label>
+        <label class="pure-u-1" {#for="dt_{{ datatype_id }}_m_start"#} title="Find records based on when they were last modified">
+            Modified Date:
+            <span id="dt_{{ datatype_id }}_m_clear" class="ODRDatePickerSearch_clear">Clear Dates</span>
+        </label>
         <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="dt_{{ datatype_id }}_m_start" name="{{ key }}" value="{{ value }}" rel="dt_{{ datatype_id }}_m" title="Find records modified AFTER this date" />
 
         {% set key = 'dt_' ~ datatype_id ~ '_m_e' %}
@@ -53,7 +56,10 @@
         {% if search_params[key] is defined %}
             {% set value = search_params[key] %}
         {% endif %}
-        <label class="pure-u-1" for="dt_{{ datatype_id }}_c_start" title="Find records based on when they were created">Created Date:</label>
+        <label class="pure-u-1" {#for="dt_{{ datatype_id }}_c_start"#} title="Find records based on when they were created">
+            Created Date:
+            <span id="dt_{{ datatype_id }}_c_clear" class="ODRDatePickerSearch_clear">Clear Dates</span>
+        </label>
         <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="dt_{{ datatype_id }}_c_start" name="{{ key }}" value="{{ value }}" rel="dt_{{ datatype_id }}_c" title="Find records created AFTER this date" />
 
         {% set key = 'dt_' ~ datatype_id ~ '_c_e' %}

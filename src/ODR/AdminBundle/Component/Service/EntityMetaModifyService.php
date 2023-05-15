@@ -45,6 +45,7 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagSelection;
@@ -1007,7 +1008,8 @@ class EntityMetaModifyService
 
 
     /**
-     * Updates the displayOrder property of a DatatypeSpecialField entity if it was changed.
+     * Copies the contents of the given DatatypeSpecialFields entity into a new entity if something
+     * was changed.
      *
      * @param ODRUser $user
      * @param DataTypeSpecialFields $dtsf
@@ -2027,6 +2029,85 @@ class EntityMetaModifyService
         }
 
         return $new_entity;
+    }
+
+
+    /**
+     * Copies the contents of the given StoredSearchKey entity into a new entity if something
+     * was changed.
+     *
+     * @param ODRUser $user
+     * @param StoredSearchKey $ssk
+     * @param array $properties
+     * @param bool $delay_flush
+     *
+     * @return StoredSearchKey
+     */
+    public function updateStoredSearchKey($user, $ssk, $properties, $delay_flush = false)
+    {
+        // ----------------------------------------
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            // Not allowed to change datatype
+            'storageLabel' => $ssk->getStorageLabel(),
+            'searchKey' => $ssk->getSearchKey(),
+            'isDefault' => $ssk->getIsDefault(),
+            'isPublic' => $ssk->getIsPublic(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $ssk;
+
+
+        // Determine whether to create a new entry or modify the previous one
+        $remove_old_entry = false;
+        $new_ssk = null;
+        if ( self::createNewMetaEntry($user, $ssk) ) {
+            // Clone the old ThemeDatafield entry
+            $remove_old_entry = true;
+
+            $new_ssk = clone $ssk;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_ssk->setCreated(new \DateTime());
+            $new_ssk->setUpdated(new \DateTime());
+            $new_ssk->setCreatedBy($user);
+            $new_ssk->setUpdatedBy($user);
+        }
+        else {
+            // Update the existing entry
+            $new_ssk = $ssk;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['storageLabel']) )
+            $new_ssk->setStorageLabel( $properties['storageLabel'] );
+        if ( isset($properties['searchKey']) )
+            $new_ssk->setSearchKey( $properties['searchKey'] );
+        if ( isset($properties['isDefault']) )
+            $new_ssk->setIsDefault( $properties['isDefault'] );
+        if ( isset($properties['isPublic']) )
+            $new_ssk->setIsPublic( $properties['isPublic'] );
+
+        $new_ssk->setUpdatedBy($user);
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($ssk);
+
+        // Save the new meta entry
+        $this->em->persist($new_ssk);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        // Return the new entry
+        return $new_ssk;
     }
 
 

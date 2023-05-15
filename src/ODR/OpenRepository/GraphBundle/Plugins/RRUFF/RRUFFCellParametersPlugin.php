@@ -569,8 +569,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             // ----------------------------------------
             // If no rendering context set, then return nothing so ODR's default templating will
             //  do its job
-            if (!isset($rendering_options['context']))
+            if ( !isset($rendering_options['context']) )
                 return '';
+
 
             // ----------------------------------------
             // The datatype array shouldn't be wrapped with its ID number here...
@@ -588,6 +589,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
 
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -595,6 +599,18 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             // Retrieve mapping between datafields and render plugin fields
             $plugin_fields = array();
             $field_values = array();
+
+            // Want to locate the values for most of the mapped datafields
+            $optional_fields = array(
+                'Cell Parameter ID' => 0,    // this one can be non-public
+
+                // These four only exist to make the data easier to import
+                'Chemistry' => 0,
+                'Pressure' => 0,
+                'Temperature' => 0,
+                'Notes' => 0
+            );
+
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -602,6 +618,48 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 // Need to tweak display parameters for several of the fields...
                 $plugin_fields[$rpf_df_id] = $rpf_df;
                 $plugin_fields[$rpf_df_id]['rpf_name'] = $rpf_name;
+
+                $df = null;
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    $df = $datatype['dataFields'][$rpf_df_id];
+
+                if ($df == null) {
+                    // Optional fields don't have to exist for this plugin to work
+                    if ( isset($optional_fields[$rpf_name]) )
+                        continue;
+
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // Technically, the only time when the plugin shouldn't execute is when any of the
+                    //  Crystal System/Point Group/Space Group fields don't exist, and the user is
+                    //  in Edit mode...and that's already handled by RRUFFCellparamsController...
+
+                    if ( !$is_datatype_admin )
+                        // ...but there are zero compelling reasons to run the plugin if something is missing
+                        return '';
+                    else
+                        // ...if a datatype admin is seeing this, then they need to fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
+                else {
+                    // The non-optional fields really should all be public...so actually throw an
+                    //  error if any of them aren't and the user can do something about it
+                    if ( isset($optional_fields[$rpf_name]) )
+                        continue;
+
+                    // If the datafield is non-public...
+                    $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
+                    if ( $df_public_date == '2200-01-01 00:00:00' ) {
+                        if ( !$is_datatype_admin )
+                            // ...but the user can't do anything about it, then just refuse to execute
+                            return '';
+                        else
+                            // ...the user can do something about it, so they need to fix it
+                            throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are a part of this render plugin MUST be public.');
+                    }
+                }
 
                 // Might need to reference the values of each of these fields
                 switch ($rpf_name) {
@@ -616,7 +674,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     case 'gamma':
                     case 'Volume':
                         $value = '';
-                        if (isset($datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value']))
+                        if ( isset($datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value']) )
                             $value = $datarecord['dataRecordFields'][$rpf_df_id]['shortVarchar'][0]['value'];
                         $field_values[$rpf_name] = $value;
                         break;
@@ -677,6 +735,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
+
+                        'is_datatype_admin' => $is_datatype_admin,
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
@@ -1119,6 +1179,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         // Create a new storage entity with the new value
         $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->logger->debug('Setting df '.$datafield->getId().' "Cell Parameter ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
         $lockHandler->release();
