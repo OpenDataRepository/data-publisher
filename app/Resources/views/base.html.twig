@@ -84,7 +84,7 @@
     <script src="{{ site_baseurl }}/js/libs/jquery-1.12.4.min.js"></script>
 #}
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/jquery-3.3.1.min.js"></script>
 
     {#
         <script
@@ -635,7 +635,7 @@
     function checkMyJobs() {
         var checkJobs = false;
         {% if current_user != '' %}
-        checkJobs = true;
+        // checkJobs = true;
         {% endif %}
         var url = "{{ path('odr_my_jobs') }}";
         if(checkJobs) {

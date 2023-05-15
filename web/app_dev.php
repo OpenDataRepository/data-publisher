@@ -14,6 +14,14 @@ if (
     // || isset($_SERVER['HTTP_X_FORWARDED_FOR'])
     // || !in_array(@$_SERVER['REMOTE_ADDR'], array(
     !in_array(@$_SERVER['REMOTE_ADDR'], array(
+        '144.217.146.144',   // nu
+
+        '68.106.231.40',
+        '216.220.243.164',
+
+        '68.231.130.57',     // alex@home
+        '128.196.236.84',    // alex@UofA
+
         '127.0.0.1',
         '::1',
     ))
