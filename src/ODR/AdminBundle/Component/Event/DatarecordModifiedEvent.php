@@ -2,16 +2,15 @@
 
 /**
  * Open Data Repository Data Publisher
- * DatarecordCreated Event
+ * DatarecordModified Event
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Due to design decisions, "auto-incrementing" of ID fields for databases is going to be handled
- * via render plugins.  As such, an event is needed for notification that a datarecord has been
- * created, and therefore needs to have its ID generated.
+ * The primary use for this event is to notify stuff that needs synchronization via API.
  *
- * Stuff that needs synchronization via API also probably will find this event useful.
+ * Render Plugins currently aren't allowed to latch onto this event, mostly because MassEdit and
+ * CSVImport can fire this event for the same record multiple times in a row.
  */
 
 namespace ODR\AdminBundle\Component\Event;
@@ -23,10 +22,10 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class DatarecordCreatedEvent extends Event implements ODREventInterface
+class DatarecordModifiedEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
-    const NAME = 'odr.event.datarecord_created_event';
+    const NAME = 'odr.event.datarecord_modified_event';
 
     /**
      * @var DataRecord
@@ -40,7 +39,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * DatarecordCreatedEvent constructor.
+     * DatarecordModifiedEvent constructor.
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
@@ -55,7 +54,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the datarecord that just got created.
+     * Returns the datarecord that just got modified.
      *
      * @return DataRecord
      */
@@ -66,7 +65,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the user that created the datarecord.
+     * Returns the user that performed the modification.
      *
      * @return ODRUser
      */

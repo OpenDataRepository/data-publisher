@@ -635,7 +635,7 @@
     function checkMyJobs() {
         var checkJobs = false;
         {% if current_user != '' %}
-        // checkJobs = true;
+        checkJobs = true;
         {% endif %}
         var url = "{{ path('odr_my_jobs') }}";
         if(checkJobs) {

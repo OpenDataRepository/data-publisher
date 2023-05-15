@@ -12,50 +12,42 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Model\UserManager;
-use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
-use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\EntityCreationService;
-use ODR\AdminBundle\Component\Service\DatatypeCreateService;
-use ODR\AdminBundle\Component\Service\EntityDeletionService;
-use ODR\AdminBundle\Component\Service\ODRUploadService;
-use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
-use ODR\AdminBundle\Component\Service\UUIDService;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
+// Entities
 use ODR\AdminBundle\Entity\Boolean;
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Group;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
+use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\TagSelection;
 use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\UserGroup;
-use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-
-// Entities
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\Tags;
+// Events
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -64,16 +56,27 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
-use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeCreateService;
+use ODR\AdminBundle\Component\Service\DatatypeExportService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
+use ODR\AdminBundle\Component\Service\ODRUploadService;
+use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Doctrine\ORM\EntityManager;
+use FOS\UserBundle\Model\UserManager;
+use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
@@ -194,10 +197,10 @@ class APIController extends ODRCustomController
             if ($show_child_datatypes) {
                 // Build/execute a query to get basic info on all datatypes
                 $query = $em->createQuery(
-                    'SELECT
-                       dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
-                       dtm.description AS database_description, dtm.publicDate AS public_date,
-                       dt.unique_id AS unique_id, mdt.unique_id AS template_id
+                   'SELECT
+                        dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
+                        dtm.description AS database_description, dtm.publicDate AS public_date,
+                        dt.unique_id AS unique_id, mdt.unique_id AS template_id
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
                     LEFT JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
@@ -214,10 +217,10 @@ class APIController extends ODRCustomController
             } else {
                 // Build/execute a query to get basic info on all top-level datatypes
                 $query = $em->createQuery(
-                    'SELECT
-                       dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
-                       dtm.description AS database_description, dtm.publicDate AS public_date,
-                       dt.unique_id AS unique_id, mdt.unique_id AS template_id
+                   'SELECT
+                        dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
+                        dtm.description AS database_description, dtm.publicDate AS public_date,
+                        dt.unique_id AS unique_id, mdt.unique_id AS template_id
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
                     LEFT JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
@@ -669,8 +672,6 @@ class APIController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataType $template_datatype */
@@ -719,7 +720,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load all top-level datatypes that are derived from this template
             $query = $em->createQuery(
-                'SELECT
+               'SELECT
                     dt.id AS database_id, dt.unique_id AS unique_id, dtm.shortName AS database_name,
                     dtm.description AS database_description, dtm.publicDate AS public_date,
                     dtm.searchSlug AS search_slug, mdt.unique_id AS template_id
@@ -794,9 +795,6 @@ class APIController extends ODRCustomController
     }
 
 
-
-
-
     /**
      * Creates a datarecord for an existing dataset.
      * Requires a valid dataset and user permissions.
@@ -826,7 +824,7 @@ class APIController extends ODRCustomController
             if($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User $user */
+                /** @var ODRUser $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
                     throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -910,15 +908,11 @@ class APIController extends ODRCustomController
                 // ...don't particularly want to rethrow the error since it'll interrupt
                 //  everything downstream of the event (such as file encryption...), but
                 //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // ----------------------------------------
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-            $search_cache_service->onDatarecordCreate($dataset_record->getDataType());
-
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             $cache_service->delete('datatype_'.$dataset_record->getDataType()->getId().'_record_order');
@@ -990,6 +984,7 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
      * Creates a dataset by cloning the requested master template.
      * Requires a valid master template with metadata template
@@ -1023,7 +1018,7 @@ class APIController extends ODRCustomController
 
             // we must check if the logged in user is acting as a user
             // when acting as a user, the logged in user must be a superadmin
-            /** @var odruser $logged_in_user */
+            /** @var ODRUser $logged_in_user */
             $logged_in_user = $this->container->get('security.token_storage')->gettoken()->getuser();   // <-- will return 'anon.' when nobody is logged in
             if($user_email === '') {
                 // user is setting up dataset for themselves - always allowed
@@ -1039,7 +1034,7 @@ class APIController extends ODRCustomController
             // any user can create a dataset as long as they exist
             // no need to do further permissions checks.
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var user $user */
+            /** @var ODRUser $user */
             $user = $user_manager->finduserby(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -1169,6 +1164,24 @@ class APIController extends ODRCustomController
                     true
                 );
 
+                // ----------------------------------------
+                // Both paths of $dtc_service->direct_add_datatype() call CloneMasterDatatypeService,
+                //  so don't need to fire off a DatatypeCreated event for the new datatype here
+//                try {
+//                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+//                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+//                    /** @var EventDispatcherInterface $event_dispatcher */
+//                    $dispatcher = $this->get('event_dispatcher');
+//                    $event = new DatatypeCreatedEvent($datatype, $user);
+//                    $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+//                }
+//                catch (\Exception $e) {
+//                    // ...don't want to rethrow the error since it'll interrupt everything after this
+//                    //  event
+////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                    throw $e;
+//                }
+
                 // Return metadata datatype if one exists
                 if ($metadata_datatype = $datatype->getMetadataDatatype()) {
                     $datatype = $metadata_datatype;
@@ -1209,15 +1222,11 @@ class APIController extends ODRCustomController
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                        throw $e;
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
 
                 // ----------------------------------------
-                /** @var SearchCacheService $search_cache_service */
-                $search_cache_service = $this->container->get('odr.search_cache_service');
-                $search_cache_service->onDatarecordCreate($metadata_record->getDataType());
-
                 /** @var CacheService $cache_service */
                 $cache_service = $this->container->get('odr.cache_service');
                 $cache_service->delete('datatype_'.$metadata_record->getDataType()->getId().'_record_order');
@@ -1258,15 +1267,11 @@ class APIController extends ODRCustomController
                         // ...don't particularly want to rethrow the error since it'll interrupt
                         //  everything downstream of the event (such as file encryption...), but
                         //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
                     }
 
                     // ----------------------------------------
-                    /** @var SearchCacheService $search_cache_service */
-                    $search_cache_service = $this->container->get('odr.search_cache_service');
-                    $search_cache_service->onDatarecordCreate($actual_data_record->getDataType());
-
                     /** @var CacheService $cache_service */
                     $cache_service = $this->container->get('odr.cache_service');
                     $cache_service->delete('datatype_'.$actual_data_record->getDataType()->getId().'_record_order');
@@ -1346,7 +1351,7 @@ class APIController extends ODRCustomController
 
     /**
      * @param $record
-     * @param User $user
+     * @param ODRUser $user
      * @param \DateTime $datetime_value
      *
      * @return array record
@@ -1386,7 +1391,7 @@ class APIController extends ODRCustomController
      * @param $user
      * @param $top_level
      * @param $changed
-     * @return boolean  - true if capable, false if lacking permissions
+     * @return bool  - true if capable, false if lacking permissions
      * @throws \Exception
      */
     private function checkUpdatePermissions($dataset, $orig_dataset, $user, $top_level, &$changed)
@@ -3716,6 +3721,7 @@ class APIController extends ODRCustomController
                             }
 
                             switch ($data_field->getFieldType()->getId()) {
+                                // IntegerValue
                                 case '4':
                                     /** @var IntegerValue $new_field */
                                     $new_field = new IntegerValue();
@@ -3751,6 +3757,8 @@ class APIController extends ODRCustomController
                                     self::fieldMeta($field, $data_field, $new_field);
                                     $dataset['fields'][$i] = $field;
                                     break;
+
+                                // Paragraph Text
                                 case '5':
                                     /** @var LongText $new_field */
                                     $new_field = new LongText();
@@ -3787,6 +3795,7 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                     break;
 
+                                // LongVarchar
                                 case '6':
                                     /** @var LongVarchar $new_field */
                                     $new_field = new LongVarchar();
@@ -3822,6 +3831,8 @@ class APIController extends ODRCustomController
                                     self::fieldMeta($field, $data_field, $new_field);
                                     $dataset['fields'][$i] = $field;
                                     break;
+
+                                // MediumVarchar
                                 case '7':
                                     /** @var MediumVarchar $new_field */
                                     $new_field = new MediumVarchar();
@@ -3857,6 +3868,8 @@ class APIController extends ODRCustomController
                                     self::fieldMeta($field, $data_field, $new_field);
                                     $dataset['fields'][$i] = $field;
                                     break;
+
+                                // ShortVarchar
                                 case '9':
                                     /** @var ShortVarchar $new_field */
                                     $new_field = new ShortVarchar();
@@ -3892,6 +3905,8 @@ class APIController extends ODRCustomController
                                     self::fieldMeta($field, $data_field, $new_field);
                                     $dataset['fields'][$i] = $field;
                                     break;
+
+                                // DecimalValue
                                 case '16':
                                     /** @var DecimalValue $new_field */
                                     $new_field = new DecimalValue();
@@ -3927,6 +3942,7 @@ class APIController extends ODRCustomController
                                     self::fieldMeta($field, $data_field, $new_field);
                                     $dataset['fields'][$i] = $field;
                                     break;
+
                                 default:
                                     break;
                             }
@@ -4096,52 +4112,85 @@ class APIController extends ODRCustomController
                         else if(!$is_link && isset($record['record_uuid']) && strlen($record['record_uuid']) > 0) {
                             throw new ODRBadRequestException('New child records (non-linked) can not have pre-existing UUIDs.');
                         } else {
-                            // TODO - this should be using entitycreationservice
-                            /** @var UUIDService $uuid_service */
-                            $uuid_service = $this->container->get('odr.uuid_service');
+                            /** @var EntityCreationService $ec_service */
+                            $ec_service = $this->container->get('odr.entity_creation_service');
+                            $new_record = $ec_service->createDatarecord($user, $record_data_type, true, false);
+                            $new_record_meta = $new_record->getDataRecordMeta();
 
-                            // TODO Check if user can create record in DataType
-                            /** @var DataRecord $new_record */
-                            $new_record = new DataRecord();
-                            $new_record->setDataType($record_data_type);
-                            if (isset($record['created'])) {
+                            // Don't want this to remain true
+                            $new_record->setProvisioned(false);
+
+                            if ( isset($record['created']) ) {
+                                // The API call specified the record was created at a specific
+                                //  time in the past, so ODR needs to store that
                                 $new_record->setCreated(new \DateTime($record['created']));
                                 $new_record->setUpdated(new \DateTime($record['created']));
-                            } else {
-                                $new_record->setCreated(new \DateTime());
-                                $new_record->setUpdated(new \DateTime());
+                                $new_record_meta->setCreated(new \DateTime($record['created']));
+                                $new_record_meta->setUpdated(new \DateTime($record['created']));
                             }
-                            $new_record->setCreatedBy($user);
-                            $new_record->setUpdatedBy($user);
-                            $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
-                            $new_record->setProvisioned(0);
 
-                            if ($is_link) {
-                                $new_record->setParent($new_record);
-                                $new_record->setGrandparent($new_record);
-                            } else {
+                            if ( isset($record['public_date']) ) {
+                                // The API call specified when the record was changed to public, so
+                                //  ODR needs to also store that
+                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
+                            }
+
+                            if ( !$is_link ) {
+                                // This API call could be creating a child record...ensure its
+                                //  parents are properly set
                                 $new_record->setParent($data_record);
                                 $new_record->setGrandparent($data_record->getGrandparent());
                             }
 
-                            /** @var DataRecordMeta $new_record_meta */
-                            $new_record_meta = new DataRecordMeta();
-                            $new_record_meta->setCreatedBy($user);
-                            $new_record_meta->setUpdatedBy($user);
-                            if (isset($record['created'])) {
-                                $new_record_meta->setCreated(new \DateTime($record['created']));
-                                $new_record_meta->setUpdated(new \DateTime($record['created']));
-                            } else {
-                                $new_record_meta->setCreated(new \DateTime());
-                                $new_record_meta->setUpdated(new \DateTime());
-                            }
-                            $new_record_meta->setDataRecord($new_record);
-                            // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
-                            if (isset($record['public_date'])) {
-                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
-                            } else {
-                                $new_record_meta->setPublicDate(new \DateTime());
-                            }
+
+
+
+//                            // TODO - this should be using entitycreationservice
+//                            /** @var UUIDService $uuid_service */
+//                            $uuid_service = $this->container->get('odr.uuid_service');
+//
+//                            // TODO Check if user can create record in DataType
+//                            /** @var DataRecord $new_record */
+//                            $new_record = new DataRecord();
+//                            $new_record->setDataType($record_data_type);
+//                            if (isset($record['created'])) {
+//                                $new_record->setCreated(new \DateTime($record['created']));
+//                                $new_record->setUpdated(new \DateTime($record['created']));
+//                            } else {
+//                                $new_record->setCreated(new \DateTime());
+//                                $new_record->setUpdated(new \DateTime());
+//                            }
+//                            $new_record->setCreatedBy($user);
+//                            $new_record->setUpdatedBy($user);
+//                            $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
+//                            $new_record->setProvisioned(0);
+//
+//                            if ($is_link) {
+//                                $new_record->setParent($new_record);
+//                                $new_record->setGrandparent($new_record);
+//                            } else {
+//                                $new_record->setParent($data_record);
+//                                $new_record->setGrandparent($data_record->getGrandparent());
+//                            }
+//
+//                            /** @var DataRecordMeta $new_record_meta */
+//                            $new_record_meta = new DataRecordMeta();
+//                            $new_record_meta->setCreatedBy($user);
+//                            $new_record_meta->setUpdatedBy($user);
+//                            if (isset($record['created'])) {
+//                                $new_record_meta->setCreated(new \DateTime($record['created']));
+//                                $new_record_meta->setUpdated(new \DateTime($record['created']));
+//                            } else {
+//                                $new_record_meta->setCreated(new \DateTime());
+//                                $new_record_meta->setUpdated(new \DateTime());
+//                            }
+//                            $new_record_meta->setDataRecord($new_record);
+//                            // $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:00.0Z'));
+//                            if (isset($record['public_date'])) {
+//                                $new_record_meta->setPublicDate(new \DateTime($record['public_date']));
+//                            } else {
+//                                $new_record_meta->setPublicDate(new \DateTime());
+//                            }
 
                             // Need to persist and flush
                             $em->persist($new_record);
@@ -4149,12 +4198,29 @@ class APIController extends ODRCustomController
                             $em->flush();
                             $em->refresh($new_record);
 
-                            if ($is_link) {
-                                /** @var EntityCreationService $ec_service */
-                                $ec_service = $this->container->get('odr.entity_creation_service');
+                            if ( $is_link ) {
                                 $ec_service->createDatarecordLink($user, $data_record, $new_record);
 
                                 // TODO - need to clear the correct cache entries
+                            }
+
+                            // This is wrapped in a try/catch block because any uncaught exceptions will abort
+                            //  creation of the new datarecord...
+                            try {
+                                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                                /** @var EventDispatcherInterface $event_dispatcher */
+                                $dispatcher = $this->get('event_dispatcher');
+                                $event = new DatarecordCreatedEvent($new_record, $user);
+                                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                            }
+                            catch (\Exception $e) {
+                                // ...don't want to rethrow the error since it'll interrupt everything after this
+                                //  event.  In this case, a datarecord gets created, but the rest of the values
+                                //  aren't saved and the provisioned flag never gets changed to "false"...leaving
+                                //  the datarecord in a state that the user can't view/edit
+//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                    throw $e;
                             }
 
                             // Populate the UUID of the newly added record
@@ -4203,21 +4269,39 @@ class APIController extends ODRCustomController
                 $dataset['_record_metadata']['_create_date'] = $data_record->getCreated()->format('Y-m-d H:i:s');
                 $dataset['_record_metadata']['_update_date'] = $data_record->getDataRecordMeta()->getUpdated()->format('Y-m-d H:i:s');
 
-                /** @var ODRUser $api_user */  // Anon when nobody is logged in.
-                // $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
-                // Forget about the cache - just return the dataset...
-
-                // TODO Clear caches for ODR Symfony UI here.  Symfony will not be maintained in sync
-                // with API until a user queries a record.
-
-                // $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-                $dri_service->updateDatarecordCacheEntry($data_record, $user);
+                // TODO - does this need to distinguish between a DatarecordPublicStatusChanged event and a DatarecordModified event?
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordModifiedEvent($data_record, $user);
+                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
             }
 
             if ( $radio_option_created || $tag_created ) {
-                /** @var DatabaseInfoService $dbi_service */
-                $dbi_service = $this->container->get('odr.database_info_service');
-                $dbi_service->updateDatatypeCacheEntry($data_record->getDataType(), $user);
+                // Mark the new child datatype's parent as updated
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypeModifiedEvent($data_record->getDataType(), $user);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
             }
 
             // Check Related datatypes
@@ -4303,7 +4387,7 @@ class APIController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User $user */
+                /** @var ODRUser $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
                     throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -4764,6 +4848,15 @@ class APIController extends ODRCustomController
         return array_merge($a_data, $keyValueArr);
     }
 
+
+    /**
+     * Deletes a File via the API.
+     *
+     * @param string $version
+     * @param string $file_uuid
+     * @param Request $request
+     * @return RedirectResponse
+     */
     public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {
         try {
 
@@ -4789,7 +4882,7 @@ class APIController extends ODRCustomController
             // Any user can create a dataset as long as they exist
             // No need to do further permissions checks.
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -4838,11 +4931,16 @@ class APIController extends ODRCustomController
                 // throw new ODRNotFoundException('File');
 
             // Determine if file or image
+            $deleting_file = false;
             switch($file->getFieldType()->getId()) {
-                case 2: // file
+                // File
+                case 2:
+                    $deleting_file = true;
                     $em->remove($file);
                     break;
-                case 3: // image
+
+                // Image
+                case 3:
                     /** @var Image $image */
                     $image = $file;
                     if(method_exists($image, 'getParent')) {
@@ -4868,12 +4966,42 @@ class APIController extends ODRCustomController
 
             $em->flush();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
 
-            // Flush Caches
-            $dri_service->updateDatarecordCacheEntry($data_record, $logged_in_user);
-            $dri_service->updateDatarecordCacheEntry($data_record, $user);
+            // ----------------------------------------
+            // Need to fire off a DatarecordModified event because a file got deleted
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($data_record, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Only need to fire off a FileDeleted event if a file got deleted...images don't matter
+            if ( $deleting_file ) {
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new FileDeletedEvent($file->getId(), $datafield, $data_record, $user);
+                    $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't particularly want to rethrow the error since it'll interrupt
+                    //  everything downstream of the event (such as file encryption...), but
+                    //  having the error disappear is less ideal on the dev environment...
+                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
+                }
+            }
 
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_dataset_record', array(
@@ -4893,6 +5021,14 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    /**
+     * Changes the public date of a record
+     *
+     * @param string $version
+     * @param Request $request
+     * @return RedirectResponse
+     */
     public function publishRecordAction($version, Request $request): RedirectResponse
     {
         /*
@@ -4934,7 +5070,7 @@ class APIController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User $user */
+                /** @var ODRUser $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
                     throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -4987,19 +5123,26 @@ class APIController extends ODRCustomController
             $em->flush();
 
 
-            // Flush Caches
-            /** @var ODRUser $api_user */  // Anon when nobody is logged in.
-            $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-            $dri_service->updateDatarecordCacheEntry($data_record, $user); // Actual User
+            // ----------------------------------------
+            // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
+            //  the database changes and cache clearing that a DatarecordModified event would cause
 
-            // Clear the AssociatedDatarecordArray so it will rebuild...
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('associated_datarecords_for_'.$data_record->getId());
-
-            // Search cache service - reset due to public record
-            $search_cache_service->onDatarecordCreate($data_type);
+            // NOTE: do NOT want to also fire off a DatarecordModified event...this would effectively
+            //  double the work any event subscribers (such as RSS) would have to do
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
+                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             $response = new Response('Created', 201);
 
@@ -5024,6 +5167,13 @@ class APIController extends ODRCustomController
     }
 
 
+    /**
+     * Changes the public date of a datatype.
+     *
+     * @param string $version
+     * @param Request $request
+     * @return RedirectResponse
+     */
     public function publishAction($version, Request $request) {
 /*
                 $response = new Response('Updated', 200);
@@ -5040,6 +5190,10 @@ class APIController extends ODRCustomController
         try {
             // Get data from POST/Request
             $data = $request->request->all();
+
+            if ( !isset($data['dataset_uuid']) )
+                throw new ODRBadRequestException();
+
 
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
@@ -5070,7 +5224,7 @@ class APIController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User $user */
+                /** @var ODRUser $user */
                 $user = $user_manager->findUserBy(array('email' => $user_email));
                 if (is_null($user))
                     throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -5117,6 +5271,10 @@ class APIController extends ODRCustomController
                     )
                 );
             }
+
+            if ( $data_record == null )
+                throw new ODRNotFoundException('Datarecord');
+
 
             // Ensure Datatype is public
             /** @var DataTypeMeta $data_type_meta */
@@ -5195,35 +5353,75 @@ class APIController extends ODRCustomController
             $em->flush();
 
 
-            // Flush Caches
-            /** @var ODRUser $api_user */  // Anon when nobody is logged in.
-            $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-            $dri_service->updateDatarecordCacheEntry($data_record, $user); // Actual User
-            $dbi_service->updateDatatypeCacheEntry($data_type, $api_user);
-            $dbi_service->updateDatatypeCacheEntry($data_type, $user);
+            // ----------------------------------------
+            // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
+            //  the database changes and cache clearing that a DatarecordModified event would cause
 
-            // $dri_service->updateDatarecordCacheEntry($data_record, 'anon.');
-            // $dbi_service->updateDatatypeCacheEntry($data_type, 'anon.');
-
-            if($actual_data_record != "") {
-                $dri_service->updateDatarecordCacheEntry($actual_data_record, $user);
-                $dri_service->updateDatarecordCacheEntry($actual_data_record, $api_user);
-                // $dri_service->updateDatarecordCacheEntry($actual_data_record, 'anon.');
-                $dbi_service->updateDatatypeCacheEntry($actual_data_type, $api_user);
-                $dbi_service->updateDatatypeCacheEntry($actual_data_type, $user);
-                // $dbi_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
+            // NOTE: do NOT want to also fire off a DatarecordModified event...this would effectively
+            //  double the work any event subscribers (such as RSS) would have to do
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
+                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
-            // Clear the AssociatedDatarecordArray so it will rebuild...
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('associated_datarecords_for_'.$data_record->getId());
-            $cache_service->delete('associated_datarecords_for_'.$actual_data_record->getId());
+            // Also need to fire off a DatatypePublicStatusChangedEvent event...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypePublicStatusChangedEvent($data_type, $user);
+                $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
-            // Search cache service - reset due to public record
-            $search_cache_service->onDatarecordCreate($data_type);
+            if ($actual_data_record != "") {
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatarecordPublicStatusChangedEvent($actual_data_record, $user);
+                    $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatatypePublicStatusChangedEvent($actual_data_type, $user);
+                    $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+            }
 
             $response = new Response('Created', 201);
 
@@ -5247,7 +5445,7 @@ class APIController extends ODRCustomController
         }
     }
 
-    public function makeDatarecordPublic($record_data, $pubilc_date, $user) {
+    private function makeDatarecordPublic($record_data, $pubilc_date, $user) {
         /** @var EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
@@ -5263,19 +5461,6 @@ class APIController extends ODRCustomController
         if($data_record) {
             // Set public using utility
             $data_record->setPublicDate($user, $pubilc_date, $em);
-
-            // Flush Datarecord Caches
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            //  cache entry for their top-level datarecord
-            $cache_service->delete('cached_datarecord_'.$data_record->getId());
-
-            // Delete the filtered list of data meant specifically for table themes
-            $cache_service->delete('cached_table_data_'.$data_record->getId());
-
-            // Clear json caches used in API
-            $cache_service->delete('json_record_' . $data_record->getUniqueId());
         }
 
         if(isset($record_data['records'])) {
@@ -5301,11 +5486,9 @@ class APIController extends ODRCustomController
             // Get data from POST/Request
             $data = $request->request->all();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            if ( !isset($data['user_email']) || !isset($data['dataset_uuid']) )
+                throw new ODRBadRequestException();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
 
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -5329,7 +5512,7 @@ class APIController extends ODRCustomController
             // Any user can create a dataset as long as they exist
             // No need to do further permissions checks.
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');
@@ -5651,18 +5834,8 @@ class APIController extends ODRCustomController
 
             // TODO - need to build image and file arrays here and fix into JSON....
 
-            // Flush Caches
-            /** @var ODRUser $api_user */  // Anon when nobody is logged in.
-            $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+            // Don't need to fire off any more events...ODRUploadService has already done so
 
-            // Actual User
-            $dri_service->updateDatarecordCacheEntry($data_record, $user);
-
-            // Clear the AssociatedDatarecordArray so it will rebuild...
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('associated_datarecords_for_'.$data_record->getGrandparent()->getId());
 
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_dataset_record', array(
@@ -6292,8 +6465,8 @@ class APIController extends ODRCustomController
                 $is_image = true;
             }
 
-            // Files that aren't done encrypting shouldn't be downloaded
-            if (!$is_image && $file->getProvisioned() == true)
+            // Files/Images that aren't done encrypting shouldn't be downloaded
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -6477,7 +6650,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getProvisioned() == true)
+            if ($file->getEncryptKey() === '')
                 throw new ODRNotFoundException('File');
 
 
@@ -6592,7 +6765,7 @@ class APIController extends ODRCustomController
             // Any user can create a dataset as long as they exist
             // No need to do further permissions checks.
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('unrecognized email: "'.$user_email.'"');

@@ -14,10 +14,8 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -53,11 +51,6 @@ class DatabaseInfoService
     private $th_service;
 
     /**
-     * @var string
-     */
-    private $odr_web_dir;
-
-    /**
      * @var Logger
      */
     private $logger;
@@ -70,7 +63,6 @@ class DatabaseInfoService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
-     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -78,14 +70,12 @@ class DatabaseInfoService
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
-        string $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
-        $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
 
@@ -741,112 +731,6 @@ class DatabaseInfoService
         }
 
         return $current_datatype;
-    }
-
-
-    /**
-     * Marks the specified datatype (and all its parents) as updated by the given user.
-     *
-     * @param DataType $datatype
-     * @param ODRUser $user
-     */
-    public function updateDatatypeCacheEntry($datatype, $user)
-    {
-        // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
-        //  to be marked as updated
-        while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
-            // Mark this (non-top-level) datatype as updated by this user
-            $datatype->setUpdatedBy($user);
-            $datatype->setUpdated(new \DateTime());
-            $this->em->persist($datatype);
-
-            // Continue locating parent datatypes...
-            $datatype = $datatype->getParent();
-        }
-
-        // $datatype is now guaranteed to be top-level
-        $datatype->setUpdatedBy($user);
-        $datatype->setUpdated(new \DateTime());
-        $this->em->persist($datatype);
-
-        // Save all changes made
-        $this->em->flush();
-
-
-        // Child datatypes don't have their own cached entries, it's all contained within the
-        //  cache entry for their top-level datatype
-        $this->cache_service->delete('cached_datatype_'.$datatype->getId());
-
-        // Need to clear cached records related to this type for the API...
-        $records = $this->em->getRepository('ODRAdminBundle:DataRecord')->findBy(array('dataType' => $datatype->getId()));
-        /** @var DataRecord $record */
-        foreach($records as $record) {
-            $this->cache_service->delete('json_record_'.$record->getUniqueId());
-        }
-    }
-
-
-    /**
-     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
-     * e.g.  A links to B links to C links to D links to...etc
-     * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because
-     *  they all need to be loaded via getDatatypeData() in order to properly render A.
-     *
-     * However, this means that linking/unlinking of datatypes between B/C, C/D, D/etc also affects
-     * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
-     *
-     * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
-     * TODO - ...or should this be off in the DatatreeInfoService?
-     *
-     * @param array $datatype_ids dt_ids are values in the array, NOT keys
-     */
-    public function deleteCachedDatatypeLinkData($datatype_ids)
-    {
-        // Locate all datatypes that end up needing to load cache entries for the datatypes in
-        //  $datatype_ids...
-        $datatree_array = $this->dti_service->getDatatreeArray();
-        $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
-
-        // Ensure the datatype that were originally passed in get the cache entry cleared
-        foreach ($datatype_ids as $num => $dt_id)
-            $all_linked_ancestors[] = $dt_id;
-
-        // Clearing this cache entry for each of the ancestor datatypes found ensures that the
-        //  newly linked/unlinked datarecords show up (or not) when they should
-        foreach ($all_linked_ancestors as $num => $dt_id)
-            $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-    }
-
-
-    /**
-     * TODO - shouldn't this technically be in SortService?
-     * Should be called whenever the default sort order of datarecords within a datatype changes.
-     *
-     * @param int $datatype_id
-     */
-    public function resetDatatypeSortOrder($datatype_id)
-    {
-        // Delete the cached default ordering of records in this datatype
-        $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
-
-        // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
-        //  datarecord entries when the sort datafield is changed...
-
-
-        // TODO - this doesn't feel like it belongs here...but putting it in the GraphPluginInterface also doesn't quite make sense...
-        // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
-        //  the legend order matching the new datarecord order
-        $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
-        if ( file_exists($graph_filepath) ) {
-            $files = scandir($graph_filepath);
-            foreach ($files as $filename) {
-                // TODO - assumes linux?
-                if ($filename === '.' || $filename === '..')
-                    continue;
-
-                unlink($graph_filepath.'/'.$filename);
-            }
-        }
     }
 
 

@@ -18,26 +18,28 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
-// Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Templating\EngineInterface;
@@ -96,7 +98,7 @@ class RadioOptionsController extends ODRCustomController
             // Since re-ordering radio options is permissible, this controller action needs to be
             //  permitted as well
 //            if ( !is_null($datafield->getMasterDataField()) )
-//                throw new ODRBadRequestException('Not allowed to load radio options for a derived field');
+//                throw new ODRBadRequestException('Not allowed to load radio options for a datafield derived from a template');
 
 
             // --------------------
@@ -157,16 +159,12 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -191,7 +189,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a radio option to a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to add a radio option to a derived field');
+                throw new ODRBadRequestException('Not allowed to add a radio option to a datafield derived from a template');
 
 
             // --------------------
@@ -225,13 +223,40 @@ class RadioOptionsController extends ODRCustomController
                 $sort_service->sortRadioOptionsByName($user, $datafield);
 
 
-            // Update the cached version of the datatype
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Don't need to update cached versions of datarecords or themes
-
-            // Do need to clear some search cache entries however
-            $search_cache_service->onDatafieldModify($datafield);
 
 
             // ----------------------------------------
@@ -280,16 +305,10 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
@@ -329,7 +348,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to delete a radio option from a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to delete a radio option from a derived datafield');
+                throw new ODRBadRequestException('Not allowed to delete a radio option from a datafield derived from a template');
 
 
             // Check whether any jobs that are currently running would interfere with the deletion
@@ -407,18 +426,37 @@ class RadioOptionsController extends ODRCustomController
             //  figure out specifics
             $cache_service->delete('default_radio_options');
 
-            // Mark this datatype as updated
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
-
-            // Wipe cached data for all the datatype's datarecords
-            $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-            foreach ($dr_list as $dr_id => $parent_dr_id) {
-                $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('cached_table_data_'.$dr_id);
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
+            // Mark this datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to clear the cached datarecord entries since deletion could have unselected a radio option
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------
@@ -465,16 +503,10 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -526,7 +558,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to change the name of a radio option for a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to change the name of a radio option for a derived field');
+                throw new ODRBadRequestException('Not allowed to change the name of a radio option for a datafield derived from a template');
 
 
             // Check whether any jobs that are currently running would interfere with the deletion
@@ -554,35 +586,38 @@ class RadioOptionsController extends ODRCustomController
                 $changes_made = $sort_service->sortRadioOptionsByName($user, $datafield);
 
 
-            // Update the cached version of the datatype...
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
-
-            // Determine whether cached entries for table themes need to get deleted...
-            $delete_table_data = false;
-            $typename = $datafield->getFieldType()->getTypeName();
-            if ($typename == 'Single Radio' || $typename == 'Single Select')
-                $delete_table_data = true;
-
-            // Locate all datarecords that could display this radio option...
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                // Always need to delete the cached datarecord...it has the optionName property
-                $cache_service->delete('cached_datarecord_'.$result['dr_id']);
-
-                // Only need to delete the cached table data if the datafield was a single radio or
-                //  a single select
-                if ($delete_table_data)
-                    $cache_service->delete('cached_table_data_'.$result['dr_id']);
+            // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
+            // Update the cached version of the datatype...
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to clear the cached datarecord entries since they store the radio option's name
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------
@@ -628,8 +663,6 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -660,7 +693,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to set a default radio option on a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to set a default radio option on a derived field');
+                throw new ODRBadRequestException('Not allowed to set a default radio option on a datafield derived from a template');
 
 
             // --------------------
@@ -725,8 +758,25 @@ class RadioOptionsController extends ODRCustomController
             //  figure out specifics
             $cache_service->delete('default_radio_options');
 
-            // Force an update of this datatype's cached entries
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // ----------------------------------------
+            // Mark this datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Don't need to clear cached datarecord or theme entries
         }
         catch (\Exception $e) {
             $source = 0x5567b2f9;
@@ -761,8 +811,6 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -811,7 +859,7 @@ class RadioOptionsController extends ODRCustomController
             // Re-ordering radio options in a derived datafield is permissible...doing so doesn't
             //  fundamentally change content
 //            if ( !is_null($datafield->getMasterDataField()) )
-//                throw new ODRBadRequestException('Not allowed to modify order of radio options for a derived field');
+//                throw new ODRBadRequestException('Not allowed to modify order of radio options for a datafield derived from a template');
 
 
             // ----------------------------------------
@@ -867,8 +915,22 @@ class RadioOptionsController extends ODRCustomController
             }
 
 
-            // Update cached version of datatype
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // ----------------------------------------
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Don't need to update cached versions of datarecords or themes
 
@@ -912,16 +974,12 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -946,7 +1004,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to import radio options to a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to import radio options to a derived field');
+                throw new ODRBadRequestException('Not allowed to import radio options to a datafield derived from a template');
 
 
             // --------------------
@@ -1005,11 +1063,38 @@ class RadioOptionsController extends ODRCustomController
                 $sort_service->sortRadioOptionsByName($user, $datafield);
 
 
-            // Update the cached version of the datatype
-            $dbi_service->updateDatatypeCacheEntry($datatype, $user);
+            // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
-            // Also need to clear a few search cache entries
-            $search_cache_service->onDatafieldModify($datafield);
+            // Mark the datatype as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatatypeModifiedEvent($datatype, $user);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------
@@ -1055,16 +1140,12 @@ class RadioOptionsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataFields $datafield */
@@ -1173,11 +1254,37 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
+            // Mark this datarecord as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
         }
         catch (\Exception $e) {

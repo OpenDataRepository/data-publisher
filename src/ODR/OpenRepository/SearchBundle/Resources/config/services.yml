@@ -48,6 +48,8 @@ services:
             $cache_service: "@odr.cache_service"
             $search_service: "@odr.search_service"
             $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
 
     odr.search_key_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService

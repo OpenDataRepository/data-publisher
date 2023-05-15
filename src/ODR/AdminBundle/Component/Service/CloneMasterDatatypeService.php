@@ -34,6 +34,8 @@ use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -42,6 +44,7 @@ use FOS\UserBundle\Model\UserManagerInterface;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class CloneMasterDatatypeService
@@ -72,14 +75,14 @@ class CloneMasterDatatypeService
     private $ec_service;
 
     /**
-     * @var ThemeInfoService
-     */
-    private $tif_service;
-
-    /**
      * @var UUIDService
      */
     private $uuid_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
 
     /**
      * @var UserManagerInterface
@@ -162,9 +165,9 @@ class CloneMasterDatatypeService
      * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
      * @param DatabaseInfoService $database_info_service
      * @param EntityCreationService $entity_creation_service
-     * @param ThemeInfoService $theme_info_service
      * @param UUIDService $uuid_service
      * @param UserManagerInterface $user_manager
+     * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
@@ -173,9 +176,9 @@ class CloneMasterDatatypeService
         CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatabaseInfoService $database_info_service,
         EntityCreationService $entity_creation_service,
-        ThemeInfoService $theme_info_service,
         UUIDService $uuid_service,
         UserManagerInterface $user_manager,
+        EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -183,9 +186,9 @@ class CloneMasterDatatypeService
         $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dbi_service = $database_info_service;
         $this->ec_service = $entity_creation_service;
-        $this->tif_service = $theme_info_service;
         $this->uuid_service = $uuid_service;
         $this->user_manager = $user_manager;
+        $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
 
         $this->original_datatype = null;
@@ -263,13 +266,13 @@ class CloneMasterDatatypeService
 
             $this->logger->debug('----------------------------------------');
             if ( $datatype->getIsMasterType() )
-                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster('.$template_group.'), user '.$user_id.' is attempting to copy from the template "'.$datatype->getShortName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: entered createDatatypeFromMaster('.$template_group.'), user '.$user_id.' is attempting to copy from the template "'.$datatype->getShortName().'"');
             else
-                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster('.$template_group.'), user '.$user_id.' is attempting to clone the datatype "'.$datatype->getShortName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: entered createDatatypeFromMaster('.$template_group.'), user '.$user_id.' is attempting to clone the datatype "'.$datatype->getShortName().'"');
             if ( $preserve_template_uuids )
-                $this->logger->debug('CloneDatatypeService: -- the new datatype WILL keep references to uuids of its source');
+                $this->logger->debug('CloneMasterDatatypeService: -- the new datatype WILL keep references to uuids of its source');
             else
-                $this->logger->debug('CloneDatatypeService: -- the new datatype WILL NOT keep references to uuids of its source');
+                $this->logger->debug('CloneMasterDatatypeService: -- the new datatype WILL NOT keep references to uuids of its source');
 
 
             // Check if datatype is not in "initial" mode
@@ -289,12 +292,12 @@ class CloneMasterDatatypeService
 
             // Get all grandparent datatype ids that need cloning...
             $this->master_datatype = $datatype->getMasterDataType();
-            $this->logger->debug('CloneDatatypeService: Master Datatype ID:'.$this->master_datatype->getId());
+            $this->logger->debug('CloneMasterDatatypeService: Master Datatype ID:'.$this->master_datatype->getId());
 
             $include_links = true;
             $datatype_data = $this->dbi_service->getDatatypeArray($this->master_datatype->getId(), $include_links);
             $grandparent_datatype_ids = array_keys($datatype_data);
-            $this->logger->debug('CloneDatatypeService: $grandparent_datatype_ids: '.print_r($grandparent_datatype_ids, true));
+            $this->logger->debug('CloneMasterDatatypeService: $grandparent_datatype_ids: '.print_r($grandparent_datatype_ids, true));
 
             // Load all children of these grandparent datatypes
             $query = $this->em->createQuery(
@@ -309,7 +312,7 @@ class CloneMasterDatatypeService
             foreach ($results as $result)
                 $associated_datatypes[] = $result['dt_id'];
 
-            $this->logger->debug('CloneDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
+            $this->logger->debug('CloneMasterDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
 
             // Remove linked datatypes that already exist in template group
             $this->existing_datatypes = array(); // $repo_datatype->findBy(array('template_group' => $template_group));
@@ -336,7 +339,7 @@ class CloneMasterDatatypeService
                 }
                 $this->existing_datatypes = $valid_existing_datatypes;
             }
-            $this->logger->debug('CloneDatatypeService: $associated_datatypes [filtered]: '.print_r($associated_datatypes, true));
+            $this->logger->debug('CloneMasterDatatypeService: $associated_datatypes [filtered]: '.print_r($associated_datatypes, true));
 
             // Save this associated datatypes for later use
             $this->associated_datatypes = $associated_datatypes;
@@ -354,7 +357,7 @@ class CloneMasterDatatypeService
                     $new_datatype = $datatype;
                     $dt_master = $this->master_datatype;
 
-                    $this->logger->debug('CloneDatatypeService: attempting to clone master datatype '.$this->master_datatype->getId().' "'.$this->master_datatype->getShortName().'" into datatype '.$new_datatype->getId());
+                    $this->logger->debug('CloneMasterDatatypeService: attempting to clone master datatype '.$this->master_datatype->getId().' "'.$this->master_datatype->getShortName().'" into datatype '.$new_datatype->getId());
                 }
                 else {
                     // This is one of the child/linked datatypes of the master template...need to
@@ -365,7 +368,7 @@ class CloneMasterDatatypeService
                     if ( is_null($dt_master) )
                         throw new ODRException('Unable to clone the deleted Datatype '.$dt_id);
 
-                    $this->logger->debug('CloneDatatypeService: attempting to clone master datatype '.$dt_id.' "'.$dt_master->getShortName().'" into new datatype...');
+                    $this->logger->debug('CloneMasterDatatypeService: attempting to clone master datatype '.$dt_id.' "'.$dt_master->getShortName().'" into new datatype...');
                 }
 
                 // Clone the datatype $dt_master into $new_datatype
@@ -399,7 +402,7 @@ class CloneMasterDatatypeService
                 $dt->setGrandparent($corrected_grandparent);
                 $this->em->persist($dt);
 
-                $this->logger->info('CloneDatatypeService: correcting ancestors for datatype "'.$dt->getShortName().'"...parent set to dt "'.$corrected_parent->getShortName().'", grandparent set to dt "'.$corrected_grandparent->getShortName().'"');
+                $this->logger->info('CloneMasterDatatypeService: correcting ancestors for datatype "'.$dt->getShortName().'"...parent set to dt "'.$corrected_parent->getShortName().'", grandparent set to dt "'.$corrected_grandparent->getShortName().'"');
             }
 
             // Unable to defer a flush any longer
@@ -418,7 +421,7 @@ class CloneMasterDatatypeService
 
             // ----------------------------------------
             $this->logger->info('----------------------------------------');
-            $this->logger->info('CloneDatatypeService: fixing special fields for all cloned datatypes...');
+            $this->logger->info('CloneMasterDatatypeService: fixing special fields for all cloned datatypes...');
 
             // Set the special fields for all the newly cloned datatypes, now that all the source
             //  datatypes/datafields have been cloned.  While the name fields could've technically
@@ -441,7 +444,7 @@ class CloneMasterDatatypeService
                     $field_purpose = 'name_field';
                 else if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
                     $field_purpose = 'sort_field';
-                $this->logger->info('CloneDatatypeService: -- copy of dtsf entry '.$original_dtsf_id.' for derived datatype "'.$derived_dt->getShortName().'" set to use derived df "'.$derived_df->getFieldName().'" (from source datatype '.$derived_df->getDataType()->getId().' "'.$derived_df->getDataType()->getShortName().'") as '.$field_purpose.' '.$dtsf->getDisplayOrder());
+                $this->logger->info('CloneMasterDatatypeService: -- copy of dtsf entry '.$original_dtsf_id.' for derived datatype "'.$derived_dt->getShortName().'" set to use derived df "'.$derived_df->getFieldName().'" (from source datatype '.$derived_df->getDataType()->getId().' "'.$derived_df->getDataType()->getShortName().'") as '.$field_purpose.' '.$dtsf->getDisplayOrder());
 
                 // Don't need to flush right this minute, technically
                 $this->em->persist($dtsf);
@@ -463,7 +466,7 @@ class CloneMasterDatatypeService
                     $this->df_mapping,
                     $this->associated_datatypes
                 );
-            $this->logger->info('CloneDatatypeService: all themes cloned');
+            $this->logger->info('CloneMasterDatatypeService: all themes cloned');
 
             // ----------------------------------------
             // Clone Datatree and DatatreeMeta entries
@@ -514,13 +517,13 @@ class CloneMasterDatatypeService
                 //  modified so they don't think they were derived from other entities
                 if (!$preserve_template_uuids) {
                     $this->logger->info('----------------------------------------');
-                    $this->logger->info('CloneDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to no longer consider datatype '.$dt->getMasterDataType()->getId().' as its master template');
+                    $this->logger->info('CloneMasterDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to no longer consider datatype '.$dt->getMasterDataType()->getId().' as its master template');
                     $dt->setMasterDataType(null);
 
                     /** @var DataFields[] $datafields */
                     $datafields = $dt->getDataFields();
                     foreach ($datafields as $df) {
-                        $this->logger->info('CloneDatatypeService: -- setting newly created datafield '.$df->getId().' "'.$df->getFieldName().'" to no longer consider datafield '.$df->getMasterDataField()->getId().' as its master field');
+                        $this->logger->info('CloneMasterDatatypeService: -- setting newly created datafield '.$df->getId().' "'.$df->getFieldName().'" to no longer consider datafield '.$df->getMasterDataField()->getId().' as its master field');
                         $df->setMasterDataField(null);
                         $df->setTemplateFieldUuid(null);
 
@@ -529,7 +532,7 @@ class CloneMasterDatatypeService
                 }
 
                 $dt->setSetupStep(DataType::STATE_OPERATIONAL);
-                $this->logger->info('CloneDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to STATE_OPERATIONAL');
+                $this->logger->info('CloneMasterDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to STATE_OPERATIONAL');
 
                 // These don't need to be immediately flushed...
                 $this->em->persist($dt);
@@ -571,8 +574,27 @@ class CloneMasterDatatypeService
 
 
             // ----------------------------------------
+            // Fire off a DatatypeCreated event for each new top-level datatype here
+            // ...don't need to use the DatatypeImportedEvent, because these are entirely new datatypes
+            try {
+                foreach ($this->created_datatypes as $dt) {
+                    if ( $dt->getId() === $dt->getGrandparent()->getId() ) {
+                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                        /** @var EventDispatcherInterface $event_dispatcher */
+                        $event = new DatatypeCreatedEvent($datatype, $this->user);
+                        $this->event_dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                    }
+                }
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
             $this->logger->info('----------------------------------------');
-            $this->logger->info('CloneDatatypeService: cloning of datatype '.$datatype->getId().' is complete');
+            $this->logger->info('CloneMasterDatatypeService: cloning of datatype '.$datatype->getId().' is complete');
             $this->logger->info('----------------------------------------');
 
             return 'complete';
@@ -648,9 +670,9 @@ class CloneMasterDatatypeService
         array_push($this->created_datatypes, $new_datatype);
 
         if ($preserve_template_uuids)
-            $this->logger->debug('CloneDatatypeService: new datatype is using datatype '.$template_datatype->getId().' as its master template...');
+            $this->logger->debug('CloneMasterDatatypeService: new datatype is using datatype '.$template_datatype->getId().' as its master template...');
         else
-            $this->logger->debug('CloneDatatypeService: new datatype is being copied from datatype '.$template_datatype->getId().'...');
+            $this->logger->debug('CloneMasterDatatypeService: new datatype is being copied from datatype '.$template_datatype->getId().'...');
 
         $template_meta = $template_datatype->getDataTypeMeta();
         // A missing datatypeMeta entry is a fatal error...a datatype can't be cloned in its absence
@@ -706,7 +728,7 @@ class CloneMasterDatatypeService
         // Ensure the "in-memory" version of $new_datatype knows about its meta entry
         $new_datatype->addDataTypeMetum($new_meta);
         self::persistObject($new_meta, true);    // don't flush immediately...
-        $this->logger->debug('CloneDatatypeService: meta entry cloned');
+        $this->logger->debug('CloneMasterDatatypeService: meta entry cloned');
 
         // ----------------------------------------
         // Need to clone the DatatypeSpecialField entries...
@@ -724,11 +746,11 @@ class CloneMasterDatatypeService
             $this->dtsf_mapping[ $dtsf->getId() ] = $new_dtsf;
 
             if ( $new_dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
-                $this->logger->debug('CloneDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for name_field '.$new_dtsf->getDisplayOrder().'...');
+                $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for name_field '.$new_dtsf->getDisplayOrder().'...');
             else if ( $new_dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
-                $this->logger->debug('CloneDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for sort_field '.$new_dtsf->getDisplayOrder().'...');
+                $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for sort_field '.$new_dtsf->getDisplayOrder().'...');
             else
-                $this->logger->debug('CloneDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for UNKNOWN_FIELD_PURPOSE '.$new_dtsf->getDisplayOrder().'...');
+                $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for UNKNOWN_FIELD_PURPOSE '.$new_dtsf->getDisplayOrder().'...');
         }
 
 
@@ -765,7 +787,7 @@ class CloneMasterDatatypeService
             // This is the field map
             $this->df_mapping[ $parent_df->getId() ] = $new_df;
 
-            $this->logger->info('CloneDatatypeService: copied master datafield '.$parent_df->getId().' "'.$parent_df->getFieldName().'" into new datafield');
+            $this->logger->info('CloneMasterDatatypeService: copied master datafield '.$parent_df->getId().' "'.$parent_df->getFieldName().'" into new datafield');
 
 
             $parent_df_meta = $parent_df->getDataFieldMeta();
@@ -786,7 +808,7 @@ class CloneMasterDatatypeService
             $new_df->addDataFieldMetum($new_df_meta);
             self::persistObject($new_df_meta, true);    // don't flush immediately...
 
-            $this->logger->debug('CloneDatatypeService: -- meta entry cloned');
+            $this->logger->debug('CloneMasterDatatypeService: -- meta entry cloned');
 
 
             // If the new datafield is an Image field, ensure it has ImageSize entries...
@@ -807,7 +829,7 @@ class CloneMasterDatatypeService
                     //  $new_df->getId() === $master_df->getId() prior to the first flush
                 }
 
-                $this->logger->info('CloneDatatypeService: >> created ImageSize entries for new datafield "'.$new_df->getFieldName().'"');
+                $this->logger->info('CloneMasterDatatypeService: >> created ImageSize entries for new datafield "'.$new_df->getFieldName().'"');
             }
 
             // Need to update the new datatype's meta entry to point to the correct external_id,
@@ -817,7 +839,7 @@ class CloneMasterDatatypeService
             ) {
                 // This is the new external ID field
                 $new_meta->setExternalIdField($new_df);
-                $this->logger->debug("CloneDatatypeService: -- set this field as the datatype's external_id field");
+                $this->logger->debug("CloneMasterDatatypeService: -- set this field as the datatype's external_id field");
             }
 
             if ( !is_null($template_meta->getBackgroundImageField())
@@ -825,7 +847,7 @@ class CloneMasterDatatypeService
             ) {
                 // This is the new background image field
                 $new_meta->setBackgroundImageField($new_df);
-                $this->logger->debug("CloneDatatypeService: -- set this field as the datatype's background image field");
+                $this->logger->debug("CloneMasterDatatypeService: -- set this field as the datatype's background image field");
             }
 
 
@@ -873,9 +895,9 @@ class CloneMasterDatatypeService
                         $this->cache_service->delete('default_radio_options');
 
                     if ( $preserve_template_uuids )
-                        $this->logger->debug('CloneDatatypeService: -- cloned radio option '.$parent_ro->getRadioOptionUuid().' "'.$new_ro->getOptionName().'" and its meta entry');
+                        $this->logger->debug('CloneMasterDatatypeService: -- cloned radio option '.$parent_ro->getRadioOptionUuid().' "'.$new_ro->getOptionName().'" and its meta entry');
                     else
-                        $this->logger->debug('CloneDatatypeService: -- cloned radio option "'.$new_ro->getOptionName().'" and its meta entry, new radio option uuid: '.$new_ro->getRadioOptionUuid());
+                        $this->logger->debug('CloneMasterDatatypeService: -- cloned radio option "'.$new_ro->getOptionName().'" and its meta entry, new radio option uuid: '.$new_ro->getRadioOptionUuid());
                 }
             }
 
@@ -921,9 +943,9 @@ class CloneMasterDatatypeService
                     self::persistObject($new_tag_meta, true);    // don't flush immediately...
 
                     if ($preserve_template_uuids)
-                        $this->logger->debug('CloneDatatypeService: -- cloned tag '.$parent_tag->getTagUuid().' "'.$new_tag->getTagName().'" and its meta entry');
+                        $this->logger->debug('CloneMasterDatatypeService: -- cloned tag '.$parent_tag->getTagUuid().' "'.$new_tag->getTagName().'" and its meta entry');
                     else
-                        $this->logger->debug('CloneDatatypeService: -- cloned tag "'.$new_tag->getTagName().'" and its meta entry, new tag uuid: '.$new_tag->getTagUuid());
+                        $this->logger->debug('CloneMasterDatatypeService: -- cloned tag "'.$new_tag->getTagName().'" and its meta entry, new tag uuid: '.$new_tag->getTagUuid());
 
                     // It's easier to create new tag tree entries using the newly created tags than
                     //  it is to locate/clone/modify each of the relevant tag tree entries in the
@@ -960,7 +982,7 @@ class CloneMasterDatatypeService
 
                 self::persistObject($tt, true);    // don't flush immediately...
 
-                $this->logger->debug('CloneDatatypeService: -- created tag tree between parent tag '.$derived_parent_tag->getTagUuid().' "'.$derived_parent_tag->getTagName().'" and child tag '.$derived_child_tag->getTagUuid().' "'.$derived_child_tag->getTagName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- created tag tree between parent tag '.$derived_parent_tag->getTagUuid().' "'.$derived_parent_tag->getTagName().'" and child tag '.$derived_child_tag->getTagUuid().' "'.$derived_child_tag->getTagName().'"');
             }
 
 
@@ -985,14 +1007,14 @@ class CloneMasterDatatypeService
      */
     private function cloneDatatree($parent_datatype)
     {
-        $this->logger->info('CloneDatatypeService: attempting to clone datatree entries for datatype '.$parent_datatype->getId().' "'.$parent_datatype->getShortName().'"...');
+        $this->logger->info('CloneMasterDatatypeService: attempting to clone datatree entries for datatype '.$parent_datatype->getId().' "'.$parent_datatype->getShortName().'"...');
 
         /** @var DataTree[] $datatree_array */
         $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')
             ->findBy( array('ancestor' => $parent_datatype->getId()) );
 
         if ( empty($datatree_array) )
-            $this->logger->debug('CloneDatatypeService: -- no datatree entries found');
+            $this->logger->debug('CloneMasterDatatypeService: -- no datatree entries found');
 
         // Locate the newly created datatype corresponding to $parent_datatype
         $current_ancestor = null;
@@ -1020,7 +1042,7 @@ class CloneMasterDatatypeService
                     $new_dt->addDataTreeMetum($new_meta);
                     self::persistObject($new_dt, true);    // don't flush immediately...
 
-                    $this->logger->info('CloneDatatypeService: -- created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$new_meta->getIsLink());
+                    $this->logger->info('CloneMasterDatatypeService: -- created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$new_meta->getIsLink());
                     // Also create any datatree entries required for this newly-created datatype
                     self::cloneDatatree($datatype->getMasterDataType());
                 }
@@ -1051,12 +1073,12 @@ class CloneMasterDatatypeService
 
         // Load all groups from this datatype's master
         $master_datatype = $datatype->getMasterDataType();
-        $this->logger->info('CloneDatatypeService: attempting to clone group entries for datatype '.$datatype->getId().' "'.$datatype->getShortName().'" from master datatype '.$master_datatype->getId().'...');
+        $this->logger->info('CloneMasterDatatypeService: attempting to clone group entries for datatype '.$datatype->getId().' "'.$datatype->getShortName().'" from master datatype '.$master_datatype->getId().'...');
 
         /** @var Group[] $master_groups */
         $master_groups = $master_datatype->getGroups();
         if ( is_null($master_groups) )
-            throw new ODRException('CloneDatatypeService: Master Datatype '.$master_datatype->getId().' has no group entries to clone.');
+            throw new ODRException('CloneMasterDatatypeService: Master Datatype '.$master_datatype->getId().' has no group entries to clone.');
 
         // Save New Groups with map for cloning datafields
         $new_groups = array();
@@ -1085,7 +1107,7 @@ class CloneMasterDatatypeService
             self::persistObject($new_group_meta, true);    // don't flush immediately...
             self::persistObject($new_group, true);    // don't flush immediately...
 
-            $this->logger->info('CloneDatatypeService: created new Group from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
+            $this->logger->info('CloneMasterDatatypeService: created new Group from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
 
             // Ensure the user making the clone is added to the admin group of the new datatype,
             //  otherwise they won't be able to see it when the cloning is complete
@@ -1093,7 +1115,7 @@ class CloneMasterDatatypeService
                 if ( !$this->user->hasRole('ROLE_SUPER_ADMIN') ) {
                     // Don't need to do this when the creating user is a super-admin, since they'll
                     //  automatically be able to see the new datatype
-                    $this->ec_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
+                    $this->ec_service->createUserGroup($this->user, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
                     // If the user's cached permissions were deleted here, the user would likely
@@ -1139,12 +1161,12 @@ class CloneMasterDatatypeService
     {
         // Load all datatype permission entries for this datatype's master template
         $master_datatype = $datatype->getMasterDataType();
-        $this->logger->info('CloneDatatypeService: attempting to clone datatype permission entries for datatype '.$datatype->getId().' "'.$datatype->getShortName().'" from master datatype '.$master_datatype->getId().'...');
+        $this->logger->info('CloneMasterDatatypeService: attempting to clone datatype permission entries for datatype '.$datatype->getId().' "'.$datatype->getShortName().'" from master datatype '.$master_datatype->getId().'...');
 
         /** @var GroupDatatypePermissions[] $master_gdt_permissions */
         $master_gdt_permissions = $master_datatype->getGroupDatatypePermissions();
         if ( is_null($master_gdt_permissions) )
-            throw new ODRException('CloneDatatypeService: Master Datatype '.$master_datatype->getId().' has no permission entries to clone.');
+            throw new ODRException('CloneMasterDatatypeService: Master Datatype '.$master_datatype->getId().' has no permission entries to clone.');
 
 
         // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the functions
@@ -1182,7 +1204,7 @@ class CloneMasterDatatypeService
         /** @var Group[] $grandparent_groups */
         $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
         if ( is_null($grandparent_groups) )
-            throw new ODRException('CloneDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
+            throw new ODRException('CloneMasterDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 
 
         // insert into group datafield (fields) select (fields, new_group_id)
@@ -1205,7 +1227,7 @@ class CloneMasterDatatypeService
                     $datatype->addGroupDatatypePermission($new_permission);
                     self::persistObject($new_permission, true);    // don't flush immediately...
 
-                    $this->logger->debug('CloneDatatypeService: -- cloned GroupDatatypePermission entry from master template Group '.$master_group->getId().' to Group '.$group->getId().' for new datatype '.$datatype->getId());
+                    $this->logger->debug('CloneMasterDatatypeService: -- cloned GroupDatatypePermission entry from master template Group '.$master_group->getId().' to Group '.$group->getId().' for new datatype '.$datatype->getId());
                 }
             }
         }
@@ -1222,12 +1244,12 @@ class CloneMasterDatatypeService
     {
         // Pull up all the datafield permission entries for all the groups this datafield's master template belongs to
         $master_datafield = $datafield->getMasterDataField();
-        $this->logger->debug('CloneDatatypeService: attempting to clone datafield permission entries for datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" from master datafield '.$master_datafield->getId().'...');
+        $this->logger->debug('CloneMasterDatatypeService: attempting to clone datafield permission entries for datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" from master datafield '.$master_datafield->getId().'...');
 
         /** @var GroupDatafieldPermissions[] $master_gdf_permissions */
         $master_gdf_permissions = $master_datafield->getGroupDatafieldPermissions();
         if ( is_null($master_gdf_permissions) )
-            throw new ODRException('CloneDatatypeService: Master Datafield '.$master_datafield->getId().' has no permission entries to clone.');
+            throw new ODRException('CloneMasterDatatypeService: Master Datafield '.$master_datafield->getId().' has no permission entries to clone.');
 
         // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the functions
         //  that rely on that service assume that they're only dealing with datatypes that are
@@ -1264,7 +1286,7 @@ class CloneMasterDatatypeService
         /** @var Group[] $grandparent_groups */
         $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
         if ( is_null($grandparent_groups) )
-            throw new ODRException('CloneDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
+            throw new ODRException('CloneMasterDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 
 
         // For each datafield permission from the master template...
@@ -1285,7 +1307,7 @@ class CloneMasterDatatypeService
                     $datafield->addGroupDatafieldPermission($new_permission);
                     self::persistObject($new_permission, true);    // don't flush immediately...
 
-                    $this->logger->debug('CloneDatatypeService: -- cloned GroupDatafieldPermission entry from master template Group '.$master_group->getId().' to Group '.$group->getId().' for new datafield '.$datafield->getId());
+                    $this->logger->debug('CloneMasterDatatypeService: -- cloned GroupDatafieldPermission entry from master template Group '.$master_group->getId().' to Group '.$group->getId().' for new datafield '.$datafield->getId());
                 }
             }
         }
@@ -1303,9 +1325,9 @@ class CloneMasterDatatypeService
     {
         // Need to have either a datatype or a datafield...
         if ( is_null($derived_datatype) && is_null($derived_datafield) )
-            throw new ODRException('CloneDatatypeService::cloneRenderPlugins() needs either a null datatype or a null datafield, but was called with both being null');
+            throw new ODRException('CloneMasterDatatypeService::cloneRenderPlugins() needs either a null datatype or a null datafield, but was called with both being null');
         if ( !is_null($derived_datatype) && !is_null($derived_datafield) )
-            throw new ODRException('CloneDatatypeService::cloneRenderPlugins() needs either a null datatype or a null datafield, but was called with both being non-null');
+            throw new ODRException('CloneMasterDatatypeService::cloneRenderPlugins() needs either a null datatype or a null datafield, but was called with both being non-null');
 
 
         if ( !is_null($derived_datatype) ) {
@@ -1314,7 +1336,7 @@ class CloneMasterDatatypeService
             // If the master datatype has a render plugin...
             foreach ($master_datatype->getRenderPluginInstances() as $master_rpi) {
                 /** @var RenderPluginInstance $master_rpi */
-                $this->logger->info('CloneDatatypeService: attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datatype '.$master_datatype->getId());
+                $this->logger->info('CloneMasterDatatypeService: attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datatype '.$master_datatype->getId());
 
                 // Clone the renderPluginInstance
                 $new_rpi = clone $master_rpi;
@@ -1322,7 +1344,7 @@ class CloneMasterDatatypeService
                 $new_rpi->setDataField(null);
 
                 self::persistObject($new_rpi, true);    // don't flush immediately...
-                $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datatype "'.$derived_datatype->getShortName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datatype "'.$derived_datatype->getShortName().'"');
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
                 self::cloneRenderPluginSettings($master_rpi, $new_rpi, $derived_datatype, null);
@@ -1334,7 +1356,7 @@ class CloneMasterDatatypeService
             // If the master datafield has a render plugin...
             foreach ($master_datafield->getRenderPluginInstances() as $master_rpi) {
                 /** @var RenderPluginInstance $master_rpi */
-                $this->logger->info('CloneDatatypeService: -- attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datafield '.$master_datafield->getId());
+                $this->logger->info('CloneMasterDatatypeService: -- attempting to clone settings for render plugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'" in use by master datafield '.$master_datafield->getId());
 
                 // Clone the renderPluginInstance
                 $new_rpi = clone $master_rpi;
@@ -1342,7 +1364,7 @@ class CloneMasterDatatypeService
                 $new_rpi->setDataField($derived_datafield);
 
                 self::persistObject($new_rpi, true);    // don't flush immediately...
-                $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datafield "'.$derived_datafield->getFieldName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datafield "'.$derived_datafield->getFieldName().'"');
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
                 self::cloneRenderPluginSettings($master_rpi, $new_rpi, null, $derived_datafield);
@@ -1370,7 +1392,7 @@ class CloneMasterDatatypeService
             $new_rpom->setRenderPluginInstance($derived_rpi);
             self::persistObject($new_rpom, true);    // don't flush immediately...
 
-            $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_option '.$parent_rpom->getId().' "'.$parent_rpom->getRenderPluginOptionsDef()->getDisplayName().'" => "'.$parent_rpom->getValue().'"');
+            $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_option '.$parent_rpom->getId().' "'.$parent_rpom->getRenderPluginOptionsDef()->getDisplayName().'" => "'.$parent_rpom->getValue().'"');
         }
 
         // Clone each field mapping defined for this renderPluginInstance
@@ -1390,10 +1412,10 @@ class CloneMasterDatatypeService
                 $new_rpfm->setDataField($matching_df);
 
                 self::persistObject($new_rpfm, true);    // These don't need to be flushed/refreshed immediately...
-                $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
             }
             else {
-                $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
+                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
             }
         }
     }

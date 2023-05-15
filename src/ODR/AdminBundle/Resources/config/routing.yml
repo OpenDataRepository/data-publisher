@@ -1442,6 +1442,11 @@ odr_find_duplicate_user_groups:
 odr_check_fieldtype_table:
     path:  /admin/check_fieldtype_table
     defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+
+# Ensure entities don't share uuids
+odr_fix_duplicate_uuids:
+    path:  /admin/fix_duplicate_uuids
+    defaults: { _controller: ODRAdminBundle:Validation:fixduplicateuuids }
 # Ensure datafields with a master_datafield_id also have a template_field_uuid
 odr_fix_missing_datafield_template_uuids:
     path:  /admin/fix_missing_datafield_template_uuids

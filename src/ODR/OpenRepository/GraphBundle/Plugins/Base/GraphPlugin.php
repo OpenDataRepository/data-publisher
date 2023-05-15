@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 // Events
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
@@ -574,13 +575,25 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
 
     /**
-     * Handles when a file is deleted from a datafield that's using this plugin.
+     * Called when a file is deleted from a datafield that's using this plugin.
      *
      * @param FileDeletedEvent $event
      */
     public function onFileDelete(FileDeletedEvent $event)
     {
         parent::deleteCachedGraphs($event->getFileId(), $event->getDatafield());
+    }
+
+
+    /**
+     * Called when a file finishes encryption after being uploaded to a datafield that's using
+     * this plugin.
+     *
+     * @param FilePostEncryptEvent $event
+     */
+    public function onFilePostEncrypt(FilePostEncryptEvent $event)
+    {
+        // TODO - method stub
     }
 
 }

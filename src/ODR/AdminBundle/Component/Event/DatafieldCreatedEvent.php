@@ -2,36 +2,35 @@
 
 /**
  * Open Data Repository Data Publisher
- * DatarecordCreated Event
+ * DatafieldCreated Event
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Due to design decisions, "auto-incrementing" of ID fields for databases is going to be handled
- * via render plugins.  As such, an event is needed for notification that a datarecord has been
- * created, and therefore needs to have its ID generated.
+ * Kinda don't want this event to exist, but with Datatypes/Datarecords having a similar event...
  *
- * Stuff that needs synchronization via API also probably will find this event useful.
+ * Render Plugins currently aren't allowed to latch onto this event, mostly because I don't want
+ * them to.
  */
 
 namespace ODR\AdminBundle\Component\Event;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Symfony\Component\EventDispatcher\Event;
 
 
-class DatarecordCreatedEvent extends Event implements ODREventInterface
+class DatafieldCreatedEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
-    const NAME = 'odr.event.datarecord_created_event';
+    const NAME = 'odr.event.datafield_created_event';
 
     /**
-     * @var DataRecord
+     * @var DataFields
      */
-    private $datarecord;
+    private $datafield;
 
     /**
      * @var ODRUser
@@ -40,33 +39,33 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * DatarecordCreatedEvent constructor.
+     * DatafieldCreatedEvent constructor.
      *
-     * @param DataRecord $datarecord
+     * @param DataFields $datafield
      * @param ODRUser $user
      */
     public function __construct(
-        DataRecord $datarecord,
+        DataFields $datafield,
         ODRUser $user
     ) {
-        $this->datarecord = $datarecord;
+        $this->datafield = $datafield;
         $this->user = $user;
     }
 
 
     /**
-     * Returns the datarecord that just got created.
+     * Returns the datafield that just got created.
      *
-     * @return DataRecord
+     * @return DataFields
      */
-    public function getDatarecord()
+    public function getDatafield()
     {
-        return $this->datarecord;
+        return $this->datafield;
     }
 
 
     /**
-     * Returns the user that created the datarecord.
+     * Returns the user that created the datafield.
      *
      * @return ODRUser
      */
@@ -92,7 +91,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
     {
         return array(
             self::NAME,
-            'dr '.$this->datarecord->getId(),
+            'df '.$this->datafield->getId(),
         );
     }
 }

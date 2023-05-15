@@ -45,6 +45,8 @@
  *
  * Any place that fires off this event should refresh the File/Image before continuing with the
  * encryption process, because the properties (and where to find it, see getFile()) might have changed.
+ *
+ * The docs for FilePostEncryptEvent may also be of interest.
  */
 
 namespace ODR\AdminBundle\Component\Event;

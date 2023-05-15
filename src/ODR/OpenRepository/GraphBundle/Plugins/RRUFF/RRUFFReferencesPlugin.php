@@ -17,20 +17,20 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 // Services
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\LockService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -43,11 +43,6 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
     private $em;
 
     /**
-     * @var DatabaseInfoService
-     */
-    private $dbi_service;
-
-    /**
      * @var EntityCreationService
      */
     private $ec_service;
@@ -58,9 +53,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
     private $lock_service;
 
     /**
-     * @var SearchCacheService
+     * @var EventDispatcherInterface
      */
-    private $search_cache_service;
+    private $event_dispatcher;
 
     /**
      * @var CsrfTokenManager
@@ -82,29 +77,26 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
      * RRUFF References constructor
      *
      * @param EntityManager $entity_manager
-     * @param DatabaseInfoService $database_info_service
      * @param EntityCreationService $entity_creation_service
      * @param LockService $lock_service
-     * @param SearchCacheService $search_cache_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
         EntityCreationService $entity_creation_service,
         LockService $lock_service,
-        SearchCacheService $search_cache_service,
+        EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
         $this->ec_service = $entity_creation_service;
         $this->lock_service = $lock_service;
-        $this->search_cache_service = $search_cache_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -477,16 +469,21 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
 
 
         // ----------------------------------------
-        // Not going to mark the datarecord as updated, but still need to do some other cache
-        //  maintenance because a datafield value got changed...
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
 
-        // If the datafield that got changed was a datatype's sort datafield, delete its cached datarecord order
-        $sort_datatypes = $datafield->getSortDatatypes();
-        foreach ($sort_datatypes as $num => $dt)
-            $this->dbi_service->resetDatatypeSortOrder($dt->getId());
-
-        // Delete any cached search results involving this datafield
-        $this->search_cache_service->onDatafieldModify($datafield);
+        // ...don't need to mark the datarecord as updated though
     }
 
 

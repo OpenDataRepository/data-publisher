@@ -18,22 +18,31 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class EntityDeletionService
@@ -60,11 +69,6 @@ class EntityDeletionService
     private $dfi_service;
 
     /**
-     * @var DatarecordInfoService
-     */
-    private $dri_service;
-
-    /**
      * @var DatatreeInfoService
      */
     private $dti_service;
@@ -80,16 +84,6 @@ class EntityDeletionService
     private $pm_service;
 
     /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
      * @var TrackedJobService
      */
     private $tracked_job_service;
@@ -98,6 +92,19 @@ class EntityDeletionService
      * @var ThemeInfoService
      */
     private $theme_info_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+
+    /**
+     * @var string
+     */
+    private $odr_web_dir;
 
     /**
      * @var Logger
@@ -112,14 +119,13 @@ class EntityDeletionService
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
-     * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_management_service
-     * @param SearchCacheService $search_cache_service
-     * @param SearchService $search_service
      * @param TrackedJobService $tracked_job_service
      * @param ThemeInfoService $theme_info_service
+     * @param EventDispatcherInterface $event_dispatcher
+     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
@@ -127,28 +133,26 @@ class EntityDeletionService
         CacheService $cache_service,
         DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
-        DatarecordInfoService $datarecord_info_service,
         DatatreeInfoService $datatree_info_service,
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_management_service,
-        SearchCacheService $search_cache_service,
-        SearchService $search_service,
         TrackedJobService $tracked_job_service,
         ThemeInfoService $theme_info_service,
+        EventDispatcherInterface $event_dispatcher,
+        string $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dbi_service = $database_info_service;
         $this->dfi_service = $datafield_info_service;
-        $this->dri_service = $datarecord_info_service;
         $this->dti_service = $datatree_info_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_management_service;
-        $this->search_cache_service = $search_cache_service;
-        $this->search_service = $search_service;
         $this->tracked_job_service = $tracked_job_service;
         $this->theme_info_service = $theme_info_service;
+        $this->event_dispatcher = $event_dispatcher;
+        $this->odr_web_dir = realpath($odr_web_dir);
         $this->logger = $logger;
     }
 
@@ -167,6 +171,10 @@ class EntityDeletionService
 
         try {
             // Going to need these later...
+            $datafield_id = $datafield->getId();
+            $datafield_uuid = $datafield->getFieldUuid();
+
+            $typeclass = $datafield->getFieldType()->getTypeClass();
             $datatype = $datafield->getDataType();
             $grandparent_datatype = $datatype->getGrandparent();
 
@@ -206,7 +214,7 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
                 WHERE tdf.dataField = :datafield
                 AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
-            )->setParameters(array('datafield' => $datafield->getId()));
+            )->setParameters( array('datafield' => $datafield->getId()) );
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
@@ -217,7 +225,7 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:Group AS g WITH gdfp.group = g
                 WHERE gdfp.dataField = :datafield
                 AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
-            )->setParameters(array('datafield' => $datafield->getId()));
+            )->setParameters( array('datafield' => $datafield->getId()) );
             $all_affected_groups = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_groups, true).'</pre>';  //exit();
 
@@ -230,7 +238,7 @@ class EntityDeletionService
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE g.id IN (:groups)
                 AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
-            )->setParameters(array('groups' => $all_affected_groups));
+            )->setParameters( array('groups' => $all_affected_groups) );
             $all_affected_users = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
@@ -360,13 +368,6 @@ class EntityDeletionService
             )->setParameters( array('datafield_id' => $datafield->getId(), 'datatype_id' => $datatype->getId()) );
             $results = $query->getResult();
 
-            /** @var DataType[] $results */
-            foreach ($results as $dt) {
-                // Any datatypes this query finds don't need to be modified, but they do need to
-                //  rebuild their cache entries
-                $this->dbi_service->updateDatatypeCacheEntry($dt, $user);
-            }
-
             // ...and delete any mention that this field was used for a special purpose
             $query = $this->em->createQuery(
                'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
@@ -381,6 +382,22 @@ class EntityDeletionService
                 )
             );
             $rows = $query->execute();
+
+            /** @var DataType[] $results */
+            foreach ($results as $dt) {
+                // Any datatypes this query finds had their sort fields changed, so they also need
+                //  to rebuild their cache entries
+                try {
+                    $event = new DatatypeModifiedEvent($dt, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
+                    $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+                }
+            }
 
 
             // ----------------------------------------
@@ -425,9 +442,6 @@ class EntityDeletionService
 
 
             // ----------------------------------------
-            // Delete any cached search results that use this soon-to-be-deleted datafield
-            $this->search_cache_service->onDatafieldDelete($datafield);
-
             // Now that nothing references the datafield, and no other action requires it to still
             //  exist, delete the meta entry...
             $query = $this->em->createQuery(
@@ -469,39 +483,54 @@ class EntityDeletionService
             if ( $datatype->getIsMasterType() )
                 $this->emm_service->incrementDatatypeMasterRevision($user, $datatype);
 
-            // Ensure that the cached tag hierarchy doesn't reference this datafield
-            $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-            $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
-
-            // Wipe cached data for all the datatype's datarecords
-            $dr_list = $this->search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-            foreach ($dr_list as $dr_id => $parent_dr_id) {
-                $this->cache_service->delete('cached_datarecord_'.$dr_id);
-                $this->cache_service->delete('cached_table_data_'.$dr_id);
+            if ( $typeclass === 'Radio' ) {
+                // Faster to just delete the cached list of default radio options, rather than try to
+                //  figure out specifics
+                $this->cache_service->delete('default_radio_options');
             }
+            else if ( $typeclass === 'Tag' ) {
+                // Ensure that the cached tag hierarchy doesn't reference this datafield
+                $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+                $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+            }
+
+            // Inform that this datafield was deleted
+            try {
+                $event = new DatafieldDeletedEvent($datafield_id, $datafield_uuid, $datatype, $user);
+                $this->event_dispatcher->dispatch(DatafieldDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Mark this datatype as updated
+            try {
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // Also need to rebuild datarecord cache entries in case they reference the datafield
+                $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Reset sort order for the datatypes found earlier
+            foreach ($datatypes_to_reset_order as $num => $dt_id)
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            // Rebuild all cached theme entries the datafield belonged to
+            foreach ($all_datafield_themes as $t)
+                $this->theme_info_service->updateThemeCacheEntry($t->getParentTheme(), $user);
 
             // Wipe cached permission entries for all users affected by this
             foreach ($all_affected_users as $u) {
                 $user_id = $u['user_id'];
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
             }
-
-            // Faster to just delete the cached list of default radio options, rather than try to
-            //  figure out specifics
-            $this->cache_service->delete('default_radio_options');
-
-            // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
-                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
-
-
-            // ----------------------------------------
-            // Mark this datatype as updated
-            $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);
-
-            // Rebuild all cached theme entries the datafield belonged to
-            foreach ($all_datafield_themes as $t)
-                $this->theme_info_service->updateThemeCacheEntry($t->getParentTheme(), $user);
 
         }
         catch (\Exception $e) {
@@ -520,38 +549,48 @@ class EntityDeletionService
 
     /**
      * Deletes a datarecord.
-     * TODO - test this
-     * TODO - EditController only needs to delete one at a time, but MassEditController needs multiple?
+     *
+     * NOTE: changes made here should also be made in MassEditController::massdeleteAction(), though
+     * complete parity won't be possible because of MassEdit's ability to delete multiple records
+     * at once.
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
+     * @param bool $fire_datarecord_modified_event APIController typically doesn't want to fire this event...
      *
      * @throws \Exception
      */
-    public function deleteDatarecord($datarecord, $user)
+    public function deleteDatarecord($datarecord, $user, $fire_datarecord_modified_event = true)
     {
-        throw new ODRNotImplementedException();
-
         $conn = null;
 
         try {
+            // Going to need these
+            $datarecord_id = $datarecord->getId();
+            $datarecord_uuid = $datarecord->getUniqueId();
 
-            // Going to need these...
+
+            // ----------------------------------------
+            // Store whether this was a deletion for a top-level datarecord or not
             $datatype = $datarecord->getDataType();
             $parent_datarecord = $datarecord->getParent();
 
-            // Store whether this was a deletion for a top-level datarecord or not
             $is_top_level = true;
-            if ($datatype->getId() !== $parent_datarecord->getDataType()->getId())
+            if ( $datatype->getId() !== $parent_datarecord->getDataType()->getId() )
                 $is_top_level = false;
 
+
             // ----------------------------------------
-            // Ensure user has permissions to be doing this
-            if ( !$this->pm_service->canEditDatarecord($user, $parent_datarecord) )
-                throw new ODRForbiddenException();
-            if ( !$this->pm_service->canDeleteDatarecord($user, $datatype) )
-                throw new ODRForbiddenException();
-            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with the deletion
+            //  of this datarecord
+            $new_job_data = array(
+                'job_type' => 'delete_datarecord',
+                'target_entity' => $datarecord,
+            );
+
+            $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to delete this Datarecord, as it would interfere with an already running '.$conflicting_job.' job');
 
 
             // ----------------------------------------
@@ -562,9 +601,7 @@ class EntityDeletionService
             $datarecords_to_delete = array();
             $datarecords_to_delete[] = $datarecord->getId();
 
-            while (count($parent_ids) > 0) {
-                // TODO - refactor to use SearchService::getCachedSearchDatarecordList()?
-
+            while ( count($parent_ids) > 0 ) {
                 // Can't use the grandparent datarecord property, because this deletion request
                 //  could be for a datarecord that isn't top-level
                 $query = $this->em->createQuery(
@@ -573,7 +610,7 @@ class EntityDeletionService
                     JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
                     WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
                     AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-                )->setParameters(array('parent_ids' => $parent_ids));
+                )->setParameters( array('parent_ids' => $parent_ids) );
                 $results = $query->getArrayResult();
 
                 $parent_ids = array();
@@ -586,8 +623,6 @@ class EntityDeletionService
             }
 //print '<pre>'.print_r($datarecords_to_delete, true).'</pre>';  exit();
 
-            // TODO - refactor to use DatatreeInfoService::???
-
             // Locate all datarecords that link to any of the datarecords that will be deleted...
             //  they will need to have their cache entries rebuilt
             $query = $this->em->createQuery(
@@ -598,7 +633,7 @@ class EntityDeletionService
                 WHERE ldt.descendant IN (:datarecord_ids)
                 AND ldt.deletedAt IS NULL
                 AND ancestor.deletedAt IS NULL AND gp.deletedAt IS NULL'
-            )->setParameters(array('datarecord_ids' => $datarecords_to_delete));
+            )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
             $results = $query->getArrayResult();
 
             $ancestor_datarecord_ids = array();
@@ -606,25 +641,41 @@ class EntityDeletionService
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
 
+
+            // If the datarecord contains any datafields that are being used as a sortfield for
+            //  other datatypes, then need to clear the default sort order for those datatypes
+            $query = $this->em->createQuery(
+               'SELECT DISTINCT(l_dt.id) AS dt_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
+                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datarecords_to_delete' => $datarecords_to_delete,
+                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $datatypes_to_reset_order = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatypes_to_reset_order[] = $dt_id;
+            }
+
+
             // ----------------------------------------
             // Since this needs to make updates to multiple tables, use a transaction
             $conn = $this->em->getConnection();
             $conn->beginTransaction();
 
-/*
-            // ...delete all datarecordfield entries that reference these datarecords
-            $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordFields AS drf
-                SET drf.deletedAt = :now
-                WHERE drf.dataRecord IN (:datarecord_ids) AND drf.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-*/
+            // TODO - delete datarecordfield entries as well?
+            // TODO - delete radio/tagSelection entries as well?
 
             // ...delete all linked_datatree entries that reference these datarecords
             $query = $this->em->createQuery(
@@ -674,37 +725,66 @@ class EntityDeletionService
 //$conn->rollBack();
             $conn->commit();
 
+
             // -----------------------------------
-            // Mark this now-deleted datarecord's parent (and all its parents) as updated unless
-            //  it was already a top-level datarecord
-            if (!$is_top_level)
-                $this->dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
+            // Fire off an event notifying that this datarecord got deleted
+            try {
+                $event = new DatarecordDeletedEvent($datarecord_id, $datarecord_uuid, $datatype, $user);
+                $this->event_dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // If this was a top-level datarecord that just got deleted...
-            if ($is_top_level) {
-                // ...then ensure no other datarecords think they're still linked to this
-                $this->dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
+            if ( $is_top_level ) {
+                // ...then ensure no other datarecords think they're still linked to it
+                try {
+                    $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user);
+                    $this->event_dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
+            else {
+                // ...if not, then mark this now-deleted datarecord's parent (and all its parents)
+                //  as updated
+                if ( $fire_datarecord_modified_event ) {
+                    try {
+                        $event = new DatarecordModifiedEvent($parent_datarecord, $user);
+                        $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
+                    }
+                }
             }
 
-            // Delete all search cache entries that could reference the deleted datarecords
-            $this->search_cache_service->onDatarecordDelete($datatype);
-            // Force anything that linked to this datatype to rebuild link entries since at least
-            //  one record got deleted
-            $this->search_cache_service->onLinkStatusChange($datatype);
 
-            // Force a rebuild of the cache entries for each datarecord that linked to the records
-            //  that just got deleted
-            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
-                $this->cache_service->delete('cached_datarecord_'.$dr_id);
-                $this->cache_service->delete('cached_table_data_'.$dr_id);
-            }
+            // ----------------------------------------
+            // Reset sort order for the datatypes found earlier
+            foreach ($datatypes_to_reset_order as $num => $dt_id)
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
+            //  plugins will end up requesting new graphs without the files for the deleted records
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
             if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
-            $source = 0x6365473d;
+            $source = 0x1d5d3aaf;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -714,7 +794,7 @@ class EntityDeletionService
 
 
     /**
-     * Deletes a Datatype
+     * Deletes a Datatype.
      *
      * @param DataType $datatype
      * @param ODRUser $user
@@ -727,10 +807,21 @@ class EntityDeletionService
 
         try {
             // Going to need these...
-            $grandparent = $datatype->getGrandparent();
-            if ($grandparent->getDeletedAt() != null)
+            $datatype_id = $datatype->getId();
+            $datatype_uuid = $datatype->getUniqueId();
+
+            $parent_datatype = $datatype->getParent();
+            if ($parent_datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Grandparent Datatype');
-            $grandparent_datatype_id = $grandparent->getId();
+
+            $grandparent_datatype = $datatype->getGrandparent();
+            if ($grandparent_datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Grandparent Datatype');
+            $grandparent_datatype_id = $grandparent_datatype->getId();
+
+            $deleting_top_level_datatype = false;
+            if ( $datatype_id === $grandparent_datatype_id )
+                $deleting_top_level_datatype = true;
 
 
             // --------------------
@@ -742,6 +833,10 @@ class EntityDeletionService
             // Don't directly delete a metadata datatype
             if ( !is_null($datatype->getMetadataFor()) )
                 throw new ODRBadRequestException('Unable to delete a metadata datatype');
+
+            // Don't delete a child datatype when it's derived from a template
+            if ( !$deleting_top_level_datatype && !is_null($datatype->getMasterDataType()) )
+                throw new ODRBadRequestException('Unable to delete a child datatype that is derived from a master template');
 
             // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
 
@@ -763,11 +858,7 @@ class EntityDeletionService
             // Easier to handle updates to the "master_revision" and others before anything gets
             //  deleted...
             if ( $datatype->getIsMasterType() )
-                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype, true);    // don't flush immediately...
-
-            // Even though it's getting deleted, mark this datatype as updated so its parents get
-            //  updated as well
-            $this->dbi_service->updateDatatypeCacheEntry($datatype, $user);    // flushes here
+                $this->emm_service->incrementDatatypeMasterRevision($user, $datatype);
 
 
             // ----------------------------------------
@@ -776,26 +867,25 @@ class EntityDeletionService
             $datatree_array = $this->dti_service->getDatatreeArray();
 
             $tmp = array($datatype->getId() => 0);
-            $datatypes_to_delete = array(0 => $datatype->getId());
+            $datatypes_to_delete = array($datatype->getId() => 0);
 
             // If datatype has metadata, delete metadata
             if ( !is_null($datatype->getMetadataDatatype()) )
-                $datatypes_to_delete[] = $datatype->getMetadataDatatype()->getId();
+                $datatypes_to_delete[ $datatype->getMetadataDatatype()->getId() ] = 0;
 
-            while (count($tmp) > 0) {
+            while ( count($tmp) > 0 ) {
                 $new_tmp = array();
                 foreach ($tmp as $dt_id => $num) {
                     $child_datatype_ids = array_keys($datatree_array['descendant_of'], $dt_id);
                     foreach ($child_datatype_ids as $num => $child_datatype_id) {
                         $new_tmp[$child_datatype_id] = 0;
-                        $datatypes_to_delete[] = $child_datatype_id;
+                        $datatypes_to_delete[$child_datatype_id] = 0;
                     }
-                    unset($tmp[$dt_id]);
+                    unset( $tmp[$dt_id] );
                 }
                 $tmp = $new_tmp;
             }
-            $datatypes_to_delete = array_unique($datatypes_to_delete);
-            $datatypes_to_delete = array_values($datatypes_to_delete);
+            $datatypes_to_delete = array_keys($datatypes_to_delete);
 
             //print '<pre>'.print_r($datatypes_to_delete, true).'</pre>'; exit();
 
@@ -805,7 +895,7 @@ class EntityDeletionService
                 FROM ODRAdminBundle:DataFields AS df
                 WHERE df.dataType IN (:datatype_ids)
                 AND df.deletedAt IS NULL'
-            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
             $results = $query->getArrayResult();
 
             $datafields_to_delete = array();
@@ -815,40 +905,95 @@ class EntityDeletionService
             // If any of the datafields being deleted are being used as a sortfield for other
             //  datatypes, then need to clear the default sort order for those datatypes
             $query = $this->em->createQuery(
-               'SELECT DISTINCT(l_dt.id) AS dt_id
+               'SELECT dt
                 FROM ODRAdminBundle:DataFields AS df
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
                 WHERE df.id IN (:datafields_to_delete) AND dtsf.field_purpose = :field_purpose
-                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
+                AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters(
                 array(
                     'datafields_to_delete' => $datafields_to_delete,
                     'field_purpose' => DataTypeSpecialFields::SORT_FIELD
                 )
             );
-            $results = $query->getArrayResult();
+            $results = $query->getResult();
 
             $datatypes_to_reset_order = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $datatypes_to_reset_order[] = $dt_id;
+            foreach ($results as $dt) {
+                /** @var DataType $dt */
+                $datatypes_to_reset_order[ $dt->getId() ] = $dt;
             }
 
+            // Don't need to fire off resets for datatypes that are getting deleted though
+            foreach ($datatypes_to_delete as $num => $dt_id) {
+                if ( isset($datatypes_to_reset_order[$dt_id]) )
+                    unset( $datatypes_to_reset_order[$dt_id] );
+            }
+
+
+            // ----------------------------------------
+            // Need to also locate any datatypes that link to any of the datatypes being deleted
+            $query = $this->em->createQuery(
+               'SELECT ancestor
+                FROM ODRAdminBundle:DataType AS descendant
+                JOIN ODRAdminBundle:DataTree AS dt WITH dt.descendant = descendant
+                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                WHERE descendant.id IN (:datatypes_to_delete) AND dtm.is_link = 1
+                AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL'
+            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            $results = $query->getResult();
+
+            $linked_ancestor_datatypes = array();
+            foreach ($results as $dt) {
+                /** @var DataType $dt */
+                $linked_ancestor_datatypes[ $dt->getId() ] = $dt;
+
+                // This is for marking those datatype as updated after the link is broken, so don't
+                //  want the grandparent datatypes here
+            }
+
+            // Don't need to update any ancestor datatypes that are getting deleted though
+            foreach ($datatypes_to_delete as $num => $dt_id) {
+                if ( isset($linked_ancestor_datatypes[$dt_id]) )
+                    unset( $linked_ancestor_datatypes[$dt_id] );
+            }
+
+            // Get the ids of all LinkedDataTree entries that need to be deleted
+            $query = $this->em->createQuery(
+               'SELECT ldt.id AS ldt_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids))
+                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $linked_datatrees_to_delete = array();
+            foreach ($results as $ldt)
+                $linked_datatrees_to_delete[ $ldt['ldt_id'] ] = 0;
+            $linked_datatrees_to_delete = array_keys($linked_datatrees_to_delete);
+            // There shouldn't be any duplicates here, since none of the datatypes getting deleted
+            //  can link to each other
+
+
+            // ----------------------------------------
             // Determine all Groups and all Users affected by this
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
                 FROM ODRAdminBundle:Group AS g
                 WHERE g.dataType IN (:datatype_ids)
                 AND g.deletedAt IS NULL'
-            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
             $results = $query->getArrayResult();
 
             $groups_to_delete = array();
             foreach ($results as $result)
-                $groups_to_delete[] = $result['group_id'];
-            $groups_to_delete = array_unique($groups_to_delete);
-            $groups_to_delete = array_values($groups_to_delete);
+                $groups_to_delete[ $result['group_id'] ] = 0;
+            $groups_to_delete = array_keys($groups_to_delete);
 
             //print '<pre>'.print_r($groups_to_delete, true).'</pre>';  exit();
 
@@ -857,7 +1002,7 @@ class EntityDeletionService
                 FROM ODRAdminBundle:UserGroup AS ug
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
-            )->setParameters(array('groups' => $groups_to_delete));
+            )->setParameters( array('groups' => $groups_to_delete) );
             $group_members = $query->getArrayResult();
 
             // Need to separately locate all super_admins, since they're going to need permissions
@@ -885,14 +1030,13 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
                 WHERE tdt.dataType IN (:datatype_ids)
                 AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
-            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
             $results = $query->getArrayResult();
 
             $cached_themes_to_delete = array();
             foreach ($results as $result)
-                $cached_themes_to_delete[] = $result['theme_id'];
-            $cached_themes_to_delete = array_unique($cached_themes_to_delete);
-            $cached_themes_to_delete = array_values($cached_themes_to_delete);
+                $cached_themes_to_delete[ $result['theme_id'] ] = 0;
+            $cached_themes_to_delete = array_keys($cached_themes_to_delete);
 
             //print '<pre>'.print_r($cached_themes_to_delete, true).'</pre>';  exit();
 
@@ -915,70 +1059,15 @@ class EntityDeletionService
              * interpret them correctly.
              */
 
-            // ----------------------------------------
-            // Need to locate all other datatypes that are using any of this soon-to-be-deleted
-            //  datatype's fields as their sort field...since said fields are about to be deleted
-            $query = $this->em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
-                LEFT JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
-                WHERE dtsf.dataField IN (:datafields) AND dtsf.dataType NOT IN (:datatypes)
-                AND dtsf.deletedAt IS NULL'
-            )->setParameters( array('datafields' => $datafields_to_delete, 'datatypes' => $datatypes_to_delete) );
-            $results = $query->getResult();
-
-            /** @var DataType[] $results */
-            foreach ($results as $dt) {
-                // Any datatypes this query finds don't need to be modified, but they do need to
-                //  rebuild their cache entries
-                $this->dbi_service->updateDatatypeCacheEntry($dt, $user);
-            }
-
 
             // ----------------------------------------
-            // Determine which datarecords are going to need to be recached, before the linked
-            //  datatree entries are deleted...
-            $query = $this->em->createQuery(
-               'SELECT DISTINCT(grandparent.id) AS dr_id
-                FROM ODRAdminBundle:DataRecord AS grandparent
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ancestor.grandparent = grandparent
-                JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                WHERE descendant.dataType IN (:datatype_ids)
-                AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
-            $results = $query->getArrayResult();
-
-            $datarecords_to_recache = array();
-            foreach ($results as $result)
-                $datarecords_to_recache[] = $result['dr_id'];
-
-            // Get the ids of all LinkedDataTree entries that need to be deleted
-            $query = $this->em->createQuery(
-               'SELECT ldt.id AS ldt_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                WHERE (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids))
-                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
-            $results = $query->getArrayResult();
-
-            $linked_datatree_ids = array();
-            foreach ($results as $ldt)
-                $linked_datatree_ids[] = $ldt['ldt_id'];
-
-            // Since a datarecord can't link to itself, don't need to worry about duplicates
-
-
             // Delete the LinkedDataTree entries...the query could technically be done a different
             //  way, but this is consistent with the rest of the multi-table updates
             $query_str =
                'UPDATE odr_linked_data_tree AS ldt
                 SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().'
                 WHERE ldt.id IN (?)';
-            $parameters = array(1 => $linked_datatree_ids);
+            $parameters = array(1 => $linked_datatrees_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
@@ -1096,22 +1185,18 @@ class EntityDeletionService
             // ----------------------------------------
             // Get the ids of all DataTree entries that need to be deleted
             $query = $this->em->createQuery(
-               'SELECT ancestor.id AS ancestor_id, dt.id AS dt_id
+               'SELECT dt.id AS dt_id
                 FROM ODRAdminBundle:DataTree AS dt
                 JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
                 JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
                 WHERE (ancestor.id IN (:datatype_ids) OR descendant.id IN (:datatype_ids))
                 AND dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters(array('datatype_ids' => $datatypes_to_delete));
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
             $results = $query->getArrayResult();
 
-            $ancestor_datatype_ids = array();
             $datatree_ids = array();
-            foreach ($results as $dt) {
-                $ancestor_datatype_ids[] = $dt['ancestor_id'];
+            foreach ($results as $dt)
                 $datatree_ids[] = $dt['dt_id'];
-            }
-
             // Shouldn't need to worry about duplicates...
 
             // Delete all Datatree and DatatreeMeta entries
@@ -1183,87 +1268,87 @@ class EntityDeletionService
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
-
-            // ----------------------------------------
-            // Ensure that the cached tag hierarchy doesn't reference this datatype anymore
-            $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
-
-            // Delete cached versions of all Datarecords of this Datatype if needed
-            if ($datatype->getId() == $grandparent_datatype_id) {
-                $query = $this->em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype_id'
-                )->setParameters(array('datatype_id' => $grandparent_datatype_id));
-                $results = $query->getArrayResult();
-
-                //print '<pre>'.print_r($results, true).'</pre>';  exit();
-
-                foreach ($results as $result) {
-                    $dr_id = $result['dr_id'];
-
-                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
-                    $this->cache_service->delete('cached_table_data_'.$dr_id);
-                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
-                }
-            }
-
-
-            // ----------------------------------------
-            // Delete cached versions of datatypes that linked to this Datatype
-            foreach ($ancestor_datatype_ids as $num => $dt_id) {
-                $this->cache_service->delete('cached_datatype_'.$dt_id);
-                $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-            }
-
-            // Delete cached versions of datarecords that linked into this Datatype
-            foreach ($datarecords_to_recache as $num => $dr_id) {
-                $this->cache_service->delete('cached_datarecord_'.$dr_id);
-                $this->cache_service->delete('cached_table_data_'.$dr_id);
-                $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
-            }
-
-
-            // ----------------------------------------
-            // Delete cached permission entries for the users related to this Datatype
-            foreach ($all_affected_users as $user_id)
-                $this->cache_service->delete('user_'.$user_id.'_permissions');
-
-            // ...cached searches
-            $this->search_cache_service->onDatatypeDelete($datatype);
-
-            // ...cached datatype data
-            foreach ($datatypes_to_delete as $num => $dt_id) {
-                $this->cache_service->delete('cached_datatype_'.$dt_id);
-                $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
-
-                $this->cache_service->delete('dashboard_'.$dt_id);
-                $this->cache_service->delete('dashboard_'.$dt_id.'_public_only');
-            }
-
-            // ...cached theme data
-            foreach ($cached_themes_to_delete as $num => $t_id)
-                $this->cache_service->delete('cached_theme_'.$t_id);
-
-
-            // ...and the cached version of the datatree array
-            $this->cache_service->delete('top_level_datatypes');
-            $this->cache_service->delete('top_level_themes');
-            $this->cache_service->delete('cached_datatree_array');
-
-            // Faster to just delete the cached list of default radio options, rather than try to
-            //  figure out specifics
-            $this->cache_service->delete('default_radio_options');
-
-            // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
-                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
-
-
             // ----------------------------------------
             // No error encountered, commit changes
             $conn->commit();
 
+
+            // ----------------------------------------
+            // Notify which datatype got deleted
+            try {
+                $event = new DatatypeDeletedEvent($datatype_id, $datatype_uuid, $user, $deleting_top_level_datatype);
+                $this->event_dispatcher->dispatch(DatatypeDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...unlike most other events, kind of want to throw errors here if they occur
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    throw $e;
+            }
+
+
+            // ----------------------------------------
+            // There could be a lot of datatypes that need updated, so try to reduce the number of
+            //  events fired off
+            $datatypes_needing_events = array();
+
+            // If the datatype that just got deleted was not a top-level...
+            if ( !$deleting_top_level_datatype ) {
+                $datatypes_needing_events[ $parent_datatype->getId() ] = $parent_datatype;
+                // This also means the grandparent datatype will get updated, so the subsequent
+                //  arrays don't need to duplicate that work
+            }
+
+            // If a datatype was using one of the now-deleted fields as a sort field...
+            foreach ($datatypes_to_reset_order as $dt_id => $dt) {
+                // Don't need to directly check $deleting_top_level_datatype here...the only part
+                //  that matters is this if statement
+                if ( $dt_id !== $grandparent_datatype_id )
+                    $datatypes_needing_events[ $dt_id ] = $dt;
+            }
+            // ...or if a datatype linked to one of the now-deleted datatypes
+            foreach ($linked_ancestor_datatypes as $dt_id => $dt) {
+                // Don't need to directly check $deleting_top_level_datatype here...the only part
+                //  that matters is this if statement
+                if ( $dt_id !== $grandparent_datatype_id )
+                    $datatypes_needing_events[ $dt_id ] = $dt;
+            }
+
+            // All these cases need to fire off a modified event for the datatype...
+            foreach ($datatypes_needing_events as $dt_id => $dt) {
+                try {
+                    $event = new DatatypeModifiedEvent($dt, $user, true);    // ...and they all need to rebuild cache entries
+                    $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...unlike most other events, kind of want to throw errors here if they occur
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                        throw $e;
+                }
+            }
+
+            // This cache entry also needs to be deleted when sort fields are changed
+            foreach ($datatypes_to_reset_order as $dt_id => $dt)
+                $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+
+            // This cache entry also needs to be deleted when linked datatypes are changed
+            foreach ($linked_ancestor_datatypes as $dt_id => $dt)
+                $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+
+
+            // ----------------------------------------
+            // Also need to delete cached theme stuff that references these datatypes...
+            foreach ($cached_themes_to_delete as $num => $t_id)
+                $this->cache_service->delete('cached_theme_'.$t_id);
+
+            // ...as well as any permissions
+            foreach ($all_affected_users as $user_id)
+                $this->cache_service->delete('user_'.$user_id.'_permissions');
+
+            // There are a couple other cache entries that might have referenced this datatype
+            $this->cache_service->delete('dashboard_'.$grandparent_datatype_id);
+            $this->cache_service->delete('dashboard_'.$grandparent_datatype_id.'_public_only');
+
+            $this->cache_service->delete('default_radio_options');
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
@@ -1271,6 +1356,187 @@ class EntityDeletionService
                 $conn->rollBack();
 
             $source = 0x1b7df498;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Deletes the given file.
+     *
+     * @param File $file
+     * @param ODRUser $user
+     */
+    public function deleteFile($file, $user)
+    {
+        try {
+            // Going to need these
+            $file_id = $file->getId();
+            $datafield = $file->getDataField();
+            $datarecord = $file->getDataRecord();
+
+
+            // -----------------------------------
+            // Delete the decrypted version of this file from the server, if it exists
+            $file_upload_path = $this->odr_web_dir.'/uploads/files/';
+            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+            $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+            if ( file_exists($absolute_path) )
+                unlink($absolute_path);
+
+            // Delete the file and its current metadata entry
+            $file_meta = $file->getFileMeta();
+            $file_meta->setDeletedAt(new \DateTime());
+            $this->em->persist($file_meta);
+
+            $file->setDeletedBy($user);
+            $file->setDeletedAt(new \DateTime());
+            $this->em->persist($file);
+
+            $this->em->flush();
+
+
+            // -----------------------------------
+            // Notify that a file got deleted...
+            try {
+                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
+                $this->event_dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't particularly want to rethrow the error since it'll interrupt
+                //  everything downstream of the event (such as file encryption...), but
+                //  having the error disappear is less ideal on the dev environment...
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                   throw $e;
+            }
+
+            // ...and that something happened to the datafield...
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // ...and finally that something happened to the datarecord
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xcec4fdf6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Deletes the given image.
+     *
+     * @param Image $image
+     * @param ODRUser $user
+     */
+    public function deleteImage($image, $user)
+    {
+        try {
+            // Ensure this only works on the original image
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
+
+            // Going to need these
+            $datafield = $image->getDataField();
+            $datarecord = $image->getDataRecord();
+
+
+            // -----------------------------------
+            // Load all alternate sizes of the original image (currently just a thumbnail) and delete
+            //  them
+            /** @var Image[] $images */
+            $images = $this->em->getRepository('ODRAdminBundle:Image')->findBy(
+                array('parent' => $image->getId())
+            );
+            foreach ($images as $img) {
+                // Ensure no decrypted version of any of the thumbnails exist on the server
+                $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+                $filename = 'Image_'.$img->getId().'.'.$img->getExt();
+                $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+                if ( file_exists($absolute_path) )
+                    unlink($absolute_path);
+
+                // Delete the alternate sized image from the database
+                $img->setDeletedBy($user);
+                $img->setDeletedAt(new \DateTime());
+                $this->em->persist($img);
+            }
+
+            // Ensure no decrypted version of the original image exists on the server
+            $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+            $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+            if ( file_exists($absolute_path) )
+                unlink($absolute_path);
+
+
+            // Delete the image's meta entry
+            $image_meta = $image->getImageMeta();
+            $image_meta->setDeletedAt(new \DateTime());
+            $this->em->persist($image_meta);
+
+            // Delete the image
+            $image->setDeletedBy($user);
+            $image->setDeletedAt(new \DateTime());
+            $this->em->persist($image);
+
+            $this->em->flush();
+
+
+            // ----------------------------------------
+            // Notify that something happened to the datafield...
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // ...and to the datarecord
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x2d7604fa;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

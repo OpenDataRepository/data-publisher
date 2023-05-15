@@ -202,4 +202,20 @@ abstract class ODRGraphPlugin
             }
         }
     }
+
+    // TODO - is this even useful to have anymore?  it was in DatabaseInfoService, under the function resetDatatypeSortOrder()
+//    public static function deleteCachedGraphsByDatatype($datatype_id)
+//    {
+//        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+//        if ( file_exists($graph_filepath) ) {
+//            $files = scandir($graph_filepath);
+//            foreach ($files as $filename) {
+//                // TODO - assumes linux?
+//                if ($filename === '.' || $filename === '..')
+//                    continue;
+//
+//                unlink($graph_filepath.'/'.$filename);
+//            }
+//        }
+//    }
 }

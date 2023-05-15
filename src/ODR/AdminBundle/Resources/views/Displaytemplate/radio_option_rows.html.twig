@@ -23,6 +23,10 @@
                    size="100"
                    maxlength="255"
                    rel="{{ ro.id }}"
+               {% if datafield.masterDataField is not null %}
+                   disabled
+                   title="Not allowed to modify this option's name, as it is derived from a master template"
+               {% endif %}
             />
 
             <span title="Option is selected by default when a new Record is created">
@@ -31,6 +35,10 @@
                        type="checkbox"
                    {% if ro_meta.isDefault %}
                        checked
+                   {% endif %}
+                   {% if datafield.masterDataField is not null %}
+                       disabled
+                       title="Not allowed to set a default option, as it is derived from a master template"
                    {% endif %}
                 />
                 &nbsp;Default?
