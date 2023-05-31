@@ -3260,7 +3260,11 @@ class ValidationController extends ODRCustomController
                 throw new ODRException('Unable to open dmp file');
 
             // ...still is useful to return how many datarecords will be deleted though
-            print '<html><pre>number of datarecords: '.count($datarecord_ids).'</pre></html>';
+            print
+                '<html>
+                    <pre>number of datarecords: '.count($datarecord_ids).'</pre>
+                    <pre>dmp file written to /app/tmp/user_'.$user->getId().'/purge.dmp</pre>
+                </html>';
 
             // ----------------------------------------
             // Set up the dmp file...
@@ -3414,6 +3418,13 @@ class ValidationController extends ODRCustomController
             }
             else {
                 fprintf($handle, "# No datatypeSpecialField entries to delete\n");
+            }
+
+            if ( !empty($datatype_ids) ) {
+                fprintf($handle, "DELETE FROM odr_stored_search_keys ssk WHERE ssk.data_type_id IN (".implode(',', $datatype_ids).");\n");
+            }
+            else {
+                fprintf($handle, "# No storedSearchKey entries to delete\n");
             }
 
             if ( !empty($datatype_ids) ) {
