@@ -13,7 +13,7 @@ odr_plugins.rruff.amcsd:
         DatarecordCreatedEvent: onDatarecordCreate
         FileDeletedEvent: onFileDeleted
         FilePreEncryptEvent: onFilePreEncrypt
-#        PostMassEditEvent: onPostMassEdit    # TODO - ...don't think i want this firing unless explicitly requested
+#        PostMassEditEvent: onPostMassEdit    # TODO - ...do I want to allow users to trigger this via MassEdit?
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
@@ -131,6 +131,29 @@ odr_plugins.rruff.amcsd:
             type: ShortVarchar
             properties:
                 - no_user_edits
+                - is_derived
+
+        pressure:
+            name: Pressure
+            description: The value of the "Pressure" field in the AMC File
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+        temperature:
+            name: Temperature
+            description: The value of the "Temperature" field in the AMC File
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+
+        chemistry:
+            name: Chemistry
+            description: The value of the "Chemistry" field in the CIF File
+            type: LongVarchar
+            properties:
+                - no_user_edits    # TODO - allow editing?  On one hand, all the chemical formulas lack subscripts...on the other, the CIF File value is "official"...
                 - is_derived
 
         # The following isn't needed for operation of the plugin, but should exist anyways

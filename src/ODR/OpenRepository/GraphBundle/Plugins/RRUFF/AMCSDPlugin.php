@@ -179,7 +179,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $context === 'display'
                 || $context === 'edit'
                 || $context === 'fake_edit'
-//                || $context === 'mass_edit'    // TODO - ...don't think i want this firing unless explicitly requested
+//                || $context === 'mass_edit'    // TODO - ...do I want to allow users to trigger this via MassEdit?
             ) {
                 // ...so execute the render plugin if being called from these contexts
                 return true;
@@ -281,10 +281,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Authors':
                     case 'File Contents':
 
-                    // These three can be edited
+                    // These four can be edited
 //                    case 'amc_file':
 //                    case 'cif_file':
 //                    case 'dif_file':
+//                    case 'reference_file':
 
                     case 'Mineral':
                     case 'a':
@@ -294,7 +295,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'beta':
                     case 'gamma':
                     case 'Space Group':
-                        // None of these fields can be edited, since they come straight from the AMC file
+                    case 'Pressure':
+                    case 'Temperature':
+                        // None of these fields can be edited, since they're from the AMC file
+
+                    case 'Chemistry':
+                        // This field can't be edited, since it's from the CIF file
                         break;
 
                     default:
@@ -413,12 +419,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // If executing from the Display or Edit modes...
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
-                // ...need to check for whether there's a file uploaded to the "AMC File" field, but
-                //  none of the other datafields have a value in them...if so, then there was a
-                //  problem, and an additional themeElement should be inserted to complain
-                if ( self::fileHasProblem($plugin_fields, $datarecord) ) {
+                // ...there's a remote chance that there are files uploaded to the "AMC File" or the
+                //  "CIF File" fields, but none of the relevant datafields have a value in them
+                if ( self::amcFileHasProblem($plugin_fields, $datarecord) ) {
                     // Determine whether the user can edit the "AMC File" datafield
                     $can_edit_relevant_datafield = false;
+                    if ( $is_datatype_admin )
+                        $can_edit_relevant_datafield = true;
+
                     $df_id = array_search('AMC File', $editable_datafields);
                     if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) )
                         $can_edit_relevant_datafield = true;
@@ -426,6 +434,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $error_div = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
                         array(
+                            'rpf_name' => 'AMC File',
+                            'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
+                        )
+                    );
+
+                    $output = $error_div . $output;
+                }
+
+                if ( self::cifFileHasProblem($plugin_fields, $datarecord) ) {
+                    // Determine whether the user can edit the "CIF File" datafield
+                    $can_edit_relevant_datafield = false;
+                    if ( $is_datatype_admin )
+                        $can_edit_relevant_datafield = true;
+
+                    $df_id = array_search('CIF File', $editable_datafields);
+                    if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['edit']) )
+                        $can_edit_relevant_datafield = true;
+
+                    $error_div = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        array(
+                            'rpf_name' => 'CIF File',
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
                         )
                     );
@@ -444,20 +474,21 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * The file uploaded into the "AMC File" field could have a problem...if it does, the event
-     * subscriber should've caught it, and forced all (or hopefully most) of the other plugin fields
-     * to be blank...
+     * Most of the fields defined by this plugin derive their values from a file uploaded into the
+     * "AMC File" field...if there's an error where the values can't be derived, then the user needs
+     * to be notified...
      *
      * @param array $plugin_fields
      * @param array $datarecord
      *
      * @return bool
      */
-    private function fileHasProblem($plugin_fields, $datarecord)
+    private function amcFileHasProblem($plugin_fields, $datarecord)
     {
         $value_mapping = array();
         foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
             // Don't want to have to locate typeclass...
+            unset( $drf['dataField'] );
             unset( $drf['id'] );
             unset( $drf['created'] );
             unset( $drf['image'] );
@@ -484,8 +515,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
-        // If the "AMC file" datafield doesn't have anything uploaded to it, then there can't be
-        //  a problem with the field
+        // Need to locate the "AMC File" datafield...
         $df_id = null;
         foreach ($plugin_fields as $num => $rpf_df) {
             // NOTE - technically $num is the datafield_id, but don't want to overwrite $df_id yet
@@ -494,7 +524,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 break;
             }
         }
-        // Should never not have an "AMC File" datafield...
+        // The "AMC File" field can't have a problem if there is no file uploaded...
         if ( empty($value_mapping[$df_id]) )
             return false;
 
@@ -520,18 +550,64 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         return true;
                     break;
 
-//                case 'fileno':
-//                case 'amc_file':
-//                case 'cif_file':
-//                case 'dif_file':
+//                case 'Pressure':
+//                case 'Temperature':
+                    // These two fields are optional...the AMC file may not have them
+//                break;
+
                 default:
-                    // These fields, or another other field in the datatype, don't matter for the
-                    //  purposes of determining whether the amc file had problems
+                    // Every other field the plugin specifies doesn't matter when trying to determine
+                    //  if the AMC File has problems
                     break;
             }
         }
 
         // Otherwise, all required fields have a value, so there's no problem with the AMC file
+        return false;
+    }
+
+
+    /**
+     * Like the "AMC File" field, the "CIF File" field is used to derive the contents of other
+     * fields...but the "CIF File" only provides the "Chemistry" value.  Still, if there was an
+     * error, then the user needs to be notified...
+     *
+     * @param array $plugin_fields
+     * @param array $datarecord
+     *
+     * @return bool
+     */
+    private function cifFileHasProblem($plugin_fields, $datarecord)
+    {
+        // Due to only needing to touch two fields, it's more efficient to use a slightly different
+        //  access method when dealing with the CIF File
+        $cif_file_df_id = null;
+        $chemistry_df_id = null;
+        foreach ($plugin_fields as $df_id => $rpf_df) {
+            if ( $rpf_df['rpf_name'] === 'CIF File' )
+                $cif_file_df_id = $df_id;
+            else if ( $rpf_df['rpf_name'] === 'Chemistry' )
+                $chemistry_df_id = $df_id;
+        }
+
+
+        // If there's no "CIF File" uploaded, then there can't be a problem with it
+        if ( isset($datarecord['dataRecordFields'][$cif_file_df_id])
+            && empty($datarecord['dataRecordFields'][$cif_file_df_id]['file'])
+        ) {
+            return false;
+        }
+
+        // If there's no storage entity for the "Chemistry" field, then there's a problem
+        if ( !isset($datarecord['dataRecordFields'][$chemistry_df_id]) )
+            return true;
+
+        // If the "Chemistry" field has a blank value, then there's a problem
+        $drf = $datarecord['dataRecordFields'][$chemistry_df_id];
+        if ( empty($drf['longVarchar']) || $drf['longVarchar'][0]['value'] === '' )
+            return true;
+
+        // Otherwise, there is a value in the "Chemistry" field...so there's no problem
         return false;
     }
 
@@ -547,7 +623,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function onFilePreEncrypt(FilePreEncryptEvent $event)
     {
-        $is_event_relevant = false;
+        $relevant_rpf_name = false;
         $local_filepath = null;
 
         // Need these variables defined out here so that the catch block can use them in case
@@ -567,11 +643,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // Only care about a file that get uploaded to the "AMC File" field of a datatype using
             //  the AMCSD render plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
-            if ( $is_event_relevant ) {
+            $relevant_rpf_name = self::isEventRelevant($datafield);
+            if ( $relevant_rpf_name ) {
                 // ----------------------------------------
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'"...', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'", uploaded to the "'.$relevant_rpf_name.'" field...', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
 
                 // Since the file hasn't been encrypted yet, it's currently in something of an odd
                 //  spot as far as ODR files usually go...getLocalFileName() returns a directory
@@ -588,7 +664,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // Need to hydrate the storage entities for each datafield so the values from the
                 //  file can get saved into the database
-                $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord);
+                $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
 
                 // ----------------------------------------
@@ -598,12 +674,23 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ($handle === false)
                     throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
 
-                // Attempt to verify that the file at least looks like an AMC file before trying
-                //  to extract data from it
-                self::checkFile($handle);
+                $value_mapping = array();
+                if ( $relevant_rpf_name === 'AMC File' ) {
+                    // Attempt to verify that the file at least looks like an AMC file before
+                    //  trying to extract data from it
+                    self::checkAMCFile($handle);
 
-                // Extract each piece of data from the file contents
-                $value_mapping = self::readFile($handle);
+                    // Extract each piece of data from the file contents
+                    $value_mapping = self::readAMCFile($handle);
+                }
+                else if ( $relevant_rpf_name === 'CIF File' ) {
+                    // Attempt to verify that the file at least looks like an CIF file before
+                    //  trying to extract data from it
+                    self::checkCIFFile($handle);
+
+                    // Extract each piece of data from the file contents
+                    $value_mapping = self::readCIFFile($handle);
+                }
 
                 // No longer need the file to be open
                 fclose($handle);
@@ -644,7 +731,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             // Can't really display the error to the user yet, but can log it...
             $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
 
-            if ( $is_event_relevant ) {
+            if ( $relevant_rpf_name ) {
                 // If an error was thrown, attempt to ensure the related AMCSD fields are blank
                 self::saveOnError($user, $file, $storage_entities);
             }
@@ -654,8 +741,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         finally {
             // Would prefer if these happened regardless of success/failure...
-            if ( $is_event_relevant ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+            if ( $relevant_rpf_name ) {
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -673,7 +760,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function onFileDeleted(FileDeletedEvent $event)
     {
-        $is_event_relevant = false;
+        $relevant_rpf_name = false;
 
         // Need these variables defined out here so that the catch block can use them in case
         //  of an error
@@ -691,10 +778,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // Only care about a file that get uploaded to the "AMC File" field of a datatype using
             //  the AMCSD render plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
-            if ( $is_event_relevant ) {
-                // This file was deleted from the correct field, so it now needs to be processed
-                $this->logger->debug('Attempting to clear values derived from deleted file...', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+            $relevant_rpf_name = self::isEventRelevant($datafield);
+            if ( $relevant_rpf_name ) {
+                // This file was deleted from a relevant field, so it now needs to be processed
+                $this->logger->debug('Attempting to clear values derived from deleted "'.$relevant_rpf_name.'"...', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
 
                 // ----------------------------------------
                 // Create as much of the mappings as possible, since they could be needed during
@@ -705,12 +792,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // Need to hydrate the storage entities for each datafield so the values from the
                 //  file can get saved into the database
-                $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord);
+                $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
 
                 // ----------------------------------------
                 // Each relevant field required by the render plugin needs to be cleared...
                 foreach ($storage_entities as $df_id => $entity) {
+                    $rpf_name = array_search($df_id, $datafield_mapping);
+
                     /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
                     $this->emm_service->updateStorageEntity(
                         $user,
@@ -719,7 +808,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         true,    // don't flush immediately
                         false    // don't fire PostUpdate event...nothing depends on these fields
                     );
-                    $this->logger->debug('-- updating datafield '.$df_id.' to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                    $this->logger->debug('-- updating datafield '.$df_id.' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
                 }
 
 
@@ -740,8 +829,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         finally {
             // Would prefer if these happened regardless of success/failure...
-            if ( $is_event_relevant ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+            if ( $relevant_rpf_name ) {
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -753,20 +842,18 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * processed by MassEdit...if so, the file is read again, and the values from the file saved
      * into other datafields required by the render plugin.
      *
-     * TODO - ...don't think i want this firing during MassEdit
-     *
      * @param PostMassEditEvent $event
      *
      * @throws \Exception
      */
     public function onPostMassEdit(PostMassEditEvent $event)
     {
-        // This shouldn't be called because the config file doesn't list the event, but make sure
+        // TODO - ...do I want to allow users to trigger this via MassEdit?  disabled for now...
         return;
 
         // Need these variables defined out here so that the catch block can use them in case
         //  of an error
-        $is_event_relevant = false;
+        $relevant_rpf_name = false;
 
         $user = null;
         $datafield = null;
@@ -783,8 +870,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // Only care about a file that get uploaded to the "AMC File" field of a datatype using
             //  the AMCSD render plugin...
-            $is_event_relevant = self::isEventRelevant($datafield);
-            if ( $is_event_relevant ) {
+            $relevant_rpf_name = self::isEventRelevant($datafield);
+            if ( $relevant_rpf_name ) {
                 // ----------------------------------------
                 // This file was uploaded to the correct field, so it now needs to be processed
 
@@ -802,7 +889,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( !empty($tmp) ) {
                     $file = $tmp[0];
                     /** @var File $file */
-                    $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'"...', array(self::class, 'onPostMassEdit()', 'File '.$file->getId()));
+                    $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'" from the "'.$relevant_rpf_name.'"...', array(self::class, 'onPostMassEdit()', 'File '.$file->getId()));
 
 
                     // ----------------------------------------
@@ -814,7 +901,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     // Need to hydrate the storage entities for each datafield so the values from the
                     //  file can get saved into the database
-                    $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord);
+                    $storage_entities = self::hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name);
 
 
                     // ----------------------------------------
@@ -825,12 +912,23 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     if ($handle === false)
                         throw new \Exception('Unable to open existing file at "'.$local_filepath.'"');
 
-                    // Attempt to verify that the file at least looks like an AMC file before trying
-                    //  to extract data from it
-                    self::checkFile($handle);
+                    $value_mapping = array();
+                    if ( $relevant_rpf_name === 'AMC File' ) {
+                        // Attempt to verify that the file at least looks like an AMC file before
+                        //  trying to extract data from it
+                        self::checkAMCFile($handle);
 
-                    // Extract each piece of data from the file contents
-                    $value_mapping = self::readFile($handle);
+                        // Extract each piece of data from the file contents
+                        $value_mapping = self::readAMCFile($handle);
+                    }
+                    else if ( $relevant_rpf_name === 'CIF File' ) {
+                        // Attempt to verify that the file at least looks like an CIF file before
+                        //  trying to extract data from it
+                        self::checkCIFFile($handle);
+
+                        // Extract each piece of data from the file contents
+                        $value_mapping = self::readCIFFile($handle);
+                    }
 
                     // No longer need the file to be open
                     fclose($handle);
@@ -879,8 +977,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         finally {
             // Would prefer if these happened regardless of success/failure...
-            if ( $is_event_relevant ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onPostMassEdit()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+            if ( $relevant_rpf_name ) {
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onPostMassEdit()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -893,7 +991,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      *
      * @param DataFields $datafield
      *
-     * @return bool
+     * @return string|bool
      */
     private function isEventRelevant($datafield)
     {
@@ -909,15 +1007,19 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( isset($rpi['renderPluginMap']['AMC File'])
                     && $rpi['renderPluginMap']['AMC File']['id'] === $datafield->getId()
                 ) {
-                    // ...and the datafield that triggered the onFilePreEncrypt/onFileDeleted event
-                    //  is the "AMC File" datafield
-                    return true;
+                    // ...and the datafield that triggered the event is the "AMC File" datafield
+                    return 'AMC File';
+                }
+                else if ( isset($rpi['renderPluginMap']['CIF File'])
+                    && $rpi['renderPluginMap']['CIF File']['id'] === $datafield->getId()
+                ) {
+                    // ...and the datafield that triggered the event is the "CIF File" datafield
+                    return 'CIF File';
                 }
             }
         }
 
-        // Otherwise, the file got uploaded to some other field (CIF/DIF/etc)...the event needs to
-        //  be ignored
+        // Otherwise, the event is on some other field...the plugin can ignore it
         return false;
     }
 
@@ -965,6 +1067,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'beta':
                 case 'gamma':
                 case 'Space Group':
+                case 'Pressure':
+                case 'Temperature':
+                case 'Chemistry':
                     $datafield_mapping[$rpf_name] = $rpf_df_id;
                     break;
 
@@ -989,14 +1094,27 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param array $datafield_mapping
      * @param ODRUser $user
      * @param DataRecord $datarecord
+     * @param string $relevant_rpf_name
      *
      * @throws \Exception
      *
      * @return array
      */
-    private function hydrateStorageEntities($datafield_mapping, $user, $datarecord)
+    private function hydrateStorageEntities($datafield_mapping, $user, $datarecord, $relevant_rpf_name)
     {
-        // Need hydrated versions of all of these datafields...might as well get them all at once
+        // Need to hydrate various datafields, depending on which File field just got something uploaded...
+        $df_ids = array();
+        foreach ($datafield_mapping as $rpf_name => $df_id) {
+            if ( $relevant_rpf_name === 'AMC File' && $rpf_name === 'Chemistry' ) {
+                // When called on an "AMC File", all fields except "Chemistry" should be hydrated
+                unset( $datafield_mapping[$rpf_name] );
+            }
+            else if ( $relevant_rpf_name === 'CIF File' && $rpf_name !== 'Chemistry' ) {
+                // When called on a "CIF File", only the "Chemistry" field should be hydrated
+                unset( $datafield_mapping[$rpf_name] );
+            }
+        }
+
         $df_ids = array_values($datafield_mapping);
         $query = $this->em->createQuery(
            'SELECT df
@@ -1030,7 +1148,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
 
     /**
-     * Attempts to verify that the given AMC file is at least readable by self::readFile().
+     * Attempts to verify that the given AMC file is at least readable by self::readAMCFile().
      *
      * Verifying with 100% accuracy that it is indeed an AMC file is impossible because of boring
      * computer science reasons.
@@ -1039,7 +1157,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      *
      * @throws \Exception
      */
-    private function checkFile($handle)
+    private function checkAMCFile($handle)
     {
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
@@ -1105,19 +1223,19 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             throw new \Exception("Couldn't find _database_code_amcsd or cellparameters in AMC File");
 
         // Can't technically tell if the file is a valid AMC file or not, but at least it's close
-        //  enough that self::readFile() shouldn't throw an error
+        //  enough that self::readAMCFile() shouldn't throw an error
     }
 
 
     /**
-     * Reads the given opened file, converting its contents into an array that's indexed by the
+     * Reads the given AMC file, converting its contents into an array that's indexed by the
      * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
      *
      * @param resource $handle
      *
      * @return array
      */
-    private function readFile($handle)
+    private function readAMCFile($handle)
     {
         $value_mapping = array();
         $all_lines = array();
@@ -1164,6 +1282,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $value_mapping['gamma'] = $pieces[5];
                 $value_mapping['Space Group'] = $pieces[6];
             }
+            else if ( $line_num > 2 && $database_code_line === -999 ) {
+                // The pressure/temperature are usually before the "_database_code_amcsd" (I think)
+                // ...but aren't on a guaranteed line
+
+                // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
+                //  ...but can also have a tolerance
+                $matches = array();
+                if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $line, $matches) === 1 )
+                    $value_mapping['Pressure'] = $matches[1].' '.$matches[2];
+
+                // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
+                $matches = array();
+                if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $line, $matches) === 1)
+                    $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
+                // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
+                $matches = array();
+                if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $line, $matches) === 1 )
+                    $value_mapping['Temperature'] = $matches[1].' '.$matches[2];
+
+
+                // TODO - I forget whether these values have to be normalized to GPa and K...
+            }
 
             // Save every line from the file, as well
             $all_lines[] = $line;
@@ -1171,6 +1311,86 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Want all file contents in a single field
         $value_mapping['File Contents'] = implode("", $all_lines);
+
+        // Ensure the values are trimmed before they're saved
+        foreach ($value_mapping as $rpf_name => $value)
+            $value_mapping[$rpf_name] = trim($value);
+
+        // All data gathered, return the mapping array
+        return $value_mapping;
+    }
+
+
+    /**
+     * Attempts to verify that the given CIF file is at least readable by self::readCIFFile().
+     *
+     * Verifying with 100% accuracy that it is indeed an CIF file is impossible because of boring
+     * computer science reasons.
+     *
+     * @param resource $handle
+     *
+     * @throws \Exception
+     */
+    private function checkCIFFile($handle)
+    {
+        // Ensure we're at the beginning of the file
+        fseek($handle, 0, SEEK_SET);
+
+        $has_chemistry = false;
+        while ( !feof($handle) ) {
+            $line = fgets($handle);
+
+            // The only requirement this plugin cares about is that the CIF file has a chemistry
+            if ( strpos($line, '_chemical_formula_sum') === 0 ) {
+                $pieces = explode(' ', $line);
+
+                // Need to have at least 2 values in this line
+                if ( count($pieces) <= 2 )
+                    throw new \Exception("Invalid line starting with '_chemical_formula_sum'");
+
+                $has_chemistry = true;
+            }
+        }
+
+        // If it didn't find the chemistry line, then it can't be valid
+        if ( !$has_chemistry )
+            throw new \Exception("Couldn't find _chemical_formula_sum in CIF File");
+
+        // Can't technically tell if the file is a valid CIF file or not, but at least it's close
+        //  enough that self::readCIFFile() shouldn't throw an error
+    }
+
+
+    /**
+     * Reads the given CIF file, converting its contents into an array that's indexed by the
+     * "name" property of the fields defined in the "required_fields" section of AMCSDPlugin.yml
+     *
+     * @param resource $handle
+     *
+     * @return array
+     */
+    private function readCIFFile($handle)
+    {
+        $value_mapping = array();
+
+        // Ensure we're at the beginning of the file
+        fseek($handle, 0, SEEK_SET);
+        while ( !feof($handle) ) {
+            $line = fgets($handle);
+
+            // The line starting with "_chemical_formula_sum " is the important one...
+            if ( strpos($line, '_chemical_formula_sum') === 0 ) {
+                $space = strpos($line, ' ');
+                $formula = trim( substr($line, $space+1) );
+
+                // The formula *should* have single quotes around it...get rid of them
+                $formula = substr($formula, 1, -1);
+                $value_mapping['Chemistry'] = $formula;
+
+                // Don't need to keep looking
+                break;
+            }
+        }
 
         // Ensure the values are trimmed before they're saved
         foreach ($value_mapping as $rpf_name => $value)
@@ -1413,6 +1633,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $beta_df_id = $render_plugin_map['beta']['id'];
         $gamma_df_id = $render_plugin_map['gamma']['id'];
         $space_group_df_id = $render_plugin_map['Space Group']['id'];
+        $pressure_df_id = $render_plugin_map['Pressure']['id'];
+        $temperature_df_id = $render_plugin_map['Temperature']['id'];
+
+        // ...but there's one field that's supposed to come from the "CIF File" field
+        $cif_file_df_id = $render_plugin_map['CIF File']['id'];
+        $chemistry_df_id = $render_plugin_map['Chemistry']['id'];
+
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
         //  to be in an array (even though that's not the case for this Plugin)
@@ -1428,6 +1655,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $beta_df_id => array($amc_file_df_id),
             $gamma_df_id => array($amc_file_df_id),
             $space_group_df_id => array($amc_file_df_id),
+            $pressure_df_id => array($amc_file_df_id),
+            $temperature_df_id => array($amc_file_df_id),
+
+            $chemistry_df_id => array($cif_file_df_id),
         );
     }
 
@@ -1441,22 +1672,28 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
-        // TODO - ...don't think i want this firing unless explicitly requested
+        // TODO - ...do I want to allow users to trigger this via MassEdit?
         return array();
 
         if ( !isset($render_plugin_instance['renderPluginMap']) )
             throw new ODRException('Invalid plugin config');
 
-        // Only want to override the "AMC File" field in this plugin...
+        // Only interested in overriding datafields mapped to these rpf entries
+        $relevant_datafields = array(
+            'AMC File' => 1,
+            'CIF File' => 1,
+        );
+
+        $ret = array(
+            'label' => $render_plugin_instance['renderPlugin']['pluginName'],
+            'fields' => array()
+        );
+
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
-            if ( $rpf_name === 'AMC File' ) {
-                return array(
-                    'label' => $render_plugin_instance['renderPlugin']['pluginName'],
-                    'fields' => array($rpf['id'] => 1)
-                );
-            }
+            if ( isset($relevant_datafields[$rpf_name]) )
+                $ret['fields'][ $rpf['id'] ] = 1;
         }
 
-        return array();
+        return $ret;
     }
 }
