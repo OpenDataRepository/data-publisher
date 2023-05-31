@@ -113,9 +113,11 @@ class FilePostEncryptEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
+        $typeclass = $this->datafield->getFieldType()->getTypeClass();
+
         return array(
             self::NAME,
-            'file '.$this->file->getId(),
+            $typeclass.' '.$this->file->getId(),
             'df '.$this->datafield->getId(),
         );
     }

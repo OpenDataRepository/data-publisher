@@ -69,7 +69,7 @@ odr_plugins.rruff.chemistry_analysis:
             description:
             type: Image
             properties:
-                - single_uploads_only
+#                - single_uploads_only    # More recent chemistry entries have more than one image
 
         microprobe_file:
             name: Microprobe Data
