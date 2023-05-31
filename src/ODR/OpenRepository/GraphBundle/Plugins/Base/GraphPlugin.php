@@ -25,9 +25,9 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 // Symfony
+use Pheanstalk\Pheanstalk;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
-use Pheanstalk\Pheanstalk;
 // Other
 use Ramsey\Uuid\Uuid;
 
@@ -45,8 +45,15 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      */
     private $crypto_service;
 
-    /** @var Pheanstalk\Pheanstalk */
+    /**
+     * @var Pheanstalk
+     */
     private $pheanstalk;
+
+    /**
+     * @var string
+     */
+    private $odr_tmp_directory;
 
     /**
      * @var string
@@ -54,10 +61,9 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     private $odr_web_directory;
 
     /**
-     * @var string
+     * @var Logger
      */
     private $logger;
-
 
 
     /**
@@ -65,6 +71,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
+     * @param Pheanstalk $pheanstalk
      * @param string $odr_tmp_directory
      * @param string $odr_web_directory
      * @param Logger $logger
@@ -81,6 +88,8 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
+        $this->pheanstalk = $pheanstalk;
+        $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
         $this->logger = $logger;
     }

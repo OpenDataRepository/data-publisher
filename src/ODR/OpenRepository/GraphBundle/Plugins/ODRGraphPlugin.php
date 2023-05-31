@@ -16,10 +16,10 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 // Symfony
+use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
-use Pheanstalk\Pheanstalk;
 
 
 abstract class ODRGraphPlugin
@@ -29,7 +29,9 @@ abstract class ODRGraphPlugin
      */
     private $templating;
 
-    /** @var Pheanstalk */
+    /**
+     * @var Pheanstalk
+     */
     private $pheanstalk;
 
     /**
@@ -43,7 +45,7 @@ abstract class ODRGraphPlugin
     private $odr_web_directory;
 
     /**
-     * @var string
+     * @var Logger
      */
     private $logger;
 

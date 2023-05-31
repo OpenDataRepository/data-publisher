@@ -28,8 +28,10 @@ services:
         arguments:
             $templating: '@templating'
             $crypto_service: '@odr.crypto_service'
+            $pheanstalk: '@pheanstalk'
             $odr_tmp_directory: '%odr_tmp_directory%'
             $odr_web_directory: '%odr_web_directory%'
+            $logger: "@logger"
 
     odr_plugins.base.map:
         class: '%odr_plugin_base_classpath%\Base\MapPlugin'

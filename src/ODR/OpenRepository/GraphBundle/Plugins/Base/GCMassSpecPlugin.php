@@ -27,6 +27,8 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 // Symfony
+use Pheanstalk\Pheanstalk;
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
@@ -46,9 +48,24 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     private $crypto_service;
 
     /**
+     * @var Pheanstalk
+     */
+    private $pheanstalk;
+
+    /**
+     * @var string
+     */
+    private $odr_tmp_directory;
+
+    /**
      * @var string
      */
     private $odr_web_directory;
+
+    /**
+     * @var Logger
+     */
+    private $logger;
 
 
     /**
@@ -56,20 +73,27 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
+     * @param Pheanstalk $pheanstalk
      * @param string $odr_tmp_directory
      * @param string $odr_web_directory
+     * @param Logger $logger
      */
     public function __construct(
         EngineInterface $templating,
         CryptoService $crypto_service,
+        Pheanstalk $pheanstalk,
         string $odr_tmp_directory,
-        string $odr_web_directory
+        string $odr_web_directory,
+        Logger $logger
     ) {
-        parent::__construct($templating, $odr_tmp_directory, $odr_web_directory);
+        parent::__construct($templating, $pheanstalk, $odr_tmp_directory, $odr_web_directory, $logger);
 
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
+        $this->pheanstalk = $pheanstalk;
+        $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
+        $this->logger = $logger;
     }
 
 
