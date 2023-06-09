@@ -1295,7 +1295,7 @@ class DatarecordInfoService
                 // Need to check whether the datafield has the "no_user_edits" or "is_derived"
                 //  properties from a render plugin
                 if ( !empty($df['renderPluginInstances']) ) {
-                    foreach ($df['renderPluginInstances'] as $num => $rpi) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         // Datafield plugins are guaranteed to have a single renderPluginMap entry,
                         //  but don't know what the renderPluginField name is
                         foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
@@ -1312,7 +1312,7 @@ class DatarecordInfoService
 
                 // ...and also check from a datatype plugin
                 if ( !empty($dt['renderPluginInstances']) ) {
-                    foreach ($dt['renderPluginInstances'] as $num => $rpi) {
+                    foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                         foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                             if ( $rpf['id'] === $df_id ) {
                                 // This datafield is being used by a datatype plugin...

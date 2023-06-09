@@ -1,10 +1,10 @@
 odr_plugins.chemin.chemin_analog:
     name: Chemin Analog Plugin
     category: Chemin
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.2.0
-    override_fields: truea
+    override_fields: true
     override_field_reload: false
     override_child: false
     override_table_fields: false

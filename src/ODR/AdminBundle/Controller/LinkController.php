@@ -301,6 +301,8 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a non-empty ThemeElement');
             if ( $theme_element->getThemeDataType()->count() > 0 )
                 throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a non-empty ThemeElement');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a non-empty ThemeElement');
 
             // Not allowed to link to self
             if ( $local_datatype->getId() === $template_datatype->getId() )
@@ -843,8 +845,13 @@ class LinkController extends ODRCustomController
             // Ensure there are no datafields in this theme_element before attempting to link to a remote datatype
             if ( $theme_element->getThemeDataFields()->count() > 0 )
                 throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
+            // Ensure the themeElement isn't being used by a RenderPlugin
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that is being used by a RenderPlugin');
+
             // Can't throw an error if there's a ThemeDatatype entry, since this function could be
             //  getting called to remove an existing link to a remote datatype
+
 
             // TODO - get the feeling like there should be more restrictions on what metadata datatypes can link to...
             if ( !is_null($new_remote_datatype) ) {

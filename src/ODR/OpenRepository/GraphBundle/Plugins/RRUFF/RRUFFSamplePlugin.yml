@@ -1,25 +1,28 @@
 odr_plugins.rruff.rruff_sample:
     name: RRUFF Sample Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.0.0
     override_fields: true
     override_field_reload: false
     override_child: false
     override_table_fields: false
-    description: TODO
+    description: This plugin attempts to automatically increment the Sample ID field for the RRUFF Sample database.
     registered_events:
-    required_fields:
+        DatarecordCreatedEvent: onDatarecordCreate
 
-        # ----------------------------------------
-        # These fields are temporary...they only exist to make it easier to import
+    required_fields:
         sample_id:
             name: Sample ID
             description:
-            type: ShortVarchar
+            type: IntegerValue
             properties:
+                - autogenerate_values
                 - must_be_unique
+
+        # ----------------------------------------
+        # These fields are temporary...they only exist to make it easier to import
         rruff_id:
             name: RRUFF ID
             description:
@@ -64,6 +67,5 @@ odr_plugins.rruff.rruff_sample:
             name: Sample Files
             description:
             type: File
-
 
     config_options:

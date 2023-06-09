@@ -474,7 +474,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Locate the relevant render plugin instance
         $rpm_entries = null;
-        foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $rpm_entries = $rpi['renderPluginMap'];
                 break;
@@ -970,7 +970,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 //            'End Member Formula' => 'End Member Elements',
         );
 
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                     if ( isset($relevant_datafields[$rpf_name]) && $rpf['id'] === $datafield->getId() ) {
@@ -1009,7 +1009,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $df_id = $rpi['renderPluginMap'][$destination_rpf_name]['id'];
                 break;
@@ -1378,7 +1378,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         if ( isset($datatype_array['descendants']) ) {
             foreach ($datatype_array['descendants'] as $dt_id => $tmp) {
                 $dt = $tmp['datatype'][$dt_id];
-                foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     $rp = $rpi['renderPlugin'];
                     if ( $rp['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
                         // ...it does, so save some useful pieces of data
@@ -1405,7 +1405,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // Need to locate the renderPluginMapping for the IMA database, in order to find the
             //  ids for the Reference A/B datafields
             $rpm = array();
-            foreach ($datatype_array['renderPluginInstances'] as $num => $rpi) {
+            foreach ($datatype_array['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' )
                     $rpm = $rpi['renderPluginMap'];
             }

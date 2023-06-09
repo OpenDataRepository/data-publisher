@@ -124,7 +124,7 @@ class FileRenamerController extends ODRCustomController
             if ( isset($dt['dataFields']) && isset($dt['dataFields'][$datafield->getId()]) ) {
                 $df = $dt['dataFields'][$datafield->getId()];
                 if ( isset($df['renderPluginInstances']) ) {
-                    foreach ($df['renderPluginInstances'] as $num => $rpi) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                             // Datafield is using the correct plugin...
                             $plugin_classname = 'odr_plugins.base.file_renamer';

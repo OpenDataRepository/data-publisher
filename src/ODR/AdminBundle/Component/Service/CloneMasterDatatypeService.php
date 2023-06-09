@@ -84,6 +84,9 @@ class CloneMasterDatatypeService
      */
     private $event_dispatcher;
 
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+
     /**
      * @var UserManagerInterface
      */
@@ -117,7 +120,7 @@ class CloneMasterDatatypeService
     private $master_datatype;
 
     /**
-     * @var DataType[]
+     * @var int[]
      */
     private $associated_datatypes = array();
 
@@ -145,6 +148,11 @@ class CloneMasterDatatypeService
      * @var DataTypeSpecialFields[]
      */
     private $dtsf_mapping = array();
+
+    /**
+     * @var RenderPluginInstance[]
+     */
+    private $rpi_mapping = array();
 
     /**
      * @var DataType[]
@@ -458,15 +466,14 @@ class CloneMasterDatatypeService
             // Clone all themes for this master template...
             $this->logger->info('----------------------------------------');
             // self::cloneTheme($this->master_datatype);
-            $this
-                ->clone_master_template_theme_service
-                ->cloneTheme(
-                    $this->user,
-                    $this->dt_mapping,
-                    $this->df_mapping,
-                    $this->associated_datatypes
-                );
-            $this->logger->info('CloneMasterDatatypeService: all themes cloned');
+            $this->clone_master_template_theme_service->cloneTheme(
+                $this->user,
+                $this->dt_mapping,
+                $this->df_mapping,
+                $this->associated_datatypes,
+                $this->rpi_mapping
+            );
+            $this->logger->info('CloneMasterTemplateThemeService: all themes cloned');
 
             // ----------------------------------------
             // Clone Datatree and DatatreeMeta entries
@@ -579,9 +586,6 @@ class CloneMasterDatatypeService
             try {
                 foreach ($this->created_datatypes as $dt) {
                     if ( $dt->getId() === $dt->getGrandparent()->getId() ) {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
                         $event = new DatatypeCreatedEvent($datatype, $this->user);
                         $this->event_dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
                     }
@@ -608,7 +612,7 @@ class CloneMasterDatatypeService
                 $this->em->flush();
             }
 
-            $this->logger->debug('CLONE DT EXCEPTION: '.$e->getMessage());
+            $this->logger->debug('CLONE DT EXCEPTION ('.$e->getFile().' line '.$e->getLine().'): '.$e->getMessage());
             return $e->getMessage();
         }
     }
@@ -1344,7 +1348,9 @@ class CloneMasterDatatypeService
                 $new_rpi->setDataField(null);
 
                 self::persistObject($new_rpi, true);    // don't flush immediately...
-                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datatype "'.$derived_datatype->getShortName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datatype "'.$derived_datatype->getShortName().'"');
+
+                $this->rpi_mapping[ $master_rpi->getId() ] = $new_rpi;
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
                 self::cloneRenderPluginSettings($master_rpi, $new_rpi, $derived_datatype, null);
@@ -1364,7 +1370,9 @@ class CloneMasterDatatypeService
                 $new_rpi->setDataField($derived_datafield);
 
                 self::persistObject($new_rpi, true);    // don't flush immediately...
-                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datafield "'.$derived_datafield->getFieldName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_instance '.$master_rpi->getId().', attached to newly cloned datafield "'.$derived_datafield->getFieldName().'"');
+
+                $this->rpi_mapping[ $master_rpi->getId() ] = $new_rpi;
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
                 self::cloneRenderPluginSettings($master_rpi, $new_rpi, null, $derived_datafield);
@@ -1392,7 +1400,7 @@ class CloneMasterDatatypeService
             $new_rpom->setRenderPluginInstance($derived_rpi);
             self::persistObject($new_rpom, true);    // don't flush immediately...
 
-            $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_option '.$parent_rpom->getId().' "'.$parent_rpom->getRenderPluginOptionsDef()->getDisplayName().'" => "'.$parent_rpom->getValue().'"');
+            $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_option '.$parent_rpom->getId().' "'.$parent_rpom->getRenderPluginOptionsDef()->getDisplayName().'" => "'.$parent_rpom->getValue().'"');
         }
 
         // Clone each field mapping defined for this renderPluginInstance
@@ -1412,11 +1420,14 @@ class CloneMasterDatatypeService
                 $new_rpfm->setDataField($matching_df);
 
                 self::persistObject($new_rpfm, true);    // These don't need to be flushed/refreshed immediately...
-                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
+                $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", attached to datafield "'.$matching_df->getFieldName().'" of datatype "'.$matching_df->getDataType()->getShortName().'"');
             }
             else {
-                $this->logger->debug('CloneMasterDatatypeService: -- -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
+                $this->logger->debug('CloneMasterDatatypeService: -- cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
             }
         }
+
+        // NOTE: unlike CloneTemplateService, the theme stuff doesn't exist at this point in time...
+        // ...so the themeRenderPluginInstance stuff can't be cloned here
     }
 }

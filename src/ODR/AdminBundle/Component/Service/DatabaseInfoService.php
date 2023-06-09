@@ -695,8 +695,16 @@ class DatabaseInfoService
             }
         }
 
-        // Done cleaning the render plugin data
-        return $render_plugin_instances;
+        // It's slightly better to organize the renderPluginInstance entries by id instead of by
+        //  database order because of ThemeRenderPluginInstances
+        $tmp = array();
+        foreach ($render_plugin_instances as $rpi_num => $rpi) {
+            $rpi_id = $rpi['id'];
+            $tmp[$rpi_id] = $rpi;
+        }
+
+        // Don't need to do anything else to the render plugin data
+        return $tmp;
     }
 
 

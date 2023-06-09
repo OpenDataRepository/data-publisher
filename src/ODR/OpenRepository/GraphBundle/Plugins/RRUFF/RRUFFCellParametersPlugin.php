@@ -1042,7 +1042,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         // Locate the relevant render plugin instance
         $rpm_entries = null;
-        foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
                 $rpm_entries = $rpi['renderPluginMap'];
                 break;
@@ -1466,7 +1466,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             'Space Group' => 'Lattice',
         );
 
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                     if ( isset($relevant_datafields[$rpf_name]) && $rpf['id'] === $datafield->getId() ) {
@@ -1505,7 +1505,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
                 $df_id = $rpi['renderPluginMap'][$destination_rpf_name]['id'];
                 break;

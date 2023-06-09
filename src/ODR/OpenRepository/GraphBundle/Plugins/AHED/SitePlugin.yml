@@ -1,7 +1,7 @@
 odr_plugins.ahed.site:
     name: Site Identifier Plugin
     category: AHED
-    datatype: true
+    plugin_type: datatype
     render: false
     version: 1.3.0
     override_fields: false

@@ -1,7 +1,7 @@
 odr_plugins.base.graph:
     name: Graph Plugin
     category: Base
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.5.0
     override_fields: false

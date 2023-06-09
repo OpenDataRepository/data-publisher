@@ -110,7 +110,7 @@ class RRUFFCellparamsController extends ODRCustomController
             $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
             $dt = $dt_array[$datatype->getId()];
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
                     $found_plugin = true;
 

@@ -148,7 +148,7 @@ class GraphController extends ODRCustomController
             // The datatype could technically have multiple render plugins, but since the graph plugin
             //  is set to "render: true", there should only be one of them
             $render_plugin_instance = null;
-            foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
                 $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
                 if ( $plugin_classname === 'odr_plugins.base.graph'
                     || $plugin_classname === 'odr_plugins.base.gcms'

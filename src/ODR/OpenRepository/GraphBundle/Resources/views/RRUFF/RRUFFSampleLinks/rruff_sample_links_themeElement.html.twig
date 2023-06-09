@@ -1,0 +1,17 @@
+{% spaceless %}
+
+<div style="margin: 5px 10px;">
+{% if structural_group_value != '' %}
+    <div>
+        <b>Mineral Group:</b> [ <a href="#{{ structural_group_search_url }}">{{ structural_group_value }}</a> ]
+    </div>
+{% endif %}
+
+{% if mineral_name_value != '' %}
+    <div>
+        <b>Quick Search:</b> [ <a href="#{{ mineral_search_url }}">All {{ mineral_name_value }} samples</a> ]
+    </div>
+{% endif %}
+</div>
+
+{% endspaceless %}

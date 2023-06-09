@@ -15,6 +15,21 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
+    odr_plugins.rruff.cell_parameters:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFCellParametersPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $lock_service: "@odr.lock_service"
+            $event_dispatcher: "@event_dispatcher"
+            $token_manager: "@security.csrf.token_manager"
+            $templating: "@templating"
+            $logger: "@logger"
+
     odr_plugins.rruff.ima:
         class: '%odr_plugin_base_classpath%\RRUFF\IMAPlugin'
         arguments:
@@ -32,6 +47,12 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
+    odr_plugins.rruff.pin_data:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
+        arguments:
+            $templating: "@templating"
+            $logger: "@logger"
+
     odr_plugins.rruff.rruff_references:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFReferencesPlugin'
         arguments:
@@ -43,15 +64,11 @@ services:
             $templating: "@templating"
             $logger: "@logger"
 
-    odr_plugins.rruff.cell_parameters:
-        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFCellParametersPlugin'
+    odr_plugins.rruff.rruff_sample:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $database_info_service: "@odr.database_info_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
-            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
@@ -60,19 +77,16 @@ services:
 
 
     # ----------------------------------------
-    odr_plugins.rruff.pin_data:
-        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
+    odr_plugins.rruff.rruff_sample_links:
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleLinksPlugin'
         arguments:
+            $search_key_service: "@odr.search_key_service"
+            $router: "@router"
             $templating: "@templating"
             $logger: "@logger"
 
 
     # ----------------------------------------
-    odr_plugins.rruff.rruff_sample:
-        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
-        arguments:
-            $logger: "@logger"
-
     odr_plugins.rruff.chemistry_analysis:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFChemistryAnalysisPlugin'
         arguments:

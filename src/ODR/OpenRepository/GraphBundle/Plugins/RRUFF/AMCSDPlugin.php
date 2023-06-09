@@ -1001,7 +1001,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         if ( !isset($dt_array[$datatype->getId()]['renderPluginInstances']) )
             return false;
 
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.amcsd' ) {
                 // Datatype is using the correct plugin...
                 if ( isset($rpi['renderPluginMap']['AMC File'])
@@ -1042,7 +1042,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // The datatype could be using multiple render plugins, so need to find the mapping specifically
         //  for the AMCSD plugin...it's already verified to exist due to self::isEventRelevant()
         $renderPluginMap = null;
-        foreach( $dt['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach( $dt['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.amcsd' ) {
                 $renderPluginMap = $rpi['renderPluginMap'];
                 break;

@@ -243,7 +243,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         if ( !isset($df['renderPluginInstances']) )
             return false;
 
-        foreach ($df['renderPluginInstances'] as $num => $rpi) {
+        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                 // Datafield is using the correct plugin...
                 return true;
@@ -297,7 +297,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         //  datafield in question
         if ( !empty($df['renderPluginInstances']) ) {
             // The datafield could have more than one renderPluginInstance
-            foreach ($df['renderPluginInstances'] as $num => $rpi) {
+            foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                     // Need to know both the value for the separator and the period substitute...
                     $separator = trim($rpi['renderPluginOptionsMap']['separator']);

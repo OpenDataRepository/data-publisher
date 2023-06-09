@@ -24,9 +24,11 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeRenderPluginInstance;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
@@ -101,6 +103,9 @@ class CloneTemplateService
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var Logger
@@ -1038,8 +1043,6 @@ class CloneTemplateService
             // Since the job is now done (in theory), delete all search cache entries
             //  relevant to this datatype
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 $event = new DatatypeImportedEvent($dt, $user);
                 $this->event_dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
             }
@@ -1618,7 +1621,7 @@ class CloneTemplateService
                     }
 
                     // Clone all render plugins for the newly created datafield
-                    self::cloneRenderPlugins($indent_text, $user, null, $new_df);
+                    self::cloneRenderPlugins($indent_text, $user, null, null, $new_df);
                 }
 
                 $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();
@@ -2098,7 +2101,8 @@ class CloneTemplateService
                     //  plugin and the external_id/name/sort/etc fields...this can't be done earlier
                     //  because the datafields don't exist until after self::syncDatatype() gets
                     //  called
-                    self::cloneRenderPlugins($indent_text, $user, $derived_child_datatype, null);
+                    $derived_child_theme = $this->ti_service->getDatatypeMasterTheme($derived_child_datatype->getId());
+                    self::cloneRenderPlugins($indent_text, $user, $derived_child_theme, $derived_child_datatype, null);
 
                     // Need to set the external_id fields for the new datatype...
                     $child_properties = array();
@@ -2150,10 +2154,11 @@ class CloneTemplateService
      *
      * @param string $indent_text
      * @param ODRUser $user
+     * @param Theme|null $derived_theme Will only exist when $derived_datatype exists
      * @param DataType|null $derived_datatype
      * @param DataFields|null $derived_datafield
      */
-    private function cloneRenderPlugins($indent_text, $user, $derived_datatype, $derived_datafield)
+    private function cloneRenderPlugins($indent_text, $user, $derived_theme, $derived_datatype, $derived_datafield)
     {
         // Need to have either a datatype or a datafield...
         if ( is_null($derived_datatype) && is_null($derived_datafield) )
@@ -2179,7 +2184,7 @@ class CloneTemplateService
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$master_rpi->getId());
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
-                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, $derived_datatype, null);
+                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, $derived_theme, $derived_datatype, null);
             }
         }
         else {
@@ -2199,7 +2204,7 @@ class CloneTemplateService
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$master_rpi->getId());
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
-                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, null, $derived_datafield);
+                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, null, null, $derived_datafield);
             }
         }
     }
@@ -2209,14 +2214,19 @@ class CloneTemplateService
      * Clones the renderPluginOptionsMap and renderPlugin(Field)Map entries from the given master
      * renderPluginInstance into the given derived renderPluginInstance.
      *
+     * Also clones any themeRenderPluginInstances required...though due to this service focusing on
+     * datatypes/datafield content while mostly ignoring individual themeElements, cloning these
+     * themeRenderPluginInstance entries can't be guaranteed to 100% match up with the master template.
+     *
      * @param string $indent_text
      * @param ODRUser $user
      * @param RenderPluginInstance $master_rpi
      * @param RenderPluginInstance $derived_rpi
+     * @param Theme|null $derived_theme Will only exist when $derived_datatype exists
      * @param DataType|null $derived_datatype
      * @param DataFields|null $derived_datafield
      */
-    private function cloneRenderPluginSettings($indent_text, $user, $master_rpi, $derived_rpi, $derived_datatype, $derived_datafield)
+    private function cloneRenderPluginSettings($indent_text, $user, $master_rpi, $derived_rpi, $derived_theme, $derived_datatype, $derived_datafield)
     {
         // Clone each option mapping defined for this renderPluginInstance
         /** @var RenderPluginOptionsMap[] $parent_rpom_array */
@@ -2250,6 +2260,40 @@ class CloneTemplateService
             }
             else {
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
+            }
+        }
+
+        // If this is a datatype plugin, then check whether any themeRenderPluginInstance entries
+        //  need to be cloned
+        if ( !is_null($derived_datatype) && !is_null($derived_theme) ) {
+            /** @var ThemeRenderPluginInstance[] $parent_trpi_array */
+            $parent_trpi_array = $master_rpi->getThemeRenderPluginInstance();
+            foreach ($parent_trpi_array as $master_trpi) {
+                // Only want to clone the themeRenderPluginInstances attached to the master theme
+                //  of the master datatype...
+                $master_te = $master_trpi->getThemeElement();
+                $master_t = $master_te->getTheme();
+                if ( $master_t->getId() === $master_t->getSourceTheme()->getId()
+                    && $master_t->getThemeType() === 'master'
+                ) {
+                    // Need to clone the relevant themeElement from the master theme...
+                    $new_te = clone $master_te;
+                    $new_te->setTheme($derived_theme);
+                    self::persistObject($new_te, $user, true);    // don't flush immediately...
+
+                    $new_te_meta = clone $master_te->getThemeElementMeta();
+                    $new_te_meta->setThemeElement($new_te);
+                    self::persistObject($new_te_meta, $user, true);    // don't flush immediately...
+
+                    // ...so a clone of the master themeRenderPluginInstance can be set to use the
+                    //  derived renderPluginInstance
+                    $new_trpi = clone $master_trpi;
+                    $new_trpi->setThemeElement($new_te);
+                    $new_trpi->setRenderPluginInstance($derived_rpi);
+                    self::persistObject($new_trpi, $user, true);    // don't flush immediately...
+
+                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned theme_element '.$master_te->getId().' to hold a themeRenderPluginInstance entry required by renderPluginInstance '.$master_rpi->getId().' for RenderPlugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'"');
+                }
             }
         }
     }

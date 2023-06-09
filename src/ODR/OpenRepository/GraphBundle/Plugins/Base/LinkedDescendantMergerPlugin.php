@@ -147,7 +147,7 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
 
         if ( !empty($dt['renderPluginInstances']) ) {
             // The datatype could haev more than one renderPluginInstance
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.linked_descendant_merger' ) {
                     $plugin_config = trim( $rpi['renderPluginOptionsMap']['plugin_config'] );
 

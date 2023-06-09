@@ -1,7 +1,7 @@
 odr_plugins.rruff.pin_data:
     name: RRUFF Pin Data Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.0.0
     override_fields: true

@@ -631,7 +631,8 @@ class ThemeInfoService
 
                 te, tem,
                 tdf, partial df.{id},
-                tdt, partial c_dt.{id}, partial c_t.{id}
+                tdt, partial c_dt.{id}, partial c_t.{id},
+                trpi, partial rpi.{id}
 
             FROM ODRAdminBundle:Theme AS t
             LEFT JOIN t.themeMeta AS tm
@@ -652,6 +653,9 @@ class ThemeInfoService
             LEFT JOIN te.themeDataType AS tdt
             LEFT JOIN tdt.dataType AS c_dt
             LEFT JOIN tdt.childTheme AS c_t
+
+            LEFT JOIN te.themeRenderPluginInstance AS trpi
+            LEFT JOIN trpi.renderPluginInstance AS rpi
 
             WHERE t.parentTheme = :parent_theme_id
             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
@@ -719,7 +723,7 @@ class ThemeInfoService
                 }
 
                 // Currently only one themeDatatype is allowed per themeElement, but preserve
-                //  $tdt_num anyways incase this changes in the future...
+                //  $tdt_num regardless incase this changes in the future...
                 foreach ($te['themeDataType'] as $tdt_num => $tdt) {
                     // Don't preserve entries for deleted datatypes
                     if ( is_null($tdt['dataType']) ) {
@@ -752,11 +756,21 @@ class ThemeInfoService
                     }
                 }
 
+                // Currently only one themeRenderPluginInstance is allowed per themeElement, but
+                //  preserve $trpi_num regardless incase this changes in the future...
+                foreach ($te['themeRenderPluginInstance'] as $trpi_num => $trpi) {
+                    // Don't preserve entries for deleted renderPluginInstances
+                    if ( is_null($trpi['renderPluginInstance']) )
+                        unset( $te['themeDataType'][$trpi_num] );
+                }
+
                 // Easier on twig for these arrays to simply not exist, if nothing is in them...
-                if ( count($te['themeDataFields']) == 0 )
+                if ( empty($te['themeDataFields']) )
                     unset( $te['themeDataFields'] );
-                if ( count($te['themeDataType']) == 0 )
+                if ( empty($te['themeDataType']) )
                     unset( $te['themeDataType'] );
+                if ( empty($te['themeRenderPluginInstance']) )
+                    unset( $te['themeRenderPluginInstance'] );
 
                 $new_te_array[$te_num] = $te;
             }

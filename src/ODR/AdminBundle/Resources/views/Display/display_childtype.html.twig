@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -12,7 +13,7 @@
 {% set can_execute_plugin = false %}
 {% for rpi_num,rpi in datatype.renderPluginInstances %}
 {#    {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}#}    {# NOTE Plugins/Base/LinkedMerger needs to be executed, but doesn't have "render" set to true because it's technically just shifting records around #}
-    {% if rpi.renderPlugin.active and render_plugin_instance == null %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and render_plugin_instance == null %}
         {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
         {% if can_execute_plugin %}

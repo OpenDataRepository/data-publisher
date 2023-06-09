@@ -145,7 +145,7 @@ class ReferencesPlugin implements DatatypePluginInterface
                 // The datafield may have a render plugin that should be executed, but only if
                 //  it's not a file field...
                 if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
-                    foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['render'] === true ) {
                             // ...if it does, then create an array entry for it
                             $datafield_mapping[$key] = array(
@@ -215,8 +215,13 @@ class ReferencesPlugin implements DatatypePluginInterface
                 }
             }
 
-            // Need to ensure urls have an https prefix if they don't already
+            // Need to try to ensure urls are valid...
             if ( $datafield_mapping['url'] !== '' ) {
+                // Ensure that DOIs that aren't entirely links still are valid
+                if ( strpos($datafield_mapping['url'], 'doi:') === 0 )
+                    $datafield_mapping['url'] = 'https://doi.org/'.trim( substr($datafield_mapping['url'], 4) );
+
+                // Ensure that the values have an 'https://' prefix
                 if ( strpos($datafield_mapping['url'], 'http') !== 0 )
                     $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
             }

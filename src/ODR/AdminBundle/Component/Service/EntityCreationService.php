@@ -66,6 +66,7 @@ use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\ThemeRenderPluginInstance;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -2714,6 +2715,43 @@ class EntityCreationService
             $this->em->flush();
 
         return $theme_datatype;
+    }
+
+
+    /**
+     * Creates and persists a new ThemeRenderPluginInstance entry.
+     *
+     * @param ODRUser $user
+     * @param ThemeElement $theme_element
+     * @param RenderPluginInstance $render_plugin_instance
+     * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return ThemeRenderPluginInstance
+     */
+    public function createThemeRenderPluginInstance($user, $theme_element, $render_plugin_instance, $delay_flush = false, $created = null)
+    {
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        // Initial create
+        $trpi = new ThemeRenderPluginInstance();
+
+        $trpi->setThemeElement($theme_element);
+        $trpi->setRenderPluginInstance($render_plugin_instance);
+
+        $trpi->setCreated($created);
+        $trpi->setUpdated($created);
+        $trpi->setCreatedBy($user);
+        $trpi->setUpdatedBy($user);
+
+        $theme_element->addThemeRenderPluginInstance($trpi);
+        $this->em->persist($trpi);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $trpi;
     }
 
 

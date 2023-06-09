@@ -260,33 +260,39 @@ class DisplaytemplateController extends ODRCustomController
             }
             else {
                 // Determine where to send this redirect
+                $baseurl = 'https:'.$this->getParameter('site_baseurl').'/';
+                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    $baseurl .= 'app_dev.php/';
+
                 if ($datatype->getMetadataFor() !== null)  {
                     // Properties datatype - redirect to properties page
-                    $url =  $this->generateUrl(
-                            'odr_datatype_properties',
-                            array(
-                                'datatype_id' => $datatype->getMetadataFor()->getId(),
-                                'wizard' => 1
-                            ),
-                            false
-                        );
+                    $baseurl .= $datatype->getMetadataFor()->getSearchSlug();
+
+                    $url = $this->generateUrl(
+                        'odr_datatype_properties',
+                        array(
+                            'datatype_id' => $datatype->getMetadataFor()->getId(),
+                            'wizard' => 1
+                        )
+                    );
                 }
                 else {
-                    // Redirect to design
+                    // Redirect to master layout page
+                    $baseurl .= $datatype->getSearchSlug();
+
                     $url = $this->generateUrl(
-                            'odr_design_master_theme',
-                            array(
-                                'datatype_id' => $datatype->getId(),
-                            ),
-                            false
-                        );
+                        'odr_design_master_theme',
+                        array(
+                            'datatype_id' => $datatype->getId(),
+                        )
+                    );
                 }
 
                 $return['d'] = array(
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker_redirect.html.twig',
                         array(
-                            "url" => $url
+                            'url' => $baseurl.'#'.$url
                         )
                     )
                 );
@@ -409,6 +415,11 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -449,11 +460,11 @@ class DisplaytemplateController extends ODRCustomController
             if ($theme->getThemeType() !== 'master')
                 throw new ODRBadRequestException('Datafields can only be added to a "master" theme');
 
-            // Ensure there's not a child or linked datatype in this theme_element before going and creating a new datafield
-            /** @var ThemeDataType[] $theme_datatypes */
-            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')->findBy( array('themeElement' => $theme_element_id) );
-            if ( count($theme_datatypes) > 0 )
-                throw new ODRBadRequestException('Unable to add a Datafield into a ThemeElement that already has a child/linked Datatype');
+            // Ensure there's nothing in this theme_element before creating a new datafield
+            if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to add a new Datafield into a ThemeElement that already has a child/linked Datatype');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to add a new Datafield into a ThemeElement that is being used by a RenderPlugin');
 
 
             // Going to need these...
@@ -553,10 +564,6 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Notify that a datafield was just created
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldCreatedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
             }
@@ -569,10 +576,6 @@ class DisplaytemplateController extends ODRCustomController
 
             // Update the cached version of the datatype and its master theme
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -647,6 +650,11 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $dfi_service */
@@ -704,6 +712,13 @@ class DisplaytemplateController extends ODRCustomController
             // Don't allow cloning of a datafield outside the master theme
             if ($theme->getThemeType() !== 'master')
                 throw new ODRBadRequestException('Unable to clone a datafield outside of a "master" theme');
+
+            // Ensure there's nothing in this theme_element before creating a new datafield
+            if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to add a new Datafield into a ThemeElement that already has a child/linked Datatype');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to add a new Datafield into a ThemeElement that is being used by a RenderPlugin');
+
 
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($old_datafield->getMasterDataField()) )
@@ -827,10 +842,6 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Notify that a datafield was just created
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldCreatedEvent($new_df, $user);
                 $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
             }
@@ -843,10 +854,6 @@ class DisplaytemplateController extends ODRCustomController
 
             // Updated the cached version of the datatype and its master theme
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -950,6 +957,11 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -989,11 +1001,13 @@ class DisplaytemplateController extends ODRCustomController
             if ($theme->getThemeType() !== 'master')
                 throw new ODRBadRequestException('Unable to create a new child Datatype outside of the master Theme');
 
-            // Ensure there are no datafields in this theme_element before going and creating a child datatype
-            /** @var ThemeDataField[] $theme_datafields */
-            $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
-            if ( count($theme_datafields) > 0 )
+            // Ensure there's nothing in this theme_element before creating a child datatype
+            if ( $theme_element->getThemeDataFields()->count() > 0 )
                 throw new ODRBadRequestException('Unable to add a child Datatype into a ThemeElement that already has Datafields');
+            if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to add a child Datatype into a ThemeElement that already has a child/linked Datatype');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to add a child Datatype into a ThemeElement that is being used by a RenderPlugin');
 
 
             // Going to need these...
@@ -1135,10 +1149,6 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Fire off a DatatypeCreated event for the new child datatype
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeCreatedEvent($child_datatype, $user);
                 $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
             }
@@ -1151,10 +1161,6 @@ class DisplaytemplateController extends ODRCustomController
 
             // Mark the new child datatype's parent as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($parent_datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -1388,6 +1394,11 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $site_baseurl = $request->getSchemeAndHttpHost();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $dfi_service */
@@ -1507,7 +1518,7 @@ class DisplaytemplateController extends ODRCustomController
                 $is_top_level = false;
 
             $is_link = false;
-            if ( !is_null($datatree) && $datatree->getIsLink() == true )
+            if ( !is_null($datatree) && $datatree->getIsLink() )
                 $is_link = true;
 
             // Determine which child/linked datatypes have usable sortfields for this datatype
@@ -1660,10 +1671,6 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Update cached version of datatype
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatatypeModifiedEvent($datatype, $user, $clear_datarecord_caches);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
@@ -1939,6 +1946,11 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -2100,10 +2112,6 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Then delete the cached version of the affected datatype
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatatypeModifiedEvent($ancestor_datatype, $user, $clear_datarecord_cache);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
@@ -2166,6 +2174,11 @@ class DisplaytemplateController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -2475,10 +2488,6 @@ class DisplaytemplateController extends ODRCustomController
                     // Fire off an event notifying that the modification of the datafield is done
                     // ...though this won't necessarily be true if the fieldtype is getting changed
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatafieldModifiedEvent($datafield, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
@@ -2491,10 +2500,6 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Mark the datatype as updated
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatatypeModifiedEvent($datatype, $user);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
 
@@ -3173,6 +3178,11 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -3215,10 +3225,6 @@ if ($debug)
             // ----------------------------------------
             // Updated cached version of datatype
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypePublicStatusChangedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
             }
@@ -3264,6 +3270,11 @@ if ($debug)
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
@@ -3315,10 +3326,6 @@ if ($debug)
             //  really be used here, as any other place that could fire it might also need to fire
             //  off a DatafieldModified event anyways
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -3331,10 +3338,6 @@ if ($debug)
 
             // Update cached version of datatype
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -3415,9 +3418,15 @@ if ($debug)
         $return['d'] = '';
 
         try {
+            $post = $request->request->all();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $post = $request->request->all();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
@@ -3456,10 +3465,6 @@ if ($debug)
             // ----------------------------------------
             // Marking the datatype as updated and clearing caches is probably overkill, but meh.
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -3847,8 +3852,11 @@ if ($debug)
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -3862,6 +3870,8 @@ if ($debug)
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4070,10 +4080,6 @@ if ($debug)
                 foreach ($datafields_needing_events as $df) {
                     // Fire off an event notifying that the modification of the datafield is done
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatafieldModifiedEvent($df, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
@@ -4087,10 +4093,6 @@ if ($debug)
 
                 // Mark the datatype as updated
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeModifiedEvent($datatype, $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
@@ -4139,8 +4141,6 @@ if ($debug)
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
@@ -4148,6 +4148,8 @@ if ($debug)
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4336,8 +4338,11 @@ if ($debug)
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
@@ -4349,6 +4354,8 @@ if ($debug)
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4520,10 +4527,6 @@ if ($debug)
 
                 // Mark the datatype as updated
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                    /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
                     $event = new DatatypeModifiedEvent($datatype, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }

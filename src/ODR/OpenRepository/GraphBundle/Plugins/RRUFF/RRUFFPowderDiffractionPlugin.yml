@@ -1,7 +1,7 @@
 odr_plugins.rruff.powder_diffraction:
     name: RRUFF Powder Diffraction Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: false
     version: 0.0.1
     override_fields: false

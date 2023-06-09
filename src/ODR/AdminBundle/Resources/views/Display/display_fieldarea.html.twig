@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set THEME_ELEMENT_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::THEME_ELEMENT_PLUGIN') %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
@@ -15,81 +17,112 @@
 
 {% for theme_element in theme.themeElements %}
 
-    {% if not theme_element|is_empty(datarecord, datatype, 'display') %}
+    {% if theme_element.themeRenderPluginInstance is defined and theme_element.themeElementMeta.hidden == 0 %}
+        {# NOTE - themeRenderPluginInstance stuff is out here instead of with the themeDatafield/themeDatatype stuff, because this position doesn't force twig to always display the themeElement #}
 
-        <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
-            <div class="ODRInnerBox">
+        {# theoretically should only be a single themeRenderPluginInstance, but be safe... #}
+        {% set trpi = theme_element.themeRenderPluginInstance %}
+        {% set current_rpi_target = trpi[0].renderPluginInstance.id %}
 
-                {% if theme_element.themeDataFields is defined %}
-                    {% for theme_datafield in theme_element.themeDataFields %}
-                        {% set datafield_id = theme_datafield.dataField.id %}
+        {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'display', 'is_datatype_admin': is_datatype_admin} %}
 
-                        {% if datatype['dataFields'][datafield_id] is not defined %}
-                            {# user doesn't have permissions to see this datafield #}
-                            <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
-                        {% else %}
-                            {% set datafield = datatype['dataFields'][datafield_id] %}
+        {% set can_execute_plugin = false %}
+        {% set render_plugin_instance = null %}
+        {% if datatype['renderPluginInstances'][current_rpi_target] is defined %}
+            {% set rpi = datatype['renderPluginInstances'][current_rpi_target] %}
+            {% if rpi.renderPlugin.plugin_type == THEME_ELEMENT_PLUGIN and rpi.renderPlugin.active %}
+                {% set can_execute_plugin = rpi|can_execute_theme_element_plugin(datatype, rendering_options) %}
 
-                            {% if theme_datafield.hidden == 0 %}
-                                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
-                                    {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                                        {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
-                                    {% else %}
-                                        {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
-                                            'datarecord': datarecord,
-                                            'datafield': datafield,
-                                        } %}
-                                    {% endif %}
-                                </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-
-                {% elseif theme_element.themeDataType is defined %}
-
-                    {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
-                    {% for theme_datatype in theme_element.themeDataType %}
-                        {% set child_datatype_id = theme_datatype.dataType.id %}
-                        {% set child_theme_id = theme_datatype.childTheme.id %}
-
-                        {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-                        {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
-                            {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
-                            {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
-
-                            {# filtering also means there may not be anything in the datarecord array... #}
-                            {% if datarecord['children'][child_datatype_id] is defined %}
-                                {# pass all child datarecords of this child datatype to display_childtype.html.twig at once #}
-                                {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
-
-                                <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ child_datatype_id }}_{{ datarecord.id }}">
-                                {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
-                                    'datatype_array': child_datatype,
-                                    'datarecord_array': datarecord_array,
-                                    'theme_array': child_theme,
-
-                                    'target_datatype_id': child_datatype_id,
-                                    'parent_datarecord': datarecord,
-                                    'target_theme_id': child_theme_id,
-
-                                    'is_datatype_admin': is_datatype_admin,
-
-                                    'is_top_level': 0,
-                                    'is_link': theme_datatype.is_link,
-                                    'display_type': theme_datatype.display_type,
-                                    'multiple_allowed': theme_datatype.display_type,
-                                } %}
-                                </div>
-                            {% endif %}
-
-                        {% endif %}
-
-                    {% endfor %}
-
+                {% if can_execute_plugin %}
+                    {# Only want to save the render_plugin_instance if it's render-able #}
+                    {% set render_plugin_instance = rpi %}
                 {% endif %}
+            {% endif %}
+        {% endif %}
 
+        {% if can_execute_plugin %}
+            {% set content = datarecord|theme_element_plugin(datatype, render_plugin_instance, theme_array, rendering_options) %}
+            {% if content|length > 0 %}
+            <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+            <div class="ODRInnerBox">
+                <!-- Start {{ render_plugin_instance.renderPlugin.pluginName }} override theme_element html -->
+                {{ content|raw }}
+                <!-- End {{ render_plugin_instance.renderPlugin.pluginName }} override theme_element html -->
             </div><!-- End of .ODRInnerBox -->
-        </div><!-- End of .ThemeElement -->
+            </div><!-- End of .ThemeElement -->
+            {% endif %}
+        {% endif %}
+
+    {% elseif not theme_element|is_empty(datarecord, datatype, 'display') %}
+    <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+    <div class="ODRInnerBox">
+
+        {% if theme_element.themeDataFields is defined %}
+            {% for theme_datafield in theme_element.themeDataFields %}
+                {% set datafield_id = theme_datafield.dataField.id %}
+
+                {% if datatype['dataFields'][datafield_id] is not defined %}
+                    {# user doesn't have permissions to see this datafield #}
+                    <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
+                {% else %}
+                    {% set datafield = datatype['dataFields'][datafield_id] %}
+
+                    {% if theme_datafield.hidden == 0 %}
+                        <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
+                            {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                                {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                            {% else %}
+                                {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
+                                } %}
+                            {% endif %}
+                        </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+        {% elseif theme_element.themeDataType is defined %}
+            {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+            {% for theme_datatype in theme_element.themeDataType %}
+                {% set child_datatype_id = theme_datatype.dataType.id %}
+                {% set child_theme_id = theme_datatype.childTheme.id %}
+
+                {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
+                    {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                    {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
+
+                    {# filtering also means there may not be anything in the datarecord array... #}
+                    {% if datarecord['children'][child_datatype_id] is defined %}
+                        {# pass all child datarecords of this child datatype to display_childtype.html.twig at once #}
+                        {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
+
+                        <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ child_datatype_id }}_{{ datarecord.id }}">
+                            {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
+                                'datatype_array': child_datatype,
+                                'datarecord_array': datarecord_array,
+                                'theme_array': child_theme,
+
+                                'target_datatype_id': child_datatype_id,
+                                'parent_datarecord': datarecord,
+                                'target_theme_id': child_theme_id,
+
+                                'is_datatype_admin': is_datatype_admin,
+
+                                'is_top_level': 0,
+                                'is_link': theme_datatype.is_link,
+                                'display_type': theme_datatype.display_type,
+                                'multiple_allowed': theme_datatype.display_type,
+                            } %}
+                        </div>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+    </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of .ThemeElement -->
 
     {% endif %}
 

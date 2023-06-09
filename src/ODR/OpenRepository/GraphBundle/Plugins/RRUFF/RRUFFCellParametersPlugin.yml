@@ -1,7 +1,7 @@
 odr_plugins.rruff.cell_parameters:
     name: RRUFF Cell Parameters Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.0.0
     override_fields: true

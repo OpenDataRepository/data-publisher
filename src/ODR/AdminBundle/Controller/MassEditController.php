@@ -1458,7 +1458,7 @@ class MassEditController extends ODRCustomController
 
         foreach ($datatype_array as $dt_id => $dt) {
             // For each render plugin this datatype is using...
-            foreach ($dt['renderPluginInstances'] as $num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
 
                 // Check whether any of the renderPluginField entries are derived prior to attempting to
