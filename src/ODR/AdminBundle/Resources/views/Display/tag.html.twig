@@ -30,7 +30,13 @@
 {% else %}
 #}
     <label for="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagLabel">
-        <input id="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagEdit" type="checkbox" {% if is_selected == 1 %}checked{% endif %} disabled />&nbsp;
+        <input
+            id="TagForm_{{ unique_id }}_{{ tag.id }}"
+            class="ODRTagEdit"
+            type="checkbox"
+            {% if is_selected == 1 %}checked{% endif %}
+            disabled
+        />&nbsp;
         {{ tag.tagMeta.tagName|markdown }}
     </label>
 {#

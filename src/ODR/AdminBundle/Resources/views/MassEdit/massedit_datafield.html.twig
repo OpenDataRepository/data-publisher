@@ -175,7 +175,16 @@
 
     {% elseif field_typename == "Tags" %}
     <fieldset>
-        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label class="ODRFieldLabel pure-u-23-24" title="{{ datafield_meta.description }}">
+            {{ datafield_meta.fieldName }}
+
+            <input id="massedit_df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
+                   title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
+                   placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
+                   size="15" maxlength="15"
+            />
+        </label>
+
         {% if datafield.tags is defined %}
             {% include 'ODRAdminBundle:MassEdit:tag_wrapper.html.twig' with {
                 'stacked_tags': datafield.tags,

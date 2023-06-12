@@ -459,6 +459,9 @@
             var input_div = $(this).children('input').first();
             var tag_id = $(input_div).attr('rel');
 
+            // Ensure this tag being clicked no longer has the "partial" class
+            $(icon_div).removeClass('partial');
+
             if ( $(icon_div).hasClass('fa-check') ) {
                 // Currently "selected", change this tag to "deselected"
                 $(this).attr('title', 'Search for Datarecords where this tag is unselected');
@@ -477,9 +480,22 @@
                 $(icon_div).addClass('fa-check');
                 $(input_div).val(tag_id);
             }
+
+            // Update any parents of this tag to indicate the status of their descendant tags
+            var tag_item = $(this).parent().parent();
+            applyToTagParents( $(tag_item) );
+
+            // Also need to wipe any status of the children of this tag
+            applyToTagChildren( $(tag_item) );
         });
-        // Attach expand/collapse handlers to the tags
-        setupTagTree();
+        // Attach expand/collapse handlers to the tags in just the search sidebar
+        setupTagTree( $("#ODRSearchSidebar"), 2);
+
+        // Update the parents of all selected/deselected tags
+        $(context).find(".ODRTagLabel > .ODRTristateCheckbox > .fa-check,.fa-ban").each(function() {
+            var tag_item = $(this).parent().parent().parent();
+            applyToTagParents( tag_item );
+        });
 
         // Shortcut to select all options of a Multiple Radio/Select datafield
         $(context).find(".ODRSelectAll").unbind('click').click(function () {

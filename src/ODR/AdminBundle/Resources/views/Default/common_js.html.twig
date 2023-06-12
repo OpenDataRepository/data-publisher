@@ -793,21 +793,67 @@
 
     /**
      * Initializes the click handlers used for ODR's tag datafields.
+     * @param {HTMLElement} context
+     * @param {number} states
      */
-    function setupTagTree() {
-        $(".ODRTagParent").unbind('click').click(function(event) {
+    function setupTagTree(context = null, states = 2) {
+        if ( context === null )
+            context = $("#content");
+
+        $(context).find(".ODRTagParent").unbind('click').click(function(event) {
             event.stopImmediatePropagation();
 
-            if ( $(this).hasClass('ODRTagCollapsed') ) {
-                $(this).next().next().show();
-                $(this).children(".fa").first().removeClass("fa-caret-right").addClass("fa-caret-down");
-            }
-            else {
-                $(this).next().next().hide();
-                $(this).children(".fa").first().removeClass("fa-caret-down").addClass("fa-caret-right");
-            }
+            var tag_children_div = $(this).next().next();
+            var icon_div = $(this).children(".fa").first();
 
-            $(this).toggleClass('ODRTagCollapsed');
+            if ( states === 2 ) {
+                if ( $(this).hasClass('ODRTagCollapsed') ) {
+                    $(tag_children_div).show();
+                    $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
+                }
+                else {
+                    $(tag_children_div).hide();
+                    $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
+                }
+
+                $(this).toggleClass('ODRTagCollapsed');
+            }
+            else if ( states === 3 ) {
+                if ( $(this).hasClass('ODRTagCollapsed') && $(this).parent().hasClass('ODRTagSelected') ) {
+                    // This tag is currently collapsed, and has selected children...go from collapsed
+                    //  to only partially collapsed
+                    $(tag_children_div).show();
+                    $(tag_children_div).children('li.ODRTagItem').not('.ODRTagSelected').hide();
+
+                    $(icon_div).removeClass("fa-caret-right").addClass("fa-ellipsis-h");
+
+                    $(this).removeClass('ODRTagCollapsed').addClass('ODRTagPartialCollapsed');
+                }
+                else if ( $(this).hasClass('ODRTagCollapsed') && !$(this).parent().hasClass('ODRTagSelected') ) {
+                    // This tag is currently collapsed, but has no selected children...there's no
+                    //  point going to partially collapsed, since nothing will change, so instead
+                    //  show everything
+                    $(tag_children_div).show();
+                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(icon_div).removeClass("fa-caret-right").addClass("fa-caret-down");
+
+                    $(this).removeClass('ODRTagCollapsed');
+                }
+                else if ( $(this).hasClass('ODRTagPartialCollapsed') ) {
+                    // This tag is partially collapsed...go to showing everything
+                    $(tag_children_div).children('li.ODRTagItem').show();
+                    $(icon_div).removeClass("fa-ellipsis-h").addClass("fa-caret-down");
+
+                    $(this).removeClass('ODRTagPartialCollapsed');
+                }
+                else {
+                    // This tag is showing everything...go back to completely collapsed
+                    $(tag_children_div).hide();
+                    $(icon_div).removeClass("fa-caret-down").addClass("fa-caret-right");
+
+                    $(this).addClass('ODRTagCollapsed');
+                }
+            }
         });
     }
 
