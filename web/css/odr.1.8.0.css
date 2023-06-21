@@ -4580,3 +4580,20 @@ i {
 #ODRStoredSearchKeys_form {
     display: none;
 }
+
+.ODRFileRenameInput {
+    margin-right: 2px;
+}
+.ODRFileRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
+}
+.ODRImageRenameInput {
+    margin-right: 2px;
+}
+.ODRImageRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
+}

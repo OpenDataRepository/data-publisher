@@ -156,6 +156,96 @@ function initPage() {
     });
 {% endif %}
 
+    $(".ODRFileRenameTrigger").unbind('click').click(function() {
+        var icon_div = $(this);
+        var input_div = $(this).next();
+        var rename_save_button = $(this).next().next();
+        var download_div = $(this).next().next().next();
+
+        if ( $(input_div).is(":visible") ) {
+            // If the input for renaming the file is currently visible, then hide it
+            $(icon_div).attr('title', "Rename File");
+            $(input_div).hide();
+            $(rename_save_button).hide();
+
+            // Reset the contents of the input back to the file's current name
+            $(input_div).val( $(download_div).text() );
+
+            // Re-show the html that lets the user download the file
+            $(download_div).show();
+        }
+        else {
+            // If the input for renaming the file is currently hidden, then show it
+            $(icon_div).attr('title', "Stop renaming File");
+            $(input_div).show();
+            $(rename_save_button).show();
+
+            // Hide the html that lets the user download the file
+            $(download_div).hide();
+        }
+    });
+
+    $(".ODRFileRenameButton").unbind('click').click(function() {
+        var icon_div = $(this).prev().prev();
+        var input_div = $(this).prev();
+        var rename_save_button = $(this);
+        var download_div = $(this).next();
+
+        var id_data = $(input_div).attr('id').split(/_/);
+        var file_id = id_data[1];
+
+        var url  = '{{ path('odr_record_rename_file', {'file_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += file_id;
+
+        var filename = $(input_div).val();
+
+        var form = $("<form>", {});
+        var element = $("<input>", {"value": filename, "name": "filename"});
+        $(form).append(element);
+        var form_data = $(form).serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: form_data,
+            success: function(data, textStatus, jqXHR) {
+                // Update the displayed name of the file
+                $(download_div).attr('title', filename);
+                $(download_div).text(filename);
+                $(input_div).val(filename);
+
+                // Reset visibility
+                $(input_div).hide();
+                $(rename_save_button).hide();
+                $(download_div).show();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Stop checking decrypt progress when an error occurs
+                file_decrypt_timeouts[ file_id ] = null;
+
+                // Hide the css for the progressbar
+                $(download_div).css('visibility', 'hidden');
+                $(decrypt_progress).css('width', 0);
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
     $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
         var icon_div = $(this).children(".ODRPublicFile");
@@ -347,6 +437,82 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 // Reload the image datafield
                 ReloadEditDatafield(datarecord_id, datafield_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
+    $(".ODRImageRenameTrigger").unbind('click').click(function() {
+        var icon_div = $(this);
+        var input_div = $(this).parent().next();
+        var input_elem = $(input_div).find('input.ODRImageRenameInput');
+        var img_elem = $(this).parent().parent().find('img.pure-img');
+
+        if ( $(input_div).is(":visible") ) {
+            // If the input for renaming the file is currently visible, then hide it
+            $(icon_div).attr('title', "Rename Image");
+            $(input_div).hide();
+
+            // Reset the contents of the input back to the image's current name
+            $(input_elem).val( $(img_elem).attr('title') );
+        }
+        else {
+            // If the input for renaming the file is currently hidden, then show it
+            $(icon_div).attr('title', "Stop renaming Image");
+            $(input_div).show();
+        }
+    });
+
+    $(".ODRImageRenameButton").unbind('click').click(function() {
+        var image_div = $(this).parent().parent();
+        var icon_div = $(image_div).find('.ODRImageRenameTrigger');
+
+        var input_elem = $(image_div).find('input.ODRImageRenameInput');
+        var input_div = $(input_elem).parent();
+        var img_elem = $(image_div).find('img.pure-img');
+
+        var id_data = $(image_div).attr('id').split(/_/);
+        var image_id = id_data[1];
+
+        var url  = '{{ path('odr_record_rename_image', {'image_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += image_id;
+
+        var filename = $(input_elem).val();
+
+        var form = $("<form>", {});
+        var element = $("<input>", {"value": filename, "name": "filename"});
+        $(form).append(element);
+        var form_data = $(form).serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: form_data,
+            success: function(data, textStatus, jqXHR) {
+                // Update the displayed name of the image
+                $(img_elem).attr('title', filename);
+
+                // Reset visibility
+                $(input_div).hide();
+                $(icon_div).attr('title', "Rename Image");
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1001,8 +1167,7 @@ function filterEditTagField(context, dr_id, df_id) {
  *
  * @param {HTMLElement} tag
  */
-function UpdateParentTagClass(tag)
-{
+function UpdateParentTagClass(tag) {
     // console.log('UpdateParentTagClass() called with', tag);
     // If this is a top-level tag, do nothing
     if ( !$(tag).parent().parent().hasClass('ODRTagItem') ) {

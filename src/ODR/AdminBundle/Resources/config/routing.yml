@@ -695,11 +695,19 @@ odr_record_addchild:
         datatype_id:  \d+
         parent_id:  \d+
 
-odr_record_delete_file:
-    path:  /edit/deletefile/{file_id}
-    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
+odr_record_rename_file:
+    path:  /edit/renamefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:renamefile }
+    methods: [ POST ]
     requirements:
         file_id:  \d+
+
+odr_record_rename_image:
+    path:  /edit/renameimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Edit:renameimage }
+    methods: [ POST ]
+    requirements:
+        image_id:  \d+
 
 odr_record_public_file:
     path:  /edit/publicfile/{file_id}
@@ -712,6 +720,12 @@ odr_record_public_image:
     defaults: { _controller: ODRAdminBundle:Edit:publicimage }
     requirements:
         image_id:  \d+
+
+odr_record_delete_file:
+    path:  /edit/deletefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
+    requirements:
+        file_id:  \d+
 
 odr_record_delete_image:
     path:  /edit/deleteimage/{image_id}

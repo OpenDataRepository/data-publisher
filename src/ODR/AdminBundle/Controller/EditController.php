@@ -502,14 +502,14 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Deletes a user-uploaded file from the database.
+     * Renames the given file.
      *
-     * @param integer $file_id The database id of the File to delete.
+     * @param integer $file_id
      * @param Request $request
      *
      * @return Response
      */
-    public function deletefileAction($file_id, Request $request)
+    public function renamefileAction($file_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -517,12 +517,22 @@ class EditController extends ODRCustomController
         $return['d'] = "";
 
         try {
+            $post = $request->request->all();
+            if ( !isset($post['filename']) )
+                throw new ODRBadRequestException();
+
+
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -559,21 +569,164 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Delete the file
-            $ed_service->deleteFile($file, $user);
 
-            // Don't need to fire off any events
+            // Update the filename
+            $props = array(
+                'original_filename' => $post['filename']
+            );
+            $emm_service->updateFileMeta($user, $file, $props);
 
 
-            // -----------------------------------
-            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
-            //  the upload button again since this datafield's only file just got deleted
-            if ( !$datafield->getAllowMultipleUploads() )
-                $return['d'] = array('need_reload' => true);
+            // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
+            // Need to fire off a DatarecordModified event because a file's public status was changed
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // TODO - return?
         }
         catch (\Exception $e) {
-            $source = 0x08e2fe10;
+            $source = 0xcc319597;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renames the given image.
+     *
+     * @param integer $image_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function renameimageAction($image_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['filename']) )
+                throw new ODRBadRequestException();
+
+
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Grab the necessary entities
+            /** @var Image $image */
+            $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
+
+            $datafield = $image->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datarecord = $image->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Images that aren't done encrypting shouldn't be modified
+            if ($image->getEncryptKey() == '')
+                throw new ODRNotFoundException('Image');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Update the filename
+            $props = array(
+                'original_filename' => $post['filename']
+            );
+            $emm_service->updateImageMeta($user, $image, $props);
+
+
+            // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Need to fire off a DatarecordModified event because a file's public status was changed
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // TODO - return?
+        }
+        catch (\Exception $e) {
+            $source = 0xb2eda2e9;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -605,6 +758,11 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
@@ -719,10 +877,6 @@ class EditController extends ODRCustomController
             // ----------------------------------------
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -735,10 +889,6 @@ class EditController extends ODRCustomController
 
             // Need to fire off a DatarecordModified event because a file's public status was changed
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -799,6 +949,10 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
 
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
@@ -925,6 +1079,91 @@ class EditController extends ODRCustomController
 
 
     /**
+     * Deletes a user-uploaded file from the database.
+     *
+     * @param integer $file_id The database id of the File to delete.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function deletefileAction($file_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Grab the necessary entities
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getEncryptKey() === '')
+                throw new ODRNotFoundException('File');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Delete the file
+            $ed_service->deleteFile($file, $user);
+
+            // Don't need to fire off any events
+
+
+            // -----------------------------------
+            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
+            //  the upload button again since this datafield's only file just got deleted
+            if ( !$datafield->getAllowMultipleUploads() )
+                $return['d'] = array('need_reload' => true);
+
+        }
+        catch (\Exception $e) {
+            $source = 0x08e2fe10;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Deletes a user-uploaded image from the repository.
      *
      * @param integer $image_id The database id of the Image to delete.
@@ -956,6 +1195,10 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
 
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
@@ -1049,6 +1292,10 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
 
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
