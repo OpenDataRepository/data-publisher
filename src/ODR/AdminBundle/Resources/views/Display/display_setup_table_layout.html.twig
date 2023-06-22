@@ -4,7 +4,7 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {% set unique_id = parent_datarecord.id ~ '_' ~ datatype.id %}
-<div id="Datatables_{{ unique_id }}_wrapper" class="ODRTableOuterWrap">
+<div id="Datatables_{{ unique_id }}_wrapper" class="ODRTableOuterWrap ODRRenderPluginContent">    {# display_ajax.html.twig won't hide anything with .ODRRenderPluginContent #}
     <div class="ODRTableWrap">
         <table id="Datatables_{{ unique_id }}" class="display ODRDatatableInstance">
             <thead>

@@ -104,6 +104,10 @@ $(function() {
 
 
 var SaveTimeout = 1000;
+
+/**
+ * Initializes the controls on the Edit page.
+ */
 function initPage() {
     // Shouldn't be needed, but shouldn't hurt
     hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
@@ -1094,6 +1098,63 @@ function initPage() {
 
     $(".ODRDataField").children("form").submit(function(event) {
         event.preventDefault();
+    });
+
+    $(".ODRAncestorBlurb").each(function(index,elem) {
+        var is_link = false;
+        if ( $(elem).attr('rel') === 'link' )
+            is_link = true;
+
+        var ancestor_elem = null;
+        var dt = $(elem).parents('.ODRDataType').first();
+        var parent_dr = $(dt).parents('.ODRFieldArea').first();
+        var parent_dr_id = $(parent_dr).attr('id').split(/_/)[1];
+        // console.log( $(elem), $(dt).attr('id'), $(parent_dr).attr('id') );
+
+        // Accordion/List headers have the record name in an <h3> element, before the $(parent_dr) div
+        // Tabbed headers have a single .ODRTabButtonHeader div immediately after the <h3> element
+        // Dropdown headers have a <select> inside the <h3> element
+        if ( $(parent_dr).prev().is('h3') ) {
+            // The parent is not a top-level record, and is currently displayed as an accordion/list header
+            ancestor_elem = $(parent_dr).prev().find('.ODRRecordName');
+            // ...this will also trigger for the first record in a dropdown header
+        }
+        else if ( $(parent_dr).parent().first().children('h3').length > 0 ) {
+            // The parent is not a top-level record, and is being displayed as a dropdown or a
+            //  tabbed header
+            ancestor_elem = $(parent_dr).parent().first().children('h3').first().find('.ODRRecordName');
+
+            // NOTE: the selector WILL NOT find the correct element for a tabbed header...this is
+            //  dealt with in the next if statement
+        }
+        else {
+            // The parent is the top-level record
+            ancestor_elem = $(parent_dr).parents('#ODRSearchContent').first().children('h1').first().find('.ODRRecordName');
+        }
+
+        var ancestor_name = '';
+        if ( $(ancestor_elem).is('select') ) {
+            // Ancestor name is in a <select> element...find the <option> that matches the parent
+            //  datarecord's id
+            ancestor_name = $(ancestor_elem).children('option[value=' + parent_dr_id + ']').text().trim();
+            // console.log( $(ancestor_elem) );
+        }
+        else if ( $(ancestor_elem).length === 0 ) {
+            // Ancestor name is in a <button> element
+            ancestor_elem = $(parent_dr).parent().first().children('div.ODRTabButtonHeader').first();
+            // console.log( $(ancestor_elem) );
+            ancestor_name = $(ancestor_elem).children('button[rel=' + parent_dr_id + ']').html().trim();
+        }
+        else {
+            // Ancestor name is in an <a> or <span> element
+            ancestor_name = $(ancestor_elem).html().trim();
+            // console.log( $(ancestor_elem) );
+        }
+
+        if ( !is_link )
+            $(elem).attr('title', 'Child of "' + ancestor_name + '"');
+        else
+            $(elem).attr('title', 'Linked to by "' + ancestor_name + '"');
     });
 
     console.log('Init page done.');

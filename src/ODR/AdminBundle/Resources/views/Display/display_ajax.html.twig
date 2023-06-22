@@ -45,7 +45,7 @@
 
         // Hide child datatypes without theme elements
         $(".ODRChildDatatype").each(function(index,elem) {
-            var child_theme_elements = $(elem).find('.ODRThemeElement');
+            var child_theme_elements = $(elem).find('.ODRThemeElement,.ODRRenderPluginContent');
             if ( child_theme_elements.length == 0 )
                 $(elem).parent().parent().hide();
         });
