@@ -148,7 +148,7 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
             }
         }
         else if ( char === '·' || char === '⋅' ) {
-            // First character is "Middle Dot" U+00B7...second character is "Dot Operator" U+22C5
+            // First character is U+00B7 "·" (MIDDLE DOT)...second character is U+22C5 "⋅" (DOT OPERATOR)
             // The first one is preferred, so convert the second one into the first
             if ( char === '⋅' )
                 char = '·';
@@ -185,6 +185,17 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
 
             // Done with this sequence, append to the output
             output += sequence;
+        }
+        else if ( char === '□' || char === '▢' || char === '◻' || char === '☐' ) {
+            // U+25A1 "□" (WHITE SQUARE)
+            // U+25A2 "▢" (WHITE SQUARE WITH ROUNDED CORNERS)
+            // U+25FB "◻" (WHITE MEDIUM SQUARE)
+            // U+2610 "☐" (BALLOT BOX)
+
+            // Replace any instance of these characters with U+25FB "◻" (WHITE MEDIUM SQUARE)
+            output += '◻';
+
+            // Isn't unicode the best thing ever?
         }
         else if ( char === ' ' ) {
             // Chemical formulas aren't supposed to have a lot of "[box]" sequences, but this can
@@ -272,6 +283,9 @@ function ODR_prettifyChemicalFormula(input, is_textarea, subscript_delimiter = '
             output += char;
         }
     }
+
+    // Replace the "[box]" sequence with U+25FB "◻" (WHITE MEDIUM SQUARE)
+    output = output.replaceAll("[box]", "◻");
 
     if ( is_textarea ) {
         output = output.replaceAll("\n\r", "<br>").replaceAll("\r\n", "<br>")

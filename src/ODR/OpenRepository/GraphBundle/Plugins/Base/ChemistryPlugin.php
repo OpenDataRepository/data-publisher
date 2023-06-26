@@ -218,9 +218,8 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
         $super = preg_quote($superscript_delimiter);
         $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
 
-        // Redo the boxes...
-        // TODO - replace with a css class? or with the '□' character? (0xE2 0x96 0xA1)
-        $str = preg_replace('/\[box\]/', '<span style="border: 1px solid #333; font-size:7px;">&nbsp;&nbsp;&nbsp;</span>', $str);
+        // Replace the "[box]" sequence with U+25FB "◻" (WHITE MEDIUM SQUARE)
+        $str = preg_replace('/\[box\]/', '◻', $str);
 
         return $str;
     }
