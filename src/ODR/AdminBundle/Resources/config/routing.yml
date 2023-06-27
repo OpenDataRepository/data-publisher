@@ -1493,6 +1493,7 @@ odr_purge_datatype:
     defaults: { _controller: ODRAdminBundle:Validation:purge }
     requirements:
         datatype_ids: "^[0-9,]+$"
+
 odr_purge_files:
     path: /admin/purge_files
     defaults: { _controller: ODRAdminBundle:Validation:purgefiles }
@@ -1535,7 +1536,6 @@ odr_api_userdata:
         version: 'v1'
         _format: '|json|xml'
 
-
 odr_api_get_datatype_list:
     path: /api/{version}/search/databases.{_format}
     defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
@@ -1560,6 +1560,23 @@ odr_api_get_datatype_single:
         version: 'v\d+'
         datatype_uuid: '^[a-z0-9]+$'
         _format: '|json|xml'
+
+#odr_api_get_jsonld_test:
+#    path:  /api/{version}/jsonld
+#    defaults: { _controller: ODRAdminBundle:API:jsonLD, version: 'v5', dataset_uuid: '9d26d533e9bfe1907a18280cfc25'}
+#    methods: [ GET ]
+#    requirements:
+#        version: 'v\d+'
+#        dataset_uuid: '^[a-z0-9]+$'
+
+#
+odr_api_get_jsonld:
+    path:  /api/{version}/jsonld/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:jsonLD, version: 'v5' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
 
 #
 # Gets master templates
@@ -1984,7 +2001,6 @@ odr_api_user_check:
 #        version: 'v\d+'
 #        _format: '|json|xml'
 
-
 #-----------------------------------------
 # Migration Controller
 odr_migrate_1.0:
@@ -1995,7 +2011,6 @@ odr_migrate_1.1:
     path:  /admin/migrate/1.1
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
 
-#-----------------------------------------
 
 #-----------------------------------------
 # Tracking Controller

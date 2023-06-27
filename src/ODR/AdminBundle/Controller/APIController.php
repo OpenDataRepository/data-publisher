@@ -86,6 +86,236 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class APIController extends ODRCustomController
 {
+    /**
+     * Creates appropriate metadata info in JSON-LD to meet requirements
+     * for discovery by Google Dataset Search and other search providers.
+     *
+     * @param $dataset_uuid
+     * @param $version
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRException
+     * @throws ODRNotFoundException
+     */
+    public function jsonLDAction($dataset_uuid, $version, Request $request)
+    {
+        try {
+            // Determine if dataset has metadata or is metadata dataset
+            // Get first record/main record - metadata can only have one record
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid,
+                )
+            );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            if($datatype->getMetadataDatatype()) {
+                $datatype = $datatype->getMetadataDatatype();
+            }
+
+            /** @var DataRecord $metadata_record */
+            $metadata_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                ->findOneBy(array('dataType' => $datatype->getId()));
+
+            // Now get the json record and update it with the correct user_id ant date times
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            $json_metadata_record = $cache_service
+                ->get('json_record_' . $metadata_record->getUniqueId());
+
+            if (!$json_metadata_record) {
+                // Need to pull record using getExport...
+                $json_metadata_record = self::getRecordData(
+                    'v3',
+                    $metadata_record->getUniqueId(),
+                    'json',
+                    'anon.'
+                );
+
+                if ($json_metadata_record) {
+                    $json_metadata_record = json_decode($json_metadata_record, true);
+                }
+            } else {
+                // Check if dataset has public attribute
+                $json_metadata_record = json_decode($json_metadata_record, true);
+            }
+
+            /*
+             * {
+             *      "@context": "https://schema.org/",
+             *      "@type": "Dataset",
+             *      "name": "Removal of organic carbon by natural bacterioplankton communities as a function of pCO2 from laboratory experiments between 2012 and 2016",
+             *      "description": "This dataset includes results of laboratory experiments which measured dissolved organic carbon (DOC) usage by natural bacteria in seawater at different pCO2 levels. Included in this dataset are; bacterial abundance, total organic carbon (TOC), what DOC was added to the experiment, target pCO2 level. ",
+             *      "url": "https://www.sample-data-repository.org/dataset/472032",
+             *      "sameAs": "https://search.dataone.org/#view/https://www.sample-data-repository.org/dataset/472032",
+             *      "version": "2013-11-21",
+             *      "isAccessibleForFree": true,
+             *      "keywords": ["ocean acidification", "Dissolved Organic Carbon", "bacterioplankton respiration", "pCO2", "carbon dioxide", "oceans"],
+             *      "license": [ "http://spdx.org/licenses/CC0-1.0", "https://creativecommons.org/publicdomain/zero/1.0"]
+             *      "creator:{
+             *          "@list": [
+             *              {
+             *                  "@type": "Person",
+             *                  "name": "Creator #1"
+             *              },
+             *              {
+             *                  "@type": "Person",
+             *                  "name": "Creator #2"
+             *              }
+             *            ]
+             *          }
+             *    }
+             */
+
+            // Convert to Dataset Content Type
+            $output_dataset = array();
+            $output_dataset["@context"] = "https://schema.org/";
+            $output_dataset["@type"] = "Dataset";
+            $output_dataset["name"] = self::getFieldValue(
+                $json_metadata_record, '23db96d4f26a46af7de57a3da752'
+            );
+            $output_dataset["description"] = self::getFieldValue(
+                $json_metadata_record, '64caf7e390296f72d70bdf84a853'
+            );
+            $output_dataset["version"] = self::getFieldValue(
+                $json_metadata_record, 'c05b2d1f01fac1b726a971af178b'
+            );
+            $output_dataset["url"] = self::getFieldValue(
+                $json_metadata_record, '84ad17c89dbeecad2eda27faa3c8'
+            );
+            $output_dataset["sameAs"] = self::getFieldValue(
+                $json_metadata_record, '84ad17c89dbeecad2eda27faa3c8'
+            );
+            $output_dataset["isAccessibleForFree"] = self::getFieldValue(
+                $json_metadata_record, 'df1e203fee2f12fb7d53c0ebccb3'
+            );
+            // Process Creators
+            $creators_array = self::getValuesMatching(
+                $json_metadata_record,
+                'a88ecce7c65356de38dd982db8c8',
+                '59414503bf4fa640df1b0a2172b9'
+            );
+            $output_dataset["creator"] = array();
+            $output_dataset["creator"]["@list"] = array();
+            foreach($creators_array as $creator) {
+                $output_dataset["creator"]["@list"][] = array(
+                    "@type" => "Person",
+                    "name" => $creator
+                );
+            }
+            // Process Keywords
+            $keywords_array = self::getValuesMatching(
+                $json_metadata_record,
+                '546da23100565304ed804c317597',
+                'bd31f72545adea8b586203a70e02'
+            );
+            $output_dataset["keywords"] = array();
+            foreach($keywords_array as $keyword) {
+                $output_dataset["keywords"][] = $keyword;
+            }
+            // Process Licenses
+            $license_array = self::getValuesMatching(
+                $json_metadata_record,
+                '02dd484abb6232a317e7de257110',
+                '7270156ddab75822052466f50bd9'
+            );
+            $output_dataset["license"] = array();
+            foreach($license_array as $license) {
+                $output_dataset["license"][] = $license;
+            }
+
+
+
+            return new JsonResponse($output_dataset);
+        } catch (\Exception $e) {
+            $source = 0x5dc89429;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+    /**
+     * @param $record
+     * @param $field_uuid
+     * @return mixed|string
+     */
+    public function getValuesMatching($record, $template_uuid, $field_uuid)
+    {
+        $output_array = [];
+        if(
+            isset($record['template_uuid'])
+            && strlen($record['template_uuid']) > 0
+            && isset($record['records_' . $record['template_uuid']])
+        ) {
+            $record_array = $record['records_' . $record['template_uuid']];
+        }
+        foreach($record_array as $record) {
+            if($record['template_uuid'] == $template_uuid) {
+                $value = self::getFieldValue($record, $field_uuid);
+                if($value != '') {
+                    array_push($output_array, $value);
+                }
+            }
+        }
+        return $output_array;
+    }
+
+    /**
+     * @param $record
+     * @param $field_uuid
+     * @return mixed|string
+     */
+    public function getFieldValue($record, $field_uuid)
+    {
+        $field_array = [];
+        if(
+            isset($record['template_uuid'])
+            && strlen($record['template_uuid']) > 0
+            && isset($record['fields_' . $record['template_uuid']])
+        ) {
+            $field_array = $record['fields_' . $record['template_uuid']];
+        }
+        else if(
+            isset($record['database_uuid'])
+            && strlen($record['database_uuid']) > 0
+            && isset($record['fields_' . $record['database_uuid']])
+        ) {
+            $field_array = $record['fields_' . $record['database_uuid']];
+        }
+        if(count($field_array) > 0) {
+            foreach ($field_array as $field_data) {
+                if ($field_data['template_field_uuid'] == $field_uuid) {
+                    if (isset($field_data['value'])) {
+                        return $field_data['value'];
+                    }
+                    else if(isset($field_data['files'])) {
+                        return  $field_data['files'][0]['href'];
+                    }
+                }
+                else if ($field_data['field_uuid'] == $field_uuid) {
+                    if (isset($field_data['value'])) {
+                        return $field_data['value'];
+                    }
+                    else if(isset($field_data['files'])) {
+                        return  $field_data['files'][0]['href'];
+                    }
+                }
+            }
+        }
+
+        return '';
+    }
+
+
 
     /**
      * Provides basic user information to entities using OAuth.

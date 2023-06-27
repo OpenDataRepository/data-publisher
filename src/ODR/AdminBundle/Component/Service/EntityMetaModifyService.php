@@ -1904,7 +1904,6 @@ class EntityMetaModifyService
             return $entity;
         }
 
-
         // If this is an IntegerValue entity, set the value back to an integer or null so it gets
         //  saved correctly
         if ($typeclass == 'IntegerValue') {

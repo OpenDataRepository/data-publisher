@@ -1,26 +1,64 @@
-<div class="ODRShortResultsTitle"><span class="ODRShortResultsHeaderLeft">Searching all databases containing RAMAN Records</span><span class="ODRShortResultsHeaderRight"></span></div>
-<div id="pagination_header" class="pure-u-1"><div id="ODRPageSelect_header" class="pure-u-1 pure-u-md-1-8"><a id="ODRPageSelectSettings" data-step="2" data-intro="The settings gear contains customizable settings for this search results page."><i class="fa fa-lg fa-fw fa-cog"></i><span class="ODRPaginationLabel">&nbsp;Tools</span></a></div><div class="pure-u-1 pure-u-md-3-8"><form id="ODRPageSelectForm" name="ODRPageSelectForm"><span id="ODRPageSelect" class="odr_page_button Pointer" data-step="9" data-intro="You may jump to a specific results page by using the &quot;Jump to page&quot; option."><i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span><input type="text" id="odr_page_input" value="1" size="3" length="10" autocomplete="off">&nbsp;of&nbsp;<b>5</b></span><span id="ODRPagePopup">Jump to page:
-                <button type="button" id="ODRPageSelectButton" class="pure-button">Go</button></span><button class="ODRPageChooserButton pure-button pure-button-primary" onclick="goToPage(1);"><span>1</span></button><button class="ODRPageChooserButton pure-button " onclick="goToPage(2);"><span>2</span></button>
-
-            &nbsp;<i class="fa fa-ellipsis-h"></i><button class="ODRPageChooserButton pure-button" onclick="goToPage(5);"><span>5</span></button><span class="ODRResultsNumRecords Cursor"><b>122</b>&nbsp;<span class="ODRPaginationLabel">records</span></span></form></div><div class="pure-u-1 pure-u-md-1-2"><span><span class="ODRPaginationLabel Cursor">Show:&nbsp;</span><button type="button" class="ODRPageLength pure-button " rel="10">10</button><button type="button" class="ODRPageLength pure-button pure-button-primary" rel="25">25</button><button type="button" class="ODRPageLength pure-button " rel="50">50</button><button type="button" class="ODRPageLength pure-button " rel="100">100</button><span class="ODRPaginationLabel Cursor">&nbsp;records/page</span></span></div><div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display:none;"><ul class="pure-menu-list"><li class="pure-menu-item SpacerRight"><label id="ChooseView" class="pure-button" data-step="3" data-intro="Clicking this brings up a dialog of options for selecting from alternate layouts, or for creating one of your own.">
+<div class="ODRShortResultsTitle"><span class="ODRShortResultsHeaderLeft">Searching all databases containing RAMAN Records</span><span
+            class="ODRShortResultsHeaderRight"></span></div>
+<div id="pagination_header" class="pure-u-1">
+    <div id="ODRPageSelect_header" class="pure-u-1 pure-u-md-1-8">
+        <a id="ODRPageSelectSettings" data-step="2"
+           data-intro="The settings gear contains customizable settings for this search results page.">
+            <i class="fa fa-lg fa-fw fa-cog"></i><span class="ODRPaginationLabel">&nbsp;Tools</span>
+        </a>
+    </div>
+    <div class="pure-u-1 pure-u-md-3-8">
+        <form id="ODRPageSelectForm" name="ODRPageSelectForm">
+            <span id="ODRPageSelect" class="odr_page_button Pointer"
+                  data-step="9"
+                  data-intro="You may jump to a specific results page by using the &quot;Jump to page&quot; option.">
+                <i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span>
+                <input type="text" id="odr_page_input" value="1" size="3" length="10" autocomplete="off">
+                &nbsp;of&nbsp;<b>{{ (total/limit) | ceil }}</b>
+            </span>
+            <span id="ODRPagePopup">Jump to page:
+                <button type="button" id="ODRPageSelectButton" class="pure-button">Go</button>
+            </span>
+            <button class="ODRPageChooserButton pure-button pure-button-primary" onclick="openPage('?limit={{ limit }}&offset=0');">
+                <span>1</span>
+            </button>
+            <button class="ODRPageChooserButton pure-button " onclick="openPage('?limit={{ limit }}&offset={{ limit }}');"><span>2</span></button>
+                &nbsp;<i class="fa fa-ellipsis-h"></i>
+            <button class="ODRPageChooserButton pure-button" onclick="openPage('?limit={{ limit }}&offset={{ (total/limit) | ceil }}');"><span>{{ (total/limit) | ceil }}</span></button>
+            <span class="ODRResultsNumRecords Cursor"><b>{{ total }}</b>&nbsp;
+            <span class="ODRPaginationLabel">records</span></span>
+        </form>
+    </div>
+    <div class="pure-u-1 pure-u-md-1-2">
+        <span>
+            <span class="ODRPaginationLabel Cursor">Show:&nbsp;</span>
+            <button type="button" class="ODRPageLength pure-button " rel="10">10</button>
+            <button type="button"
+                    class="ODRPageLength pure-button pure-button-primary"
+                    rel="25">25</button>
+            <button type="button" class="ODRPageLength pure-button " rel="50">50</button>
+            <button type="button"
+                    class="ODRPageLength pure-button "
+                    rel="100">100</button>
+            <span class="ODRPaginationLabel Cursor">&nbsp;records/page</span>
+        </span>
+    </div>
+    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display:none;">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item SpacerRight"><label id="ChooseView" class="pure-button" data-step="3"
+                                                          data-intro="Clicking this brings up a dialog of options for selecting from alternate layouts, or for creating one of your own.">
                     Choose View
-                </label></li><li class="pure-menu-item SpacerRight"><label id="ODRCSVExport" class="pure-button" data-step="6" data-intro="CSV Export allows users to create CSV downloads of the data in the result list.">
+                </label></li>
+            <li class="pure-menu-item SpacerRight"><label id="ODRCSVExport" class="pure-button" data-step="6"
+                                                          data-intro="CSV Export allows users to create CSV downloads of the data in the result list.">
                     Export Records (CSV)
-                </label></li></ul></div><script>
+                </label></li>
+        </ul>
+    </div>
+    <script>
 
-        $(function() {
+        $(function () {
             initViewManager();
-
-
-
-            $("#ODRCSVExport").unbind('click').click(function() {
-                var url = '/odr/admin/csvexport/3/7/eyJkdF9pZCI6IjMifQ/1';
-                UpdateURL(url);
-            });
-
-
-
-
         });
 
         /**
@@ -28,388 +66,11 @@
          */
         function initViewManager() {
             // Setup Theme System
-            setupThemeSystem();
-
-            $("#ODRPageSelectSettings").unbind('click').click(function(event) {
-                $("#page_settings_menu").toggle('fast');
-            });
         }
 
-        /**
-         * Attaches the correct click handler to the "Choose View" button.
-         */
-        function setupThemeSystem() {
-            // Init the choose view button
-            $("#ChooseView").unbind('click').click(function(event) {
-                chooseView();
-            });
+        function openPage(page) {
+            window.location.href = window.location.href + page;
         }
 
-        /**
-         * Opens the modal for users to view/select available themes for this datatype.
-         */
-        function chooseView() {
-            modal_options = {
-                title: "Choose from available views:",
-                // body: "<div>Loading will not display if body is set.</div>",
-                // loading: true,  // Force loading to display
-            };
-            openODRRemodal(modal_options);
-            var url = '/odr/view/getthemes/3/search_results';
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function (data, textStatus, jqXHR) {
-                    $(".ODRRemodalBody").html( data.d );
-                    $(".ODRRemodalLoading").fadeOut('150', function() {
-                        $(".ODRRemodalBody").show();
-                        resetRemodalInnerHeight();
-                        initChooseViewButtons();
-                    });
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to create a jGrowl because exception handlers will automatically
-                    //  display. Close the dialog so it's not in some half-initialized state.
-                    closeODRRemodal();
-                },
-                complete: function (jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Attaches click handlers to all the buttons inside the "available themes" modal.
-         */
-        function initChooseViewButtons() {
-            $(".ODRDeleteTheme").unbind('click').click(function() {
-                // Show loading with "Deleting" text
-                setODRRemodalLoadingText("deleting");
-                $(".ODRRemodalBody").hide();
-                $(".ODRRemodalLoading").show();
-                resetRemodalInnerHeight();
-
-                var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-                deleteView(theme_id);
-            });
-
-            $(".ODRDefaultPersonal").unbind('click').click(function() {
-                setModalMessage("Setting view as personal default.");
-
-                var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-                var redirect = true;
-                var persist = true;
-                applyView(theme_id, redirect, persist);
-            });
-
-            $(".ODRMakeCurrentView").unbind('click').click(function() {
-                setModalMessage("Setting view for session.");
-
-                var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-                var redirect = true;
-                var persist = false;
-                applyView(theme_id, redirect, persist);
-            });
-
-            $(".ODRCopyModifyTheme").unbind('click').click(function() {
-                var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-                copyAndModifyView(theme_id);
-            });
-
-            $(".ODRModifyTheme").unbind('click').click(function() {
-                var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-                // Do not set this theme as the user's default for this datatype
-                openModifyThemeEditor(theme_id, false);
-            });
-
-            $(".ODRDefaultDatabase").unbind('click').click(function() {
-                setModalMessage("Setting view as database default.");
-
-                var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-                makeDatabaseDefault(theme_id);
-            });
-
-            $(".ODRMakeViewPublic").unbind('click').click(function() {
-                setModalMessage("Toggling public status of view.");
-
-                var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-                makeViewPublic(theme_id);
-            });
-        }
-
-        /**
-         * Triggers a change to the user's current theme.
-         *
-         * @param {number} theme_id The theme to use
-         * @param {bool} redirect If true, reloads the page to immediately use the selected theme
-         * @param {bool} persist If true, then the database is updated to indicate the user prefers to use the selected theme
-         */
-        function applyView(theme_id, redirect, persist) {
-            if (persist)
-                persist = 1;
-            else
-                persist = 0;
-
-            var url = '/odr/session/apply_theme/apply/3/0/0';
-            url = url.substr(0, (url.length - 3)) + theme_id + "/" + persist;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function (data, textStatus, jqXHR) {
-                    if (redirect) {
-                        closeODRRemodal();
-                        // Need to extract the offset, then redirect to a URL with the desired theme id
-                        var hash = window.location.hash;
-                        var offset = hash.substr(hash.lastIndexOf('/') + 1);
-                        if ( isNaN(offset) )
-                            offset = '1';
-
-                        // Ensure the search sidebar doesn't revert back to the previous theme if the
-                        //  Search button is clicked
-                        $("#selected_theme_id").val(theme_id);
-
-                        // Reload the search results list with the newly selected theme
-                        var url = '/odr/search/display/0//0';
-                        url = url.substr(0, url.length-4);
-                        url += theme_id + '/' + 'eyJkdF9pZCI6IjMifQ' + '/' + offset;
-
-                        UpdateURL(url);
-                    }
-
-                    // Without redirect, this just sets the view preference
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to create a jGrowl because exception handlers will automatically
-                    //  display. Close the dialog so it's not in some half-initialized state.
-                    closeODRRemodal();
-                },
-                complete: function (jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Triggers a copy of the selected theme, then redirects to the design page for the new theme.
-         *
-         * @param {number} theme_id
-         */
-        function copyAndModifyView(theme_id) {
-            var url = '/odr/design/copy_view/0';
-            url = url.substr(0, (url.length - 1)) + theme_id;
-
-            setModalMessage("Copying selected theme, please wait...");
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function (data, textStatus, jqXHR) {
-                    // Open the edit page for the new theme
-                    // This will also make the new theme the user's default for this datatype
-                    openModifyThemeEditor(data.d.new_theme_id, true);
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to create a jGrowl because exception handlers will automatically
-                    //  display. Close the dialog so it's not in some half-initialized state.
-                    closeODRRemodal();
-                },
-                complete: function (jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Opens the design page for the given theme.
-         *
-         * @param {number} theme_id
-         * @param {bool} persist
-         */
-        function openModifyThemeEditor(theme_id, persist = false) {
-            // Set view for session
-            var redirect = false;
-            applyView(theme_id, redirect, persist);
-
-            closeODRRemodal();
-
-            // Open View Editor
-            var url = '/odr/design/modify_view/3/0';
-            url = url.substr(0, url.length-1);
-            url += theme_id + '/' + 'eyJkdF9pZCI6IjMifQ';
-
-            // Hash change event will load theme
-            window.location.hash = url;
-        }
-
-        /**
-         * Toggles the public status of the given theme.
-         *
-         * @param {number} theme_id
-         */
-        function makeViewPublic(theme_id) {
-            var url = '/odr/design/togglepublic/0';
-            url = url.substr(0, (url.length - 1)) + theme_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function (data, textStatus, jqXHR) {
-                    // Close modal
-                    closeODRRemodal();
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to create a jGrowl because exception handlers will automatically
-                    //  display. Close the dialog so it's not in some half-initialized state.
-                    closeODRRemodal();
-                },
-                complete: function (jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Sets the given theme as its datatype's default theme (for the inferred context...display,
-         *  table, search_results, etc)
-         *
-         * @param {number} theme_id
-         */
-        function makeDatabaseDefault(theme_id) {
-            var url = '/odr/design/makedefault/0';
-            url = url.substr(0, (url.length - 1)) + theme_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function (data, textStatus, jqXHR) {
-                    // Apply view for session and redirect
-                    var redirect = true;
-                    var persist = true;
-                    applyView(theme_id, redirect, persist);
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to create a jGrowl because exception handlers will automatically
-                    //  display. Close the dialog so it's not in some half-initialized state.
-                    closeODRRemodal();
-                },
-                complete: function (jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Deletes the given theme.
-         *
-         * @param {number} theme_id
-         */
-        function deleteView(theme_id) {
-            var url = '/odr/design/delete_view/0';
-            url = url.substr(0, (url.length - 1)) + theme_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function (data, textStatus, jqXHR) {
-                    $(".ODRRemodalLoading").hide();
-                    resetODRRemodalLoadingText();
-                    setModalMessage("View deleted.");
-
-                    // Close modal and reload page
-                    closeODRRemodal();
-                    var hash = window.location.hash;
-                    var offset = hash.substr(hash.lastIndexOf('/') + 1);
-                    if ( isNaN(offset) )
-                        offset = '1';
-
-                    var url = '/odr/search/display/0//0';
-                    url = url.substr(0, url.length-4);
-                    url += '0' + '/' + 'eyJkdF9pZCI6IjMifQ' + '/' + offset;
-
-                    UpdateURL(url);
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to create a jGrowl because exception handlers will automatically
-                    //  display. Close the dialog so it's not in some half-initialized state.
-                    closeODRRemodal();
-                },
-                complete: function (jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                    }
-                }
-            });
-        }
-    </script></div>
+    </script>
+</div>

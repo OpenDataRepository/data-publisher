@@ -52,6 +52,17 @@ services:
         tags:
             - { name: "kernel.event_subscriber" }
 
+    # Event subscriber for Kernel Events and Wordpress Integration
+    odr.kernel_event_subscriber:
+        class: ODR\AdminBundle\Component\Event\WPAutoLoginSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $user_manager: "@fos_user.user_manager"
+            $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
+
     # Services for improved data retrieval model
     odr.cache_service:
         class: ODR\AdminBundle\Component\Service\CacheService

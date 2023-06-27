@@ -61,8 +61,18 @@ class PlugExtension extends \Twig_Extension
 
             new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
             new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
+            new \Twig\TwigFilter('ceil', array($this, 'ceilingFilter')),
+            new \Twig\TwigFilter('floor', array($this, 'floorFilter')),
             new \Twig\TwigFilter('chemistry', array($this, 'chemistryFilter')),
         );
+    }
+
+    public function ceilingFilter($num) {
+        return ceil($num);
+    }
+
+    public function floorFilter($num) {
+        return floor($num);
     }
 
     public function chemistryFilter($str) {
@@ -201,6 +211,9 @@ class PlugExtension extends \Twig_Extension
                                if (isset($field_data['value'])) {
                                    return $field_data['value'];
                                }
+                               else if (isset($field_data['selected'])) {
+                                   return $field_data['selected'];
+                               }
                                else if(isset($field_data['files'])) {
                                    return  $field_data['files'][0]['href'];
                                }
@@ -208,6 +221,9 @@ class PlugExtension extends \Twig_Extension
                            else if ($field_data['field_uuid'] == $field_uuid) {
                                if (isset($field_data['value'])) {
                                    return $field_data['value'];
+                               }
+                               else if (isset($field_data['selected'])) {
+                                   return $field_data['selected'];
                                }
                                else if(isset($field_data['files'])) {
                                    return  $field_data['files'][0]['href'];
