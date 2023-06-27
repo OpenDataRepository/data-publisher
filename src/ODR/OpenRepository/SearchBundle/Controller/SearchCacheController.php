@@ -48,6 +48,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class SearchCacheController extends Controller
 {
+
     /**
      * Pre-caches records so search is faster
      *
@@ -56,8 +57,6 @@ class SearchCacheController extends Controller
     {
         // ----------------------------------------
         // Grab necessary stuff for pheanstalk...
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-        $api_key = $this->container->getParameter('beanstalk_api_key');
         $pheanstalk = $this->get('pheanstalk');
 
         // print $site_baseurl;exit();
@@ -81,8 +80,6 @@ class SearchCacheController extends Controller
         // ----------------------------------------
         // Create one beanstalk job per datarecord
         foreach ($results as $num => $result) {
-            $datarecord_id = $result->getId();
-
             // Get URL for Record
             // search_theme_id 0 is default
             // Generate a search key based on datatype id
@@ -93,7 +90,6 @@ class SearchCacheController extends Controller
 
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-
             $search_key = $search_key_service->encodeSearchKey($search_params);
 
             // var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key, 'offset': '1' } ) }}';
@@ -118,22 +114,14 @@ class SearchCacheController extends Controller
 
             $url = $site_baseurl . '/' . $datatype->getSearchSlug() . "#" . $url;
 
-            // Do we deal with ElasticSearch now?
-            // $url = $this->generateUrl('odr_api_get_dataset_record', array(
-                // 'version' => 'v3', // $version,
-                // 'record_uuid' => $result->getUniqueId()
-            // ), false);
-
-            // 'master_datatype_uuid' => $datatype->getMasterDataType()->getUniqueId(),
-            // Insert the new job into the queue
-            // $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
                     'url' => $url,
-                    // 'api_url' => $api_url
                 )
             );
 
+            // Record pre-cache for interface display speed
+            // Uses puppeteer to preload public version in chrome
             $pheanstalk->useTube('odr_record_precache')->put($payload);
             print "Record (" . $num . ') - ' . $result->getId() . ' - ' . $url . '<br />';
 
