@@ -147,10 +147,12 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                 }
             }
         }
-        else if ( char === '·' || char === '⋅' ) {
-            // First character is U+00B7 "·" (MIDDLE DOT)...second character is U+22C5 "⋅" (DOT OPERATOR)
-            // The first one is preferred, so convert the second one into the first
-            if ( char === '⋅' )
+        else if ( char === '·' || char === '⋅' || char === '•' ) {
+            // U+00B7 "·" (MIDDLE DOT)
+            // U+22C5 "⋅" (DOT OPERATOR)
+            // U+2022 "•" (BULLET)
+            // The first one is preferred, so convert the others into the first
+            if ( char === '⋅' || char === '•' )
                 char = '·';
 
             // This character is typically used to denote a collection of water molecules at the
@@ -192,8 +194,9 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
             // U+25FB "◻" (WHITE MEDIUM SQUARE)
             // U+2610 "☐" (BALLOT BOX)
 
-            // Replace any instance of these characters with U+25FB "◻" (WHITE MEDIUM SQUARE)
-            output += '◻';
+            // Replace any instance of these characters with 'box', to keep unicode out of the "plain"
+            //  formula it at all possible
+            output += '[box]';
 
             // Isn't unicode the best thing ever?
         }
