@@ -24,6 +24,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -72,6 +73,8 @@ class DefaultController extends Controller
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $ssb_service */
             $ssb_service = $this->container->get('odr.search_sidebar_service');
             /** @var ThemeInfoService $theme_info_service */
@@ -217,6 +220,26 @@ class DefaultController extends Controller
             $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
             $user_list = $ssb_service->getSidebarUserList($admin_user, $datatype_array);
 
+            // If this datatype has a default search key...
+            $search_key = '';
+            $search_params = array();
+            if ($target_datatype->getStoredSearchKeys()->count() > 0) {
+                // ...then extract it so the sidebar can load with said search key
+                /** @var StoredSearchKey $ssk */
+                $ssk = $target_datatype->getStoredSearchKeys()->first();
+                $search_key = $ssk->getSearchKey();
+
+                // Convert the search key into a parameter list so that the sidebar can start out
+                //  with the right stuff
+                $search_params = $search_key_service->decodeSearchKey($search_key);
+                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
+
+                // Don't need to worry if the search key refers to an invalid/deleted datafield
+                //  ...the user will end up being redirected to the "empty" search key for the datatype
+
+                // The same thing will happen when it refers to a datafield the user can't view
+            }
+
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
@@ -299,10 +322,13 @@ class DefaultController extends Controller
                     'background_image_id' => $background_image_id,
 
                     // datatype/datafields to search
-                    'search_params' => array(),
                     'target_datatype' => $target_datatype,
                     'datatype_array' => $datatype_array,
                     'datatype_relations' => $datatype_relations,
+
+                    // defaults if needed
+                    'search_key' => $search_key,
+                    'search_params' => $search_params,
 
                     // theme selection
 //                    'available_themes' => $available_themes,
@@ -403,6 +429,8 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Going to use the data in the POST request to build a new search key
             $search_params = $request->request->all();
+            if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1148,9 +1176,6 @@ class DefaultController extends Controller
                 $logged_in = false;
             // --------------------
 
-            if ( $intent !== 'searching' && $intent !== 'linking' )
-                throw new ODRBadRequestException();
-
             // Default to not making any changes
             $return['d'] = array('html' => '');
 
@@ -1163,35 +1188,10 @@ class DefaultController extends Controller
 
                 $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
 
-                // Twig can figure out which radio options/tags are selected or unselected, but it's
-                //  difficult to actually set them inside the template file...easier to use php
-                //  to tweak the search params array here
-                foreach ($datatype_array as $dt_id => $dt) {
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                        if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
-                            if ( isset($search_params[$df_id]) ) {
-                                // This search has criteria for a radio/tag datafield
-                                $ids = explode(',', $search_params[$df_id]);
-
-                                $selected_ids = array();
-                                $unselected_ids = array();
-                                foreach ($ids as $id) {
-                                    if ( strpos($id, '-') !== false )
-                                        $unselected_ids[] = substr($id, 1);
-                                    else
-                                        $selected_ids[] = $id;
-                                }
-
-                                // Save everything and continue
-                                $search_params[$df_id] = array(
-                                    'selected' => $selected_ids,
-                                    'unselected' => $unselected_ids
-                                );
-                            }
-                        }
-                    }
-                }
+                // Twig can technically figure out which radio options/tags are selected or
+                //  unselected from the search key, but it's irritating to do so...it's easier to
+                //  use php instead.
+                $ssb_service->fixSearchParamsOptionsAndTags($datatype_array, $search_params);
 
                 $templating = $this->get('templating');
                 $return['d'] = array(

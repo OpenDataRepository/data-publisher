@@ -533,6 +533,23 @@ odr_design_save_special_datafield_properties:
     requirements:
         datatype_id:  \d+
 
+odr_design_get_stored_search_keys:
+    path:  /design/displaytemplate/search_keys/get/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getstoredsearchkeys }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_convert_to_stored_search_key:
+    path:  /design/displaytemplate/search_keys/create
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:converttostoredsearchkey }
+    methods: [ POST ]
+
+odr_design_save_stored_search_keys:
+    path:  /design/displaytemplate/search_keys/save/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savestoredsearchkeys }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }
@@ -680,11 +697,19 @@ odr_record_addchild:
         datatype_id:  \d+
         parent_id:  \d+
 
-odr_record_delete_file:
-    path:  /edit/deletefile/{file_id}
-    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
+odr_record_rename_file:
+    path:  /edit/renamefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:renamefile }
+    methods: [ POST ]
     requirements:
         file_id:  \d+
+
+odr_record_rename_image:
+    path:  /edit/renameimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Edit:renameimage }
+    methods: [ POST ]
+    requirements:
+        image_id:  \d+
 
 odr_record_public_file:
     path:  /edit/publicfile/{file_id}
@@ -697,6 +722,12 @@ odr_record_public_image:
     defaults: { _controller: ODRAdminBundle:Edit:publicimage }
     requirements:
         image_id:  \d+
+
+odr_record_delete_file:
+    path:  /edit/deletefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
+    requirements:
+        file_id:  \d+
 
 odr_record_delete_image:
     path:  /edit/deleteimage/{image_id}
@@ -1427,6 +1458,11 @@ odr_find_duplicate_user_groups:
 odr_check_fieldtype_table:
     path:  /admin/check_fieldtype_table
     defaults: { _controller: ODRAdminBundle:Validation:checkFieldtypeTable }
+
+# Ensure entities don't share uuids
+odr_fix_duplicate_uuids:
+    path:  /admin/fix_duplicate_uuids
+    defaults: { _controller: ODRAdminBundle:Validation:fixduplicateuuids }
 # Ensure datafields with a master_datafield_id also have a template_field_uuid
 odr_fix_missing_datafield_template_uuids:
     path:  /admin/fix_missing_datafield_template_uuids

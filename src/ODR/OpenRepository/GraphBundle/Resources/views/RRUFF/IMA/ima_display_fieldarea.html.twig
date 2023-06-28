@@ -49,6 +49,8 @@
 
                                 'rpf_name': plugin_fields[ datafield.id ]['rpf_name'],
                                 'related_reference_info': related_reference_info,
+
+                                'is_datatype_admin': is_datatype_admin,
                             } %}
                         {% else %}
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
@@ -105,6 +107,8 @@
                             'target_datatype_id': child_datatype_id,
                             'parent_datarecord': datarecord,
                             'target_theme_id': child_theme_id,
+
+                            'is_datatype_admin': is_datatype_admin,
 
                             'is_top_level': 0,
                             'is_link': theme_datatype.is_link,

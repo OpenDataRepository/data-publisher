@@ -47,6 +47,10 @@
                     {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "AMC File" %}
                         {% set is_amc_file_datafield = true %}
                     {% endif %}
+                    {% set is_cif_file_datafield = false %}
+                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "CIF File" %}
+                        {% set is_cif_file_datafield = true %}
+                    {% endif %}
 
                     {% set is_file_contents_datafield = false %}
                     {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "File Contents" %}
@@ -72,7 +76,7 @@
                                 'datarecord': datarecord,
                                 'datafield': datafield,
                             } %}
-                        {% elseif is_amc_file_datafield %}
+                        {% elseif is_amc_file_datafield or is_cif_file_datafield %}
                             {# the "AMC File" datafield requires slightly different file upload javascript #}
                             {% include 'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_amcfile_datafield.html.twig' with {
                                 'datarecord': datarecord,

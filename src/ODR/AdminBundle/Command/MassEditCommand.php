@@ -164,8 +164,8 @@ class MassEditCommand extends ContainerAwareCommand
                         $pheanstalk->release($job, 2048, 10);   // release job back into queue as lower priority, on a 10 second delay
                 }
 
-                // Sleep for a bit
-                usleep(200000);
+                // Sleep for a bit - nominally 200ms changing to 20ms
+                usleep(20000);
 
             }
             catch (\Exception $e) {

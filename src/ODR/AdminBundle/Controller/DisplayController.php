@@ -737,8 +737,6 @@ class DisplayController extends ODRCustomController
             if ($image == null)
                 throw new ODRNotFoundException('Image');
 
-            // print microtime(true) - $start . "<br />";
-
             /*
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
@@ -758,11 +756,11 @@ class DisplayController extends ODRCustomController
             // print microtime(true) - $start . "<br />";
 
             // Ensure file exists before attempting to download it
-            $filename = 'Image_'.$image_id.'.'.$image->getExt();
+            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
             if ( !$image->isPublic() ) {
+
                 /** @var PermissionsManagementService $pm_service */
                 $pm_service = $this->container->get('odr.permissions_management_service');
-
                 // ----------------------------------------
                 // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
                 /** @var ODRUser $user */
@@ -772,9 +770,13 @@ class DisplayController extends ODRCustomController
                     throw new ODRForbiddenException();
                 // ----------------------------------------
 
+                // If image isn't public, then it needs to have this filename instead...
+                $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
+
+                // Ensure the image exists in decrypted format
                 $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image->isPublic() || !$image_path )
-                    $image_path = $crypto_service->decryptImage($image_id, $filename);
+                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
                 $handle = fopen($image_path, 'r');
                 if ($handle === false)
@@ -799,7 +801,7 @@ class DisplayController extends ODRCustomController
                 // Attach the image's original name to the headers...
                 $display_filename = $image->getOriginalFileName();
                 if ($display_filename == null)
-                    $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
+                    $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
                 $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
 
                 $response->sendHeaders();
@@ -836,7 +838,7 @@ class DisplayController extends ODRCustomController
                 // If image is public but doesn't exist, decrypt now
                 $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image_path )
-                    $image_path = $crypto_service->decryptImage($image_id, $filename);
+                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
                 // print microtime(true) - $start . "<br />";
                 $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
@@ -845,7 +847,6 @@ class DisplayController extends ODRCustomController
                 // $response->headers->set('Content-Type', 'text/html');
                 //return $response;
                 return $this->redirect($url, 301);
-
             }
         }
         catch (\Exception $e) {

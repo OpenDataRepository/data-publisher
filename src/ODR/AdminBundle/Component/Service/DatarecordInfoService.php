@@ -17,7 +17,6 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -1114,47 +1113,6 @@ class DatarecordInfoService
 
 
     /**
-     * Marks the specified datarecord (and all its parents) as updated by the given user.
-     *
-     * @param DataRecord $datarecord
-     * @param ODRUser $user
-     */
-    public function updateDatarecordCacheEntry($datarecord, $user)
-    {
-        // Whenever an edit is made to a datarecord, each of its parents (if it has any) also need
-        //  to be marked as updated
-        $dr = $datarecord;
-        while ($dr->getId() !== $dr->getParent()->getId()) {
-            // Mark this (non-top-level) datarecord as updated by this user
-            $dr->setUpdatedBy($user);
-            $dr->setUpdated(new \DateTime());
-            $this->em->persist($dr);
-
-            // Continue locating parent datarecords...
-            $dr = $dr->getParent();
-        }
-
-        // $dr is now the grandparent of $datarecord
-        $dr->setUpdatedBy($user);
-        $dr->setUpdated(new \DateTime());
-        $this->em->persist($dr);
-
-        // Save all changes made
-        $this->em->flush();
-
-        // Child datarecords don't have their own cached entries, it's all contained within the
-        //  cache entry for their top-level datarecord
-        $this->cache_service->delete('cached_datarecord_'.$dr->getId());
-
-        // Delete the filtered list of data meant specifically for table themes
-        $this->cache_service->delete('cached_table_data_'.$dr->getId());
-
-        // Clear json caches used in API
-        $this->cache_service->delete('json_record_' . $dr->getUniqueId());
-    }
-
-
-    /**
      * Deletes the cached table entries for the specified datatype...currently used by several
      * render plugins after they get removed or their settings get changed...
      *
@@ -1174,55 +1132,6 @@ class DatarecordInfoService
 
         foreach ($results as $result)
             $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
-    }
-
-
-    /**
-     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datarecords...
-     * e.g.  A links to B links to C links to D links to...etc
-     * ...the cache entry 'associated_datarecords_for_<A>' will then mention (B, C, D, etc.), because
-     *  they all need to be loaded via getDatarecordArray() in order to properly render A.
-     *
-     * However, this means that linking/unlinking of datarecords between B/C, C/D, D/etc also affects
-     * which datarecords A needs to load...so any linking/unlinking needs to be propagated upwards...
-     *
-     * TODO - potentially modify this to use SearchService::getCachedSearchDatarecordList()?
-     * TODO - ...or create a new CacheClearService and move every single cache clearing function into there instead?
-     *
-     * @param array $datarecord_ids the datarecord_ids are values in the array, NOT keys
-     */
-    public function deleteCachedDatarecordLinkData($datarecord_ids)
-    {
-        $records_to_check = $datarecord_ids;
-        $records_to_clear = $records_to_check;
-
-        while ( !empty($records_to_check) ) {
-            // Determine whether anything links to the given datarecords...
-            $query = $this->em->createQuery(
-               'SELECT grandparent.id AS ancestor_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS grandparent WITH ancestor.grandparent = grandparent
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                WHERE descendant.id IN (:datarecords)
-                AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-                AND grandparent.deletedAt IS NULL'
-            )->setParameters( array('datarecords' => $records_to_check) );
-            $results = $query->getArrayResult();
-
-            $records_to_check = array();
-            foreach ($results as $result) {
-                $ancestor_id = $result['ancestor_id'];
-                $records_to_clear[] = $ancestor_id;
-                $records_to_check[] = $ancestor_id;
-            }
-        }
-
-        // Clearing this cache entry for each of the ancestor records found ensures that the
-        //  newly linked/unlinked datarecords show up (or not) when they should
-        foreach ($records_to_clear as $num => $dr_id)
-            $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
     }
 
 
@@ -1386,7 +1295,7 @@ class DatarecordInfoService
                 // Need to check whether the datafield has the "no_user_edits" or "is_derived"
                 //  properties from a render plugin
                 if ( !empty($df['renderPluginInstances']) ) {
-                    foreach ($df['renderPluginInstances'] as $num => $rpi) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         // Datafield plugins are guaranteed to have a single renderPluginMap entry,
                         //  but don't know what the renderPluginField name is
                         foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
@@ -1403,7 +1312,7 @@ class DatarecordInfoService
 
                 // ...and also check from a datatype plugin
                 if ( !empty($dt['renderPluginInstances']) ) {
-                    foreach ($dt['renderPluginInstances'] as $num => $rpi) {
+                    foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                         foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                             if ( $rpf['id'] === $df_id ) {
                                 // This datafield is being used by a datatype plugin...

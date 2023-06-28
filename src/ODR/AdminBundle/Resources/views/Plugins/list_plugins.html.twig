@@ -19,6 +19,7 @@
             <th>Name</th>
             <th>Description</th>
 
+            <td></td>
             <th>Installed?</th>
             <th>In Use?</th>
         </tr></thead>
@@ -30,6 +31,19 @@
                 <td>{{ plugin_data['category'] }}</td>
                 <td>{{ plugin_data['name'] }}</td>
                 <td>{{ plugin_data['description'] }}</td>
+
+                <td>
+                {% if readable_plugin_updates[plugin_classname] is defined %}
+                    <span class="ODRFileInfoDiv">
+                        <i class="fa fa-lg fa-info-circle"></i>
+                        <span class="ODRFileInfo" style="left: auto !important; top: auto !important; line-height: 1.5em !important;">
+                        {% for blurb in readable_plugin_updates[plugin_classname] %}
+                            <div>{{ blurb }}</div>
+                        {% endfor %}
+                        </span>
+                    </span>
+                {% endif %}
+                </td>
 
                 <td>
                     {% if installed_plugins[plugin_classname] is not defined %}
@@ -78,7 +92,7 @@
                     "searchable": false
                 },
                 {
-                    "targets": [4,5],
+                    "targets": [5,6],
                     // "orderable": false,
                     "searchable": false,
                     "className": "ODRCenterText"
@@ -168,6 +182,7 @@
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     $(column).html('Yes');
+                    $(column).prev().html('');
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error

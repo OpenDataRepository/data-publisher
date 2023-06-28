@@ -1943,6 +1943,46 @@ class SearchService
 
 
     /**
+     * Returns a cached list of the uuids of all datarecords of the given datatype.
+     *
+     * This exists because SearchService::getCachedSearchDatarecordList() is also convenient for
+     * quickly getting a list of datarecord ids for a given datatype...but sometimes uuids are wanted
+     * instead.
+     *
+     * @param int $datatype_id
+     * @return array
+     */
+    public function getCachedDatarecordUUIDList($datatype_id)
+    {
+        // Attempt to load from the cache first
+        $datarecords = $this->cache_service->get('cached_dt_'.$datatype_id.'_dr_uuid_list');
+        if (!$datarecords) {
+            // Define the base query
+            $query = $this->em->createQuery(
+               'SELECT dr.id AS id, dr.unique_id AS unique_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+                JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                WHERE dr.dataType = :datatype_id
+                AND dr.deletedAt IS NULL
+                AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype_id) );
+            $results = $query->getArrayResult();
+
+            //
+            $datarecords = array();
+            foreach ($results as $result)
+                $datarecords[ $result['id'] ] = $result['unique_id'];
+
+            // Cache and return the list of datarecords
+            $this->cache_service->set('cached_dt_'.$datatype_id.'_dr_uuid_list', $datarecords);
+        }
+
+        return $datarecords;
+    }
+
+
+    /**
      * Searches on Radio datafields that cross templates need to have a list of all datarecords
      * that also crosses templates...otherwise, they can't cache which RadioOptions are unselected.
      *
@@ -2192,14 +2232,14 @@ class SearchService
      * In order for general search to be run on a template, ODR needs to have an array of template
      * uuids available for self::getSearchableTemplateDatafields() to work.
      *
-     * @param DataType $datatype
+     * @param int $datatype_id
      *
      * @return array
      */
-    public function getRelatedTemplateDatatypes($datatype)
+    public function getRelatedTemplateDatatypes($datatype_id)
     {
         // Locate related datatypes from the cached datatree array...
-        $related_datatypes = self::getRelatedDatatypes( $datatype->getId() );
+        $related_datatypes = self::getRelatedDatatypes($datatype_id);
 
         // ...then get the uuids of all the related datatypes
         $query = $this->em->createQuery(
@@ -2245,6 +2285,6 @@ class SearchService
             throw new ODRNotFoundException('Datatype', false, 0x76e87ad5);
 
         // Run the other function now that the requested datatype was located
-        return self::getRelatedTemplateDatatypes($datatype);
+        return self::getRelatedTemplateDatatypes($datatype->getId());
     }
 }

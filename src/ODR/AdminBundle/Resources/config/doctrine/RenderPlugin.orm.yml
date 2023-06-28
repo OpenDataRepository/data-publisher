@@ -71,10 +71,17 @@ ODR\AdminBundle\Entity\RenderPlugin:
 
         plugin_type:
             type: smallint
-            default: 2
+            default: 0
             unsigned: false
             nullable: false
             column: plugin_type
+
+        requiredThemeElements:
+            type: integer
+            default: 0
+            unsigned: false
+            nullable: false
+            column: required_theme_elements
 
         deletedAt:
             type: datetime

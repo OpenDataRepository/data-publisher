@@ -83,7 +83,7 @@
     }
 
     /**
-     * Submits any changes made to the render plugin form, and reloads parts of the page afterwards
+     * Submits any changes made to the render plugin form, and reloads parts of the page afterward
      * to reflect those changes.
      */
     function submitRenderPluginForm() {
@@ -109,8 +109,8 @@
                     // This is a render plugin for a datatype
                     var reload_datatype = data.d.reload_datatype;
                     if ( reload_datatype ) {
-                        // The render plugin added at least one field...reload the datatype so it
-                        //  shows up
+                        // The render plugin added at least one field or themeElement...reload the
+                        //  datatype so everything shows up
                         ReloadChild(datatype_id);
                     }
                     else {
@@ -126,6 +126,11 @@
                         // The javascript array of datatype properties won't have changed, but the
                         //  left panel should get reset just in case
                         RenderToolSet(datatype_id, 'datatype');
+
+                        // There's also a javascript theme_element_properties array...but since users
+                        //  don't have the ability to directly modify ThemeRenderPluginInstances, the
+                        //  only way for the array to change is when a new ThemeRenderPluginInstance
+                        //  is created...which will always trigger a call to ReloadChild()
                     }
                 }
 

@@ -46,6 +46,7 @@ function ODR_updateSpaceGroups(input_id) {
         else {
             // ...otherwise, only show the space groups that are related to the point groups belonging
             //  to the selected crystal system
+            $(space_group_select).children().not(':first-child').hide();
             $(point_group_select).children('[rel=' + selected_crystal_system + ']').each(function(index,elem) {
                 var pg = $(elem).val().replaceAll('/', 's');
                 $(space_group_select).children('[rel=' + pg + ']').show();

@@ -1,0 +1,212 @@
+{% spaceless %}
+
+{# TODO - eventually need ability to store/modify/delete multiple search keys... #}
+{% set current_default_search_key = '' %}
+{% set current_default_search_key_description = '' %}
+{% set is_valid = true %}
+{% set has_non_public_fields = false %}
+
+{% for uuid,ssk in stored_search_keys %}
+    {% set current_default_search_key = ssk['search_key'] %}
+    {% set current_default_search_key_description = search_key_descriptions[uuid] %}
+    {% set is_valid = ssk['is_valid'] %}
+    {% set has_non_public_fields = ssk['has_non_public_fields'] %}
+{% endfor %}
+
+<div class="pure-u-1 ODRContentWrapper" style="margin-left:20px; text-align: left;">
+    <div class="pure-u-1 ODRStoredSearchKeySelection_header">
+        <p>This dialog allows you to set the "default" search for the current database.  This is intended for when the database stores entities that you don't really want to see, but also don't want to delete...such as minerals that are no longer approved, or samples that have been disposed of.</p>
+        <p>Enter your search criteria in the sidebar on the left, then click the "Create" button to see a readable version of the search criteria on the right.  Any warnings or errors are also displayed on the right.</p>
+        <p>Changes are not saved until you click the "Save" button at the bottom of the dialog.</p>
+    </div>
+
+    <div id="ODRSearchSidebar" class="ODRStoredSearchKeySelection_sidebar pure-u-1-4">
+    {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' with {
+        'datatype_array': datatype_array,
+        'datatype_relations': datatype_relations,
+        'datatype_permissions': datatype_permissions,
+
+        'target_datatype': target_datatype,
+
+        'intent': 'stored_search_keys'
+    } %}
+    </div>
+
+    <div class="ODRStoredSearchKeySelection_controls pure-u-1-8">
+        <button class="ODRStoredSearchKey_convert pure-button pure-button-primary">Create</button>
+        <button class="ODRStoredSearchKey_reset pure-button">Clear</button>
+    </div>
+
+    <div class="ODRStoredSearchKeySelection_list pure-u-1-2">
+        <p>Default Search Critera for this Datatype: </p>
+        <div id="ODRStoredSearchKey_empty">
+            No Criteria set
+        </div>
+
+        <span id="ODRStoredSearchKey_error" class="ODRInputError Info" title="This search key has an error in it, and will be ignored">
+            <i class="fa fa-exclamation-triangle"></i>
+        </span>
+        <span id="ODRStoredSearchKey_warn" class="ODRInputError Info" title="This search key includes a non-public datafield, and won't work properly unless a user is logged in">
+            <i class="fa fa-info-circle"></i>
+        </span>
+
+        <span id="ODRStoredSearchKey_explanation">
+        {% for key,value in current_default_search_key_description %}
+            {% if value is not iterable %}
+                <span class="ODRTracking_criteria Cursor">{{ key }}: {{ value }}</span>
+            {% else %}
+                {% for id,name in value %}
+                <span class="ODRTracking_criteria Cursor">{{ key }}: {{ name }}</span>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        </span>
+    </div>
+
+    <form id="ODRStoredSearchKeys_form">
+        <input id="ODRStoredSearchKeys_form_searchkey" type="hidden" name="search_key" value="{{ current_default_search_key }}" />
+    </form>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRStoredSearchKey_error").hide();
+        $("#ODRStoredSearchKey_warn").hide();
+
+        if ( $("#ODRStoredSearchKeys_form_searchkey").val() !== '' ) {
+            $("#ODRStoredSearchKey_empty").hide();
+
+        {% if not is_valid %}
+            $("#ODRStoredSearchKey_error").show();
+        {% endif %}
+        {% if has_non_public_fields %}
+            $("#ODRStoredSearchKey_warn").show();
+        {% endif %}
+        }
+
+        {# NOTE: despite efforts to allow both the regular sidebar and this local sidebar exist
+         #  at the same time...it seems the jQuery UI DatePicker only refers to its datepicker
+         #  instances by a simple HTMLElement id.  The only way to get this local sidebar to work
+         #  is to remove the regular one...I don't think this causes any issues, since every page
+         #  that actually wants the regular sidebar ensures it exists and is up to date...
+         #}
+        $("#content").children("#ODRSearchSidebar").remove();
+    });
+
+    {#
+      NOTE: the {{ empty_search_key }} parameter used in .ODRStoredSearchKey_reset means it's better
+      to have this function in here...otherwise it affects the rendering of design_ajax.html.twig...
+    #}
+
+    /**
+     * Attaches click handlers to the form buttons.
+     */
+    function initStoredSearchKeysDialog() {
+
+        InitSearchSidebar( $("#ODRStoredSearchKeysDialogWrapper") );
+        $(".ODRAdvSearch_header").trigger('click');
+        $(".ODRInput").prop("disabled", false);
+
+
+        $(".ODRStoredSearchKey_convert").unbind('click').click(function() {
+            // Trigger the serialization of the search sidebar, but send the data to a different
+            //  URL so it's not handled like an actual search
+            doSearch(
+                '{{ path('odr_design_convert_to_stored_search_key') }}',
+                $("#ODRStoredSearchKeysDialogWrapper"),
+                function(data) {
+                    // Clear any existing explanation and warnings
+                    $("#ODRStoredSearchKey_explanation").text('');
+                    $("#ODRStoredSearchKey_error").hide();
+                    $("#ODRStoredSearchKey_warn").hide();
+
+                    // Determine whether there was anything in the returned search key
+                    var readable_search_key = data.d.readable_search_key;
+                    var length = 0;
+                    $.each(readable_search_key, function(key,val) {
+                        length++;
+                    });
+
+                    if (length > 0 ) {
+                        // Search key is not empty, hide the placeholder and store the search key
+                        $("#ODRStoredSearchKey_empty").hide();
+                        $("#ODRStoredSearchKeys_form_searchkey").val(data.d.search_key);
+
+                        // Warn if it contains non-public fields
+                        if ( data.d.contains_non_public_fields )
+                            $("#ODRStoredSearchKey_warn").show();
+
+                        // For each piece of criteria in the returned search key...
+                        // console.log( readable_search_key );
+                        $.each(readable_search_key, function(key,val) {
+                            // ...create a new html element to display it
+                            if ( val instanceof Object ) {
+                                // Radio options and tags
+                                $.each(val, function(id,name) {
+                                    var element = "<span class=\"ODRTracking_criteria Cursor\">" + key + ': ' + name + "</span>";
+                                    $("#ODRStoredSearchKey_explanation").append(element);
+                                });
+                            }
+                            else {
+                                var element = "<span class=\"ODRTracking_criteria Cursor\">" + key + ': ' + val + "</span>";
+                                $("#ODRStoredSearchKey_explanation").append(element);
+                            }
+                        });
+                    }
+                    else {
+                        // Empty search key, show the blank placeholder and clear the search key
+                        $("#ODRStoredSearchKey_empty").show();
+                        $("#ODRStoredSearchKeys_form_searchkey").val('');
+                    }
+                }
+            );
+        });
+
+        $(".ODRStoredSearchKey_reset").unbind('click').click(function() {
+            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 1, 'search_key': '', 'intent': ''}) }}';
+            url = url.substring(0, url.length-1);
+            url += '{{ empty_search_key }}' + '/' + 'stored_search_keys';
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    // Replace the sidebar in the dialog with the new html
+                    $("#ODRStoredSearchKeysDialogWrapper").find('#ODRSearchSidebar').html(data.d.html);
+
+                    // Re-initialize the new sidebar
+                    InitSearchSidebar( $("#ODRStoredSearchKeysDialogWrapper") );
+                    $(".ODRAdvSearch_header").trigger('click');
+                    $(".ODRInput").prop("disabled", false);
+
+                    // Reset the explanation area
+                    $("#ODRStoredSearchKey_empty").show();
+                    $("#ODRStoredSearchKey_explanation").text('');
+
+                    // Clear the search key in the form
+                    $("#ODRStoredSearchKeys_form_searchkey").val('');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Close the dialog so it's not in some half-initialized state
+                    closeODRRemodal();
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            })
+        });
+    }
+</script>
+{% endspaceless %}

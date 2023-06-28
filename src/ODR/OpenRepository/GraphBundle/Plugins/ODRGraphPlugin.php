@@ -16,11 +16,11 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 // Symfony
+use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
 use Pheanstalk\Pheanstalk;
-
 
 abstract class ODRGraphPlugin
 {
@@ -30,6 +30,11 @@ abstract class ODRGraphPlugin
     private $templating;
 
     /** @var Pheanstalk */
+    private $pheanstalk;
+
+    /**
+     * @var Pheanstalk
+     */
     private $pheanstalk;
 
     /**
@@ -43,7 +48,7 @@ abstract class ODRGraphPlugin
     private $odr_web_directory;
 
     /**
-     * @var string
+     * @var Logger
      */
     private $logger;
 
@@ -202,4 +207,20 @@ abstract class ODRGraphPlugin
             }
         }
     }
+
+    // TODO - is this even useful to have anymore?  it was in DatabaseInfoService, under the function resetDatatypeSortOrder()
+//    public static function deleteCachedGraphsByDatatype($datatype_id)
+//    {
+//        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+//        if ( file_exists($graph_filepath) ) {
+//            $files = scandir($graph_filepath);
+//            foreach ($files as $filename) {
+//                // TODO - assumes linux?
+//                if ($filename === '.' || $filename === '..')
+//                    continue;
+//
+//                unlink($graph_filepath.'/'.$filename);
+//            }
+//        }
+//    }
 }

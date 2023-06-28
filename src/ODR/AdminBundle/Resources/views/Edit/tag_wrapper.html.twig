@@ -5,14 +5,22 @@
     {% set tag_selections = drf.tagSelection %}
 {% endif %}
 
+{% set child_tag_selections = [] %}
+{% if drf.child_tagSelections is defined %}
+    {% set child_tag_selections = drf.child_tagSelections %}
+{% endif %}
+
 <div class="ODRTagWrapper ODRTagWrapper_edit">
     <ul class="ODRTagGroup">
         {% for tag_id, tag in stacked_tags %}
+            {# Always generate HTML for every single tag in Edit mode #}
             {% include 'ODRAdminBundle:Edit:tag.html.twig' with {
                 'unique_id': unique_id,
 
                 'tag_selections': tag_selections,
+                'child_tag_selections': child_tag_selections,
                 'tag': tag,
+                'is_top_level': 1,
 
                 'inline_search_link': inline_search_link
             } %}

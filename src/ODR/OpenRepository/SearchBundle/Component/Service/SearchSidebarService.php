@@ -280,4 +280,47 @@ class SearchSidebarService
 
         return $user_list;
     }
+
+
+    /**
+     * Twig can technically figure out which radio options/tags are selected or unselected, but
+     * it's irritating to do so...it's easier to use php to do this.
+     *
+     * @param array $datatype_array
+     * @param array $search_params
+     */
+    public function fixSearchParamsOptionsAndTags($datatype_array, &$search_params)
+    {
+        foreach ($datatype_array as $dt_id => $dt) {
+            foreach ($dt['dataFields'] as $df_id => $df) {
+                // Only interested in radio/tag datafields...
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
+                    if ( isset($search_params[$df_id]) ) {
+                        // ...and only when the search criteria involves them
+                        $ids = explode(',', $search_params[$df_id]);
+
+                        // The search key uses a '-' prefix before the option/tag id to indicate
+                        //  the user only wants results where those are unselected
+                        $selected_ids = array();
+                        $unselected_ids = array();
+                        foreach ($ids as $id) {
+                            if ( strpos($id, '-') !== false )
+                                $unselected_ids[] = substr($id, 1);
+                            else
+                                $selected_ids[] = $id;
+                        }
+
+                        // It's easier for twig if the selected options/tags are kept separate from
+                        //  the unselected options/tags
+                        $search_params[$df_id] = array(
+                            'selected' => $selected_ids,
+                            'unselected' => $unselected_ids
+                        );
+                    }
+                }
+            }
+        }
+    }
+
 }

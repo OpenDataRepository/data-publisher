@@ -147,7 +147,7 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
 
         if ( !empty($dt['renderPluginInstances']) ) {
             // The datatype could haev more than one renderPluginInstance
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.linked_descendant_merger' ) {
                     $plugin_config = trim( $rpi['renderPluginOptionsMap']['plugin_config'] );
 
@@ -387,6 +387,11 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
     {
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
+            // This render plugin has no fields to deal with
+
             // The datatype array shouldn't be wrapped with its ID number here...
             $initial_datatype_id = $datatype['id'];
 
@@ -475,6 +480,8 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
                             'parent_datarecord' => $parent_datarecord,
                             'target_datarecord_id' => $datarecord['id'],
                             'target_theme_id' => $initial_theme_id,
+
+                            'is_datatype_admin' => $is_datatype_admin,
 
                             'is_top_level' => $rendering_options['is_top_level'],
                             'is_link' => $rendering_options['is_link'],

@@ -5,31 +5,42 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
-(async()=>{
+async function buildGraph() {
     // configure folder and http url path
     // the folder contain all the html file
 
+    // node graph_renderer.js <source_html> <ouput_svg>
+    if (process.argv.length !== 5) {
+        console.error('Expected 3 arguments.');
+        process.exit(1);
+    }
+    console.log(process.argv)
 
-    const folderPath='./'
-    const browser = await puppeteer.launch({headless:true})
+    let page_url = process.argv[2]
+    let output_svg = process.argv[3]
+    let selector = process.argv[4]
+    console.log('Selector: ' + selector)
 
-
+    const browser = await puppeteer.launch({headless:'new'})
     const page = await browser.newPage();
-    await page.setViewport({ width: 1200, height: 1200 });
-    await page.goto('https://beta.rruff.net/odr_rruff/uploads/files/Chart__25238_31858_31860.html');
+    page.on('console', message =>
+        console.log(`${message.type().substr(0, 3).toUpperCase()} ${message.text()}`)
+    )
+    await page.setViewport({ width: 1400, height: 800 });
+    // await page.goto('https://beta.rruff.net/odr_rruff/uploads/files/Chart__25238_31858_31860.html');
+    await page.goto(page_url);
+    await page.content();
 
-    let html = await page.content()
-
-    const watchDog = page.waitForFunction('window.status === "ready"');
+    // Wait for javascript to render
+    const watchDog = page.waitForFunction('window.odr_graph_status === "ready"');
     await watchDog;
 
-	console.log(html);
-    let svgInline = await page.evaluate(() => document.querySelector('svg').innerHTML)
+    let html = await page.evaluate(() => document.querySelector('body').innerHTML)
+    console.log(html);
+    // let svgInline = await page.evaluate(() => document.querySelector('#' + selector).innerHTML)
+    let svgInline = await page.evaluate(() => document.querySelector('svg').outerHTML)
 
-    if (!fs.existsSync(`${folderPath}svgs/`)){
-        fs.mkdirSync(`${folderPath}svgs/`);
-    }
-    fs.writeFile(`${folderPath}svgs/test.svg`,svgInline,(err)=>{
+    fs.writeFile(output_svg,svgInline,(err)=>{
         if (err){
             console.error(err)
             return
@@ -38,10 +49,12 @@ const fs = require('fs');
     })
 
     await browser.close()
-})()
-
-function delay(timeout){
-    return new Promise((resolve)=>{
-        setTimeout(resolve,timeout)
-    })
+    return 'graph built'
 }
+
+async function app() {
+    let done = await buildGraph();
+    console.log(done)
+}
+
+app();

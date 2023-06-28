@@ -201,6 +201,16 @@
 
 <div style="margin:5px;">
 {% if is_top_level == true %}
+    <div style="margin:5px;">
+        <label>Search Settings</label>
+        <span>&nbsp;
+            <a target="_blank" class="address" style="color:black;"
+               onclick="openStoredSearchKeysDialog({{ datatype.id }});"
+               title="Manage stored Search Keys for this Datatype..."><i class="fa fa-external-link fa-lg"></i>
+            </a>
+        </span>
+    </div>
+
     {# since only datatype admins can get this far, the user always can view permissions #}
     <div style="margin:5px;">
         <label>Datatype Permissions</label>
