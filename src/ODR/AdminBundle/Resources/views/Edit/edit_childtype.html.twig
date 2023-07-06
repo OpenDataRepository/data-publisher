@@ -12,11 +12,13 @@
 {% endif %}
 {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'edit', 'is_datatype_admin': is_datatype_admin} %}
 
+{# Ignore array render plugins here...their modifications are pretty much guaranteed to screw up Edit mode #}
+
 {# Determine whether a render plugin needs to be run #}
 {% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
 {% for rpi_num,rpi in datatype.renderPluginInstances %}
-    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and render_plugin_instance == null %}
+    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render %}
         {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
         {% if can_execute_plugin %}

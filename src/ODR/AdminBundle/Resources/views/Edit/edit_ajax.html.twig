@@ -657,13 +657,25 @@ function initPage() {
                                 form_obj.input_error = true;
 
                             var field_value = $(this).val().trim();
-                            if ( field_value !== "" ) {
-                                // console.log('Field: ', $(this).attr('id'));
-                                var field_id = $(this).attr('id').split(/_/)[2];
-                                form_obj[field_id] = field_value;
+                            if ( $(this).is(':checkbox') ) {
+                                if ( $(this).is(':checked') ) {
+                                    // console.log('Checkbox Field: ', $(this).attr('id'));
+                                    var field_id = $(this).attr('id').split(/_/)[2];
+                                    form_obj[field_id] = field_value;
 
-                                // Set this here so that we can be sure a non-empty search value exists
-                                form_obj.ajax_request = true;
+                                    // Set this here so that we can be sure a non-empty search value exists
+                                    form_obj.ajax_request = true;
+                                }
+                            }
+                            else {
+                                if ( field_value !== "" ) {
+                                    // console.log('Field: ', $(this).attr('id'));
+                                    var field_id = $(this).attr('id').split(/_/)[2];
+                                    form_obj[field_id] = field_value;
+
+                                    // Set this here so that we can be sure a non-empty search value exists
+                                    form_obj.ajax_request = true;
+                                }
                             }
 
                             // TODO - modify so the search also submits radio options and tags?

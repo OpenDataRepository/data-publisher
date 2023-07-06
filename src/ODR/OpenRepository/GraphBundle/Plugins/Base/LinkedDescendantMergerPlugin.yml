@@ -1,10 +1,10 @@
 odr_plugins.base.linked_descendant_merger:
     name: Linked Descendant Merger Plugin
     category: Base
-    plugin_type: datatype
-    render: false    # This plugin technically only modifies arrays to change which records are rendered inside a child fieldarea...it shouldn't interfere with other plugins that have this value set to true
-    version: 1.1.0
-    override_fields: true    # ...the plugin still needs to execute so that the rendering system can get the modified arrays
+    plugin_type: array
+    render: false    # Due to being an "array" type plugin, the "render" and "override" parameters are ignored
+    version: 1.2.0
+    override_fields: false
     override_field_reload: false
     override_child: false
     override_table_fields: false

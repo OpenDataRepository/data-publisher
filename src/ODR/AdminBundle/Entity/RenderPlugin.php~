@@ -25,8 +25,7 @@ class RenderPlugin
      * Plugins with this constant are called in *_childtype.html.twig, and therefore can completely
      * override an entire child/linked datatype if they want to, such as the Comment and Reference
      * plugins.  They don't have to, however, and plugins can also selectively replace parts of
-     * datafields, such as the AMCSD and IMA plugins...or move datarecords around like the
-     * LinkedDescendantMerger plugin...or even do nothing at all.
+     * datafields...such as the AMCSD and IMA plugins...or even do nothing at all.
      */
     const DATATYPE_PLUGIN = 1;
 
@@ -43,6 +42,15 @@ class RenderPlugin
      * just change the displayed value, like the Currency plugin.
      */
     const DATAFIELD_PLUGIN = 3;
+
+    /*
+     * Plugins with this constant are also called in *_childtype.html.twig, but they get called prior
+     * to regular datatype plugins, and return modified datatype/datarecord/theme arrays instead of
+     * HTML.  Additionally, these ignore the "render" parameter...unlike the other types of plugins
+     * that completely hijack the HTML structure of the page, it shouldn't really matter how many
+     * plugins modify the array structure, or what order they do it in.
+     */
+    const ARRAY_PLUGIN = 4;
 
 
     /**
