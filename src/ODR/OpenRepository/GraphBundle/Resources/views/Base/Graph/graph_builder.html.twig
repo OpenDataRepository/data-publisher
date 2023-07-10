@@ -102,9 +102,12 @@
     // Why is this not cleared every time?
     var page_plots = [];
 
-    jQuery(function() {
+    jQuery(() => {
         // Plot the chart
         window['SetupGraphs_{{ odr_chart_id }}']();
+        setTimeout(() => {
+            window.odr_graph_status = 'ready';
+        }, 200)
     });
 
     if (!window.ODRChart) {

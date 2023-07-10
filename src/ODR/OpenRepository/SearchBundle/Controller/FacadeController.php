@@ -448,6 +448,11 @@ class FacadeController extends Controller
     public function networkSearchAPIAction($version, $dataset_uuid, $limit, $offset, Request $request) {
         $html = '';
         try {
+            $limit = intval($request->query->get('limit'));
+            $offset = intval($request->query->get('offset'));
+            if($limit > 100) $limit = 100;
+            if($limit === 0) $limit = 10;
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -555,16 +560,19 @@ class FacadeController extends Controller
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
             $query = '{
-                "from": 0,
-                "size": 20,
-                "query": {
-                   "function_score": {
-                     "boost": "5",
-                     "random_score": {},
-                     "boost_mode": "multiply"
-                   }
-                }
+                "from": ' . $offset . ',
+                "size": ' . $limit . ',
+                "sort" : [
+                    { "internal_id" : {"order" : "asc"}}
+                ]
              }';
+            // { "fields_eb0451ce86d7f6cd20505170ea69.field_d6d969a74e57069e46e0cd3212ff.value" : {"order" : "asc"}}
+            // { "fields_eb0451ce86d7f6cd20505170ea69.field_d6d969a74e57069e46e0cd3212ff" : {"order" : "asc"}}
+            // function_score": {
+              //   "boost": "5",
+                //      "random_score": {},
+                  //    "boost_mode": "multiply"
+                   // }
 
             curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
@@ -574,12 +582,18 @@ class FacadeController extends Controller
             $result = curl_exec($ch);
             $log .= $result;
 
+            // print $log;exit();
             $search_result = json_decode($result, true);
             curl_close($ch);
 
             $output = '';
             $output .= $this->get('templating')->render(
                 'ODROpenRepositorySearchBundle:TemplateSearch:result_header.html.twig',
+                array(
+                    'total' => $search_result['hits']['total']['value'], // total records
+                    'limit' => $limit,
+                    'offset' => $offset
+                )
             );
             $counter = 1;
             foreach($search_result['hits']['hits'] as $record_data) {
@@ -591,17 +605,8 @@ class FacadeController extends Controller
                         'record_num' => $counter
                     )
                 );
-
                 $counter++;
             }
-
-
-
-
-
-
-
-
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -663,130 +668,69 @@ class FacadeController extends Controller
         return $response;
     }
 
-    /**
-     *
-     *  https://beta.rruff.net/odr/rruff_samples#/odr/search/list/fb6f69c3bd16119659b4d058967a
-     *
-     *
-     * @param $version
-     * @param $dataset_uuid
-     * @param $limit
-     * @param $offset
-     * @param Request $request
-     * @throws ODRBadRequestException
-     * @throws ODRNotFoundException
-     */
-    public function listRecordsAPIAction($version, $dataset_uuid, $limit, $offset, Request $request) {
+    public function seedElasticRecordAction($record_uuid, $version, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
-        /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
-                'unique_id' => $dataset_uuid
-            )
-        );
-        if ($datatype == null)
-            throw new ODRNotFoundException('Datatype');
-
-        // Ensure all index exists
-        $url = "http://localhost:9299/" . $datatype->getUniqueId();
-        $ch = curl_init($url);
-        # Setup request to send json via POST.
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-        # Return response instead of printing.
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        # Send request.
-        $result = curl_exec($ch);
-        $log .= $result;
-        curl_close($ch);
-
-        // Ensure all index has total_field limit set properly
-        $log .= "Setting index total_field limit: " . $datatype->getUniqueId() . '<br />';
-        $url = "http://localhost:9299/" . $datatype->getUniqueId() . '/_settings';
-        $ch = curl_init($url);
-        # Setup request to send json via POST.
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 3000}');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-        # Return response instead of printing.
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        # Send request.
-        $result = curl_exec($ch);
-        $log .= $result;
-        curl_close($ch);
-
-
-        // Also build index for cross template search
-        if($datatype->getMasterDataType()) {
-             $log .= "Creating Index: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
-             // Ensure all index exists
-             $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId();
-             $ch = curl_init($url);
-             # Setup request to send json via POST.
-             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-             # Return response instead of printing.
-             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-             # Send request.
-             $result = curl_exec($ch);
-             $log .= $result . '<br />';
-             curl_close($ch);
-
-            $log .= "Setting index total_field limit: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
-            // Ensure all index has total_field limit set properly
-            $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
-            $ch = curl_init($url);
-            # Setup request to send json via POST.
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-            curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 3000}');
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-            # Return response instead of printing.
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            # Send request.
-            $result = curl_exec($ch);
-            $log .= $result . '<br />';
-            curl_close($ch);
-        }
-
-        /** @var DataRecord[] $records */
-        $records = $em->getRepository('ODRAdminBundle:DataRecord')
-            ->findBy(
+        /** @var DataRecord $record */
+        $record = $em->getRepository('ODRAdminBundle:DataRecord')
+            ->findOneBy(
                 array(
-                    'dataType' => $datatype
+                    'unique_id' => $record_uuid
                 )
             );
+
+        if(!$record) {
+            throw ODRNotFoundException('Record');
+        }
+
+        // Get the datatype
+        $datatype = $record->getDataType();
 
         /** @var SearchAPIServiceNoConflict $search_api_service */
         $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
 
-        $baseurl = $this->container->getParameter('site_baseurl');
+        $data = $search_api_service->getRecordData(
+            $version,
+            $record->getUniqueId(),
+            $this->container->getParameter('site_baseurl'),
+            'json',
+            true,
+            null,
+            0
+        );
 
-        $output_records = [];
-        foreach($records as $record) {
-            // Render the requested datarecord
-            $data = $search_api_service->getRecordData(
-                $version,
-                $record->getUniqueId(),
-                $baseurl,
-                'json',
-                true,
-                null,
-                0
-            );
+        if(!preg_match('/\{/', $data)) {
+            // TODO Figure out why some have no data...
+            print 'NO DATA'; exit();
+        }
 
-            array_push($output_records, json_decode($data));
+        // Upload each record to ElasticSearch (temporary)
+        // TODO Offload to a Beanstalk Queue
+        /*
+         * {"_index":"ahed","_id":"7e7f170c64ee9790344baccc170c","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}
+        */
+        $log = "Pushing document: " . $datatype->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
+        $url = "http://localhost:9299/" . $datatype->getUniqueId() . "/_doc/" . $record->getUniqueId();
+        $ch = curl_init($url);
+        # Setup request to send json via POST.
+        $payload = $data;
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+        # Return response instead of printing.
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        # Send request.
+        $result = curl_exec($ch);
+        $log .= $result . "<br />";
+        curl_close($ch);
+        # Print response.
 
-            // Upload each record to ElasticSearch (temporary)
-            /*
-             * {"_index":"ahed","_id":"7e7f170c64ee9790344baccc170c","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}
-            */
-            $log .= "Pushing document: " . $datatype->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
-            $url = "http://localhost:9299/" . $datatype->getUniqueId() . "/_doc/" . $record->getUniqueId();
+        // Also build index for cross template search
+        if($datatype->getMasterDataType()) {
+            $log .= "Pushing document: " . $datatype->getMasterDataType()->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
+            $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId() . "/_doc/" . $record->getUniqueId();
             $ch = curl_init($url);
             # Setup request to send json via POST.
-            $payload = $data;
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
             # Return response instead of printing.
@@ -795,41 +739,148 @@ class FacadeController extends Controller
             $result = curl_exec($ch);
             $log .= $result . "<br />";
             curl_close($ch);
-            # Print response.
+        }
+
+        return new Response($log);
+
+    }
+
+    /**
+     *
+     *  https://beta.rruff.net/odr/rruff_samples#/odr/search/list/fb6f69c3bd16119659b4d058967a
+     *
+     * @param $version
+     * @param Request $request
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
+    public function seedElasticAction($version, Request $request) {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        $dataset_uuids = $this->container->getParameter('elastic_dataset_uuids');
+
+        // Initialize the output array
+        $output = [];
+        foreach($dataset_uuids as $dataset_uuid) {
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid
+                )
+            );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Ensure all index exists for the datatype
+            $url = "http://localhost:9299/" . $datatype->getUniqueId();
+            $ch = curl_init($url);
+            # Setup request to send json via POST.
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            # Return response instead of printing.
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            # Send request.
+            $result = curl_exec($ch);
+            $log .= $result;
+            curl_close($ch);
+
+            // Ensure all index has total_field limit set properly
+            $log .= "Setting index total_field limit: " . $datatype->getUniqueId() . '<br />';
+            $url = "http://localhost:9299/" . $datatype->getUniqueId() . '/_settings';
+            $ch = curl_init($url);
+            # Setup request to send json via POST.
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 4000}');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            # Return response instead of printing.
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            # Send request.
+            $result = curl_exec($ch);
+            $log .= $result;
+            curl_close($ch);
+
 
             // Also build index for cross template search
             if($datatype->getMasterDataType()) {
-                $log .= "Pushing document: " . $datatype->getMasterDataType()->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
-                $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId() . "/_doc/" . $record->getUniqueId();
+                $log .= "Creating Index: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
+                // Ensure all index exists
+                $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId();
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
                 # Return response instead of printing.
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 # Send request.
                 $result = curl_exec($ch);
-                $log .= $result . "<br />";
+                $log .= $result . '<br />';
+                curl_close($ch);
+
+                $log .= "Setting index total_field limit: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
+                // Ensure all index has total_field limit set properly
+                $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
+                $ch = curl_init($url);
+                # Setup request to send json via POST.
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 4000}');
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+                # Return response instead of printing.
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                # Send request.
+                $result = curl_exec($ch);
+                $log .= $result . '<br />';
                 curl_close($ch);
             }
 
-            $log .= "<br /><br />" . $data . "<br /><br />";
-            // print $log;exit();
+            /** @var DataRecord[] $records */
+            $records = $em->getRepository('ODRAdminBundle:DataRecord')
+                ->findBy(
+                    array(
+                        'dataType' => $datatype
+                    )
+                );
+
+            /** @var SearchAPIServiceNoConflict $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
+
+            // Get the pheanstalk queue
+            $pheanstalk = $this->get('pheanstalk');
+
+            $baseurl = $this->container->getParameter('site_baseurl');
+
+            $counter = 0;
+            foreach($records as $record) {
+
+                $url = $this->generateUrl('odr_search_seed_elastic_record', array('record_uuid' => $record->getUniqueId()));
+
+                $url = $baseurl . $url;
+
+                // Add record to pheanstalk queue
+                $payload = json_encode(
+                    array(
+                        'url' => $url,
+                    )
+                );
+
+                $pheanstalk->useTube('odr_seed_elastic_record')->put($payload);
+                // if($counter == 5) {
+                    // break;
+                // }
+                $counter++;
+
+            }
+
+            // Wrap array for JSON compliance
+            $output[$dataset_uuid] = array(
+                'count' => $counter,
+                'master_datatype_id' => $datatype->getMasterDataType()->getUniqueId(),
+            );
         }
 
-        // Slice for Limit/Offset
-        if($limit == 0) $limit = 999999999;
-        $output_records = array_slice($output_records, $offset, $limit);
-
-        // Wrap array for JSON compliance
-        $output = array(
-            'count' => count($records),
-            'master_datatype_id' => $datatype->getMasterDataType()->getUniqueId(),
-        );
-        // 'records' => $output_records
-
-        print_r($output);exit();
-        // return new JsonResponse($output);
+        // print_r($output);exit();
+        return new JsonResponse($output);
 
     }
 

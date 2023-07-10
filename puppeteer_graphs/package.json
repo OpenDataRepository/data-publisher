@@ -4,6 +4,7 @@
   "description": "Creates pre-rendered graphs for pages.",
   "main": "graph_renderer.js",
   "dependencies": {
+    "nodestalker": "^0.1.22",
     "puppeteer": "^20.1.0"
   },
   "scripts": {

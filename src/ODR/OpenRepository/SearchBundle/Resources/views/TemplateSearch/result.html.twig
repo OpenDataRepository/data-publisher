@@ -24,8 +24,8 @@
                                                 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active"
                                                 role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
                                                     <a>
-                                                    {{ record | get_value('38829479529b17ded4603527d53b', 'b95ddfaf4e67d180ebd250ed57ff') }}
-                                                    </a><span
+                                                        {# get_value('template_uuid', 'template_field_uuid') #}
+                                                       TEST2 {{ record | get_value('529c7007b0b9c5937d90c1f1e5d5', '15ecaaaa9bebc84862bc45523aab') }} </a><span
                                                     class="DatatypeTools"><span title="This is a linked Datatype"><i
                                                             class="fa fa-link Cursor"></i></span><span rel="2"><i
                                                             id="datarecord_799_public"
@@ -43,7 +43,7 @@
                                                                              title="">IMA Formula</label>
                                                                 <div class="ODRFieldWrapper" id="Input_799_22">
                                                                     <div class="ODRRenderPluginField">
-                                                                        {{ record | get_value('38829479529b17ded4603527d53b', '167f9f23ff0ca0ffa410dcd6eb49') | chemistry | raw }}
+                                                                        {{ record | get_value('529c7007b0b9c5937d90c1f1e5d5', '46a794d871c38c924e85ae4b9e21') | chemistry | raw }}
                                                                     </div>
                                                                 </div>
                                                             </fieldset>
@@ -56,7 +56,7 @@
                                                                              title="">RRUFF Formula</label>
                                                                 <div class="ODRFieldWrapper" id="Input_799_24">
                                                                     <div class="ODRRenderPluginField">
-                                                                        {{ record | get_value('38829479529b17ded4603527d53b', 'a6fd6f82b834c4f47ab72f06295c') | chemistry | raw }}
+                                                                        {{ record | get_value('529c7007b0b9c5937d90c1f1e5d5', '95ed4300139930bdce915d72cb4f') | chemistry | raw }}
                                                                     </div>
                                                                 </div>
                                                             </fieldset>
@@ -84,14 +84,12 @@
                                             <div id="Image_3" class="ODRImage pure-u-1-1" rel="4">
                                                 <a target="_blank"
                                                     href="{% spaceless %}
-                                                       {{ record | get_field_value('332d054904501b02d23e4414fd7b') }}
-                                                       {{ record | get_field_value('cd7953cef1b926894bd5fa1079e9') }}
+                                                       {{ record | get_field_value('c2102b7fb192c23dafa42fca15ac') }}
                                                     {% endspaceless %}"
                                                      title=""><img
                                                     class="pure-img"
                                                     src="{% spaceless %}
-                                                       {{ record | get_field_value('332d054904501b02d23e4414fd7b') }}
-                                                       {{ record | get_field_value('cd7953cef1b926894bd5fa1079e9') }}
+                                                       {{ record | get_field_value('c2102b7fb192c23dafa42fca15ac') }}
                                                     {% endspaceless %}"
                                                     title="Abelsonite__R070007__Sample__Photo__39a4674f289d8e312f2ad109e7e1.jpeg"></a>
                                             </div>
@@ -109,7 +107,7 @@
                                     <fieldset><label for="Input_894_34" class="ODRFieldLabel" title="">RRUFF ID</label>
                                         <div class="ODRFieldWrapper" id="Input_894_34"><input
                                             id="ShortVarcharForm_894_34" class="pure-u-1 Cursor" type="text"
-                                            value="{{ record | get_field_value('8f0cb75e21fdda7eb8a0e697e7df') }}"
+                                            value="{{ record | get_field_value('d6d969a74e57069e46e0cd3212ff') }}"
                                             readonly="readonly"></div>
                                     </fieldset>
                                 </form>
@@ -122,8 +120,7 @@
                                         <div class="ODRFieldWrapper" id="Input_894_40"><textarea
                                             id="LongTextForm_894_40" class="pure-u-1 Cursor" readonly="readonly"
                                             style="height: 43.72px;">{% spaceless %}
-                                                {{ record | get_field_value('1a1c13989323cb3485a005c297c6') }}
-                                                {{ record | get_field_value('7ddd7e00d388a435e785f9431830') }}
+                                                {{ record | get_field_value('6639310951d7047fd84f82360cb4') }}
                                             {% endspaceless %}</textarea>
                                         </div>
                                     </fieldset>
@@ -136,8 +133,7 @@
                                         <div class="ODRFieldWrapper" id="Input_894_36"><input
                                             id="LongVarcharForm_894_36" class="pure-u-1 Cursor" type="text"
                                             value="{% spaceless %}
-                                                {{ record | get_field_value('4d01c91a4cba93c2c91b8944311c') }}
-                                                {{ record | get_field_value('1564465cbdd57c7dee5cd3cec880') }}
+                                                {{ record | get_field_value('95fe44db86e9fbe7db52e61071d9') }}
                                             {% endspaceless %}"
                                             readonly="readonly"></div>
                                     </fieldset>
@@ -150,8 +146,7 @@
                                         <div class="ODRFieldWrapper" id="Input_894_38"><input
                                             id="LongVarcharForm_894_38" class="pure-u-1 Cursor" type="text"
                                             value="{% spaceless %}
-                                                {{ record | get_field_value('558a5bf963280ed82d44f25e7491') }}
-                                                {{ record | get_field_value('c8d649c88ade7d05fbd7549c5d96') }}
+                                                {{ record | get_field_value('97de27aedd67747abbb779a57358') }}
                                             {% endspaceless %}"
                                             readonly="readonly"></div>
                                     </fieldset>
@@ -165,8 +160,7 @@
                                         <div class="ODRFieldWrapper" id="Input_894_39"><textarea
                                             id="LongTextForm_894_39" class="pure-u-1 Cursor" readonly="readonly"
                                             style="height: 43.72px;">{% spaceless %}
-                                            {{ record | get_field_value('64c3abe670168622636a998a964c') }}
-                                            {{ record | get_field_value('cea0837b888d216941ba40a2b57f') }}
+                                            {{ record | get_field_value('da5392fcbd2e0d29091924399c0a') }}
                                             {% endspaceless %}</textarea>
                                         </div>
                                     </fieldset>
