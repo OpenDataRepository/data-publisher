@@ -18,125 +18,125 @@
 
     <!-- Load the ODR JS Bundle -->
     {# Most of this doesn't work, but apparently the CSS included inside it does? #}
-    <script src="js/bundle.js"></script>
+    <script src="{{ site_baseurl }}/js/bundle.js"></script>
 
     <!-- Pure Layout -->
-    <!-- <link rel="stylesheet" href="css/external/pure-min.css">
-    <!--[if gt IE 8]><!--><link rel="stylesheet" href="css/external/pure-grids-responsive-min.css"><!--<![endif]-->
+    <!-- <link rel="stylesheet" href="{{ site_baseurl }}/css/external/pure-min.css">
+    <!--[if gt IE 8]><!--><link rel="stylesheet" href="{{ site_baseurl }}/css/external/pure-grids-responsive-min.css"><!--<![endif]-->
 
     <!-- Icon Styles -->
-    <link rel="stylesheet" href="css/fonts/font-awesome-4.6.3/css/font-awesome.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/fonts/font-awesome-4.6.3/css/font-awesome.css">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="css/external/jquery-ui-1.12.0.css">
-    <link rel="stylesheet" href="css/external/jquery.switchButton.css">
-    <link rel="stylesheet" href="css/external/introjs.min.css">
-    <link rel="stylesheet" href="css/external/jquery.jgrowl.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/jquery-ui-1.12.0.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/jquery.switchButton.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/introjs.min.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/jquery.jgrowl.css">
     <!-- Hands on table -->
-    <link rel="stylesheet" href="js/mylibs/handsontable/dist/handsontable.full.min.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/handsontable/dist/handsontable.full.min.css">
     <!-- Dynamic Tables -->
-    <link rel="stylesheet" href="js/mylibs/DataTables/datatables.min.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/DataTables/datatables.min.css">
     <!-- Remodal -->
-    <link rel="stylesheet" href="js/mylibs/remodal-master/dist/remodal.css">
-    <link rel="stylesheet" href="js/mylibs/remodal-master/dist/remodal-default-theme.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/remodal-master/dist/remodal.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/remodal-master/dist/remodal-default-theme.css">
     <!-- Overhang -->
-    <link rel="stylesheet" href="js/mylibs/overhang/overhang.min.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/overhang/overhang.min.css">
 
     <!-- Symfony Stylesheets -->
-    <link href="css/odr.1.8.0.css" type="text/css" rel="stylesheet">
+    <link href="{{ site_baseurl }}/css/odr.1.8.0.css" type="text/css" rel="stylesheet">
 
     <!-- Plotly Bars Stylesheet -->
-    <link rel="stylesheet" href="css/external/plotly_bars.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/plotly_bars.css">
 
     <!-- Theme CSS -->
-    <link rel="stylesheet" href="css/themes/css_smart/smart.1.8.0.css" >
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/themes/css_smart/smart.1.8.0.css" >
 
     <!-- OpenLayers -->
-    <link rel="stylesheet" href="css/external/ol.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/ol.css">
 
     <!-- TODO Use Stylsheets block to load theme -->
     {% block stylesheets %}{% endblock %}
 
     <!-- Essential polyfills -->
-    <script src="js/mylibs/polyfills/modernizr-2.6.1.min.js"></script>
-    <!--[if lt IE 9]><script src="js/mylibs/polyfills/selectivizr.js"></script><![endif]-->
-    <!--[if lt IE 10]><script src="js/mylibs/polyfills/excanvas.js"></script><![endif]-->
-    <!--[if lt IE 10]><script src="js/mylibs/polyfills/classlist.js"></script><![endif]-->
+    <script src="{{ site_baseurl }}/js/mylibs/polyfills/modernizr-2.6.1.min.js"></script>
+    <!--[if lt IE 9]><script src="{{ site_baseurl }}/js/mylibs/polyfills/selectivizr.js"></script><![endif]-->
+    <!--[if lt IE 10]><script src="{{ site_baseurl }}/js/mylibs/polyfills/excanvas.js"></script><![endif]-->
+    <!--[if lt IE 10]><script src="{{ site_baseurl }}/js/mylibs/polyfills/classlist.js"></script><![endif]-->
 
     <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/jquery-3.3.1.min.js"></script>
     <!-- Do the same with jQuery UI -->
-    <script src="js/libs/jquery-ui-1.12.0.min.js"></script>
-    <script src="js/libs/lo-dash.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/jquery-ui-1.12.0.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/lo-dash.min.js"></script>
 
     <!-- General Scripts -->
-    <script src="js/mylibs/jquery.hashchange.js"></script>
-    <script src="js/mylibs/jquery.idle-timer.js"></script>
-    <script src="js/mylibs/jquery.jgrowl.js"></script>
-    <script src="js/mylibs/jquery.scrollTo.js"></script>
-    <script src="js/mylibs/jquery.ui.touch-punch.js"></script>
-    <script src="js/mylibs/jquery.switchButton.js"></script>
-    <script src="js/mylibs/introjs.min.js"></script>
-    <script src="js/libs/plugins/md5/jquery.md5.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.hashchange.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.idle-timer.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.jgrowl.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.scrollTo.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.ui.touch-punch.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.switchButton.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/introjs.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/plugins/md5/jquery.md5.js"></script>
 
     <!-- Tooltips -->
-    <script src="js/mylibs/tooltips/jquery.tipsy.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/tooltips/jquery.tipsy.js"></script>
 
     <!-- Multiple/Large File Uploads -->
-    <script src="js/mylibs/flow.js/dist/flow.min.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/flow.js/dist/flow.min.js"></script>
 
     <!-- What is this for? -->
-    <script src="js/mylibs/jquery.plusplus.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.plusplus.js"></script>
 
     <!-- Probably not used -->
-    <script src="js/mylibs/jquery.ui.multiaccordion.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.ui.multiaccordion.js"></script>
 
     <!-- TODO Ancient - is this needed. -->
-    <script src="js/mylibs/number-functions.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/number-functions.js"></script>
 
     <!-- Forms -->
-    <script src="js/libs/plugins/validate/jquery.validate.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/plugins/validate/jquery.validate.min.js"></script>
 
     <!-- Fullstats -->
-    <script src="js/mylibs/fullstats/jquery.css-transform.js"></script>
-    <script src="js/mylibs/fullstats/jquery.animate-css-rotate-scale.js"></script>
-    <script src="js/mylibs/fullstats/jquery.sparkline.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.css-transform.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.animate-css-rotate-scale.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.sparkline.js"></script>
 
     <!-- Dynamic Tables -->
-    <script src="js/mylibs/DataTables/datatables.min.js"></script>
-    <script src="js/mylibs/DataTables/datatables.input.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/DataTables/datatables.min.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/DataTables/datatables.input.js"></script>
 
-    <script src="js/mylibs/handsontable/dist/handsontable.full.min.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/handsontable/dist/handsontable.full.min.js"></script>
 
     <!-- Images Loaded -->
-    <script src="js/mylibs/imagesloaded/imagesloaded.pkgd.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/imagesloaded/imagesloaded.pkgd.js"></script>
 
     <!-- In-browser Markdown -->
-    <script src="js/mylibs/markdown-it-8.4.0/dist/markdown-it.min.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/markdown-it-8.4.0/dist/markdown-it.min.js"></script>
 
     <!-- Ajax File Downloads -->
-    <script src="js/mylibs/jquery.fileDownload.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.fileDownload.js"></script>
 
     <!-- Plot.ly JS Plots Based on D3 -->
-    <script type="text/javascript" src="js/mylibs/d3.v4.min.js"></script>
-    <script type="text/javascript" src="js/mylibs/plotly-1.58.5.min.js"></script>
-    <script type="text/javascript" src="js/mylibs/d3-queue.v3.min.js"></script>
-    <script type="text/javascript" src="js/mylibs/odr_plotly_graphs.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/d3.v4.min.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/plotly-1.58.5.min.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/d3-queue.v3.min.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_plotly_graphs.js"></script>
 
-    <script src="js/mylibs/remodal-master/dist/remodal.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/remodal-master/dist/remodal.js"></script>
 
     <!-- Overhang -->
-    <script src="js/mylibs/overhang/overhang.min.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/overhang/overhang.min.js"></script>
 
     <!-- App JS -->
-    <script src="js/app.js"></script>
+    <script src="{{ site_baseurl }}/js/app.js"></script>
 
     <!-- Openlayers -->
-    <script type="text/javascript" src="js/mylibs/ol.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/ol.js"></script>
 
     <!-- Render Plugins -->
-    <script type="text/javascript" src="js/mylibs/odr_chemistry_plugin.js"></script>
-    <script type="text/javascript" src="js/mylibs/odr_graph_plugin.js"></script>
-    <script type="text/javascript" src="js/mylibs/odr_gcms_plugin.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_chemistry_plugin.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_graph_plugin.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_gcms_plugin.js"></script>
 
     <!-- end scripts -->

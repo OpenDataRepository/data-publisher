@@ -5,10 +5,690 @@
 <!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
 <head>
-    {% include 'header.html' %}
+    <meta charset="utf-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" />
+
+    <meta name="description" content="Open Data Repository">
+    <meta name="author" content="Open Data Repository (opendatarepository.org)">
+
+    <!-- Mobile viewport optimized: h5bp.com/viewport -->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+
+    <!-- iPhone: Don't render numbers as call links -->
+    <meta name="format-detection" content="telephone=no">
+
+    <link rel="shortcut icon" href="favicon.ico" />
+
+
+    <!-- Load the ODR JS Bundle -->
+    {# Most of this doesn't work, but apparently the CSS included inside it does? #}
+    <script src="{{ site_baseurl }}/js/bundle.js"></script>
+
+    <!-- Pure Layout -->
+    <!-- <link rel="stylesheet" href="{{ site_baseurl }}/css/external/pure-min.css">
+    <!--[if gt IE 8]><!--><link rel="stylesheet" href="{{ site_baseurl }}/css/external/pure-grids-responsive-min.css"><!--<![endif]-->
+
+    <!-- Icon Styles -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/fonts/font-awesome-4.6.3/css/font-awesome.css">
+
+    <!-- External Styles -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/jquery-ui-1.12.0.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/jquery.switchButton.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/introjs.min.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/jquery.jgrowl.css">
+    <!-- Hands on table -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/handsontable/dist/handsontable.full.min.css">
+    <!-- Dynamic Tables -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/DataTables/datatables.min.css">
+    <!-- Remodal -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/remodal-master/dist/remodal.css">
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/remodal-master/dist/remodal-default-theme.css">
+    <!-- Overhang -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/js/mylibs/overhang/overhang.min.css">
+
+    <!-- Symfony Stylesheets -->
+    <link href="{{ site_baseurl }}/css/odr.1.8.0.css" type="text/css" rel="stylesheet">
+
+    <!-- Plotly Bars Stylesheet -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/plotly_bars.css">
+
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/themes/css_smart/smart.1.8.0.css" >
+
+    <!-- OpenLayers -->
+    <link rel="stylesheet" href="{{ site_baseurl }}/css/external/ol.css">
+
+    <!-- TODO Use Stylsheets block to load theme -->
+    {% block stylesheets %}{% endblock %}
+
+    <!-- Essential polyfills -->
+    <script src="{{ site_baseurl }}/js/mylibs/polyfills/modernizr-2.6.1.min.js"></script>
+    <!--[if lt IE 9]><script src="{{ site_baseurl }}/js/mylibs/polyfills/selectivizr.js"></script><![endif]-->
+    <!--[if lt IE 10]><script src="{{ site_baseurl }}/js/mylibs/polyfills/excanvas.js"></script><![endif]-->
+    <!--[if lt IE 10]><script src="{{ site_baseurl }}/js/mylibs/polyfills/classlist.js"></script><![endif]-->
+
+    <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
+    <script src="{{ site_baseurl }}/js/libs/jquery-3.3.1.min.js"></script>
+    <!-- Do the same with jQuery UI -->
+    <script src="{{ site_baseurl }}/js/libs/jquery-ui-1.12.0.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/lo-dash.min.js"></script>
+
+    <!-- General Scripts -->
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.hashchange.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.idle-timer.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.jgrowl.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.scrollTo.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.ui.touch-punch.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.switchButton.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/introjs.min.js"></script>
+    <script src="{{ site_baseurl }}/js/libs/plugins/md5/jquery.md5.js"></script>
+
+    <!-- Tooltips -->
+    <script src="{{ site_baseurl }}/js/mylibs/tooltips/jquery.tipsy.js"></script>
+
+    <!-- Multiple/Large File Uploads -->
+    <script src="{{ site_baseurl }}/js/mylibs/flow.js/dist/flow.min.js"></script>
+
+    <!-- What is this for? -->
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.plusplus.js"></script>
+
+    <!-- Probably not used -->
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.ui.multiaccordion.js"></script>
+
+    <!-- TODO Ancient - is this needed. -->
+    <script src="{{ site_baseurl }}/js/mylibs/number-functions.js"></script>
+
+    <!-- Forms -->
+    <script src="{{ site_baseurl }}/js/libs/plugins/validate/jquery.validate.min.js"></script>
+
+    <!-- Fullstats -->
+    <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.css-transform.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.animate-css-rotate-scale.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/fullstats/jquery.sparkline.js"></script>
+
+    <!-- Dynamic Tables -->
+    <script src="{{ site_baseurl }}/js/mylibs/DataTables/datatables.min.js"></script>
+    <script src="{{ site_baseurl }}/js/mylibs/DataTables/datatables.input.js"></script>
+
+    <script src="{{ site_baseurl }}/js/mylibs/handsontable/dist/handsontable.full.min.js"></script>
+
+    <!-- Images Loaded -->
+    <script src="{{ site_baseurl }}/js/mylibs/imagesloaded/imagesloaded.pkgd.js"></script>
+
+    <!-- In-browser Markdown -->
+    <script src="{{ site_baseurl }}/js/mylibs/markdown-it-8.4.0/dist/markdown-it.min.js"></script>
+
+    <!-- Ajax File Downloads -->
+    <script src="{{ site_baseurl }}/js/mylibs/jquery.fileDownload.js"></script>
+
+    <!-- Plot.ly JS Plots Based on D3 -->
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/d3.v4.min.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/plotly-1.58.5.min.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/d3-queue.v3.min.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_plotly_graphs.js"></script>
+
+    <script src="{{ site_baseurl }}/js/mylibs/remodal-master/dist/remodal.js"></script>
+
+    <!-- Overhang -->
+    <script src="{{ site_baseurl }}/js/mylibs/overhang/overhang.min.js"></script>
+
+    <!-- App JS -->
+    <script src="{{ site_baseurl }}/js/app.js"></script>
+
+    <!-- Openlayers -->
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/ol.js"></script>
+
+    <!-- Render Plugins -->
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_chemistry_plugin.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_graph_plugin.js"></script>
+    <script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/odr_gcms_plugin.js"></script>
+
+    <!-- end scripts -->
 </head>
 
 <body class="pure-skin-odr">
-    {% include 'body.html' %}
+<!-- START BODY -->
+<!-- main menu -->
+<div class="pure-skin-odr">
+
+    <div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
+        <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24 pure-u-lg-7-24">
+            <span class="odr-custom-toggle" id="toggle"><i class="fa fa-lg fa-bars"></i> Menu</span>
+            <ul class="pure-menu-list">
+                {% if use_navigation_block == true %}
+                    <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
+                        {% block navigation_top %}{% endblock %}
+                    </li>
+                    <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link">Dashboard</a></li>
+                {% endif %}
+
+                {% if header_middle_title != '' %}
+                    <li class="pure-menu-item"><a class="pure-menu-link" href="{{ header_middle_path }}">{{ header_middle_title }}</a></li>
+                {% endif %}
+            </ul>
+        </div>
+
+        {% if header_right_title != '' %}
+            <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-6-24 pure-u-lg-7-24 pure-u-xl-8-24"></div>
+        {% else %}
+            <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-9-24 pure-u-lg-9-24 pure-u-xl-9-24"></div>
+        {% endif %}
+
+        <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24 pure-u-lg-6-24">
+            <ul class="pure-menu-list">
+                {% if current_user != '' %}
+                    <li id="ODRProfileLink" class="pure-menu-item">
+                        <div class="pure-hidden-sm pure-hidden-xs" href="#{{ path('odr_self_profile_edit') }}">
+                            <a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">
+                                {{ user.firstName }} {{ user.lastName }}
+                            </a>
+                        </div>
+                        <a class="pure-menu-link pure-hidden-xl pure-hidden-lg pure-hidden-md" href="#{{ path('odr_self_profile_edit') }}">Profile</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24 pure-u-lg-1-24">
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item">
+                <span class="pure-menu-heading">
+                    <i id="ODRMessages" class="Pointer fa fa-lg fa-bell-o"></i>
+                </span>
+                </li>
+            </ul>
+        </div>
+
+        {% if header_right_title != '' %}
+            <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-2-24 pure-u-lg-2-24 pure-u-xl-1-24">
+                <ul class="pure-menu-list">
+                    <li id="ODRLoginLink" class="pure-menu-item">
+                        <a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a>
+                    </li>
+                </ul>
+            </div>
+        {% endif %}
+
+        <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-2-24 pure-u-lg-1-24">
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item">
+                <span class="pure-menu-heading">
+                    <i id="ODRHelpButton" class="Pointer fa fa-lg fa-question-circle"></i>
+                </span>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <ul id="ODRMessageList" class="ODRHidden"></ul>
+    <!-- End of #ODRMainMenu -->
+
+    <script>
+        (function (window, document) {
+            var menu = document.getElementById('ODRMainMenu')
+            var WINDOW_CHANGE_EVENT = ('onorientationchange' in window) ? 'orientationchange':'resize'
+
+            // Add Click handler for all menu LI
+            jQuery("#ODRMainMenu .pure-menu-heading").unbind('click').click(function() {
+                if(jQuery(document).width() < 768) {
+                    jQuery(this).parent().toggleClass('show');
+                }
+            });
+
+            // jQuery("#ODRMainMenu li .pure-menu-heading").unbind('mouseenter');
+            jQuery("#ODRMainMenu li").mouseenter(function() {
+                if(jQuery(document).width() >= 768) {
+                    var elem = jQuery(this).children().first();
+                    if (jQuery(elem).hasClass("pure-menu-heading")) {
+                        jQuery(elem).parent().addClass('show');
+                    }
+                }
+            });
+
+            jQuery("#ODRMainMenu li").mouseleave(function() {
+                if(jQuery(document).width() >= 768) {
+                    var elem  = jQuery(this).children().first()
+                    if(jQuery(elem).hasClass("pure-menu-heading")) {
+                        jQuery(elem).parent().removeClass('show');
+                    }
+                }
+            });
+
+            // Close menus on click
+            jQuery("#ODRMainMenu a").click(function(){
+                // Close menu
+                closeMenu();
+                jQuery("#ODRMainMenu").find(".show").toggleClass('show');
+            });
+
+            function toggleHorizontal() {
+                [].forEach.call(
+                    document.getElementById('ODRMainMenu').querySelectorAll('.odr-custom-can-transform'),
+                    function(el){
+                        el.classList.toggle('pure-menu-horizontal');
+                    }
+                );
+                if(jQuery(".ODRMenuWrapper").hasClass("overflow-visible")) {
+                    jQuery(".ODRMenuWrapper").removeClass("overflow-visible")
+                }
+                else {
+                    jQuery(".ODRMenuWrapper").addClass("overflow-visible")
+                }
+            }
+
+            function toggleMenu() {
+                // set timeout so that the panel has a chance to roll up
+                // before the menu switches states
+                if (menu.classList.contains('open')) {
+                    setTimeout(toggleHorizontal, 500);
+                }
+                else {
+                    toggleHorizontal();
+                }
+                menu.classList.toggle('open');
+                document.getElementById('toggle').classList.toggle('x');
+            }
+
+            function closeMenu() {
+                if (menu.classList.contains('open')) {
+                    toggleMenu();
+                }
+            }
+
+            document.getElementById('toggle').addEventListener('click', function (e) {
+                toggleMenu();
+            });
+
+
+            window.addEventListener(WINDOW_CHANGE_EVENT, closeMenu);
+
+            $('#ODRMessages').unbind('click');
+            $('#ODRMessages').click(function() {
+                showMessageList()
+            });
+            checkMyJobs();
+
+
+            /*
+            $('#ODRMessageList').on('wheel', function(e) {
+                var d = e.originalEvent.deltaY,
+                    dir = d < 0 ? 'up' : 'down',
+                    stop = (dir == 'up' && this.scrollTop == 0) ||
+                        (dir == 'down' && this.scrollTop == this.scrollHeight-this.offsetHeight);
+                stop && e.preventDefault();
+            });
+             */
+
+
+
+        })(this, this.document);
+
+        function messageDeleteJob(elem) {
+
+            var job_id = $(elem).parent().attr('rel');
+            if($(elem).parent().hasClass('JobDownloadLink')) {
+                job_id = $(elem).parent().parent().attr('rel');
+            }
+
+            var url = "{{ path('odr_delete_user_job', {'job_id': 0} ) }}";
+            url = url.substr(0, url.length-1) + job_id;
+
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function (data) {
+                    if (data.r == 0) {
+                        $.when($(elem).parent().fadeOut('slow').remove()).then(
+                            function() {
+                                if($("#ODRMessageList").html() == '') {
+                                    $("#ODRMessageList").html('<li><h3>No messages</h3></li>');
+                                    setTimeout($("#ODRMessageList").fadeOut('fast'), 1000);
+                                }
+                            }
+                        );
+                    }
+                },
+                complete: function (jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        }
+
+        function markViewed() {
+            // Mark visible jobs as viewed
+            var job_ids = '';
+
+            $("#ODRMessageList .ODRTrackedJob").each(function(i, obj) {
+                if(!$(obj).hasClass('viewed')) {
+                    job_ids += $(obj).attr('rel') + ',';
+                }
+            });
+            if(job_ids.match(/,$/)) {
+                job_ids = job_ids.substr(0, job_ids.length - 1);
+
+                var url = "{{ path('odr_job_viewed', {'job_ids': 0} ) }}";
+                url = url.substr(0, url.length-1) + job_ids;
+
+                $.ajax({
+                    type: 'GET',
+                    url: url,
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.r == 0) {
+                            $("#ODRMessageList .ODRTrackedJob").each(function(i, obj) {
+                                $(obj).addClass('viewed');
+                            });
+                        }
+                    },
+                    complete: function (jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        }
+                    }
+                });
+            }
+        }
+
+        function fadeAfterDownload(elem) {
+            $.when($(elem).parent().parent().fadeOut('slow').remove()).then(
+                function() {
+                    if($("#ODRMessageList").html() == '') {
+                        $("#ODRMessageList").html('<li><h3>No messages</h3></li>');
+                        setTimeout($("#ODRMessageList").fadeOut('fast'), 1000);
+                    }
+                }
+            );
+        }
+
+        function showMessageList() {
+            if($("#ODRMessageList").is(':visible')) {
+                $("#ODRMessageList").fadeOut();
+            }
+            else {
+                var url = "{{ path('odr_my_jobs') }}";
+                $.ajax({
+                    type: 'GET',
+                    url: url,
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.r == 0) {
+                            var jobs = data.d;
+
+                            $('#ODRMessageList').html('');
+                            var list_elements = '';
+                            for(var x in jobs) {
+
+                                switch(jobs[x].job_type) {
+                                    case 'mass_edit':
+                                        if(jobs[x].viewed !== null) {
+                                            var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                                '<h3>Mass Edit</h3>' +
+                                                '<p>Your edits have been completed.</p>' +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        else {
+                                            var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                                '<h3>Mass Edit</h3>' +
+                                                '<p>Your edits have been completed.</p>' +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        break;
+
+                                    case 'csv_export':
+                                        var url = "{{ path('odr_csv_download', {'user_id': 0, 'tracked_job_id': 0}) }}";
+                                        url = url.substr(0, url.length-1);
+                                        url += jobs[x].id;
+
+                                        var download_html = '<div class="JobDownloadLink"><a onclick="fadeAfterDownload(this)" class="pure-button pure-button-primary" href="' + url + '">Download</a></div>';
+
+                                        if(jobs[x].viewed !== null) {
+                                            var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                                '<h3>CSV Export</h3>' +
+                                                '<p>Your export is ready.</p>' + download_html +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        else {
+                                            var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                                '<h3>CSV Export</h3>' +
+                                                '<p>Your export is ready.</p>' + download_html +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        break;
+
+                                    case 'csv_import_validate':
+                                        var url = "{{ path('odr_csv_import_validate_results', {'tracked_job_id': 0}) }}";
+                                        url = url.substr(0, url.length-1);
+                                        url += jobs[x].id;
+
+                                        var import_html = '<div class="JobDownloadLink"><a onclick="fadeAfterDownload(this)" class="pure-button pure-button-primary" href="#' + url + '">Import</a></div>';
+
+                                        if(jobs[x].viewed !== null) {
+                                            var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                                '<h3>CSV Import Validation</h3>' +
+                                                '<p>Your CSV import validation is ready for review.<br />Click import to continue.</p>' + import_html +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        else {
+                                            var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                                '<h3>CSV Import Validation</h3>' +
+                                                '<p>Your CSV import validation is ready for review.<br />Click import to continue.</p>' + import_html +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        break;
+
+                                    case 'csv_import':
+                                        if(jobs[x].viewed !== null) {
+                                            var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                                '<h3>CSV Import</h3>' +
+                                                '<p>Your CSV Import is complete.  Search your data to see the new record(s).</p>' +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        else {
+                                            var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                                '<h3>CSV Import</h3>' +
+                                                '<p>Your CSV Import is complete.  Search your data to see the new record(s).</p>' +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        break;
+
+                                    case 'migrate':
+                                        if(jobs[x].viewed !== null) {
+                                            var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                                '<h3>Migration Complete</h3>' +
+                                                '<p>Your field migration has been completed.</p>' +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        else {
+                                            var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                                '<h3>Migration Complete</h3>' +
+                                                '<p>Your field migration has been completed.</p>' +
+                                                '<i class="fa fa-2x fa-times" onclick="messageDeleteJob(this)"></i>' +
+                                                '</li>';
+                                        }
+                                        break;
+                                }
+
+                                list_elements += html;
+
+                            }
+
+                            if(list_elements === '') {
+                                list_elements = '<li><h3>No messages</h3></li>';
+                            }
+
+                            $('#ODRMessageList').html(
+                                list_elements
+                            ).fadeIn('fast');
+
+                            setTimeout(markViewed, 1500);
+
+                            // Click outside to close
+                            $('body').mouseup(function(e)
+                            {
+                                var container = $("#ODRMessageList");
+                                // if the target of the click isn't the container nor a descendant of the container
+                                if (!container.is(e.target) && container.has(e.target).length === 0)
+                                {
+                                    container.fadeOut('fast');
+                                    $('body').unbind('mouseup');
+                                }
+                            });
+
+                        } else {
+                            // TODO Alerts need to use the overlay
+                            alert(data.d);
+                        }
+                    },
+                    complete: function (jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        }
+                    }
+                });
+            }
+        }
+
+        function checkMyJobs() {
+            var checkJobs = false;
+            {% if current_user != '' %}
+            checkJobs = true;
+            {% endif %}
+            var url = "{{ path('odr_my_jobs') }}";
+            if(checkJobs) {
+                $.ajax({
+                    type: 'GET',
+                    url: url,
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.r == 0) {
+
+                            // Determine unviewed number
+                            var badge_num = 0;
+                            var jobs = data.d;
+                            for(var x in jobs) {
+                                if(jobs[x].viewed !== undefined && jobs[x].viewed === null) {
+                                    // Unviewed Job
+                                    badge_num++;
+                                }
+                            }
+                            var messages = $("#ODRMessages");
+
+                            messages.removeClass('badge');
+                            if(badge_num > 0) {
+                                messages.addClass('badge');
+
+                                if(badge_num > 9) {
+                                    badge_num = '9+';
+                                }
+                                messages.append('<style>.badge:after{content: \'' + badge_num + '\' !important;}</style>');
+                            }
+
+                            setTimeout(checkMyJobs, 5000);
+                        } else {
+                            // TODO Alerts need to use the overlay
+                            alert(data.d);
+                        }
+                    },
+                    complete: function (jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        }
+                    }
+                });
+            }
+        }
+    </script>
+
+
+    <!-- main content -->
+    <div role="main" id="main" class="pure-form pure-g remodal-bg">
+        <section id="left-spacer" class="pure-u-md-1-24"></section>
+
+        {# need spaceless tag, otherwise the inheriting templates can still output spaces #}
+        <section id="content" class="pure-u-1 pure-u-md-22-24" data-sort=true style="margin-top: 10px;">
+            {% spaceless %}{% block body %}{% endblock %}{% endspaceless %}
+        </section><!-- End of #content -->
+
+        <section id="right-spacer" class="pure-u-md-1-24"></section>
+    </div>
+    <!-- End of #main -->
+
+    <!-- The footer -->
+    <div class="odr-footer pure-u-1">
+    <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item odr-no-effects"><a class="ODRLogoImage" href="http://www.opendatarepository.org/about"><img src="{{ site_baseurl }}/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
+            <li class="pure-menu-heading">&copy; {{ "now"|date("Y") }}&nbsp;&nbsp;</li>
+        </ul>
+    </span>
+    </div> <!-- End of footer -->
+
+    <!-- The loading box -->
+    <div id="loading-overlay"></div>
+    <div id="loading">
+        <span>Loading...</span>
+    </div>
+    <!-- End of loading box -->
+
+    <!-- ODR Modal based on Remodal -->
+    {% include 'ODRAdminBundle:Default:odr_remodal.html.twig' %}
+    <!-- END ODR Modal based on Remodal -->
+
+    <!-- Spawn $$.loaded -->
+    <script>
+        $("#loading-overlay").hide();
+        $("#loading").hide();
+    </script>
+
+    <!-- Symfony Javascripts -->
+    {% block javascripts %}{% endblock %}
+</div>
+<!-- END BODY -->
 </body>
 </html>

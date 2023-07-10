@@ -138,3 +138,7 @@ odr_search:
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
         # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+
+odr_home:
+    path: /
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:home }
