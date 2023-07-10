@@ -36,6 +36,8 @@
 
             'is_top_level': is_top_level,
             'is_link': is_link,
+            'display_type': display_type,
+            'multiple_allowed': multiple_allowed,
         } %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
@@ -51,7 +53,9 @@
                 'is_datatype_admin': is_datatype_admin,
 
                 'is_top_level': is_top_level,
-                'is_link': is_link
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
     {% else %}
@@ -78,6 +82,8 @@
 
                     'is_top_level': is_top_level,
                     'is_link': is_link,
+                    'display_type': display_type,
+                    'multiple_allowed': multiple_allowed,
                 } %}
             </div>
         </div>
@@ -95,7 +101,9 @@
                 'is_datatype_admin': is_datatype_admin,
 
                 'is_top_level': is_top_level,
-                'is_link': is_link
+                'is_link': is_link,
+                'display_type': display_type,
+                'multiple_allowed': multiple_allowed,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
 

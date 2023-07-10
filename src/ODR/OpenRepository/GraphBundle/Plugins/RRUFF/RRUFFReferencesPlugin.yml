@@ -1,7 +1,7 @@
 odr_plugins.rruff.rruff_references:
     name: RRUFF References Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.1.0
     override_fields: true

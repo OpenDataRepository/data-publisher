@@ -31,7 +31,8 @@ php app/console odr_csv_export:finalize >> app/logs/csv_export_finalize.log 2>&1
 
 php app/console odr_datatype:sync_template >> app/logs/sync_template.log 2>&1 &
 
-cd /home/rruff/data-publisher/phantomjs_server
-killall phantomjs
-phantomjs phantomjs_svg_server.js >> ../app/logs/phantom.log 2>&1 &
+cd /home/odr/data-publisher/puppeteer_graphs
+node graph_renderer_daemon.js >> ../app/logs/graph_preview_1.log 2>&1 &
+node graph_renderer_daemon.js >> ../app/logs/graph_preview_2.log 2>&1 &
+node graph_renderer_daemon.js >> ../app/logs/graph_preview_3.log 2>&1 &
 

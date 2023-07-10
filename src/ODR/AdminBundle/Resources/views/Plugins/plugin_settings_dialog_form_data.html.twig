@@ -18,7 +18,27 @@
         {{ render_plugin.description }}
     </fieldset>
 
-{% if local_datafield == null %}    {# if render plugin is for a datatype #}
+{% if local_datafield == null %}    {# if render plugin is for a datatype or themeElement #}
+    {% if render_plugin.requiredThemeElements > 0 %}
+    <fieldset>
+        {% if render_plugin_instance is not null and render_plugin_instance.deletedAt is null and render_plugin_instance.renderPlugin.id == render_plugin.id %}
+            {% if render_plugin_instance.themeRenderPluginInstance|length < render_plugin.requiredThemeElements %}
+            {# The renderPluginInstance is currently in use, and needs additional themeElements #}
+            <div id="plugin_theme_element_creation_warn">
+                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span>&nbsp;Saving this Render Plugin will trigger the creation of new Group Boxes</span>
+            </div>
+            {% endif %}
+        {% else %}
+            {# The renderPluginInstance is not currently in use #}
+            <div id="plugin_theme_element_creation_warn">
+                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span>&nbsp;Saving this Render Plugin will trigger the creation of new Group Boxes</span>
+            </div>
+        {% endif %}
+    </fieldset>
+    {% endif %}
+
     <fieldset>
         {# Determine if the rendering plugin has any required fields #}
         {% if render_plugin['renderPluginFields']|length == 0 %}
@@ -42,7 +62,7 @@
                             <select id="new_df_fieldtype_{{ rpf_id }}" class="ODRRenderPluginFieldtype" name="new_df_fieldtypes[{{ rpf_id }}]">
                                 {% for typeClass,ft_id in all_fieldtypes %}
                                     {% if ft_id in allowed_fieldtypes[rpf_id] %}
-                                        <option value="{{ ft_id }}">{{ typeClass }}</option>    {# TODO - something to prefer a specific fieldtype? #}
+                                        <option value="{{ ft_id }}">{{ typeClass }}</option>    {# TODO - how to prefer a specific fieldtype? #}
                                     {% endif %}
                                 {% endfor %}
                             </select>
@@ -265,11 +285,24 @@
                             // Don't want to reload the page...but need to ensure the javascript
                             //  array of datafield properties is kept up to date
                             var tmp = data.d.datafield_properties;
+                            // console.log('datafield properties', tmp);
                             tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
                             $.each(tmp, function(df_id, df_props) {
                                 datafield_properties[df_id] = df_props;
                             });
-                            // console.log('datafield properties', datafield_properties);
+
+                            // Since the page isn't being reloaded, the themeElement properties
+                            //  also need to be checked
+                            var tmp = data.d.affected_theme_elements;
+                            // console.log('affected themeElements', tmp);
+                            $.each(tmp, function(num, te_id) {
+                                if ( theme_element_properties[te_id] !== undefined )
+                                    theme_element_properties[te_id].has_render_plugin_instance = 0;
+
+                                // Delete any placeholder text inside the themeElement
+                                if ( $("#ThemeElement_" + te_id).length > 0 )
+                                    $("#ThemeElement_" + te_id).children(".ODRInnerBox").first().html('');
+                            });
 
                             // The javascript array of datatype properties won't have changed, but should
                             //  reset the left panel just in case

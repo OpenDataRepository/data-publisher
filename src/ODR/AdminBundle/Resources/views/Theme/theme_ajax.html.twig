@@ -431,10 +431,11 @@
                 });
 
                 // ----------------------------------------
-                // Delete ThemeElement/Group Box is always available...the user has admin permissions
-                //  to the local dataype, and is only modifying a copy of the master theme for a
+                // Delete ThemeElement/Group Box is only available when the themeElement is empty
+                // Permissions aren't a factor here, because the user always has permissions to delete
+                //  from the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
-                if ( !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
+                if ( !props.has_render_plugin_instance && !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
                     tools.del_dt.removeClass('faded');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
@@ -446,7 +447,6 @@
                 }
                 else {
                     tools.del_dt.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
-                    // tools.del_dt.unbind('click');
                 }
                 break;
 

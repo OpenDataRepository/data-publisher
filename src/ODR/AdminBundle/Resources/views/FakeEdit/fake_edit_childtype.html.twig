@@ -1,7 +1,15 @@
 {% spaceless %}
 
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
+
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
 
 {% if insert_fake_datarecord is not defined %}
     {% set insert_fake_datarecord = false %}
@@ -12,7 +20,7 @@
 {% set render_plugin_instance__edit = null %}
 
 {# ...but always need to determine whether a render plugin needs to be run in the "fake_edit" context #}
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'fake_edit'} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'fake_edit', 'is_datatype_admin': is_datatype_admin} %}
 
 {% set render_plugin_instance = null %}
 {% set can_execute_plugin = false %}
@@ -20,8 +28,10 @@
     {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
         {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
 
-        {# Only want to save the render_plugin_instance if it's render-able #}
-        {% set render_plugin_instance = rpi %}
+        {% if can_execute_plugin %}
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% set render_plugin_instance = rpi %}
+        {% endif %}
     {% endif %}
 {% endfor %}
 

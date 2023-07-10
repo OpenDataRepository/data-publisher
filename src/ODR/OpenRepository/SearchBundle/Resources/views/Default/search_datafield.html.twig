@@ -13,7 +13,10 @@
     {% endif %}
 
     <span class="pure-u-1">
-        <label for="datafield_{{ datafield_id }}" class="pure-u-1"><span title="{{ description }}">{{ fieldname }}:</span>
+        <label {% if field_typename != "DateTime" and field_typeclass != "Radio" and field_typeclass != "Tag"%}for="datafield_{{ datafield_id }}"{% endif %}
+               class="pure-u-1">
+
+            <span title="{{ description }}">{{ fieldname }}:</span>
         {% if field_typeclass == "Radio" %}
             <span class="pure-u-1 ODRSelectAll ODRSelectAllOption" rel="{{ datafield_id }}" title="Select all options">
                 <span class="ODRTristateCheckbox" rel="multiple">
@@ -30,6 +33,16 @@
                     <i class="fa"></i>
                 </span>
             </span>
+        {% endif %}
+        {% if field_typeclass == "Radio" or field_typeclass == "Tag" %}
+            <input id="df_{{ datafield_id }}_filter" class="ODRSearchDatafieldFilter fa" type="text"
+                   title="Filter {{ field_typeclass }} field" rel="{{ field_typeclass }}"
+                   placeholder="&#xf002;"    {# use the fa-search icon as a placeholder #}
+                   size="15" maxlength="15"
+            />
+        {% endif %}
+        {% if field_typename == "DateTime" %}
+            <span id="df_{{ datafield_id }}_clear" class="ODRDatePickerSearch_clear">Clear Dates</span>
         {% endif %}
         </label>
     </span>
@@ -106,7 +119,7 @@
 
     <span class="pure-u-1 ODRTagSearchDiv ODRSearchScrollbox" id="Input_{{ datafield_id }}" rel="{{ datatype_id }}">
     {% if datafield['tags'] is defined %}
-        <input type="hidden" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
+        <input type="hidden" class="ODRInput" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
 
         {% include 'ODROpenRepositorySearchBundle:Default:tag_wrapper.html.twig' with {
             'stacked_tags': datafield['tags'],

@@ -1,0 +1,141 @@
+{% spaceless %}
+
+<!-- Stored Search Keys Edit Dialog Form -->
+<script>
+
+    var stored_search_keys_dialog_wrapper = '<div id="ODRStoredSearchKeysDialogWrapper" class="ODRHidden"> </div>';
+
+    /**
+     * Opens ODR's modal and loads a form to change stored search keys for this datatype.
+     *
+     * @param {number} datatype_id
+     */
+    function openStoredSearchKeysDialog(datatype_id) {
+        var modal_options = {
+            title: 'Stored Search Keys Dialog',
+            loading: true,
+            body: stored_search_keys_dialog_wrapper,
+            buttons: [
+                {
+                    id: 'ODRStoredSearchKeys_save',
+                    text: 'Save'
+                },
+                {
+                    id: 'ODRStoredSearchKeys_close',
+                    secondary: true,
+                    text: 'Cancel'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadStoredSearchKeysDialog(datatype_id);
+
+        // Attach event handlers to the buttons
+        $("#ODRStoredSearchKeys_save").unbind('click').click(function() {
+            saveStoredSearchKeysDialog(datatype_id);
+        });
+        $("#ODRStoredSearchKeys_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
+    }
+
+    /**
+     * Loads a form to change stored search keys for this datatype.
+     *
+     * @param {number} datatype_id
+     */
+    function loadStoredSearchKeysDialog(datatype_id) {
+
+        var url = '{{ path('odr_design_get_stored_search_keys', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += datatype_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRStoredSearchKeysDialogWrapper").html( data.d.html );
+
+                initStoredSearchKeysDialog();
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('250', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRStoredSearchKeysDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight(true);
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves a form to change stored search keys for this datatype.
+     *
+     * @param {number} datatype_id
+     */
+    function saveStoredSearchKeysDialog(datatype_id) {
+
+        var url = '{{ path('odr_design_save_stored_search_keys', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += datatype_id;
+
+        var post_data = $("#ODRStoredSearchKeys_form").serialize();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            data: post_data,
+            dataType: "json",
+            success: function(data) {
+                // Don't need this open anymore
+                closeODRRemodal();
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+<!-- End of Stored Search Keys Edit Dialog Form -->
+
+{% endspaceless %}

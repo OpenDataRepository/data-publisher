@@ -48,6 +48,9 @@ services:
             $environment: "%kernel.environment%"
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $search_service: "@odr.search_service"
             $logger: "@logger"
         tags:
             - { name: "kernel.event_subscriber" }
@@ -79,14 +82,13 @@ services:
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
-            $cache_service: "@odr.cache_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
+            $entity_manager: "@doctrine.orm.entity_manager"
             $lock_service: "@odr.lock_service"
+            $event_dispatcher: "@event_dispatcher"
             $generator: "@security.util.secure_random"
             $crypto_adapter: "@dterranova_crypto.crypto_adapter"
             $crypto_dir: "%dterranova_crypto.temp_folder%"
             $odr_web_dir: "%odr_web_directory%"
-            $entity_manager: "@doctrine.orm.entity_manager"
             $logger: "@logger"
 
     odr.upload_service:
@@ -126,9 +128,9 @@ services:
             $clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
             $database_info_service: "@odr.database_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
-            $theme_info_service: "@odr.theme_info_service"
             $uuid_service: "@odr.uuid_service"
             $user_manager: "@fos_user.user_manager"
+            $event_dispatcher: "@event_dispatcher"
             $logger: "@monolog.logger.clone_datatype"
 
     odr.clone_theme_service:
@@ -145,26 +147,23 @@ services:
         class: ODR\AdminBundle\Component\Service\CloneTemplateService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $cache_service: "@odr.cache_service"
-            $search_cache_service: "@odr.search_cache_service"
             $clone_theme_service: "@odr.clone_theme_service"
             $database_info_service: "@odr.database_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $lock_service: "@odr.lock_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
             $uuid_service: "@odr.uuid_service"
+            $event_dispatcher: "@event_dispatcher"
             $logger: "@monolog.logger.clone_template"
 
     odr.clone_master_template_theme_service:
         class: ODR\AdminBundle\Component\Service\CloneMasterTemplateThemeService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $permissions_service: "@odr.permissions_management_service"
-            $theme_info_service: "@odr.theme_info_service"
             $logger: "@monolog.logger.clone_theme"
 
     odr.permissions_management_service:
@@ -227,7 +226,6 @@ services:
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
-            $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
     odr.theme_info_service:
@@ -263,7 +261,7 @@ services:
     odr.entity_creation_service:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
-            $environment: "%kernel.environment%"
+#            $environment: "%kernel.environment%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $lock_service: "@odr.lock_service"
@@ -274,7 +272,7 @@ services:
     odr.entity_meta_modify_service:
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
-            $environment: "%kernel.environment%"
+#            $environment: "%kernel.environment%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
@@ -288,14 +286,13 @@ services:
             $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"
-            $datarecord_info_service: "@odr.datarecord_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $permissions_management_service: "@odr.permissions_management_service"
-            $search_cache_service: "@odr.search_cache_service"
-            $search_service: "@odr.search_service"
             $tracked_job_service: "@odr.tracked_job_service"
             $theme_info_service: "@odr.theme_info_service"
+            $event_dispatcher: "@event_dispatcher"
+            $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
     odr.render_service:

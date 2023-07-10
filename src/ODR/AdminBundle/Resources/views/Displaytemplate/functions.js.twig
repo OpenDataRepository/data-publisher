@@ -278,7 +278,8 @@ function setupSortableThemeElements(elem) {
 /**
  * Creates/updates JQuery sortable instances for all datafields directly belonging to a datatype.
  *
- * Datafields can't be moved into a different datatype.
+ * Datafields can't be moved into a different datatype, and also can't be moved into a themeElement
+ * that is hosting a renderPlugin.
  *
  * @param {HTMLElement} elem
  */
@@ -325,17 +326,25 @@ function setupSortableDatafields(elem) {
             },
             stop: function (event, ui) {
                 // Grab where the datafield ended
-                var ending_theme_element = jQuery(ui.item).parent().parent().attr('id');
                 var ending_fieldarea = jQuery(ui.item).parent().parent().parent().attr('id');
+                var ending_theme_element = jQuery(ui.item).parent().parent().attr('id');
+                var ending_theme_element_id = ending_theme_element.split(/_/)[1];
 
-                // If the datafield ended up in the same fieldarea...
-                if (starting_fieldarea === ending_fieldarea) {
-                    // Update the order of the datafields in the destination theme element
-                    SaveDatafieldOrder( jQuery(ui.item).parent(), datafield_id, starting_theme_element, ending_theme_element );
+                if ( theme_element_properties[ending_theme_element_id].has_render_plugin_instance === 1 ) {
+                    // If the datafield ended up in a themeElement reserved for a renderPlugin, then
+                    //  don't save the change and revert the layout
+                    jQuery(this).sortable("cancel");
+                    {#console.log('not allowed to move datafields into #' + ending_theme_element);#}
+                }
+                else if (starting_fieldarea !== ending_fieldarea) {
+                    // If the datafield ended up in a different datatype, then don't save the change
+                    //  and revert the layout
+                    jQuery(this).sortable("cancel");
+                    {#console.log('not allowed to move datafields from #' + starting_fieldarea + ' into #' + ending_fieldarea);#}
                 }
                 else {
-                    // ...if not, don't save the change and revert the layout
-                    jQuery(this).sortable("cancel");
+                    // Otherwise, update the order of the datafields in the destination theme element
+                    SaveDatafieldOrder( jQuery(ui.item).parent(), datafield_id, starting_theme_element, ending_theme_element );
                 }
 
                 // Unhide the object that was being dragged around
@@ -413,6 +422,7 @@ function clearSortable(elem) {
 function resetOpacity() {
     $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea > .ODRThemeElement").each(function() {
         $(this).fadeTo(200, '1.0');
+        $(this).removeAttr('style');
     });
 }
 

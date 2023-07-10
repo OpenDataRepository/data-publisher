@@ -19,9 +19,29 @@ use Doctrine\ORM\Mapping as ORM;
 
 class RenderPlugin
 {
-    // These are magic numbers to define whether the RenderPlugin works on Datatypes or Datafields
+    // These are magic numbers to define when twig rendering will call the RenderPlugin
+
+    /*
+     * Plugins with this constant are called in *_childtype.html.twig, and therefore can completely
+     * override an entire child/linked datatype if they want to, such as the Comment and Reference
+     * plugins.  They don't have to, however, and plugins can also selectively replace parts of
+     * datafields, such as the AMCSD and IMA plugins...or move datarecords around like the
+     * LinkedDescendantMerger plugin...or even do nothing at all.
+     */
     const DATATYPE_PLUGIN = 1;
-    const DEFAULT_PLUGIN = 2;    // The "Default" RenderPlugin is the only one allowed to have a value of 2
+
+    /*
+     * Plugins with this constant are called in *_fieldarea.html.twig, and provides content for
+     * themeElements...ODR won't allow any datafields or child/linked datatypes in the affected
+     * themeElements.
+     */
+    const THEME_ELEMENT_PLUGIN = 2;
+
+    /*
+     * Plugins with this constant are called in *_datafield.html.twig, and can only override a single
+     * datafield...sometimes to add extra functionality, like the Chemistry plugin...but can also
+     * just change the displayed value, like the Currency plugin.
+     */
     const DATAFIELD_PLUGIN = 3;
 
 
@@ -84,6 +104,11 @@ class RenderPlugin
      * @var integer
      */
     private $plugin_type;
+
+    /**
+     * @var integer
+     */
+    private $requiredThemeElements;
 
     /**
      * @var \DateTime
@@ -406,6 +431,30 @@ class RenderPlugin
     public function getPluginType()
     {
         return $this->plugin_type;
+    }
+
+    /**
+     * Set requiredThemeElements.
+     *
+     * @param integer $requiredThemeElements
+     *
+     * @return RenderPlugin
+     */
+    public function setRequiredThemeElements($requiredThemeElements)
+    {
+        $this->requiredThemeElements = $requiredThemeElements;
+
+        return $this;
+    }
+
+    /**
+     * Get requiredThemeElements.
+     *
+     * @return integer
+     */
+    public function getRequiredThemeElements()
+    {
+        return $this->requiredThemeElements;
     }
 
     /**

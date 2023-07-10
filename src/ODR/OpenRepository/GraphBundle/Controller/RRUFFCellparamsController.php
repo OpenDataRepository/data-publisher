@@ -13,35 +13,33 @@
  *
  * ...which means there has to be a controller specifically for saving changes to those fields. Yay.
  *
- * At least this technically lets me do some verification on the submitted values...
+ * On the bright side, at least this means verification can be done on the submitted values...
  */
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
-
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\GraphBundle\Plugins\RRUFF\RRUFFCellParametersPlugin;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
@@ -82,20 +80,14 @@ class RRUFFCellparamsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -118,7 +110,7 @@ class RRUFFCellparamsController extends ODRCustomController
             $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
             $dt = $dt_array[$datatype->getId()];
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
                     $found_plugin = true;
 
@@ -248,34 +240,48 @@ class RRUFFCellparamsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-            $search_cache_service->onDatarecordModify($datarecord);
+            // Need to mark this datarecord as updated
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // Delete any cached search results involving these datafields
-            $search_cache_service->onDatafieldModify($crystal_system_datafield);
-            $search_cache_service->onDatafieldModify($point_group_datafield);
-            $search_cache_service->onDatafieldModify($space_group_datafield);
-
-            // Doesn't look like the lattice datafield needs to be cleared here
-
-            // Also should delete the default ordering of any datatype that relies on these datafields
-            $query = $em->createQuery(
-               'SELECT dtsf
-                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
-                WHERE dtsf.dataField IN (:datafield_list) AND dtsf.field_purpose = :field_purpose
-                AND dtsf.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datafield_list' => array_keys($df_lookup),
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
+            $dfs_for_events = array(
+                $crystal_system_datafield,
+                $point_group_datafield,
+                $space_group_datafield,
             );
-            $dtsf_list = $query->getResult();
-            /** @var DataTypeSpecialFields[] $dtsf_list */
+            // The lattice datafield doesn't need to have an event fired here, the render plugin
+            //  will do it as part of the "derivation from space group" process
 
-            foreach ($dtsf_list as $dtsf)
-                $cache_service->delete('datatype_'.$dtsf->getDataType()->getId().'_record_order');
+            foreach ($dfs_for_events as $df) {
+                // Fire off an event notifying that the modification of the datafield is done
+                try {
+                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                    /** @var EventDispatcherInterface $event_dispatcher */
+                    $dispatcher = $this->get('event_dispatcher');
+                    $event = new DatafieldModifiedEvent($df, $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
 
         }
         catch (\Exception $e) {

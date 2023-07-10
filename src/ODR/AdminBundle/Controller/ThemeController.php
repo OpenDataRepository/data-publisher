@@ -1012,16 +1012,16 @@ class ThemeController extends ODRCustomController
 //            if ($theme->getThemeType() == 'table')
 //                throw new \Exception('Not allowed to delete a theme element from a table theme');
 
-            // Don't allow deletion of themeElement if it still has datafields or a child/linked datatype attached to it
-            $theme_datatypes = $theme_element->getThemeDataType();
-            $theme_datafields = $theme_element->getThemeDataFields();
+            // Don't allow deletion of themeElement if it still is being used for something
+            if ( $theme_element->getThemeDataFields()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that contains datafields');
+            if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that contains child/linked datatypes');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that is being used by a render plugin');
 
-            // TODO - allow deletion of theme elements that still have datafields or a child/linked datatype attached to them?
-            if ( count($theme_datatypes) > 0 || count($theme_datafields) > 0 )
-                throw new ODRBadRequestException('Unable to delete a theme element that contains datafields or datatypes');
 
             // Going to delete both the themeElement and its meta entry...
-            // Also delete the meta entry
             $entities_to_remove = array();
             $entities_to_remove[] = $theme_element;
             $entities_to_remove[] = $theme_element->getThemeElementMeta();
@@ -2067,12 +2067,11 @@ class ThemeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure there's not a child or linked datatype in the ending theme_element before actually moving this datafield into it
-            /** @var ThemeDataType[] $theme_datatypes */
-            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')
-                ->findBy( array('themeElement' => $ending_theme_element_id) );
-            if ( count($theme_datatypes) > 0 )
+            // Ensure this datafield isn't trying to move into an illegal theme element
+            if ( $ending_theme_element->getThemeDataType()->count() > 0 )
                 throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
+            if ( $ending_theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new \Exception('Unable to move a Datafield into a ThemeElement that is already being used by a RenderPlugin');
 
             // NOTE - could technically check for deleted datafields, but it *shouldn't* matter if
             //  any exist...don't think displayOrder can get messed up, and it's not really a

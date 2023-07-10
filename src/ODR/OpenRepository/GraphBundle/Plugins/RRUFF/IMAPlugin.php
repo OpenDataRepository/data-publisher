@@ -30,7 +30,9 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\PostMassEditEvent;
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Exceptions
@@ -48,11 +50,11 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -100,14 +102,14 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private $lock_service;
 
     /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
-
-    /**
      * @var SortService
      */
     private $sort_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
 
     /**
      * @var CsrfTokenManager
@@ -136,8 +138,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param EntityMetaModifyService $entity_meta_modify_service
      * @param PermissionsManagementService $permissions_service
      * @param LockService $lock_service
-     * @param SearchCacheService $search_cache_service
      * @param SortService $sort_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -151,8 +153,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         EntityMetaModifyService $entity_meta_modify_service,
         PermissionsManagementService $permissions_service,
         LockService $lock_service,
-        SearchCacheService $search_cache_service,
         SortService $sort_service,
+        EventDispatcherInterface $event_dispatcher,
         CsrfTokenManager $token_manager,
         EngineInterface $templating,
         Logger $logger
@@ -165,8 +167,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $this->emm_service = $entity_meta_modify_service;
         $this->pm_service = $permissions_service;
         $this->lock_service = $lock_service;
-        $this->search_cache_service = $search_cache_service;
         $this->sort_service = $sort_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->token_manager = $token_manager;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -229,11 +231,14 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // ----------------------------------------
             // If no rendering context set, then return nothing so ODR's default templating will
             //  do its job
-            if (!isset($rendering_options['context']))
+            if ( !isset($rendering_options['context']) )
                 return '';
 
 
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -249,12 +254,22 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $df = $datatype['dataFields'][$rpf_df_id];
 
                 if ($df == null) {
-                    // The Reference A/B fields are allowed to be non-public...which means they
-                    //  may not be in this array.  The rest of the plugin should still work though
-                    if ( $rpf_name !== 'Reference A' && $rpf_name !== 'Reference B' )
-                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
-                }
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
 
+                    // The IMA Plugin doesn't require the existence of any of its fields to execute
+                    //  properly...Display and Edit modes are merely warning when certain fields are
+                    //  blank when they shouldn't be, and FakeEdit can set Mineral ID regardless.
+
+                    // I can't fathom why you would want to have non-public fields in this datatype...
+                    //  but unlike references or cell parameters, it's not objectively wrong to do so.
+
+                    if ( $is_datatype_admin )
+                        // If a datatype admin is seeing this, then they need to fix something in
+                        //  the plugin's config
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
 
                 // Need to tweak display parameters for several of the fields...
                 $plugin_fields[$rpf_df_id] = $rpf_df;
@@ -357,6 +372,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'is_link' => $rendering_options['is_link'],
                         'display_type' => $rendering_options['display_type'],
 
+                        'is_datatype_admin' => $is_datatype_admin,
+
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
 
@@ -457,7 +474,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Locate the relevant render plugin instance
         $rpm_entries = null;
-        foreach ($datatype['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($datatype['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $rpm_entries = $rpi['renderPluginMap'];
                 break;
@@ -628,22 +645,26 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Create a new storage entity with the new value
         $this->ec_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
+        $this->logger->debug('Setting df '.$datafield->getId().' "Mineral ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
 
         // No longer need the lock
         $lockHandler->release();
 
 
         // ----------------------------------------
-        // Not going to mark the datarecord as updated, but still need to do some other cache
-        //  maintenance because a datafield value got changed...
-
-        // If the datafield that got changed was a datatype's sort datafield, delete its cached datarecord order
-        $sort_datatypes = $datafield->getSortDatatypes();
-        foreach ($sort_datatypes as $num => $dt)
-            $this->dbi_service->resetDatatypeSortOrder($dt->getId());
-
-        // Delete any cached search results involving this datafield
-        $this->search_cache_service->onDatafieldModify($datafield);
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 
 
@@ -949,7 +970,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 //            'End Member Formula' => 'End Member Elements',
         );
 
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                     if ( isset($relevant_datafields[$rpf_name]) && $rpf['id'] === $datafield->getId() ) {
@@ -988,7 +1009,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Going to use the cached datatype array to locate the correct datafield...
         $dt_array = $this->dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
-        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_num => $rpi) {
+        foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
                 $df_id = $rpi['renderPluginMap'][$destination_rpf_name]['id'];
                 break;
@@ -1150,12 +1171,33 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      */
     private function clearCacheEntries($datarecord, $user, $destination_storage_entity)
     {
-        // The datarecord needs to be marked as updated
-        $this->dri_service->updateDatarecordCacheEntry($datarecord, $user);
+        // Fire off an event notifying that the modification of the datafield is done
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatafieldModifiedEvent($destination_storage_entity->getDataField(), $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
 
-        // Because other datafields got updated, several more cache entries need to be wiped
-        $this->search_cache_service->onDatafieldModify($destination_storage_entity->getDataField());
-        $this->search_cache_service->onDatarecordModify($datarecord);
+        // The datarecord needs to be marked as updated
+        try {
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 
 
@@ -1336,7 +1378,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         if ( isset($datatype_array['descendants']) ) {
             foreach ($datatype_array['descendants'] as $dt_id => $tmp) {
                 $dt = $tmp['datatype'][$dt_id];
-                foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     $rp = $rpi['renderPlugin'];
                     if ( $rp['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
                         // ...it does, so save some useful pieces of data
@@ -1363,7 +1405,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             // Need to locate the renderPluginMapping for the IMA database, in order to find the
             //  ids for the Reference A/B datafields
             $rpm = array();
-            foreach ($datatype_array['renderPluginInstances'] as $num => $rpi) {
+            foreach ($datatype_array['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' )
                     $rpm = $rpi['renderPluginMap'];
             }

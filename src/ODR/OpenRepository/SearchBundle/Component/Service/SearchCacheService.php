@@ -15,17 +15,33 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatatypeLinkStatusChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 // Symfony
+use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 
-class SearchCacheService
+class SearchCacheService implements EventSubscriberInterface
 {
     /**
      * @var EntityManager
@@ -47,6 +63,11 @@ class SearchCacheService
      */
     private $logger;
 
+    /**
+     * @var boolean
+     */
+    private $debug;
+
 
     /**
      * SearchCacheService constructor.
@@ -66,8 +87,40 @@ class SearchCacheService
         $this->cache_service = $cache_service;
         $this->search_service = $search_service;
         $this->logger = $logger;
+
+
+//        $this->debug = false;
+        $this->debug = true;
     }
 
+
+    /**
+     * {@inheritDoc}
+     */
+    public static function getSubscribedEvents()
+    {
+        return array(
+            // Datatype
+//            DatatypeCreatedEvent::NAME => 'onDatatypeCreate',    // Don't have any search cache entries to clear for these two events
+//            DatatypeModifiedEvent::NAME => 'onDatatypeModify',
+            DatatypeImportedEvent::NAME => 'onDatatypeImport',
+            DatatypeDeletedEvent::NAME => 'onDatatypeDelete',
+            DatatypePublicStatusChangedEvent::NAME => 'onDatatypePublicStatusChange',
+            DatatypeLinkStatusChangedEvent::NAME => 'onDatatypeLinkStatusChange',
+            // Datarecord
+            DatarecordCreatedEvent::NAME => 'onDatarecordCreate',
+            DatarecordModifiedEvent::NAME => 'onDatarecordModify',
+            DatarecordDeletedEvent::NAME => 'onDatarecordDelete',
+            DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChange',
+            DatarecordLinkStatusChangedEvent::NAME => 'onDatarecordLinkStatusChange',
+            // Datafield
+            DatafieldCreatedEvent::NAME => 'onDatafieldCreate',
+            DatafieldModifiedEvent::NAME => 'onDatafieldModify',
+            DatafieldDeletedEvent::NAME => 'onDatafieldDelete',
+
+            // TODO - Nate is also going to eventually need events for Layout changes
+        );
+    }
 
     // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
 
@@ -79,16 +132,25 @@ class SearchCacheService
      * Deletes search cache entries for all datafields belonging to the given datatypes
      *
      * @param array $datatype_ids
+     * @param bool $include_deleted
      */
-    private function clearCachedDatafieldsByDatatype($datatype_ids)
+    private function clearCachedDatafieldsByDatatype($datatype_ids, $include_deleted = false)
     {
-        $query = $this->em->createQuery(
-           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
-            FROM ODRAdminBundle:DataFields AS df
-            WHERE df.dataType IN (:datatype_ids)
-            AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $datatype_ids) );
-        $results = $query->getArrayResult();
+        // TODO - ...cache these queries required by the private functions?
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+
+        $query =
+           'SELECT df.id AS df_id, df.template_field_uuid AS template_field_uuid
+            FROM odr_data_fields AS df
+            WHERE df.data_type_id IN (?)';
+        if (!$include_deleted)
+            $query .= ' AND df.deletedAt IS NULL';
+
+        $parameters = array(1 => $datatype_ids);
+        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -98,7 +160,7 @@ class SearchCacheService
                 $this->cache_service->delete('cached_search_df_'.$df_id);
                 $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
 
-                if ( !is_null($template_df_uuid) ) {
+                if (!is_null($template_df_uuid)) {
                     $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
                     $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
                     $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_fieldstats');
@@ -112,17 +174,25 @@ class SearchCacheService
      * Clears search cache entries for all radio options belonging to the given datatypes
      *
      * @param array $datatype_ids
+     * @param bool $include_deleted
      */
-    private function clearCachedRadioOptionsByDatatype($datatype_ids)
+    private function clearCachedRadioOptionsByDatatype($datatype_ids, $include_deleted = false)
     {
-        $query = $this->em->createQuery(
-           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
-            WHERE df.dataType IN (:datatype_ids)
-            AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $datatype_ids) );
-        $results = $query->getArrayResult();
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+
+        $query =
+           'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
+            FROM odr_radio_options AS ro
+            JOIN odr_data_fields AS df ON ro.data_fields_id = df.id
+            WHERE df.data_type_id IN (?)';
+        if (!$include_deleted)
+            $query .= ' AND ro.deletedAt IS NULL AND df.deletedAt IS NULL';
+
+        $parameters = array(1 => $datatype_ids);
+        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -131,7 +201,7 @@ class SearchCacheService
 
                 $this->cache_service->delete('cached_search_ro_'.$ro_id);
 
-                if ( !is_null($ro_uuid) )
+                if (!is_null($ro_uuid))
                     $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
             }
         }
@@ -142,17 +212,25 @@ class SearchCacheService
      * Clears search cache entries for all tags belonging to the given datatypes
      *
      * @param array $datatype_ids
+     * @param bool $include_deleted
      */
-    private function clearCachedTagsByDatatype($datatype_ids)
+    private function clearCachedTagsByDatatype($datatype_ids, $include_deleted = false)
     {
-        $query = $this->em->createQuery(
-           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
-            FROM ODRAdminBundle:Tags AS t
-            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
-            WHERE df.dataType IN (:datatype_ids)
-            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $datatype_ids) );
-        $results = $query->getArrayResult();
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+
+        $query =
+           'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
+            FROM odr_tags AS t
+            JOIN odr_data_fields AS df ON t.data_fields_id = df.id
+            WHERE df.data_type_id IN (?)';
+        if (!$include_deleted)
+            $query .= ' AND t.deletedAt IS NULL AND df.deletedAt IS NULL';
+
+        $parameters = array(1 => $datatype_ids);
+        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -161,7 +239,7 @@ class SearchCacheService
 
                 $this->cache_service->delete('cached_search_tag_'.$t_id);
 
-                if ( !is_null($t_uuid) )
+                if (!is_null($t_uuid))
                     $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
             }
         }
@@ -172,16 +250,24 @@ class SearchCacheService
      * Clears search cache entries for all radio options belonging to the given datafields
      *
      * @param array $datafield_ids
+     * @param bool $include_deleted
      */
-    private function clearCachedRadioOptionsByDatafield($datafield_ids)
+    private function clearCachedRadioOptionsByDatafield($datafield_ids, $include_deleted = false)
     {
-        $query = $this->em->createQuery(
-           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            WHERE ro.dataField IN (:datafield_ids)
-            AND ro.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => $datafield_ids) );
-        $results = $query->getArrayResult();
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+
+        $query =
+           'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
+            FROM odr_radio_options AS ro
+            WHERE ro.data_fields_id IN (?)';
+        if (!$include_deleted)
+            $query .= ' AND ro.deletedAt IS NULL';
+
+        $parameters = array(1 => $datafield_ids);
+        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -190,7 +276,7 @@ class SearchCacheService
 
                 $this->cache_service->delete('cached_search_ro_'.$ro_id);
 
-                if ( !is_null($ro_uuid) )
+                if (!is_null($ro_uuid))
                     $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
             }
         }
@@ -201,16 +287,24 @@ class SearchCacheService
      * Clears search cache entries for all tags belonging to the given datatypes
      *
      * @param array $datatype_ids
+     * @param bool $include_deleted
      */
-    private function clearCachedTagsByDatafield($datafield_ids)
+    private function clearCachedTagsByDatafield($datafield_ids, $include_deleted = false)
     {
-        $query = $this->em->createQuery(
-           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
-            FROM ODRAdminBundle:Tags AS t
-            WHERE t.dataField IN (:datafield_ids)
-            AND t.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => $datafield_ids) );
-        $results = $query->getArrayResult();
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+
+        $query =
+           'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
+            FROM odr_tags AS t
+            WHERE t.data_fields_id IN (?)';
+        if (!$include_deleted)
+            $query .= ' AND t.deletedAt IS NULL';
+
+        $parameters = array(1 => $datafield_ids);
+        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -219,7 +313,7 @@ class SearchCacheService
 
                 $this->cache_service->delete('cached_search_tag_'.$t_id);
 
-                if ( !is_null($t_uuid) )
+                if (!is_null($t_uuid))
                     $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
             }
         }
@@ -227,87 +321,22 @@ class SearchCacheService
 
 
     /**
-     * When a datatype is deleted, it also deletes a mess of datarecords, datafields, and could
-     * also end up deleting a pile of other child datatypes...so anything related to the datatype
-     * being deleted needs to be cleared.
+     * This event is fired when a datatype is deleted.  Most of the relevant search cache entries
+     * will no longer be referenced, but there are several more esoteric ones that might...so might
+     * as well clear as many of them as possible.
      *
-     * @param DataType $datatype
+     * @param DatatypeDeletedEvent $event
      */
-    public function onDatatypeDelete($datatype)
+    public function onDatatypeDelete(DatatypeDeletedEvent $event)
     {
-        $grandparent_datatype = $datatype->getGrandparent();
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypeDelete()', $event->getErrorInfo());
 
-        // ----------------------------------------
-        $related_datatypes = $this->search_service->getRelatedDatatypes($grandparent_datatype->getId());
-        foreach ($related_datatypes as $num => $dt_id) {
-            // Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that actually
-            //  needs deleting, and then only when linked datatypes are involved...but being
-            //  thorough won't hurt.
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_datafields');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
+        // Both deletion of a datatype and importing into a datatype typically require deletion of
+        //  every single search cache entry that is related to a datatype
+        $datatype_id = $event->getDatatypeId();
 
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
-            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
-        }
-
-
-        // TODO - figure out whether there needs to be restrictions on when datatypes related to templates can be deleted
-        if ( !is_null($grandparent_datatype->getMasterDataType()) ) {
-            // If this datatype was derived from a master template...
-            $master_datatype = $datatype->getGrandparent()->getMasterDataType();
-
-            // ...then the cache entries that reference this datatype's datafields need to get cleared
-            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($master_datatype);
-            foreach ($related_datatypes as $num => $dt_uuid)
-                $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
-        }
-        else if ( $grandparent_datatype->getIsMasterType() ) {
-            // If the datatype being deleted is a master template, then delete the cache entries
-            //  that store the datafields for all datatypes derived from this template
-            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($grandparent_datatype);
-            foreach ($related_datatypes as $num => $dt_uuid)
-                $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
-        }
-
-
-        // ----------------------------------------
-        // Don't have any convenient cache entry, so need to run a query to locate all master
-        //  datatypes of the datatypes that are going to be deleted
-        $query = $this->em->createQuery(
-           'SELECT mdt.unique_id
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
-            WHERE dt.id IN (:datatype_ids)
-            AND dt.deletedAt IS NULL AND mdt.deletedAt IS NULL'
-        ) ->setParameters(
-            array(
-                'datatype_ids' => $related_datatypes
-            )
-        );
-        $results = $query->getArrayResult();
-
-        if ( is_array($results) ) {
-            foreach ($results as $result)
-                $this->cache_service->delete('cached_search_template_dt_'.$result['unique_id'].'_dr_list');
-        }
-
-
-        // ----------------------------------------
-        // Delete all cached search entries for all datafields of these datatypes
-        self::clearCachedDatafieldsByDatatype($related_datatypes);
-
-        // Delete all cached search entries for all radio options in these datatypes
-        self::clearCachedRadioOptionsByDatatype($related_datatypes);
-
-        // Delete all cached search entries for all tags in these datatypes
-        $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-        $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
-
-        self::clearCachedTagsByDatatype($related_datatypes);
+        self::clearDatatypeEntries($datatype_id);
     }
 
 
@@ -315,13 +344,18 @@ class SearchCacheService
      * There's no telling exactly what happens when a CSV Import is run on a datatype, so a whole
      * pile of search cache entries should be deleted upon completion.
      *
-     * @param DataType $datatype
+     * @param DatatypeImportedEvent $event
      */
-    public function onDatatypeImport($datatype)
+    public function onDatatypeImport(DatatypeImportedEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypeImport()', $event->getErrorInfo());
+
         // Both deletion of a datatype and importing into a datatype typically require deletion of
         //  every single search cache entry that is related to a datatype
-        self::onDatatypeDelete($datatype);
+        $datatype = $event->getDatatype();
+
+        self::clearDatatypeEntries($datatype->getId());
 
         // cached_search_dt_'.$dt_id.'_datafields and 'cached_search_dt_'.$dt_id.'_public_status'
         //  probably don't need to be deleted, but rebuilding them is fast enough for how
@@ -330,12 +364,170 @@ class SearchCacheService
 
 
     /**
+     * Does the work of clearing cached datatype entries when a datatype is deleted, or after a CSV
+     * Import happens to it
+     *
+     * @param int $datatype_id
+     */
+    private function clearDatatypeEntries($datatype_id)
+    {
+        // ----------------------------------------
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+
+        // Want to do a pile of stuff based off the datatype that got deleted, as well as any of its
+        //  child datatypes...but due to deletion, there are no convenient cache entries to use
+        // Can't just use the grandparent_id property either, because the datatype that got deleted
+        //  may not be top-level
+        $query =
+           'SELECT dt.id AS dt_id, dt.parent_id AS parent_dt_id, dt.grandparent_id AS grandparent_dt_id
+            FROM odr_data_type AS o_dt
+            LEFT JOIN odr_data_type AS grandparent ON o_dt.grandparent_id = grandparent.id
+            LEFT JOIN odr_data_type as dt ON dt.grandparent_id = grandparent.id
+            WHERE o_dt.id = '.$datatype_id;
+        $results = $conn->fetchAll($query);
+
+        $grandparent_datatype_id = null;
+        $tmp_datatree_array = array();
+        foreach ($results as $result) {
+            $dt_id = intval($result['dt_id']);
+            $parent_dt_id = intval($result['parent_dt_id']);
+
+            // Going to need this for later
+            if ( is_null($grandparent_datatype_id) )
+                $grandparent_datatype_id = intval($result['grandparent_dt_id']);
+
+            if ( $dt_id !== $parent_dt_id ) {
+                if ( !isset($tmp_datatree_array[$parent_dt_id]) )
+                    $tmp_datatree_array[$parent_dt_id] = array();
+                $tmp_datatree_array[$parent_dt_id][] = $dt_id;
+            }
+        }
+
+        // Need to determine all child datatypes that are descended from the deleted child datatype
+        $deleted_datatype_ids = array($datatype_id => 0);
+
+        // If the deleted datatype has children datatypes...
+        if ( isset($tmp_datatree_array[$datatype_id]) ) {
+            // ...then for each child datatype it has...
+            $datatypes_to_check = $tmp_datatree_array[$datatype_id];
+            while ( !empty($datatypes_to_check) ) {
+                $tmp = array();
+                foreach ($datatypes_to_check as $dt_id) {
+                    // ...that child datatype also got deleted
+                    $deleted_datatype_ids[$dt_id] = 0;
+
+                    // ...and if that child datatype has children of its own...
+                    if ( isset($tmp_datatree_array[$dt_id]) ) {
+                        foreach ($tmp_datatree_array[$dt_id] as $num => $child_dt_id)
+                            // ...check them as well
+                            $tmp[] = $child_dt_id;
+                    }
+                }
+
+                // Reset for next loop
+                $datatypes_to_check = $tmp;
+            }
+        }
+        $deleted_datatype_ids = array_keys($deleted_datatype_ids);
+
+
+        // ----------------------------------------
+        foreach ($deleted_datatype_ids as $dt_id) {
+            // Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that actually
+            //  needs deleting, and then only when linked datatypes are involved...but being
+            //  thorough won't hurt.
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_datafields');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
+
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
+            $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
+
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+        }
+
+        // Delete all cached search entries for all datafields of these datatypes
+        self::clearCachedDatafieldsByDatatype($deleted_datatype_ids, true);
+
+        // Delete all cached search entries for all radio options and tags in these datatypes
+        self::clearCachedRadioOptionsByDatatype($deleted_datatype_ids, true);
+        self::clearCachedTagsByDatatype($deleted_datatype_ids, true);
+
+        // Also need to delete these cached search entries
+        $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+        $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
+
+
+        // ----------------------------------------
+        // TODO - figure out whether there needs to be restrictions on when datatypes related to templates can be deleted
+        // Need to determine whether any cached search entries for templates have to be deleted...
+        $query =
+           'SELECT grandparent.id AS grandparent_id, grandparent.is_master_type, mdt.id AS mdt_id
+            FROM odr_data_type AS dt
+            LEFT JOIN odr_data_type AS grandparent ON dt.grandparent_id = grandparent.id
+            LEFT JOIN odr_data_type AS mdt ON grandparent.master_datatype_id = mdt.id
+            WHERE dt.id = '.$datatype_id;
+        $results = $conn->fetchAll($query);
+
+        $template_datatype_id = null;
+        foreach ($results as $result) {
+            // Should only be one result here
+            $grandparent_id = $result['grandparent_id'];
+            $is_template = $result['is_master_type'];
+            $mdt_id = $result['mdt_id'];
+
+            if ( $is_template ) {
+                // If the datatype that just got deleted was a template, then save its id
+                $template_datatype_id = $grandparent_id;
+            }
+            else if ( !is_null($mdt_id) ) {
+                // If the datatype that just got deleted was derived from a template, then save its
+                //  template's id
+                $template_datatype_id = $mdt_id;
+            }
+            // Otherwise, don't need to do anything here
+        }
+
+        if ( !is_null($template_datatype_id) ) {
+            // Regardless of whether the datatype that just got deleted was the master template, or
+            //  one of those derived from it...need to determine the ids and uuids of all datatypes
+            //  which are children of the master template
+            $query =
+               'SELECT mdt.id AS mdt_id, mdt.unique_id AS mdt_uuid
+                FROM odr_data_type AS mdt
+                WHERE mdt.grandparent_id = '.$template_datatype_id;
+            $results = $conn->fetchAll($query);
+
+            if ( is_array($results) ) {
+                foreach ($results as $result) {
+                    $mdt_id = $result['mdt_id'];
+                    $mdt_uuid = $result['mdt_uuid'];
+
+                    $this->cache_service->delete('cached_search_template_dt_'.$mdt_id.'_datafields');
+                    $this->cache_service->delete('cached_search_template_dt_'.$mdt_uuid.'_dr_list');
+                }
+            }
+        }
+    }
+
+
+    /**
      * Deletes relevant search cache entries when a datatype's public status is changed.
      *
-     * @param DataType $datatype
+     * @param DatatypePublicStatusChangedEvent $event
      */
-    public function onDatatypePublicStatusChange($datatype)
+    public function onDatatypePublicStatusChange(DatatypePublicStatusChangedEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypePublicStatusChange()', $event->getErrorInfo());
+
+        $datatype = $event->getDatatype();
+
         // This entry has the datatype's public date in it, so it should be cleared
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
         $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
@@ -343,13 +535,43 @@ class SearchCacheService
 
 
     /**
+     * Deletes relevant search cache entries when a datatype is linked to or unlinked from another
+     * datatype.
+     *
+     * @param DatatypeLinkStatusChangedEvent $event
+     */
+    public function onDatatypeLinkStatusChange(DatatypeLinkStatusChangedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatatypeLinkStatusChange()', $event->getErrorInfo());
+
+//        $ancestor_datatype = $event->getAncestorDatatype();
+//        $new_descendant_datatype = $event->getNewDescendantDatatype();
+        $previous_descendant_datatype = $event->getPreviousDescendantDatatype();
+
+        // If the ancestor datatype was unlinked from a descendant datatype...
+        if ( !is_null($previous_descendant_datatype) )
+            // ...then need to clear this cache entry
+            $this->cache_service->delete('cached_search_dt_'.$previous_descendant_datatype->getId().'_linked_dr_parents');
+
+        // Don't need to clear anything for the new descendant datatype
+
+        // Also don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry
+        //  here, since it doesn't contain any information about linking
+    }
+
+
+    /**
      * Deletes relevant search cache entries when a datafield is created.
      *
-     * @param DataFields $datafield
+     * @param DatafieldCreatedEvent $event
      */
-    public function onDatafieldCreate($datafield)
+    public function onDatafieldCreate(DatafieldCreatedEvent $event)
     {
-        $datatype = $datafield->getDataType();
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatafieldCreate()', $event->getErrorInfo());
+
+        $datatype = $event->getDatafield()->getDataType();
 
         // Need to delete these entries...
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
@@ -361,78 +583,126 @@ class SearchCacheService
      * Deletes relevant search cache entries when a datafield has its value changed, or has its
      * fieldtype changed.
      *
-     * @param DataFields $datafield
+     * @param DatafieldModifiedEvent $event
      */
-    public function onDatafieldModify($datafield)
+    public function onDatafieldModify(DatafieldModifiedEvent $event)
     {
-        // While it's technically possible to selectively delete portions of the cached entry, it's
-        //  really not worthwhile
-        $this->cache_service->delete('cached_search_df_'.$datafield->getId());
-        $this->cache_service->delete('cached_search_df_'.$datafield->getId().'_ordering');
-        $this->cache_service->delete('cached_search_dt_'.$datafield->getDataType()->getId().'_datafields');
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatafieldModify()', $event->getErrorInfo());
 
-        if ( !is_null($datafield->getMasterDataField()) ) {
-            $master_df_uuid = $datafield->getMasterDataField()->getFieldUuid();
-            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid);
-            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_ordering');
-            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_fieldstats');
-        }
+        $datafield = $event->getDatafield();
+        $datafield_id = $datafield->getId();
+        $datatype_id = $datafield->getDataType()->getId();
+        $typeclass = $datafield->getFieldType()->getTypeClass();
 
-        // If the datafield is a radio options or tag datafield, then any change should also delete
-        //  all of the cached radio options or tags associated with this datafield
-        if ($datafield->getFieldType()->getTypeClass() === 'Radio')
-            self::clearCachedRadioOptionsByDatafield( array($datafield->getId()) );
-        else if ($datafield->getFieldType()->getTypeClass() === 'Tag')
-            self::clearCachedTagsByDatafield( array($datafield->getId()) );
+        $master_datafield_uuid = null;
+        if ( !is_null($datafield->getMasterDataField()) )
+            $master_datafield_uuid = $datafield->getMasterDataField()->getFieldUuid();
+
+        // Modifying and deleting a datafield requires the same clearing of search cache entries
+        self::clearDatafieldEntries(
+            $datafield_id,
+            $datatype_id,
+            $typeclass,
+            $master_datafield_uuid
+        );
     }
 
 
     /**
      * Deletes relevant search cache entries when a datafield is deleted.
      *
-     * @param Datafields $datafield
+     * @param DatafieldDeletedEvent $event
      */
-    public function onDatafieldDelete($datafield)
+    public function onDatafieldDelete(DatafieldDeletedEvent $event)
     {
-        // The cache entries deleted by this function also need to be deleting when a datafield
-        //  is modified
-        self::onDatafieldModify($datafield);
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatafieldDelete()', $event->getErrorInfo());
+
+        $datafield_id = $event->getDatafieldId();
+        $datatype_id = $event->getDatatype()->getId();
+
+        // Going to use native SQL to get around doctrine's soft-deleteable filter...I'm not
+        //  confident it works properly when dealing with potentially async situations
+        $conn = $this->em->getConnection();
+        $query =
+           'SELECT ft.type_class, mdf.unique_id
+            FROM odr_data_fields df
+            LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
+            LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
+            LEFT JOIN odr_data_fields mdf ON df.master_datafield_id = mdf.id
+            WHERE df.id = '.$datafield_id;
+        $results = $conn->fetchAll($query);
+
+        // Unfortunately, there are likely to be multiple unwanted datafieldMeta entries in here...
+        $typeclass = null;
+        $master_datafield_uuid = null;
+        foreach ($results as $result) {
+            $a = 1;
+        }
+
+        // Modifying and deleting a datafield requires the same clearing of search cache entries
+        self::clearDatafieldEntries(
+            $datafield_id,
+            $datatype_id,
+            $typeclass,
+            $master_datafield_uuid
+        );
 
         // Also need to delete these entries
-        $datatype = $datafield->getDataType();
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
-        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
+        $this->cache_service->delete('cached_search_dt_'.$datatype_id.'_datafields');
+        $this->cache_service->delete('cached_search_template_dt_'.$datatype_id.'_datafields');
     }
 
 
     /**
-     * Deletes relevant search cache entries when a datafield has its public status changed.
+     * Does the work of clearing cached datatype entries when a datafield is modified or deleted.
      *
-     * @param DataFields $datafield
+     * @param int $datafield_id
+     * @param int $datatype_id
+     * @param string $typeclass
+     * @param string|null $master_datafield_uuid
      */
-    public function onDatafieldPublicStatusChange($datafield)
+    private function clearDatafieldEntries($datafield_id, $datatype_id, $typeclass, $master_datafield_uuid = null)
     {
-        $datatype = $datafield->getDataType();
+        // While it's technically possible to selectively delete portions of the cached entry, it's
+        //  really not worthwhile
+        $this->cache_service->delete('cached_search_df_'.$datafield_id);
+        $this->cache_service->delete('cached_search_df_'.$datafield_id.'_ordering');
+        $this->cache_service->delete('cached_search_dt_'.$datatype_id.'_datafields');
 
-        // Need to delete these entries...
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+        if ( !is_null($master_datafield_uuid) ) {
+            $this->cache_service->delete('cached_search_template_df_'.$master_datafield_uuid);
+            $this->cache_service->delete('cached_search_template_df_'.$master_datafield_uuid.'_ordering');
+            $this->cache_service->delete('cached_search_template_df_'.$master_datafield_uuid.'_fieldstats');
+        }
 
-        // "cached_search_template_dt_<template_uuid>_datafields"  does not store public dates, so
-        //  it doesn't need to be cleared
+        // If the datafield is a radio options or tag datafield, then any change should also delete
+        //  all of the cached radio options or tags associated with this datafield
+        if ($typeclass === 'Radio')
+            self::clearCachedRadioOptionsByDatafield( array($datafield_id) );
+        else if ($typeclass === 'Tag')
+            self::clearCachedTagsByDatafield( array($datafield_id) );
     }
 
 
     /**
      * Deletes relevant search cache entries when a datarecord is created in the given datatype.
      *
-     * @param DataType $datatype
+     * @param DatarecordCreatedEvent $event
      */
-    public function onDatarecordCreate($datatype)
+    public function onDatarecordCreate(DatarecordCreatedEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordCreate()', $event->getErrorInfo());
+
+        $datatype = $event->getDatarecord()->getDataType();
+
         // ----------------------------------------
         // If a datarecord was created, then this needs to be rebuilt
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_dt_'.$datatype->getId().'_dr_uuid_list');
 
         if ( !is_null($datatype->getMasterDataType()) ) {
             $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
@@ -466,40 +736,32 @@ class SearchCacheService
     /**
      * Deletes relevant search cache entries when a datarecord is modified.
      *
-     * @param DataRecord $datarecord
+     * @param DatarecordModifiedEvent $event
      */
-    public function onDatarecordModify($datarecord)
+    public function onDatarecordModify(DatarecordModifiedEvent $event)
     {
-        $datatype = $datarecord->getDataType();
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordModify()', $event->getErrorInfo());
 
-        // ----------------------------------------
-        // Would have to search through each cached search entry to be completely accurate with
-        //  deletion...but that would take too long
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modified');
-
-        // Technically only need to delete two cached search entries in this...whoever modified it,
-        //  and whoever modified it previously...but not worthwhile to do
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modifiedBy');
-
-        // Technically this should be in its own "event"-like function, but betting that it
-        //  won't be common enough to have a performance penalty
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_public_status');
-
-
-        // ----------------------------------------
-        // Don't need to delete any cached search entries for datafields...if this modification was
-        //  due to a change to a datafield, then that's handled elsewhere.  If not, then there's no
-        //  need to delete anything datafield related.
+        // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
+        //  search cache entries
+        $datarecord = $event->getDatarecord();
+        self::clearCachedDatarecordEntries($datarecord);
     }
 
 
     /**
      * Deletes relevant search cache entries when a datarecord is deleted.
      *
-     * @param DataType $datatype
+     * @param DatarecordDeletedEvent $event
      */
-    public function onDatarecordDelete($datatype)
+    public function onDatarecordDelete(DatarecordDeletedEvent $event)
     {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordDelete()', $event->getErrorInfo());
+
+        $datatype = $event->getDatatype();
+
         // ----------------------------------------
         // If a datarecord was deleted, then these need to be rebuilt
         $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getId());
@@ -509,6 +771,8 @@ class SearchCacheService
             //  deleted datarecord...faster to just wipe all of them
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
+            $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
+
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
@@ -543,27 +807,68 @@ class SearchCacheService
     /**
      * Deletes relevant search cache entries when a datarecord has its public status changed.
      *
-     * @param DataRecord $datarecord
+     * @param DatarecordPublicStatusChangedEvent $event
      */
-    public function onDatarecordPublicStatusChange($datarecord)
+    public function onDatarecordPublicStatusChange(DatarecordPublicStatusChangedEvent $event)
     {
-        // Just alias this to onDatarecordModify() for right now
-        self::onDatarecordModify($datarecord);
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordPublicStatusChange()', $event->getErrorInfo());
+
+        // DatarecordModified and DatarecordPublicStatusChanged events need to clear the same
+        //  search cache entries
+        $datarecord = $event->getDatarecord();
+        self::clearCachedDatarecordEntries($datarecord);
     }
 
 
     /**
-     * Deletes relevant search cache entries when a datarecord (or a datatype) is linked to or
-     * unlinked from.
+     * Does the work of clearing cached relevant datarecord entries when a datarecord is modified,
+     * or its public status changes.
      *
-     * @param DataType $descendant_datatype
+     * @param DataRecord $datarecord
      */
-    public function onLinkStatusChange($descendant_datatype)
+    private function clearCachedDatarecordEntries($datarecord)
     {
+        $datatype = $datarecord->getDataType();
+
         // ----------------------------------------
+        // Would have to search through each cached search entry to be completely accurate with
+        //  deletion...but that would take too long
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modified');
+
+        // Technically only need to delete two cached search entries in this...whoever modified it,
+        //  and whoever modified it previously...but not worthwhile to do
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modifiedBy');
+
+        // Technically this should be in its own "event"-like function, but betting that it
+        //  won't be common enough to have a performance penalty
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_public_status');
+
+
+        // ----------------------------------------
+        // Don't need to delete any cached search entries for datafields...if this modification was
+        //  due to a change to a datafield, then that's handled elsewhere.  If not, then there's no
+        //  need to delete anything datafield related.
+    }
+
+
+    /**
+     * Handles dispatched DatatypeLinkStatusChanged events.
+     *
+     * @param DatarecordLinkStatusChangedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordLinkStatusChange(DatarecordLinkStatusChangedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('SearchCacheService::onDatarecordLinkStatusChange()', $event->getErrorInfo());
+
+        $datatype = $event->getDescendantDatatype();
+
         // If something now (or no longer) links to $descendant_datatype, then these cache entries
         //  need to be deleted
-        $this->cache_service->delete('cached_search_dt_'.$descendant_datatype->getId().'_linked_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
 
         // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
         // It doesn't contain any information about linking

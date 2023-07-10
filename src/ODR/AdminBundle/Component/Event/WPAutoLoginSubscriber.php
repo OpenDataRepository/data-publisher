@@ -3,7 +3,6 @@
 // src/EventSubscriber/TokenSubscriber.php
 namespace ODR\AdminBundle\Component\Event;
 
-use ODR\AdminBundle\Controller\WPAutoLoginController;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Event\FilterControllerEvent;

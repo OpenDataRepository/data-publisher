@@ -407,7 +407,7 @@ class TableThemeHelperService
         // If the datatype is using a render plugin...
         $overriden_field_values = array();
         if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 // ...and it wants to override the values displayed in table layouts...
                 $render_plugin = $rpi['renderPlugin'];
                 if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {
@@ -440,7 +440,7 @@ class TableThemeHelperService
             // If the datafield is using a render plugin....
             $render_plugin_instance = null;
             if ( !empty($df['renderPluginInstances']) ) {
-                foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                     // ...and it wants to override the values displayed in table layouts...
                     $render_plugin = $rpi['renderPlugin'];
                     if ( $render_plugin['active'] && $render_plugin['overrideTableFields'] ) {

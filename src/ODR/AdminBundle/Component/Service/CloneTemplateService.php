@@ -24,18 +24,21 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeRenderPluginInstance;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-// Services
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
 class CloneTemplateService
@@ -55,11 +58,6 @@ class CloneTemplateService
      * @var CacheService
      */
     private $cache_service;
-
-    /**
-     * @var SearchCacheService
-     */
-    private $search_cache_service;
 
     /**
      * @var CloneThemeService
@@ -100,6 +98,14 @@ class CloneTemplateService
      * @var UUIDService
      */
     private $uuid_service;
+
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var Logger
@@ -180,8 +186,8 @@ class CloneTemplateService
      * @param LockService $lock_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
-     * @param SearchCacheService $search_cache_service
      * @param UUIDService $uuid_service
+     * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
@@ -195,8 +201,8 @@ class CloneTemplateService
         LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
-        SearchCacheService $search_cache_service,
         UUIDService $uuid_service,
+        EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -209,8 +215,8 @@ class CloneTemplateService
         $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->ti_service = $theme_info_service;
-        $this->search_cache_service = $search_cache_service;
         $this->uuid_service = $uuid_service;
+        $this->event_dispatcher = $event_dispatcher;
         $this->logger = $logger;
 
         $this->template_datatypes = array();
@@ -1027,22 +1033,30 @@ class CloneTemplateService
 
         $modified_top_level_datatypes = array();
         foreach ($this->derived_datatypes as $dt) {
-            $this->cache_service->delete('cached_datatype_'.$dt->getId());
-            $this->cache_service->delete('associated_datatypes_for_'.$dt->getId());
-
-            $master_theme = $this->ti_service->getDatatypeMasterTheme($dt->getId());
-            $this->cache_service->delete('cached_theme_'.$master_theme->getId());
-
             // Don't remember whether $this->derived_datatypes contains linked datatypes or not...
             //  ...do it this way to be safe
-            if ( $dt->getGrandparent()->getId() === $dt->getId() ) {
-                $this->search_cache_service->onDatatypeImport($dt);
-                $modified_top_level_datatypes[] = $dt->getId();
+            if ( $dt->getGrandparent()->getId() === $dt->getId() )
+                $modified_top_level_datatypes[ $dt->getId() ] = $dt;
+        }
+
+        foreach ($modified_top_level_datatypes as $dt_id => $dt) {
+            // Since the job is now done (in theory), delete all search cache entries
+            //  relevant to this datatype
+            try {
+                $event = new DatatypeImportedEvent($dt, $user);
+                $this->event_dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
-            $this->search_cache_service->onDatatypeImport($dt);
+            $master_theme = $this->ti_service->getDatatypeMasterTheme($dt_id);
+            $this->cache_service->delete('cached_theme_'.$master_theme->getId());
 
-            // TODO - ...don't the datarecord entries need to be wiped too?
+            // TODO - ...do the datarecord entries need to be wiped too?  Theoretically nothing was deleted, so the entries should be fine?
         }
 
         // Need to also delete the permissions related cache entries...technically they've already
@@ -1060,7 +1074,7 @@ class CloneTemplateService
             AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
         )->setParameters(
             array(
-                'datatype_ids' => $modified_top_level_datatypes
+                'datatype_ids' => array_keys($modified_top_level_datatypes)
             )
         );
         $results = $query->getArrayResult();
@@ -1607,7 +1621,7 @@ class CloneTemplateService
                     }
 
                     // Clone all render plugins for the newly created datafield
-                    self::cloneRenderPlugins($indent_text, $user, null, $new_df);
+                    self::cloneRenderPlugins($indent_text, $user, null, null, $new_df);
                 }
 
                 $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();
@@ -2087,7 +2101,8 @@ class CloneTemplateService
                     //  plugin and the external_id/name/sort/etc fields...this can't be done earlier
                     //  because the datafields don't exist until after self::syncDatatype() gets
                     //  called
-                    self::cloneRenderPlugins($indent_text, $user, $derived_child_datatype, null);
+                    $derived_child_theme = $this->ti_service->getDatatypeMasterTheme($derived_child_datatype->getId());
+                    self::cloneRenderPlugins($indent_text, $user, $derived_child_theme, $derived_child_datatype, null);
 
                     // Need to set the external_id fields for the new datatype...
                     $child_properties = array();
@@ -2139,10 +2154,11 @@ class CloneTemplateService
      *
      * @param string $indent_text
      * @param ODRUser $user
+     * @param Theme|null $derived_theme Will only exist when $derived_datatype exists
      * @param DataType|null $derived_datatype
      * @param DataFields|null $derived_datafield
      */
-    private function cloneRenderPlugins($indent_text, $user, $derived_datatype, $derived_datafield)
+    private function cloneRenderPlugins($indent_text, $user, $derived_theme, $derived_datatype, $derived_datafield)
     {
         // Need to have either a datatype or a datafield...
         if ( is_null($derived_datatype) && is_null($derived_datafield) )
@@ -2168,7 +2184,7 @@ class CloneTemplateService
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$master_rpi->getId());
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
-                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, $derived_datatype, null);
+                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, $derived_theme, $derived_datatype, null);
             }
         }
         else {
@@ -2188,7 +2204,7 @@ class CloneTemplateService
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_instance '.$master_rpi->getId());
 
                 // Clone the renderPluginFields and renderPluginOptions mappings
-                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, null, $derived_datafield);
+                self::cloneRenderPluginSettings($indent_text, $user, $master_rpi, $new_rpi, null, null, $derived_datafield);
             }
         }
     }
@@ -2198,14 +2214,19 @@ class CloneTemplateService
      * Clones the renderPluginOptionsMap and renderPlugin(Field)Map entries from the given master
      * renderPluginInstance into the given derived renderPluginInstance.
      *
+     * Also clones any themeRenderPluginInstances required...though due to this service focusing on
+     * datatypes/datafield content while mostly ignoring individual themeElements, cloning these
+     * themeRenderPluginInstance entries can't be guaranteed to 100% match up with the master template.
+     *
      * @param string $indent_text
      * @param ODRUser $user
      * @param RenderPluginInstance $master_rpi
      * @param RenderPluginInstance $derived_rpi
+     * @param Theme|null $derived_theme Will only exist when $derived_datatype exists
      * @param DataType|null $derived_datatype
      * @param DataFields|null $derived_datafield
      */
-    private function cloneRenderPluginSettings($indent_text, $user, $master_rpi, $derived_rpi, $derived_datatype, $derived_datafield)
+    private function cloneRenderPluginSettings($indent_text, $user, $master_rpi, $derived_rpi, $derived_theme, $derived_datatype, $derived_datafield)
     {
         // Clone each option mapping defined for this renderPluginInstance
         /** @var RenderPluginOptionsMap[] $parent_rpom_array */
@@ -2241,103 +2262,40 @@ class CloneTemplateService
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned render_plugin_map '.$parent_rpfm->getId().' for render_plugin_field "'.$parent_rpfm->getRenderPluginFields()->getFieldName().'", but did not update since it is mapped as unused optional rpf');
             }
         }
-    }
 
+        // If this is a datatype plugin, then check whether any themeRenderPluginInstance entries
+        //  need to be cloned
+        if ( !is_null($derived_datatype) && !is_null($derived_theme) ) {
+            /** @var ThemeRenderPluginInstance[] $parent_trpi_array */
+            $parent_trpi_array = $master_rpi->getThemeRenderPluginInstance();
+            foreach ($parent_trpi_array as $master_trpi) {
+                // Only want to clone the themeRenderPluginInstances attached to the master theme
+                //  of the master datatype...
+                $master_te = $master_trpi->getThemeElement();
+                $master_t = $master_te->getTheme();
+                if ( $master_t->getId() === $master_t->getSourceTheme()->getId()
+                    && $master_t->getThemeType() === 'master'
+                ) {
+                    // Need to clone the relevant themeElement from the master theme...
+                    $new_te = clone $master_te;
+                    $new_te->setTheme($derived_theme);
+                    self::persistObject($new_te, $user, true);    // don't flush immediately...
 
-    /**
-     * Split out from self::syncDatatype() to make it slightly simpler to read...
-     * TODO - BRING THIS UP TO DATE BEFORE USING IT
-     * TODO - move into an entity deletion service?
-     *
-     * @param DataFields $derived_df
-     * @param ODRUser $user
-     */
-    private function deleteDatafield($derived_df, $user)
-    {
-        // Going to need this in a bit
-        $derived_dt = $derived_df->getDataType();
+                    $new_te_meta = clone $master_te->getThemeElementMeta();
+                    $new_te_meta->setThemeElement($new_te);
+                    self::persistObject($new_te_meta, $user, true);    // don't flush immediately...
 
-        // Delete any relevant search cache entries before the datafield gets deleted
-        $this->search_cache_service->onDatafieldDelete($derived_df);
+                    // ...so a clone of the master themeRenderPluginInstance can be set to use the
+                    //  derived renderPluginInstance
+                    $new_trpi = clone $master_trpi;
+                    $new_trpi->setThemeElement($new_te);
+                    $new_trpi->setRenderPluginInstance($derived_rpi);
+                    self::persistObject($new_trpi, $user, true);    // don't flush immediately...
 
-        // Mark the datafield and its meta entry as deleted
-        $derived_df_meta = $derived_df->getDataFieldMeta();
-        $derived_df->setDeletedAt(new \DateTime());
-        $derived_df->setDeletedBy($user);
-        $this->em->persist($derived_df);
-
-        $derived_df_meta->setDeletedAt(new \DateTime());
-        $this->em->persist($derived_df_meta);
-
-
-        // Need to delete all theme datafield entries that reference this datafield...
-        $query = $this->em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeDataField AS tdf
-            SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
-            WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'now' => new \DateTime(),
-                'deleted_by' => $user->getId(),
-                'datafield' => $derived_df->getId()
-            )
-        );
-        $rows = $query->execute();
-
-        // ...and datafield permission entries
-        $query = $this->em->createQuery(
-           'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-            SET gdfp.deletedAt = :now
-            WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'now' => new \DateTime(),
-                'datafield' => $derived_df->getId()
-            )
-        );
-        $rows = $query->execute();
-
-        // If this datafield was an external_id/name/sort/background_image datafield, then its
-        //  datatype needs an update so it doesn't inadvertently point to a deleted datafield...
-        $properties = array(
-            'externalIdField' => $derived_dt->getExternalIdField(),
-            'nameField' => $derived_dt->getNameField(),
-            'sortField' => $derived_dt->getSortField(),
-            'backgroundImageField' => $derived_dt->getBackgroundImageField(),
-        );
-
-        // Ensure that the datatype doesn't continue to think this datafield is its external id field
-        if ( !is_null($properties['externalIdField']) && $properties['externalIdField']->getId() === $derived_df->getId() )
-            $properties['externalIdField'] = null;
-        else
-            unset( $properties['externalIdField'] );
-
-        // Ensure that the datatype doesn't continue to think this datafield is its name field
-        if ( !is_null($properties['nameField']) && $properties['nameField']->getId() === $derived_df->getId() )
-            $properties['nameField'] = null;
-        else
-            unset( $properties['nameField'] );
-
-
-        // TODO - doesn't handle sortfields in different datatypes
-        // Ensure that the datatype doesn't continue to think this datafield is its sort field
-        if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
-            $properties['sortField'] = null;
-
-            // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-            $this->dbi_service->resetDatatypeSortOrder($derived_dt->getId());
+                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- >> cloned theme_element '.$master_te->getId().' to hold a themeRenderPluginInstance entry required by renderPluginInstance '.$master_rpi->getId().' for RenderPlugin '.$master_rpi->getRenderPlugin()->getId().' "'.$master_rpi->getRenderPlugin()->getPluginName().'"');
+                }
+            }
         }
-        else
-            unset( $properties['sortField'] );
-
-        // Ensure that the datatype doesn't continue to think this datafield is its background image field
-        if ( !is_null($properties['backgroundImageField']) && $properties['backgroundImageField']->getId() === $derived_df->getId() )
-            $properties['backgroundImageField'] = null;
-        else
-            unset( $properties['backgroundImageField'] );
-
-        // Delay saving any changes to the datatype
-        $this->emm_service->updateDatatypeMeta($user, $derived_dt, $properties, true);
     }
 
 

@@ -95,6 +95,9 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
 
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
 //            $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -124,8 +127,19 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
+                if ($df == null) {
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // The plugin can't continue executing in either case...
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 

@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 // Events
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
@@ -44,8 +45,15 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      */
     private $crypto_service;
 
-    /** @var Pheanstalk\Pheanstalk */
+    /**
+     * @var Pheanstalk
+     */
     private $pheanstalk;
+
+    /**
+     * @var string
+     */
+    private $odr_tmp_directory;
 
     /**
      * @var string
@@ -53,17 +61,16 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     private $odr_web_directory;
 
     /**
-     * @var string
+     * @var Logger
      */
     private $logger;
-
-
 
     /**
      * GraphPlugin constructor.
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
+     * @param Pheanstalk $pheanstalk
      * @param string $odr_tmp_directory
      * @param string $odr_web_directory
      * @param Logger $logger
@@ -80,6 +87,8 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
+        $this->pheanstalk = $pheanstalk;
+        $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
         $this->logger = $logger;
     }
@@ -574,13 +583,25 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
 
     /**
-     * Handles when a file is deleted from a datafield that's using this plugin.
+     * Called when a file is deleted from a datafield that's using this plugin.
      *
      * @param FileDeletedEvent $event
      */
     public function onFileDelete(FileDeletedEvent $event)
     {
         parent::deleteCachedGraphs($event->getFileId(), $event->getDatafield());
+    }
+
+
+    /**
+     * Called when a file finishes encryption after being uploaded to a datafield that's using
+     * this plugin.
+     *
+     * @param FilePostEncryptEvent $event
+     */
+    public function onFilePostEncrypt(FilePostEncryptEvent $event)
+    {
+        // TODO - method stub
     }
 
 }
