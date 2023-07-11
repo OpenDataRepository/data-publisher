@@ -359,16 +359,6 @@ class DefaultController extends Controller
             // Grab user and their permissions if possible
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            // If using Wordpress - check for Wordpress User and Log them in.
-            if($this->container->getParameter('odr_wordpress_integrated')) {
-                $odr_wordpress_user = getenv("WORDPRESS_USER");
-                if($odr_wordpress_user) {
-                    // print $odr_wordpress_user . ' ';
-                    $user_manager = $this->container->get('fos_user.user_manager');
-                    /** @var User $admin_user */
-                    $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
-                }
-            }
 
             $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
@@ -512,11 +502,10 @@ class DefaultController extends Controller
                 // The same thing will happen when it refers to a datafield the user can't view
             }
 
-
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
             $background_image_id = null;
-/* TODO - current search page doesn't have a good place to put a background image...
+            /* TODO - current search page doesn't have a good place to put a background image...
 
             if ( !is_null($target_datatype) && !is_null($target_datatype->getBackgroundImageField()) ) {
 

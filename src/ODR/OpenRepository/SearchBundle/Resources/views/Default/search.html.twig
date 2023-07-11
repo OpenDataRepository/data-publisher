@@ -113,11 +113,10 @@
             is_actual_search = false;
 
         if (context == undefined)
-            context = $("#content").children("#ODRSearchSidebar").first();
+            context = $("#content").find("#ODRSearchSidebar").first();
 
         if (callback == undefined)
             callback = function() {}
-
 
         // ----------------------------------------
         // Values for Radio datafields need to be manually set
