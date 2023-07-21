@@ -426,8 +426,6 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -513,7 +511,6 @@ class DisplayController extends ODRCustomController
                 $current_filesize = filesize($local_filepath);
 
                 if ( $file->getFilesize() == $current_filesize ) {
-
                     // File exists and is fully decrypted, determine path to download it
                     $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
 
@@ -523,6 +520,21 @@ class DisplayController extends ODRCustomController
                     $response->headers->set('Location', $download_url);
 
                     return $response;
+                }
+                else if ( $file->getFilesize() < $current_filesize ) {
+                    // TODO - ...why was this not a problem before?
+
+                    // Return a URL to monitor decryption progress
+                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
+
+                    $response = new JsonResponse(array());
+                    $response->setStatusCode(202);
+                    $response->headers->set('Location', $monitor_url);
+
+                    return $response;
+                }
+                else {
+                    throw new ODRException('Decrypted more file than should exist?');
                 }
             }
         }
