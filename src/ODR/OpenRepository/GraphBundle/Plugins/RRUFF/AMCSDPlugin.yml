@@ -2,7 +2,7 @@ odr_plugins.rruff.amcsd:
     name: AMCSD Plugin
     category: RRUFF
     plugin_type: datatype
-    render: true
+    render: odr_plugins.rruff.amcsd
     version: 1.4.0
     override_fields: true
     override_field_reload: false

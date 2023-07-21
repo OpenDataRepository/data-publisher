@@ -321,10 +321,17 @@ class PluginsController extends ODRCustomController
         else if ( $plugin_config['override_table_fields'] === false && ($plugin_service instanceof TableResultsOverrideInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must not implement TableResultsOverrideInterface');
 
-        // The ThemeElement and Array plugins aren't allowed to have a "true" value for the "render" key
-        if ( $is_theme_element_plugin && $plugin_config['render'] === true )
+        // The "render" key isn't allowed to have a value of 'true' anymore
+        if ( $plugin_config['render'] === true )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not allowed to have a value of "true" for the "render" key');
+        // ...also not allowed to have numeric values
+        if ( is_numeric($plugin_config['render']) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not allowed to have a numeric value for the "render" key');
+
+        // The ThemeElement and Array plugins aren't allowed to have a non-false value for the "render" key
+        if ( $is_theme_element_plugin && $plugin_config['render'] !== false )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a ThemeElement Plugin, and must have a value of false for the "render" key');
-        if ( $is_array_plugin && $plugin_config['render'] === true )
+        if ( $is_array_plugin && $plugin_config['render'] !== false )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is an Array Plugin, and must have a value of false for the "render" key');
 
 
@@ -751,9 +758,13 @@ class PluginsController extends ODRCustomController
                 $readable_plugin_updates[$plugin_classname][] = 'category changed to '.$plugin_config['category'];
             }
 
+            // YAML converts stuff into boolean values if possible
+            if ( $plugin_config['render'] === false )
+                $plugin_config['render'] = 'false';
+
             if ( $installed_plugin_data['render'] !== $plugin_config['render'] ) {
                 $plugins_needing_updates[$plugin_classname]['meta'][] = 'render';
-                $readable_plugin_updates[$plugin_classname][] = 'render flag changed';
+                $readable_plugin_updates[$plugin_classname][] = 'render changed to '.$plugin_config['render'];
             }
 
             if ( $installed_plugin_data['overrideChild'] !== $plugin_config['override_child'] ) {
@@ -781,10 +792,12 @@ class PluginsController extends ODRCustomController
             $plugin_type = strtolower( $plugin_config['plugin_type'] );
             if ( $plugin_type === 'datatype' )
                 $plugin_type = RenderPlugin::DATATYPE_PLUGIN;
-            else if ( $plugin_type === 'themeelement')
+            else if ( $plugin_type === 'themeelement' )
                 $plugin_type = RenderPlugin::THEME_ELEMENT_PLUGIN;
-            else if ( $plugin_type === 'datafield')
+            else if ( $plugin_type === 'datafield' )
                 $plugin_type = RenderPlugin::DATAFIELD_PLUGIN;
+            else if ( $plugin_type === 'array' )
+                $plugin_type = RenderPlugin::ARRAY_PLUGIN;
 
             if ( $installed_plugin_data['plugin_type'] !== $plugin_type ) {
                 $plugins_needing_updates[$plugin_classname]['plugin_type'][] = $plugin_type;
@@ -1530,10 +1543,10 @@ class PluginsController extends ODRCustomController
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
-            if ( $plugin_data['render'] === false )    // Yaml parser sets this to true/false values
-                $render_plugin->setRender(false);
+            if ( $plugin_data['render'] === false )    // Yaml parser reads 'false' as a boolean
+                $render_plugin->setRender('false');
             else
-                $render_plugin->setRender(true);
+                $render_plugin->setRender( $plugin_data['render'] );
 
             $plugin_type = strtolower( $plugin_data['plugin_type'] );
             if ( $plugin_type === 'datatype' )
@@ -1909,7 +1922,7 @@ class PluginsController extends ODRCustomController
                 LEFT JOIN rp.renderPluginInstance AS rpi
                 LEFT JOIN rp.renderPluginOptionsDef AS rpo
                 WHERE rp.id = :render_plugin_id'
-            )->setParameters(array('render_plugin_id' => $render_plugin->getId()));
+            )->setParameters( array('render_plugin_id' => $render_plugin->getId()) );
             $results = $query->getArrayResult();
 
             $installed_plugins = array();
@@ -1977,10 +1990,10 @@ class PluginsController extends ODRCustomController
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
-            if ( $plugin_data['render'] === false )    // Yaml parser sets this to true/false values
-                $render_plugin->setRender(false);
+            if ( $plugin_data['render'] === false )    // Yaml parser reads 'false' as a boolean
+                $render_plugin->setRender('false');
             else
-                $render_plugin->setRender(true);
+                $render_plugin->setRender( $plugin_data['render'] );
 
             $plugin_type = strtolower( $plugin_data['plugin_type'] );
             if ( $plugin_type === 'datatype' )
@@ -2557,14 +2570,20 @@ class PluginsController extends ODRCustomController
                     //  the dialog opens
                     $plugin_to_load = $rp_id;
                 }
-                else if ( $rpi->getRenderPlugin()->getRender() === true ) {
+                else if ( $rpi->getRenderPlugin()->getRender() !== 'false' ) {
                     // ...if the datatype/datafield is using more than one plugin, then preferentially
                     //  load the data for the plugin that actually renders something
                     $plugin_to_load = $rp_id;
 
-                    // There should only be one plugin per datatype/datafield that actually renders
-                    //  something...themeElement plugins receive their own unique location to render
-                    //  stuff in, which prevents them from clobbering datatype/datafield plugins.
+                    // Because plugins have few limits on changing the page's HTML, they really don't
+                    //  play nice with each other...typically there will only be one plugin per
+                    //  datatype/datafield that actually does this.  In the very rare situations that
+                    //  they can work together, then it doesn't really matter which one is selected
+                    //  for the purposes of this dialog.
+
+                    // ThemeElement plugins receive their own unique location to render stuff in,
+                    //  which prevents them from clobbering datatype/datafield plugins.
+
                     // Array plugins don't render anything, so they can always get executed if needed
                 }
             }
@@ -2957,21 +2976,23 @@ class PluginsController extends ODRCustomController
             // The datatype/datafield can only use one render plugin that "renders" stuff at a time
             $twig_render_plugin_id = null;
             $twig_render_plugin_name = null;
+            $twig_render_plugin_render_value = null;
             if ( !empty($all_render_plugin_instances) ) {
                 foreach ($all_render_plugin_instances as $rpi) {
                     // $all_render_plugin_instances might have deleted rpi entries in it
-                    if ( is_null($rpi['deletedAt']) && $rpi['renderPlugin']['render'] === true ) {
+                    if ( is_null($rpi['deletedAt']) && $rpi['renderPlugin']['render'] !== 'false' ) {
                         $twig_render_plugin_id = $rpi['renderPlugin']['id'];
                         $twig_render_plugin_name = $rpi['renderPlugin']['pluginName'];
+                        $twig_render_plugin_render_value = $rpi['renderPlugin']['render'];
                     }
                 }
             }
 
             // So, if the datatype/datafield is using a render plugin that "renders" stuff...
             if ( !is_null($twig_render_plugin_id) ) {
-                // ...and the plugin requested by the controller action doesn't match the current
-                //  plugin that's "rendering" stuff...
-                if ( $target_render_plugin->getId() !== $twig_render_plugin_id && $render_plugin['render'] === true ) {
+                // ...and the plugin requested by the controller action doesn't play nice with the
+                //  plugin that's currently set to "render" stuff...
+                if ( $target_render_plugin->getId() !== $twig_render_plugin_id && $render_plugin['render'] !== $twig_render_plugin_render_value ) {
                     // ...then the datatype/datafield is not allowed to also use this plugin
                     $is_illegal_render_plugin = true;
                     $illegal_render_plugin_message = 'This Render Plugin cannot be used at the same time as the "'.$twig_render_plugin_name.'" Render Plugin';
@@ -3439,7 +3460,7 @@ class PluginsController extends ODRCustomController
             $already_renders = null;
             foreach ($all_render_plugin_instances as $rpi) {
                 /** @var RenderPluginInstance $rpi */
-                if ( $rpi->getRenderPlugin()->getRender() === true )
+                if ( $rpi->getRenderPlugin()->getRender() !== 'false' )
                     $already_renders = $rpi;
             }
 
@@ -3447,9 +3468,9 @@ class PluginsController extends ODRCustomController
                 // ...then ensure the user didn't just attempt to attach a second plugin that also
                 //  "renders" something
                 if ( $already_renders->getRenderPlugin()->getId() !== $selected_render_plugin->getId()
-                    && $selected_render_plugin->getRender() === true
+                    && $selected_render_plugin->getRender() !== $already_renders->getRenderPlugin()->getRender()
                 ) {
-                    throw new ODRBadRequestException('Only allowed to have a single Plugin that actually "renders" at a time');
+                    throw new ODRBadRequestException('Not allowed to have two plugins that "render" different things at a time');
                 }
             }
 

@@ -84,7 +84,7 @@ class RenderPlugin
     private $active;
 
     /**
-     * @var bool
+     * @var string
      */
     private $render;
 
@@ -303,7 +303,7 @@ class RenderPlugin
     /**
      * Set render.
      *
-     * @param bool $render
+     * @param string $render
      *
      * @return RenderPlugin
      */
@@ -317,7 +317,7 @@ class RenderPlugin
     /**
      * Get render.
      *
-     * @return bool
+     * @return string
      */
     public function getRender()
     {

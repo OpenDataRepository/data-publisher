@@ -2,7 +2,7 @@ odr_plugins.base.link:
     name: Link Plugin
     category: Base
     plugin_type: datatype
-    render: true
+    render: odr_plugins.base.link
     version: 1.3.0
     override_fields: true
     override_field_reload: false

@@ -11,32 +11,37 @@
  * and image file that was uploaded to the website, so that users would end up downloading something
  * like "Actinolite_R040063_Sample_Photo_34230_M.jpg" instead of "040063(32)(8_0)1024.jpg".
  *
- * If you're familiar at all with ODR, then you should realize that this renaming process...which only
- * thematically works in databases with a structure that is known...is almost the polar opposite of
- * *THE* primary design principle of ODR...which is that users need to be able to change the structure
- * of their database, oftentimes on a whim.
+ * If you're paying attention, then you should realize that this renaming process only really works
+ * in databases with a known/pre-defined structure...unfortunately, *THE PRIMARY DESIGN PRINCIPLE*
+ * of ODR is that users need to be able to change the structure of their database, and it needs to
+ * keep working even if they change stuff on a whim.
  *
  *
  * Unsurprisingly then, this plugin has to do many terrible things to ODR.  It can't change the
  * filename after the file is encrypted because of async problems (see FilePreEncryptEvent), so it
- * has to instead rename the file on the server during the FilePreEncrypt event so the actual
- * encryption process thinks the file was originally uploaded with the desired name.
+ * has to instead rename the file on the server before the encryption process gets to it...making the
+ * encryption process think the file was originally uploaded with the desired name.
  *
- * Because the file/image field in question can't be flagged as derived from the contents of other
- * fields, any changes made to these other fields can't automatically update the file/image field...
- * but since checking whether the filename is out of sync is expensive, it can't really splice in
- * an obnoxious warning when it's out of sync.  It's easier to make both Edit and MassEdit capable
- * of regenerating the filename when the user sees the need to do so, though doing so still requires
- * extra events and controllers.
+ * Because the database structure can change on a whim, there's no reliable method for the file/image
+ * field in question to "depend on" the fields this plugin is configured to use...and therefore it's
+ * effectively impossible for changes made to these other fields can't automatically update the
+ * relevant uploaded files/images.
  *
- * On top of this, the "other fields" can come from a linked database, so any config made for this
+ * Additionally, automatically checking whether the filename is out of sync is incredibly expensive,
+ * and ODR is already slow enough...so there's no way to notify the user when a filename is out of
+ * sync.  The next easiest method involves hijacking the Edit and MassEdit controllers so the user
+ * at least has the option of manually triggering a rename...and it still requires additional events
+ * and controllers to work correctly.
+ *
+ * On top of this, the "relevant fields" can come from a linked database, so any config made for this
  * plugin has a very real chance of getting invalidated due to changes made by a user that doesn't
- * even have permissions to touch the plugin's config in the first place.  Which also means, by the
+ * even have permissions to touch the plugin's config in the first place.  There is no solution for
+ * this problem that doesn't have serious side-effects on the autonomy of at least one datatype admin.
  * way, that the plugin violates one of the other primary design principles of ODR...which is that
  * each database can be treated as a self-contained unit.
  *
  *
- * I'm somewhat surprised this plugin works at all.
+ * Given how many of ODR's design principles this plugin violates, I'm surprised it works at all.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
@@ -189,6 +194,19 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
 
             // ----------------------------------------
+            // ODR is designed so that render plugins can completely override the rendering system...
+            //  which makes it difficult for plugins to cooperatively change the HTML
+
+            // This plugin needs to cooperate with the FileHeaderInserter Plugin, and the easiest way
+            //  to do it is to have one of the plugins handle both
+            $uses_file_header_inserter_plugin = false;
+            foreach ($datafield['renderPluginInstances'] as $rpi_id => $rpi) {
+                if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_header_inserter' ) {
+                    $uses_file_header_inserter_plugin = true;
+                    break;
+                }
+            }
+
             $output = "";
             if ( $rendering_options['context'] === 'display' ) {
                 // TODO - also work in the 'display' context?  but finding errors to display is expensive...
@@ -209,6 +227,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     array(
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
+
+                        'uses_file_header_inserter_plugin' => $uses_file_header_inserter_plugin,
                     )
                 );
             }
@@ -310,9 +330,12 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                     $field_list_value = str_replace("\r", "", $field_list_value);
                     $tmp = explode("\n", $field_list_value);
 
+                    // The first line in the config value is the prefix, while each subsequent line
+                    //  is either a field uuid or a string constant
+
                     $config = array(
-                        'prefix' => $tmp[0],               // first index is always the prefix
-                        'config' => array_slice($tmp, 1),  // everything else is the actual config
+                        'prefix' => $tmp[0],
+                        'config' => array_slice($tmp, 1),
                         'separator' => $separator,
                         'period_substitute' => $period_substitute,
                     );
@@ -512,7 +535,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         }
 
         // Since there could easily be multiple top-level datatypes from the first step, it's faster
-        //  to get a list of available datafields from a single database query
+        //  to use a database query to determine the names of the relevant datatypes...
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, dtm.shortName AS dt_name
             FROM ODRAdminBundle:DataType dt
@@ -532,14 +555,23 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 $name_data[$dt_id] = array('name' => $dt_name, 'fields' => array());
         }
 
+        // ...then use a second query to determine the ids/names of the relevant datafields
+        // Non-public datafields are not allowed to be used
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, df.id AS df_id, df.fieldUuid, dfm.fieldName
             FROM ODRAdminBundle:DataType dt
             JOIN ODRAdminBundle:DataFields df WITH df.dataType = dt
             JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
             WHERE dt.id IN (:datatype_ids) AND dfm.fieldType IN (:fieldtype_ids)
+            AND dfm.publicDate != :public_date
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $all_valid_datatypes, 'fieldtype_ids' => $valid_fieldtypes) );
+        )->setParameters(
+            array(
+                'datatype_ids' => $all_valid_datatypes,
+                'fieldtype_ids' => $valid_fieldtypes,
+                'public_date' => "2200-01-01 00:00:00",
+            )
+        );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
@@ -646,8 +678,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      *
      * The cached entry can then be iterated over with the rest of the config info to find the values
      * to use for the new filenames for the files/images...though if the plugin isn't configured
-     * correctly, or told to run on databases it shouldn't, or records expected to exist don't...
-     * then the plugin won't be able to work properly.
+     * correctly, or told to run on databases it shouldn't, or records that are expected to exist
+     * don't actually exist...then the plugin won't be able to work properly.
      *
      * @param DataRecordFields $original_drf
      * @return string[]|string Returns an array of strings organized by file/image id, or a single string attempting to indicate why the "correct" names can't be determined
@@ -661,6 +693,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         $dr = $original_drf->getDataRecord();
         $df = $original_drf->getDataField();
         $typeclass = $df->getFieldType()->getTypeClass();
+        if ( !($typeclass === 'File' || $typeclass === 'Image') )
+            throw new ODRBadRequestException('Unable to find new filenames for a '.$typeclass.' field', 0x08fc0ad3);
 
         // Determine the requested configuration info from the plugin's config
         $config_info = self::getCurrentPluginConfig($df);
@@ -847,10 +881,13 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         $grandparent_dr_id = $results[0]['id'];
 
         $dr_array = $this->dri_service->getDatarecordArray($grandparent_dr_id);
+        // Don't want to stack this array, because that would force the use of recursion later on
 
-        // Don't need to use recursion to find the actual values, since the array isn't stacked...
-        //  but it's probably faster to run another query to convert uuids into database ids instead
-        //  of running strcmp() on every single uuid in the stacked array
+
+        // At this point, the config info only has uuids...but the cached datarecord array refers
+        //  to fields by ids instead.  It's probably faster to run a quick query to create a mapping
+        //  linking field id, uuid, and name (for error purposes, if needed), instead of digging
+        //  through the cached array using strcmp() a bunch of times
         $fields = $config_info['config'];
 
         $query = $this->em->createQuery(
@@ -875,14 +912,15 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
 
 
         // ----------------------------------------
-        // Unfortunately, there doesn't seem to be a better method than to iterate over every single
-        //  datafield listed in the plugin's config...if the database was queried here, it would
-        //  either take one query per field in the config, or a really slow massive query like the
-        //  one run in the DatarecordInfoService...
+        // Unfortunately, there doesn't seem to be a better method to actually get the values than to
+        //  iterate over every single datafield listed in the plugin's config...if the database was
+        //  queried here, it would either have to be done with a massive really slow query like the
+        //  one in DatarecordInfoService, or a potentially large number of simple queries...
         $mapping = array();
         foreach ($uuid_mapping as $df_id => $df_uuid) {
-            // Doing it the iterative way means there could possibly be multiple datarecords with
-            //  a value for each individual datafield...
+            // While the config_prefix attempts to mitigate this, there is a very real possibility
+            //  that there are multiple datarecords for each datafield...which results in the
+            //  possibility of "multiple values" per datafield...
             $mapping[$df_id] = array();
 
             // ...so we need to iterate over all records in the cached array and hope we find the
@@ -916,15 +954,14 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 // When there are multiple datarecords with values for this datafield, it means the
                 //  "ultimate ancestor" allows multiple descendants of this datafield's datatype
 
-                // This isn't necessarily unexpected...but needs to be resolved in order to find
-                //  a single value for the new filenames.  Assuming that the reason there are multiples
-                //  isn't because of a configuration error, then it's likely that 1) the datarecord
-                //  these files/images were uploaded to is in this array somewhere, or 2) an ancestor
-                //  of the record from #1 is in this array...
+                // e.g. Raman Spectra typically have multiple wavelengths (532nm, 785nm, etc)...if
+                //  this entire process is called on the 532nm spectra, then the values for the 785nm
+                //  spectra will also be in here.
 
-                // ...and since the "correct" records from #1 and #2 are going to be in the previously
-                //  determined $intermediate_dr_ids array, we can use that to try to reduce down to
-                //  a single value per datafield here
+                // In order for the FileRenamer plugin to work, however, there needs to be at most
+                //  one value per datafield.  Fortunately, the "correct" record should be in the list
+                //  of previously determined $intermediate_dr_ids, so we can discard the values that
+                //  belong to datarecords not in that list
                 foreach ($data as $dr_id => $value) {
                     if ( !isset($intermediate_dr_ids[$dr_id]) )
                         unset( $mapping[$df_id][$dr_id] );
@@ -1235,8 +1272,8 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
     {
         $custom_rpo_html = array();
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
-            // This plugin currently only has two options..."separator" and "field_list".  Of those
-            //  two, only "field_list" needs to use a custom render for the dialog...
+            // This plugin currently has several options, but only "field_list" needs to use a
+            //  custom render for the dialog...
             /** @var RenderPluginOptionsDef $rpo */
             if ( $rpo->getUsesCustomRender() ) {
                 // This is the "field_list" option...for this plugin, we need to figure out which
