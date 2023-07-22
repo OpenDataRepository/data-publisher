@@ -115,16 +115,6 @@ class PermissionsManagementService
     public function getDatatypePermissions($user)
     {
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         if ($user === "anon." || $user == null)
             return array();
 
@@ -164,16 +154,6 @@ class PermissionsManagementService
      */
     public function getDatarecordRestrictionList($user, $datatype)
     {
-
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // Users which aren't logged in don't have additional datarecord restrictions
         if ($user === "anon." || $user == null)
@@ -221,17 +201,6 @@ class PermissionsManagementService
         if ($datatype->isPublic())
             return true;
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
-
         // Otherwise, the datatype is non-public
         // If the user isn't logged in, they can't view the datatype
         if ($user === "anon.")
@@ -271,16 +240,6 @@ class PermissionsManagementService
      */
     public function canViewNonPublicDatarecords($user, $datatype)
     {
-
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // If the user isn't logged in, they can't view non-public datarecords
         if ($user === "anon.")
@@ -326,16 +285,6 @@ class PermissionsManagementService
         if ($datarecord->isPublic())
             return true;
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         // Otherwise, the datarecord is non-public
         // ...if the user isn't logged in, they can't view the datarecord
         if ($user === "anon.")
@@ -379,16 +328,6 @@ class PermissionsManagementService
     public function canAddDatarecord($user, $datatype)
     {
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         // If the user isn't logged in, they can't add new datarecords
         if ($user === "anon.")
             return false;
@@ -423,15 +362,6 @@ class PermissionsManagementService
      */
     public function canEditDatatype($user, $datatype)
     {
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
@@ -480,15 +410,6 @@ class PermissionsManagementService
      */
     public function canEditDatarecord($user, $datarecord)
     {
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
@@ -545,16 +466,6 @@ class PermissionsManagementService
     public function canDeleteDatarecord($user, $datatype)
     {
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         // If the user isn't logged in, they can't delete any datarecords
         if ($user === "anon.")
             return false;
@@ -593,15 +504,6 @@ class PermissionsManagementService
      */
     public function canChangePublicStatus($user, $datarecord)
     {
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // If the user isn't logged in, they can't change public status
         if ($user === "anon.")
@@ -653,24 +555,14 @@ class PermissionsManagementService
     public function isDatatypeAdmin($user, $datatype)
     {
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         // If the user isn't logged in, they aren't considered a datatype admin
         if ($user === "anon.")
             return false;
 
+        if ( $user->hasRole('ROLE_SUPER_ADMIN') ) return true;
+
         // Otherwise, the user is logged in
         $datatype_permissions = self::getDatatypePermissions($user);
-
-        if ( $user->hasRole('ROLE_SUPER_ADMIN') ) return true;
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dt_admin'])
@@ -702,16 +594,6 @@ class PermissionsManagementService
         // If the datafield is public, then it can always be viewed
         if ($datafield->isPublic())
             return true;
-
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // If the user isn't logged in, they can't view a non-public Datafield
         if ($user === "anon.")
@@ -753,15 +635,6 @@ class PermissionsManagementService
      */
     public function canEditDatafield($user, $datafield, $datarecord = null)
     {
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
 
         // If the user isn't logged in, they can't edit any Datafield
         if ($user === "anon.")
@@ -822,16 +695,6 @@ class PermissionsManagementService
         if ($file->isPublic())
             return true;
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         // If the file is non-public, it shouldn't be viewable unless logged in...
         if ($user === "anon.")
             return false;
@@ -877,16 +740,6 @@ class PermissionsManagementService
         if ($image->isPublic())
             return true;
 
-        // Check for Wordpress Integration
-        if($this->wordpress_integrated) {
-            $odr_wordpress_user = getenv("WORDPRESS_USER");
-            if ($odr_wordpress_user) {
-                // print $odr_wordpress_user . ' ';
-                /** @var ODRUser $user */
-                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-            }
-        }
-
         // If the image is non-public, it shouldn't be viewable unless logged in...
         if ($user === "anon.")
             return false;
@@ -922,15 +775,6 @@ class PermissionsManagementService
     public function getUserPermissionsArray($user)
     {
         try {
-            // Check for Wordpress Integration
-            if($this->wordpress_integrated) {
-                $odr_wordpress_user = getenv("WORDPRESS_USER");
-                if($odr_wordpress_user) {
-                    // print $odr_wordpress_user . ' ';
-                    /** @var ODRUser $user */
-                    $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
-                }
-            }
 
             // Users that aren't logged in don't have permissions
             if ($user == null || $user === 'anon.') {

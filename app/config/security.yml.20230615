@@ -1,0 +1,221 @@
+jms_security_extra:
+    secure_all_services: false
+    expressions: true
+    util:
+        secure_random: ~
+
+# app/config/security.yml
+security:
+    encoders:
+        FOS\UserBundle\Model\UserInterface: sha512
+
+    role_hierarchy:
+        ROLE_USER:            ROLE_USER
+        ROLE_SUPER_ADMIN:     ROLE_SUPER_ADMIN
+
+        ROLE_JUPYTERHUB_USER: ROLE_JUPYTERHUB_USER
+
+    providers:
+        fos_userbundle:
+            id: fos_user.user_provider.username
+#        odr_user_provider:
+#            id: odr.openrepository.oauthclient.oauth_user_provider
+
+    firewalls:
+        login1:
+            pattern: ^/api/v4/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path: api_login_check_v4
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+                #require_previous_session: false
+                #username_parameter: email
+                #password_parameter: password
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        login2:
+            pattern:  ^/api/v3/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path:               api_login_check
+                success_handler:          lexik_jwt_authentication.handler.authentication_success
+                failure_handler:          lexik_jwt_authentication.handler.authentication_failure
+                #require_previous_session: false
+                #username_parameter: email
+                #password_parameter: password
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        api:
+            pattern:   ^/api
+            stateless: true
+            provider: fos_userbundle
+            #lexik_jwt:
+            #    authorization_header:
+            #        enabled: true
+            #        prefix:  Bearer
+            #    query_parameter:
+            #        enabled: true
+            #        name:    bearer
+            guard:
+                authenticators:
+                    - lexik_jwt_authentication.jwt_token_authenticator
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        oauth_token:
+            pattern:    ^/oauth/v2/token
+            security:   false
+
+        oauth_authorize:
+            pattern:    ^/oauth/v2/auth
+            form_login:
+                provider: fos_userbundle
+
+                check_path: odr_oauth_server_auth_login_check
+                login_path: odr_oauth_server_auth_login
+
+                # always force sucessful logins through this firewall (apps using ODR as OAuth provider) to redirect to this path
+                default_target_path:  odr_redirect
+                always_use_default_target_path: true
+            anonymous: true
+
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        # currently disabled because there's no route using this...
+#        api:
+#            pattern:    ^/oauth_api
+#            fos_oauth:  true
+#            stateless:  true
+#            anonymous:  true
+
+        main:
+            pattern: ^/
+            oauth:
+                resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/3-configuring_the_security_layer.md
+                    # NOTE: ODR should not be listed here, despite technically being an OAuth provider through the FOSOAuthServerBundle
+#                    GitHub:        "/login/check-github"
+#                    Google:        "/login/check-google"
+
+                oauth_user_provider:
+                    service: odr.openrepository.oauthclient.oauth_user_provider
+
+                login_path:     /login
+                use_forward:    false
+                failure_path:   /login
+
+                # always force sucessful logins through this firewall (handles external OAuth providers) to redirect to this path
+                default_target_path:  odr_redirect
+                always_use_default_target_path: true
+
+            form_login:
+                provider: fos_userbundle
+                csrf_token_generator: security.csrf.token_manager
+
+                # always force sucessful logins through this firewall (regular username/password login to ODR) to redirect to this path
+                default_target_path:  odr_redirect
+                always_use_default_target_path: true
+
+            remember_me:
+                secret:      asdlkjf2ji802fiuaskdjokjhafsdjsfdjhjh
+                lifetime: 1209600
+                path:     /
+                domain:   ~
+
+            logout:
+                path:   /logout
+                target: /
+            anonymous:    true
+
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+    access_control:
+##########
+# API control
+
+        - { path: ^/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api,       role: IS_AUTHENTICATED_FULLY }
+#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+#        - { path: ^/admin/datatype_export, role: IS_AUTHENTICATED_ANONYMOUSLY }   # allows json/xml download of datatype specs, controller restricts access as needed
+#        - { path: ^/admin/datarecord_export, role: IS_AUTHENTICATED_ANONYMOUSLY } # allows json/xml download of datarecords, controller restricts access as needed
+
+##########
+# These need to stay anonymous, otherwise users are unable to log in
+        - { path: ^/login$, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/register, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/resetting, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+        - { path: ^/save_fragment, role: IS_AUTHENTICATED_ANONYMOUSLY }  # assists in redirecting after logging in
+
+##########
+# These need to stay anonymous
+        - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }     # search page
+        - { path: ^/view, role: IS_AUTHENTICATED_ANONYMOUSLY }       # display mode
+        - { path: ^/session, role: IS_AUTHENTICATED_ANONYMOUSLY }    # changing pagelength or using a different layout
+        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login, uses secret key defined in parameters.yml for authentication
+
+##########
+# Regular use of site for logged-in users
+        - { path: ^/redirect, role: ROLE_USER }                    # redirects after logging in
+        - { path: ^/admin/oauth, role: ROLE_USER }                 # ability to connect/disconnect OAuth provider accounts
+
+        - { path: ^/profile_edit, role: ROLE_USER }                # ability to edit own profile
+        - { path: ^/profile_save, role: ROLE_USER }                # ability to save changes to own profile
+
+        - { path: ^/admin$, role: ROLE_USER }                      # front page
+        - { path: ^/admin/dashboard, role: ROLE_USER }             # main dashboard
+        - { path: ^/admin/type/landing, role: ROLE_USER }          # datatype-specific dashboard
+        - { path: ^/admin/find/landing, role: ROLE_USER }          # locating a datatype-specific dashboard
+        - { path: ^/admin/user/change_password, role: ROLE_USER }  # ability to change passwords, controller restricts further
+
+        - { path: ^/admin/type/list/databases, role: ROLE_USER }   # can see page that provides links to manage datatypes
+        - { path: ^/edit, role: ROLE_USER }                        # Editing
+        - { path: ^/csvimport, role: ROLE_USER }                   # CSV Import
+        - { path: ^/jobs, role: ROLE_USER }                        # Active Jobs page
+
+        - { path: ^/design, role: ROLE_USER }                      # ability to design results/records and shortresults layouts
+#        - { path: ^/plugin, role: ROLE_USER }                      # ability to modify render plugin settings
+
+        - { path: ^/admin/user/list, role: ROLE_USER }            # View user list
+        - { path: ^/admin/group, role: ROLE_USER }                # View/Add/Modify/Delete groups for a datatype
+        - { path: ^/admin/user/managegroups, role: ROLE_USER }    # View user membership in groups
+        - { path: ^/admin/user/changegroup, role: ROLE_USER }     # Change user membership in groups
+
+        - { path: ^/admin/user/view_as, role: ROLE_USER }         # View effective permissions for a user
+        - { path: ^/admin/user/view_theme, role: ROLE_USER }
+
+        - { path: ^/admin/massedit, role: ROLE_USER }             # Mass Edit
+        - { path: ^/admin/csvexport, role: ROLE_USER }            # CSV Download
+
+        - { path: ^/admin/track, role: ROLE_USER }                # History Tracking
+
+##########
+        - { path: ^/admin/type/list/templates, role: ROLE_SUPER_ADMIN }  # can see page that provides links to modify master templates
+
+        - { path: ^/admin/type/add, role: ROLE_USER }             # Creating a new datatype, somehow different from below
+        - { path: ^/admin/type/create, role: ROLE_USER }          # Creating a new datatype, somehow different from above
+
+        - { path: ^/admin/type/copy, role: ROLE_SUPER_ADMIN }     # Copying a database
+
+        - { path: ^/admin/type/properties, role: ROLE_USER }      # Doing stuff with metadata dataypes...
+        - { path: ^/admin/type/addmeta, role: ROLE_USER }         # ...
+        - { path: ^/admin/type/addmetadata, role: ROLE_USER }     # ...
+        - { path: ^/admin/type/addblankmetadata, role: ROLE_USER } # ...
+
+        - { path: ^/admin/new_user, role: ROLE_USER }             # Create new user
+        - { path: ^/admin/user/edit, role: ROLE_SUPER_ADMIN }     # View other users' profiles
+        - { path: ^/admin/user/save, role: ROLE_SUPER_ADMIN }     # Make changes to other users' profiles
+
+##########
+        - { path: ^/admin/user/manage/roles, role: ROLE_SUPER_ADMIN }   # View roles of other users
+        - { path: ^/admin/user/setrole, role: ROLE_SUPER_ADMIN }        # Change roles of other users
+        - { path: ^/admin/user/delete, role: ROLE_SUPER_ADMIN }         # Delete users
+        - { path: ^/admin/user/undelete, role: ROLE_SUPER_ADMIN }       # Un-delete users
+
+#        - { path: ^/admin/type/recache_all, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin, role: ROLE_SUPER_ADMIN }                     # everything else should already be covered?

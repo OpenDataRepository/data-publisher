@@ -30,7 +30,11 @@
     {% endif %}
 
     {% set header_right_title = 'Logout' %}
-    {% set header_right_path = path('odr_logout') %}
+    {% if wordpress_integrated %}
+        {% set header_right_path = logout_url|raw %}
+    {% else %}
+        {% set header_right_path = path('odr_logout') %}
+    {% endif %}
     {% set header_right_js = '' %}
 {% endif %}
 

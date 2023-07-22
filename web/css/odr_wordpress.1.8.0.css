@@ -2640,8 +2640,8 @@ form .row {
 .ODRDesign .ODRPseudoField {
     /* border: 1px solid #ddd; */
     padding: 0.48em 0.3em;
-    /* min-height: 18px; */
     min-height: 1em;
+    height: 32px !important;
     line-height: normal;
     margin-right: 0.4em;
     margin-left: 0.3em;

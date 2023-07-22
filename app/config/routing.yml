@@ -1,12 +1,12 @@
 api_login_check:
     path: /api/v3/token
     methods: [POST]
-    prefix: /
+    prefix: /odr
 
 api_login_check_v4:
     path: /api/v4/token
     methods: [POST]
-    prefix: /
+    prefix: /odr
 
 # ----------------------------------------
 # Internal routing configuration to handle ESI
@@ -30,7 +30,7 @@ fos_user_security:
 # using FoS built-in password reset functionality
 fos_user_resetting:
     resource: "@FOSUserBundle/Resources/config/routing/resetting.xml"
-    prefix: /resetting
+    prefix: /odr/resetting
 
 # also using FoS built-in password change functionality
 #fos_user_change_password:
@@ -49,11 +49,11 @@ fos_oauth_server_authorize:
 # HWIOAuthBundle routes
 hwi_oauth_redirect:
     resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
-    prefix:   /connect
+    prefix:   /odr/connect
 
 hwi_oauth_connect:
     resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
-    prefix:   /connect
+    prefix:   /odr/connect
 
 # unused, FOSUserBundle's login files are overridden to include pieces from this bundle
 #hwi_oauth_login:
@@ -63,37 +63,37 @@ hwi_oauth_connect:
 # Resource file needs to contain the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
 odr_open_repository_oauth_client:
     resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 # ----------------------------------------
 # ODR routes
 odr_open_repository_graph:
     resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 odr_open_repository_api:
     resource: "@ODROpenRepositoryApiBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 odr_open_repository_user:
     resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 odr_open_repository_oauth_server:
     resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 odr_open_repository_jupyterhub_bridge:
     resource: "@ODROpenRepositoryJupyterhubBridgeBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 odr_admin_rruff:
     resource: "@ODRAdminBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/
 
 # ----------------------------------------
 # ----------------------------------------
 # MUST be last in this list due to use of a general catch-all route
 odr_open_repository_search:
     resource: "@ODROpenRepositorySearchBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /odr/

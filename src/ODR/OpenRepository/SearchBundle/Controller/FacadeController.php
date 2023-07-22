@@ -645,7 +645,6 @@ class FacadeController extends Controller
                 )
             );
 
-            // print "WP Header: " . $request->wordpress_header; exit();
             $html = $request->wordpress_header . $html . $request->wordpress_footer;
             // $html = $request->wordpress_header . "<div style='min-height: 500px'></div>" . $request->wordpress_footer;
 

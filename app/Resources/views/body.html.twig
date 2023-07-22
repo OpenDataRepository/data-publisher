@@ -1,4 +1,4 @@
-
+<div class="pure-skin-odr">
 <!-- main menu -->
 <div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
     <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24 pure-u-lg-7-24">
@@ -52,7 +52,7 @@
         <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-2-24 pure-u-lg-2-24 pure-u-xl-1-24">
             <ul class="pure-menu-list">
                 <li id="ODRLoginLink" class="pure-menu-item">
-                    <a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a>
+                    <a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path|raw }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a>
                 </li>
             </ul>
         </div>
@@ -467,7 +467,8 @@
                             messages.append('<style>.badge:after{content: \'' + badge_num + '\' !important;}</style>');
                         }
 
-                        setTimeout(checkMyJobs, 5000);
+                        // TODO Switch to Interval
+                        setTimeout(checkMyJobs, 10000);
                     } else {
                         // TODO Alerts need to use the overlay
                         alert(data.d);
@@ -504,3 +505,33 @@
     <section id="right-spacer" class="pure-u-md-1-24"></section>
 </div>
 <!-- End of #main -->
+
+    <div class="odr-footer pure-u-1">
+    <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item odr-no-effects"><a class="ODRLogoImage" href="http://www.opendatarepository.org/about"><img src="{{ site_baseurl }}/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
+            <li class="pure-menu-heading">&copy; {{ "now"|date("Y") }}&nbsp;&nbsp;</li>
+        </ul>
+    </span>
+    </div> <!-- End of footer -->
+
+    <!-- The loading box -->
+    <div id="loading-overlay"></div>
+    <div id="loading">
+        <span>Loading...</span>
+    </div>
+    <!-- End of loading box -->
+
+    <!-- ODR Modal based on Remodal -->
+    {% include 'ODRAdminBundle:Default:odr_remodal.html.twig' %}
+    <!-- END ODR Modal based on Remodal -->
+
+    <!-- Spawn $$.loaded -->
+    <script>
+        $("#loading-overlay").hide();
+        $("#loading").hide();
+    </script>
+
+    <!-- Symfony Javascripts -->
+    {% block javascripts %}{% endblock %}
+</div>

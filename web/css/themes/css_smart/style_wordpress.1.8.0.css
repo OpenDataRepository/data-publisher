@@ -615,7 +615,7 @@ h3.ui-accordion-header a {
 .ODRMenuWrapper ul,
 #ODRMainMenu {
     background-image: none;
-    background-color: RGBA(77, 136, 220, 0.99);
+    background-color: white !important;
     box-shadow: none;
     color: white;
 }

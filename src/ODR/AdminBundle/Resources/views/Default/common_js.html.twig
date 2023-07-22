@@ -213,6 +213,13 @@
     /**
      * Redirects an anonymous user to ODR's login page.
      */
+    {% set wordpress_integrated = true %}
+    {% if wordpress_integrated %}
+    function ODRLogin() {
+        let current_page = window.location.href
+        window.location.href = '/wp-login.php?redirect_to=' + current_page;
+    }
+    {% else %}
     function ODRLogin() {
         // Extract the current base url
         var baseurl = window.location.href;
@@ -249,6 +256,7 @@
             }
         });
     }
+    {% endif %}
 
     /**
      * Forces a complete AJAX reload of the current page.

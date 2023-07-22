@@ -564,6 +564,10 @@ class DefaultController extends Controller
             $site_baseurl = $this->container->getParameter('site_baseurl');
             // print "WP Header: " . $request->wordpress_header; exit();
             if($this->container->getParameter('odr_wordpress_integrated')) {
+
+                // WPNonce Should exist
+                $logout_url = wp_logout_url();
+
                 $html = $this->renderView(
                     'ODROpenRepositorySearchBundle:Default:home.html.twig',
                     array(
@@ -571,6 +575,8 @@ class DefaultController extends Controller
                         'user' => $admin_user,
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
+                        'wordpress_integrated' => true,
+                        'logout_url' => $logout_url,
 
                         'user_list' => $user_list,
                         'logged_in' => $logged_in,
@@ -605,6 +611,7 @@ class DefaultController extends Controller
                         'user' => $admin_user,
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
+                        'wordpress_integrated' => false,
 
                         'user_list' => $user_list,
                         'logged_in' => $logged_in,

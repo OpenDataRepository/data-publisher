@@ -154,6 +154,7 @@ class ThemeController extends ODRCustomController
      */
     private function canModifyTheme($user, $theme, $datafield = null)
     {
+
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -208,33 +209,45 @@ class ThemeController extends ODRCustomController
             throw new ODRForbiddenException();
 
         // ...and also have to be able to at least view the datatype being modified
-        if ( !$pm_service->canViewDatatype($user, $datatype) )
+        if ( !$pm_service->canViewDatatype($user, $datatype) ) {
+            print '111' . $user; exit();
             throw new ODRForbiddenException();
+        }
         // If this theme is a "local copy" of a remote datatype, then also need to be able to view
         //  the local datatype to be able to make changes to this theme
-        if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) )
+        if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) ) {
+            print '222' . $user; exit();
             throw new ODRForbiddenException();
+        }
 
         // If the action is modifying a themeDatafield, then they need to be able to view the datafield too
-        if ( !is_null($datafield) && !$pm_service->canViewDatafield($user, $datafield) )
+        if ( !is_null($datafield) && !$pm_service->canViewDatafield($user, $datafield) ) {
+            print '333' . $user; exit();
             throw new ODRForbiddenException();
+        }
 
         // Master themes can only be modified by admins of the local datatype
-        if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) )
+        if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
+            print '444' . $user; exit();
             throw new ODRForbiddenException();
+        }
         // Datatype admins of remote datatypes shouldn't necessarily be able to modify "local copies"
         //  made by other datatypes linking to said remote datatypes
 
         // If the user didn't create this theme...
         if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
-            if ( $theme->getParentTheme()->isDefault() && $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
+            // TODO - This doesn't make sense to me (NAS)
+            if ( $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
+            // if ( $theme->getParentTheme()->isDefault() && $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
                 // ...they're allowed to modify it only if it's the datatype's default theme and
                 //  they're an admin of the local datatype
 
+                // TODO Should this be "grandparent theme"
                 // Need to use $theme->getParentTheme() here because the "isDefault" property is only
                 //  updated for the top-level theme
             }
             else {
+                print '555' . $user; exit();
                 // ...if the above is not true, then they're not allowed to modify it
                 throw new ODRForbiddenException();
             }
