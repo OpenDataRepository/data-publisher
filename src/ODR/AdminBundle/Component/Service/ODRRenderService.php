@@ -550,7 +550,7 @@ class ODRRenderService
 
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
-        $extra_parameters['site_baseurl'] = $this->container->getParameter('site_baseurl'),
+        $extra_parameters['site_baseurl'] = $this->container->getParameter('site_baseurl');
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
