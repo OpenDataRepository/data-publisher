@@ -2305,9 +2305,10 @@ h3 .DatatypeTools,
 
 .ODRResults .AccordionSelect {
     float: right;
+    margin-top: -5px;
     margin-right: 38px !important;
     max-width: 350px;
-    padding: 4px 4px 2px 4px !important;
+    /* padding: 4px 4px 2px 4px !important; */
     height: 32px !important;
     white-space: nowrap;
     overflow: hidden;
@@ -4536,3 +4537,21 @@ i {
 .DynamicGraphSettingsDiv_close {
     text-align: right;
 }
+
+.jGrowl {
+    color: #0e275d !important;
+}
+
+.jGrowl.top-right {
+    right: 0;
+    top: 70px !important;
+}
+
+button.jGrowl-close {
+    padding: none !important;
+}
+
+.jGrowl-notification {
+    background: white !important;
+}
+

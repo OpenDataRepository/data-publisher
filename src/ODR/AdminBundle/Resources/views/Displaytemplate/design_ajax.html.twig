@@ -52,6 +52,20 @@
         <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
     </div>
 
+    <div id="ThemeDesignWrapperMessage">
+        <div class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Larger Browser Recommended</h3>
+                    <div class="ODRBodyContent">
+                        <p>To successfully use the design interface, a browser with a
+                            width of at least 1500 pixels is recommended.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="ThemeDesignWrapper">
         <div id="ThemeLeftColumn" class="ODRContentWrapper">
             <div class="ODRThemeElement">
@@ -205,7 +219,9 @@
     {% endfor %}
 
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // Remove the sidebar.  Slows down design page
+        $("#ODRSearchSidebar").fadeOut('fast').remove();
 
         initPage();
 
@@ -2128,6 +2144,7 @@
 
         // Attach event handlers to most of the rest of the input elements
         tdf_odpf.find("select").each(function() {
+            console.log('Setting up datafield.');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2146,6 +2163,7 @@
         });
 
         tdf_odpf.find("textarea").each(function() {
+            console.log('Setting up datafield. 2');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2173,6 +2191,7 @@
             });
         });
         tdf_odpf.find("input").each(function() {
+            console.log('Setting up datafield. 3');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2213,6 +2232,7 @@
 
         // Override the handler for the fieldtype selector
         tdf_odpf.find("#DatafieldsForm_field_type").each(function() {
+            console.log('Setting up datafield. 4');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id =  datafield_id_data[1];

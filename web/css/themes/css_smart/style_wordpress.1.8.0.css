@@ -925,11 +925,14 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignWrapper {
-    min-width: 1706px;
-    overflow: hidden;
+    width: 91.66vw !important;
+    overflow: visible !important;
+    overscroll-behavior-x: none !important;
 }
 
 #ThemeLeftColumn {
+    position:sticky !important;
+    top: 45px !important;
     background: white;
     border-radius: 4px;
     width: 305px;
@@ -940,9 +943,8 @@ ul#wizardStatus li.completed:before{
     z-index: 99;
 }
 
-.ThemeLeftColumnFixed {
-    position: fixed;
-    top: 10px;
+#ThemeLeftColumn > div.ODRThemeElement:first-of-type {
+    padding-top: 0 !important;
 }
 
 #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
@@ -951,7 +953,8 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignArea {
-    width: 1366px;
+    /* width: 1366px; */
+    width: calc(91.66vw - 315px);
     margin-left: 315px;
     margin-right: 20px;
     margin-top: 8px;
@@ -1260,21 +1263,25 @@ h3.ODRFieldSelected .ODRSortHandle {
 }
 
 .ODRFieldArea > .ODRThemeElement > .ODRThemeElementHandle {
-    top: -11px;
-    left: -3px;
+    transform: rotate(45deg);
+    top: -9px;
+    left: -1px;
 }
 
 .ODRFieldArea > .ODRFieldSelected > .ODRThemeElementHandle {
+    transform: rotate(45deg);
     top: -15px;
     left: -8px;
 }
 
 #ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRThemeElementHandle {
-    top: -11px;
-    left: -3px;
+    transform: rotate(45deg);
+    top: -9px;
+    left: -1px;
 }
 
 #ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRFieldSelected > .ODRThemeElementHandle {
+    transform: rotate(45deg);
     top: -15px;
     left: -8px;
 }
@@ -1471,11 +1478,6 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
         min-height: 1100px;
     }
 
-
-    .ThemeLeftColumnFixed {
-        position: fixed;
-        top: 45px;
-    }
 
     .ODRMenuWrapper {
         position: sticky;
