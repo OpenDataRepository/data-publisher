@@ -12,7 +12,7 @@ odr_plugins.rruff.cell_parameters:
     registered_events:
         DatarecordCreatedEvent: onDatarecordCreate
         PostUpdateEvent: onPostUpdate
-        PostMassEditEvent: onPostMassEdit
+        MassEditTriggerEvent: onMassEditTrigger
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID

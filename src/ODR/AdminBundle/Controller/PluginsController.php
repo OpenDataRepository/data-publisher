@@ -53,7 +53,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 // Symphony
@@ -443,8 +443,8 @@ class PluginsController extends ODRCustomController
                 throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
             if ( $plugin_service instanceof DatafieldReloadOverrideInterface )
                 throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
-            if ( $plugin_service instanceof PostMassEditEventInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement PostMassEditEventInterface');
+            if ( $plugin_service instanceof MassEditTriggerEventInterface )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement MassEditTriggerEventInterface');
             if ( $plugin_service instanceof TableResultsOverrideInterface )
                 throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement TableResultsOverrideInterface');
 
@@ -552,12 +552,13 @@ class PluginsController extends ODRCustomController
 //            'FilePostEncryptEvent' => 0,
 //            'FileDeletedEvent' => 0,
 
+//            'MassEditTriggerEvent' => 0,
+
 //            'PluginAttachEvent' => 0,
 //            'PluginOptionsChangedEvent' => 0,
 //            'PluginPreRemoveEvent' => 0,
 
 //            'PostUpdateEvent' => 0,
-//            'PostMassEditEvent' => 0,
         );
         // ...though this is more due to a great reluctance to test that a render plugin will properly
         //  work in all situations the event can be triggered in, rather than some structural reason
@@ -580,10 +581,10 @@ class PluginsController extends ODRCustomController
                     throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Event "'.$event.'" does not reference a callable function');
             }
 
-            // The use of the "PostMassEditEvent" requires an additional interface
-            if ( isset($plugin_config['registered_events']['PostMassEditEvent']) ) {
-                if ( !($plugin_service instanceof PostMassEditEventInterface) )
-                    throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must implement PostMassEditEventInterface to be able to use the PostMassEdit Event');
+            // The use of the "MassEditTriggerEvent" requires an additional interface
+            if ( isset($plugin_config['registered_events']['MassEditTriggerEvent']) ) {
+                if ( !($plugin_service instanceof MassEditTriggerEventInterface) )
+                    throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must implement MassEditTriggerEventInterface to be able to use the MassEditTrigger Event');
             }
         }
     }

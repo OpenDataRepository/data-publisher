@@ -194,7 +194,8 @@ class DatabaseInfoService
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 
-                partial dt_rpi.{id}, dt_rpi_rp,
+                partial dt_rpi.{id},
+                dt_rpi_rp, partial dt_rpe.{id, eventName},
                 partial dt_rpom.{id, value}, partial dt_rpo.{id, name},
                 partial dt_rpm.{id},
                 partial dt_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
@@ -203,7 +204,8 @@ class DatabaseInfoService
                 df, dfm, partial ft.{id, typeClass, typeName},
                 partial df_cb.{id, username, email, firstName, lastName},
 
-                partial df_rpi.{id}, df_rpi_rp,
+                partial df_rpi.{id},
+                df_rpi_rp, partial df_rpe.{id, eventName},
                 partial df_rpom.{id, value}, partial df_rpo.{id, name},
                 partial df_rpm.{id},
                 partial df_rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
@@ -221,6 +223,7 @@ class DatabaseInfoService
 
             LEFT JOIN dt.renderPluginInstances AS dt_rpi
             LEFT JOIN dt_rpi.renderPlugin AS dt_rpi_rp
+            LEFT JOIN dt_rpi_rp.renderPluginEvents AS dt_rpe
             LEFT JOIN dt_rpi.renderPluginOptionsMap AS dt_rpom
             LEFT JOIN dt_rpom.renderPluginOptionsDef AS dt_rpo
             LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
@@ -234,6 +237,7 @@ class DatabaseInfoService
 
             LEFT JOIN df.renderPluginInstances AS df_rpi
             LEFT JOIN df_rpi.renderPlugin AS df_rpi_rp
+            LEFT JOIN df_rpi_rp.renderPluginEvents AS df_rpe
             LEFT JOIN df_rpi.renderPluginOptionsMap AS df_rpom
             LEFT JOIN df_rpom.renderPluginOptionsDef AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
@@ -629,8 +633,16 @@ class DatabaseInfoService
 
         // The default render plugin won't have an instance
         foreach ($render_plugin_instances as $rpi_num => $rpi) {
-            // Don't need to do anything with the render plugin entry
             // All plugins will have an entry for required fields, although it might be empty
+
+            // For renderPluginEvents, only care about the event name
+            $tmp_rpe = array();
+            $rp = $rpi['renderPlugin'];
+            foreach ($rp['renderPluginEvents'] as $rpe_num => $rpe) {
+                $tmp_rpe[ $rpe['eventName'] ] = 1;
+            }
+            if ( !empty($tmp_rpe) )
+                $render_plugin_instances[$rpi_num]['renderPlugin']['renderPluginEvents'] = $tmp_rpe;
 
             foreach ($rpi['renderPluginMap'] as $rpm_num => $rpm) {
                 // ...then each renderPluginMap will have a single renderPluginField entry...

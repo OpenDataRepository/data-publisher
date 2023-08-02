@@ -88,11 +88,17 @@ class MassEditCommand extends ContainerAwareCommand
                         'api_key' => $data->api_key
                     );
 
-                    if ( property_exists($data, 'value') )
+                    $has_data = $has_event = false;
+                    if ( property_exists($data, 'value') ) {
                         $parameters['value'] = $data->value;
-                    else if ( property_exists($data, 'event_trigger') )
+                        $has_data = true;
+                    }
+                    if ( property_exists($data, 'event_trigger') ) {
                         $parameters['event_trigger'] = $data->event_trigger;
-                    else
+                        $has_event = true;
+                    }
+
+                    if ( !$has_data && !$has_event )
                         throw new \Exception('Invalid job data');
                 }
                 else {

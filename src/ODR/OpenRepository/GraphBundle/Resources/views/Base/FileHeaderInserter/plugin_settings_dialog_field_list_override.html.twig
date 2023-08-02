@@ -78,11 +78,10 @@
                         <span class="ODRRenderPlugin_FileHeaderInserter_warn ODRRenderPlugin_FileHeaderInserter_hide_warn" title="This field isn't available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>
                         <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name">{{ df_name }}</span>
                         <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info">
-                            <span class="ODRRenderPlugin_FileHeaderInserter_placeholder">{{ current_placeholder }}{{ df_id }}</span>
+                            <span class="ODRRenderPlugin_FileHeaderInserter_placeholder">{{ current_placeholder }}</span>
+                            <span class="ODRRenderPlugin_FileHeaderInserter_df_id">{{ df_id }}</span>
                             used
-                            <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_count">
-                            0 times
-                            </span>
+                            <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_count">0 times</span>
                         </span>
                     </div>
                 </li>
@@ -181,6 +180,9 @@
         padding-right: 5px;
     }
     span.ODRRenderPlugin_FileHeaderInserter_placeholder {
+        font-weight: bold;
+    }
+    span.ODRRenderPlugin_FileHeaderInserter_df_id {
         font-weight: bold;
     }
 
@@ -421,12 +423,10 @@
                 '<span class="ODRRenderPlugin_FileHeaderInserter_warn ODRRenderPlugin_FileHeaderInserter_hide_warn" title="This field is not available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>' +
                 '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name">' + df_name + '</span>' +
                 '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info">' +
-                    '<span class="ODRRenderPlugin_FileHeaderInserter_placeholder">' + placeholder + df_id + '</span>' +
-                        ' used ' +
-                        '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_count">' +
-                        '0 times' +
-                        '</span>' +
-                    '</span>' +
+                    '<span class="ODRRenderPlugin_FileHeaderInserter_placeholder">' + placeholder + '</span>' +
+                    '<span class="ODRRenderPlugin_FileHeaderInserter_df_id">' + df_id + '</span>' +
+                    ' used ' +
+                    '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_count">' + '0 times' + '</span>' +
                 '</span>' +
             '</div>' +
         '</li>';

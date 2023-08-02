@@ -28,7 +28,7 @@ ODR\AdminBundle\Entity\RenderPluginEvents:
             column: event_callable
 
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
         created:
             type: datetime

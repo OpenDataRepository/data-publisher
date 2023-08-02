@@ -30,9 +30,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -522,8 +520,6 @@ class DisplayController extends ODRCustomController
                     return $response;
                 }
                 else if ( $file->getFilesize() < $current_filesize ) {
-                    // TODO - ...why was this not a problem before?
-
                     // Return a URL to monitor decryption progress
                     $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
 
@@ -534,7 +530,21 @@ class DisplayController extends ODRCustomController
                     return $response;
                 }
                 else {
-                    throw new ODRException('Decrypted more file than should exist?');
+                    // ...this seems to only happen when the encrypted files in the crypto dir have
+                    //  been manually replaced, but...
+                    if ( file_exists($local_filepath) )
+                        unlink( $local_filepath );
+                    else
+                        throw new ODRException('file does not exist, but too much of it is decrypted??');
+
+                    // Return a URL to monitor decryption progress
+                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
+
+                    $response = new JsonResponse(array());
+                    $response->setStatusCode(202);
+                    $response->headers->set('Location', $monitor_url);
+
+                    return $response;
                 }
             }
         }

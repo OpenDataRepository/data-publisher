@@ -59,7 +59,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
-use ODR\AdminBundle\Component\Event\PostMassEditEvent;
+use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -70,14 +70,14 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, PostMassEditEventInterface
+class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
 {
 
     /**
@@ -1112,7 +1112,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                         $this->em->flush();
                     }
                     else {
-                        $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onPostMassEdit()', $typeclass.' '.$entity->getId()));
+                        $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
                     }
                 }
                 else {
@@ -1146,11 +1146,11 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
     /**
      * Does the work of renaming files/images as part of a MassEdit event
      *
-     * @param PostMassEditEvent $event
+     * @param MassEditTriggerEvent $event
      *
      * @throws \Exception
      */
-    public function onPostMassEdit(PostMassEditEvent $event)
+    public function onMassEditTrigger(MassEditTriggerEvent $event)
     {
         // Need these variables defined out here so that the catch block can use them in case
         //  of an error
@@ -1198,7 +1198,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 /** @var File[]|Image[] $entities */
 
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'onPostMassEdit()', 'drf '.$drf->getId()));
+                $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
 
 
                 // ----------------------------------------
@@ -1211,7 +1211,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                             // ...so for each file/image uploaded to the datafield...
                             /** @var File|Image $entity */
                             $entity = $entities[$entity_id];
-                            $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onPostMassEdit()', $typeclass.' '.$entity->getId()));
+                            $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
 
                             // ...save the new filename in the database...
                             $props = array('original_filename' => $new_filename);
@@ -1221,7 +1221,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                                 $this->emm_service->updateImageMeta($user, $entity, $props, true);
                         }
                         else {
-                            $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onPostMassEdit()', $typeclass.' '.$entity->getId()));
+                            $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
                         }
                     }
 
@@ -1231,7 +1231,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
                 else {
                     // ...if getNewFilename() returns null, then there's some unrecoverable problem
                     //  that prevents the file from being renamed
-                    $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'onPostMassEdit()', 'drf '.$drf->getId()));
+                    $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
@@ -1241,7 +1241,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostMassEdit()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1249,7 +1249,7 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onPostMassEdit()', 'drf '.$drf->getId()));
+                $this->logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
 
             // Don't need to clear caches here, since the mass update process will always do it
         }
@@ -1333,22 +1333,47 @@ class FileRenamerPlugin implements DatafieldPluginInterface, PluginSettingsDialo
      * job without actually changing their values.
      *
      * @param array $render_plugin_instance
-     * @return array An array where the keys are datafield ids, and the values aren't used
+     * @return array An array where the values are datafield ids
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
         if ( !isset($render_plugin_instance['renderPluginMap']) )
             throw new ODRException('Invalid plugin config');
 
-        // Since this is a datafield plugin, there will only be the one datafield
+        // Since this is a datafield plugin, there will only be the one datafield...want it to
+        //  always display this option
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
-            // Always want this datafield to be able to override
             return array(
-                'label' => $render_plugin_instance['renderPlugin']['pluginName'],
-                'fields' => array($rpf['id'] => 1)
+                $rpf['id']
             );
         }
 
         return array();
+    }
+
+
+    /**
+     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
+     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
+     * may not want to activate if the user has also entered a value in the relevant field.
+     *
+     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
+     * should always be activated, or false if it should only be activated when the user didn't
+     * also enter a value into the field.
+     *
+     * @param array $render_plugin_instance
+     * @return array
+     */
+    public function getMassEditTriggerFields($render_plugin_instance)
+    {
+        // This datafield plugin does not care whether the user entered a value or not...the plugin's
+        //  activation is independent of the user changing public status of the file/image field
+        $trigger_fields = array();
+        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
+            // Since this is a datafield plugin, it only has one entry in renderPluginMap
+            $trigger_fields[ $rpf['id'] ] = true;
+        }
+
+        return $trigger_fields;
     }
 }

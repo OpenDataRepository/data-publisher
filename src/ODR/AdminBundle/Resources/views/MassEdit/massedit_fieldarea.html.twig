@@ -1,25 +1,7 @@
 {% spaceless %}
 
-{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
-{% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
-
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
-
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': false, 'theme_type': theme.themeType, 'context': 'mass_edit'} %}
-
-{# Determine whether a datatype render plugin wants to override MassEdit fields #}
-{% set datatype_plugin_mass_edit_override_list = [] %}
-{% for rpi_num,rpi in datatype.renderPluginInstances %}
-    {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-        {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
-
-        {# Only want to save the override list if the plugin is allowed to execute #}
-        {% if can_execute_plugin %}
-            {% set datatype_plugin_mass_edit_override_list = rpi|get_mass_edit_override_fields() %}
-        {% endif %}
-    {% endif %}
-{% endfor %}
 
 {% for theme_element in theme.themeElements %}
 
@@ -36,30 +18,6 @@
             {% else %}
                 {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                {# Determine whether a datafield render plugin wants to override MassEdit fields #}
-                {% set datafield_plugin_mass_edit_override_list = [] %}
-                {% for rpi_num,rpi in datafield.renderPluginInstances %}
-                    {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
-                        {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, [], rendering_options) %}
-
-                        {# Only want to save the override list if the plugin is allowed to execute #}
-                        {% if can_execute_plugin %}
-                            {% set datafield_plugin_mass_edit_override_list = rpi|get_mass_edit_override_fields() %}
-                        {% endif %}
-                    {% endif %}
-                {% endfor %}
-
-                {% set override_mass_edit_field_label = '' %}
-                {% set override_mass_edit_field = false %}
-                {% if datatype_plugin_mass_edit_override_list['fields'][datafield_id] is defined %}
-                    {% set override_mass_edit_field = true %}
-                    {% set override_mass_edit_field_label = datatype_plugin_mass_edit_override_list['label'] %}
-                {% endif %}
-                {% if datafield_plugin_mass_edit_override_list['fields'][datafield_id] is defined %}
-                    {% set override_mass_edit_field = true %}
-                    {% set override_mass_edit_field_label = datafield_plugin_mass_edit_override_list['label'] %}
-                {% endif %}
-
                 {% set can_edit_datafield = false %}
                 {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
                     {% set can_edit_datafield = true %}
@@ -74,8 +32,7 @@
                         'datafield': datafield,
                         'can_edit_datafield': can_edit_datafield,
 
-                        'override_mass_edit_field': override_mass_edit_field,
-                        'override_mass_edit_field_label': override_mass_edit_field_label,
+                        'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
                     } %}
                 {% endif %}
 
@@ -105,7 +62,9 @@
                     'datatype_permissions': datatype_permissions,
                     'datafield_permissions': datafield_permissions,
 
-                    'is_top_level': 0
+                    'is_top_level': 0,
+
+                    'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
                 } %}
             {% endif %}
         {% endfor %}

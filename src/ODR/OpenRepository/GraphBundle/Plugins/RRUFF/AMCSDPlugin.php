@@ -33,7 +33,7 @@ use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
-use ODR\AdminBundle\Component\Event\PostMassEditEvent;
+use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 // Services
@@ -46,7 +46,7 @@ use ODR\AdminBundle\Component\Service\LockService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -55,7 +55,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, PostMassEditEventInterface
+class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, MassEditTriggerEventInterface
 {
 
     /**
@@ -842,13 +842,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * processed by MassEdit...if so, the file is read again, and the values from the file saved
      * into other datafields required by the render plugin.
      *
-     * @param PostMassEditEvent $event
+     * @param MassEditTriggerEvent $event
      *
      * @throws \Exception
      */
-    public function onPostMassEdit(PostMassEditEvent $event)
+    public function onMassEditTrigger(MassEditTriggerEvent $event)
     {
-        // TODO - ...do I want to allow users to trigger this via MassEdit?  disabled for now...
+        // TODO - don't think listening to this event is useful...if a file can't be read for values, then reading it again doesn't really help...
         return;
 
         // Need these variables defined out here so that the catch block can use them in case
@@ -889,7 +889,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( !empty($tmp) ) {
                     $file = $tmp[0];
                     /** @var File $file */
-                    $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'" from the "'.$relevant_rpf_name.'"...', array(self::class, 'onPostMassEdit()', 'File '.$file->getId()));
+                    $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'" from the "'.$relevant_rpf_name.'"...', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
 
 
                     // ----------------------------------------
@@ -955,7 +955,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             true,    // don't flush immediately
                             false    // don't fire PostUpdate event...nothing depends on these fields
                         );
-                        $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onPostMassEdit()', 'File '.$file->getId()));
+                        $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
 
                         // This only works because the datafields getting updated aren't files/images or
                         //  radio/tag fields
@@ -970,7 +970,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostMassEdit()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -978,7 +978,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $relevant_rpf_name ) {
-                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onPostMassEdit()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onMassEditTrigger()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -1668,7 +1668,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * job without actually changing their values.
      *
      * @param array $render_plugin_instance
-     * @return array An array where the keys are datafield ids, and the values aren't used
+     * @return array An array where the values are datafield ids
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1684,16 +1684,48 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             'CIF File' => 1,
         );
 
-        $ret = array(
-            'label' => $render_plugin_instance['renderPlugin']['pluginName'],
-            'fields' => array()
-        );
-
+        $ret = array();
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) )
-                $ret['fields'][ $rpf['id'] ] = 1;
+                $ret[] = $rpf['id'];
         }
 
         return $ret;
+    }
+
+
+    /**
+     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
+     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
+     * may not want to activate if the user has also entered a value in the relevant field.
+     *
+     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
+     * should always be activated, or false if it should only be activated when the user didn't
+     * also enter a value into the field.
+     *
+     * @param array $render_plugin_instance
+     * @return array
+     */
+    public function getMassEditTriggerFields($render_plugin_instance)
+    {
+        // TODO - ...do I want to allow users to trigger this via MassEdit?
+        return array();
+
+        // Only interested in overriding datafields mapped to these rpf entries
+        $relevant_datafields = array(
+            'AMC File' => 1,
+            'CIF File' => 1,
+        );
+
+        $trigger_fields = array();
+        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
+            if ( isset($relevant_datafields[$rpf_name]) ) {
+                // The relevant fields should only have the MassEditTrigger event activated when the
+                //  user didn't also specify a new value
+                $trigger_fields[ $rpf['id'] ] = false;
+            }
+        }
+
+        return $trigger_fields;
     }
 }

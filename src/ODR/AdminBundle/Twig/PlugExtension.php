@@ -13,12 +13,13 @@
 
 namespace ODR\AdminBundle\Twig;
 
+// Entities
 use ODR\AdminBundle\Entity\RenderPlugin;
+// Interfaces
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 
 class PlugExtension extends \Twig_Extension
@@ -382,34 +383,6 @@ class PlugExtension extends \Twig_Extension
                 throw $e;
             else
                 return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
-        }
-    }
-
-
-    /**
-     * Returns an array of the fields that the RenderPlugin would like to to have the option to
-     * trigger the PostMassEditEvent on, even if values in that datafield aren't being changed.
-     *
-     * @param array $render_plugin_instance
-     *
-     * @return array
-     * @throws \Exception
-     */
-    public function getMassEditOverideFieldsFilter($render_plugin_instance)
-    {
-        try {
-            // This particular filter works with both datatype and datafield plugins
-            $render_plugin = $render_plugin_instance['renderPlugin'];
-
-            // Load and execute the render plugin
-            /** @var PostMassEditEventInterface $svc */
-            $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->getMassEditOverrideFields($render_plugin_instance);
-        }
-        catch (\Exception $e) {
-            // Since this is only being called from MassEdit, throwing an error here should be acceptable
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                throw $e;
         }
     }
 
