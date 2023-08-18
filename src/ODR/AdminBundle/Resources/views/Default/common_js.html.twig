@@ -563,9 +563,8 @@
     }
 
     function setupAccordionHighlights() {
-         $("#content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
+         $("#odr_content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
             .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
-
         // console.log('accordion highlight')
     }
 
@@ -812,7 +811,7 @@
      */
     function setupTagTree(context = null, states = 2) {
         if ( context === null )
-            context = $("#content");
+            context = $("#odr_content");
 
         $(context).find(".ODRTagParent").unbind('click').click(function(event) {
             event.stopImmediatePropagation();

@@ -854,6 +854,7 @@ class DefaultController extends Controller
      */
     public function renderAction($search_theme_id, $search_key, $offset, $intent, Request $request)
     {
+        $start = microtime(true);
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1044,6 +1045,9 @@ class DefaultController extends Controller
                 )
             );
 
+            // print  count($datarecords) . " -- ";
+            // print microtime(true) - $start; exit();
+
             $html = $odrcc->renderList(
                 $datarecords,
                 $datatype,
@@ -1055,7 +1059,6 @@ class DefaultController extends Controller
                 $offset,
                 $request
             );
-
             $return['d'] = array(
                 'html' => $html,
                 'search_key' => $filtered_search_key,
