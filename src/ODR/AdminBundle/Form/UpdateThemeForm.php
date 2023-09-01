@@ -82,10 +82,24 @@ class UpdateThemeForm extends AbstractType
                     'label' => 'Render as Table Theme?'
                 )
             );
+
+            $builder->add(
+                'displaysAllResults',
+                CheckboxType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Render up to 10,000 records (Table Theme only, potentially slow)'
+                )
+            );
         }
         else {
             $builder->add(
                 'isTableTheme',
+                HiddenType::class
+            );
+
+            $builder->add(
+                'displaysAllResults',
                 HiddenType::class
             );
         }

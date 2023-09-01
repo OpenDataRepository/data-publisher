@@ -592,4 +592,14 @@ class Theme
     {
         return $this->getThemeMeta()->getIsTableTheme();
     }
+
+    /**
+     * Get displaysAllResults
+     *
+     * @return bool
+     */
+    public function getDisplaysAllResults()
+    {
+        return $this->getThemeMeta()->getDisplaysAllResults();
+    }
 }
