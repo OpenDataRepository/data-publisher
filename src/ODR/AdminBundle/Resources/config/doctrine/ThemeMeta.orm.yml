@@ -52,6 +52,11 @@ ODR\AdminBundle\Entity\ThemeMeta:
             nullable: false
             default: false
 
+        displaysAllResults:
+            type: boolean
+            nullable: false
+            default: false
+
         created:
             type: datetime
             gedmo:

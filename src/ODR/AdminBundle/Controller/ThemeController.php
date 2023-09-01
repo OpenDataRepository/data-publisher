@@ -408,8 +408,10 @@ class ThemeController extends ODRCustomController
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                     );
-                    if ($is_short_form)
+                    if ($is_short_form) {
                         $properties['isTableTheme'] = $submitted_data->getIsTableTheme();
+                        $properties['displaysAllResults'] = $submitted_data->getDisplaysAllResults();
+                    }
 
                     $emm_service->updateThemeMeta($user, $theme, $properties);
 

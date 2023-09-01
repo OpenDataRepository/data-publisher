@@ -215,6 +215,17 @@ class ODRTabHelperService
 
 
     /**
+     * Returns whatever ODR's default page length for a search results page is.
+     *
+     * @return int
+     */
+    public function getDefaultPageLength()
+    {
+        return $this->default_page_length;
+    }
+
+
+    /**
      * Returns the page length (currently either 10, 25, 50, or 100) for the specified browser tab.
      * If the tab doesn't have a page length value set, then a default value of 100 is set.
      *

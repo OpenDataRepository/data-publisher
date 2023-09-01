@@ -34,7 +34,30 @@
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
         <div class="ODRTableWrap">
-            <table id="TextResults" class="display ODRDatatableInstance"></table>
+            <table id="TextResults" class="display ODRDatatableInstance">
+                <thead>
+                {% for num,col in column_names %}
+                    <th {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ col['title']|raw }}</th>
+                {% endfor %}
+                {% if can_edit_datatype %}
+                    <th></th>
+                {% endif %}
+                </thead>
+                <tbody>
+                {% for row_num,row in row_data %}
+                    <tr class="ODRTableRecord DataRecord_{{ row[0] }}" rel="{{ row[0] }}">
+                    {% for col_num,data in row %}
+                        <td {% if loop.index <= 2 %}style="display:none;"{% endif %}>{{ data|raw }}</td>
+                    {% endfor %}
+                    {% if can_edit_datatype %}    {# TODO - datarecord restriction? #}
+                        <td>
+                            <span class="ODREditLink">Edit</span>
+                        </td>
+                    {% endif %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div><!-- end of #TextResults_wrapper -->
 
@@ -43,6 +66,16 @@
     </div>
 
 </div><!-- End of .ODRFormWrap -->
+
+<style>
+    .dataTables_paginate {
+        padding-top: 10px !important;
+        padding-left: 10px;
+    }
+    .paginate_button {
+        padding: 0em 0.75em !important;
+    }
+</style>
 
 <script>
     $(function() {
@@ -55,45 +88,76 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         var table = $("#TextResults").dataTable({
-            "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
+        {# "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], #} {# column_names|raw already has trailing comma #}
+            "columnDefs": [
+                { targets: [0,1], visible: false, searchable: false },
+                {% if can_edit_datatype %}
+                { targets: -1, responsivePriority: 11000, searchable: false, orderable: false}    {# ensure the edit link gets hidden before the rest of the columns #}
+                {% endif %}
+            ],
+
             "order": [[1, 'asc']],
             "pageLength": {{ page_length }},
             "autoWidth": false,
 
-            {# https://datatables.net/reference/option/dom
-                "dom" parameter results in:
-                <div class="wrapper">
-                    <div class="FLeft">
-                        {information}
-                        {length}
-                    </div>
-                    <div class="FRight">
-                        {pagination}
-                    </div>
-                    {processing}
-                    {table}
-                    <div class="FLeft">
-                        {information}
-                        {length}
-                    </div>
-                    <div class="FRight">
-                        {pagination}
-                    </div>
-               </div>
-            #}
-            "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
+{# https://datatables.net/reference/option/dom
+            "dom" parameter results in:
+            <div class="wrapper">
+                <div class="FLeft">
+                    {information}
+                </div>
+                <div class="FRight">
+                    {filter}
+                </div>
+                {processing}
+                {table}
+                <div class="FLeft">
+                    {information}
+                </div>
+           </div>
+#}
+            "dom": '<"FLeft"i><"FRight"f>rt<"FLeft"i>',
+            {# NOTE: no point having datatable's built-in pagination active...it won't work here since page_length === count(datarecord_list) #}
+            "paging": false,
 
-            {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
-            "pagingType": "input",
+            "infoCallback": function(settings, start, end, max, total, pre) {
+{#
+                console.log('settings', settings);
+                console.log('start', start);
+                console.log('end', end);
+                console.log('max', max);
+                console.log('total', total);
+                console.log('pre', pre);
+#}
+                var offset = {{ offset }};
+                var page_length = {{ page_length }};
+                var records_total = {{ records_total }};
+
+                var actual_start = ((offset - 1) * page_length) + 1;
+                var actual_length = (offset * page_length);
+                if ( actual_length > records_total )
+                    actual_length = records_total;
+
+                if ( end === max ) {
+                    // No filtering happening
+                    return "Showing " + actual_start.toLocaleString('en-US') + " to " + actual_length.toLocaleString('en-US') + " of " + records_total.toLocaleString('en-US') + " entries";
+                }
+                else {
+                    // Filtering is happening, but it's not working on records off in other pages,
+                    //  if there are any...
+                    return "Showing " + end.toLocaleString('en-US') + " entries (filtered from " + records_total.toLocaleString('en-US') + " total entries)";
+                }
+            },
 
             "responsive": true,
             "fixedHeader": {
                /* headerOffset: 42 */
             },
-
+{#
             // https://datatables.net/manual/server-side
-            // "processing": true,   // only displays a little "processing..." blurb
+            "processing": true,   // only displays a little "processing..." blurb
             "serverSide": true,
+#}
 
             "stateSave": true,
             "stateSaveCallback": function(settings, data) {
@@ -191,6 +255,7 @@
                 return state;
             },
 
+{#
             "ajax": {
                 "url": "{{ path('odr_datatables_row_request') }}",
                 "type": "POST",
@@ -214,12 +279,13 @@
                 $(row).addClass('ODRTableRecord DataRecord_' + data[0]);
                 $(row).attr('rel', data[0]);
             },
-
+#}
             "language": {
                 "emptyTable": {% if logged_in %}"No Datarecords found"{% else %}"No Datarecords found...try logging in"{% endif %}
             }
-
         });
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
 {% if display_theme_warning %}
         $("#ODRMainMenu").overhang({
@@ -246,8 +312,8 @@
                 event.stopImmediatePropagation();
 
                 // ...load edit mode instead
-                var offset = $("#TextResults").DataTable().page.info().page + 1;
-                loadDataRecord( $(this).attr('rel'), 'edit', offset );
+                // var offset = $("#TextResults").DataTable().page.info().page + 1;    // Datatables lacks correct page info in this mode
+                loadDataRecord( $(this).attr('rel'), 'edit', {{ offset }} );
                 return;
             }
 {% endif %}
@@ -264,12 +330,12 @@
             }
             else {
                 // A click anywhere else should load view mode of Datarecord
-                var offset = $("#TextResults").DataTable().page.info().page + 1;
-                loadDataRecord( $(this).attr('rel'), 'view', offset );
+                // var offset = $("#TextResults").DataTable().page.info().page + 1;    // Datatables lacks correct page info in this mode
+                loadDataRecord( $(this).attr('rel'), 'view', {{ offset }} );
             }
         });
     });
-
+{#
     // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
     $.fn.dataTable.ext.errMode = 'none';
     $("#TextResults").on('error.dt', function(e, settings, techNote, message) {
@@ -280,16 +346,18 @@
             $(this).attr('disabled', 'disabled');
         });
     });
-
+#}
+{#
     // Datatable's little "processing" blurb isn't sufficient, need to use ODR's search overlay
     $("#TextResults").on('preXhr.dt', function(e, settings, data) {
-        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig
     });
-
+#}
+{#
     // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
     $("#TextResults").on('xhr.dt', function(e, settings, json, xhr) {
 
-        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig
 
         if ( xhr.status !== 200 || json === undefined || json === null ) {
             // Don't need to actually "do" something here...just need to prevent dataTables from continuing to execute
@@ -344,15 +412,29 @@
                 window.location.reload();
         }
     });
+#}
 
+    var scrolled = false;
     $("#TextResults").on('draw.dt', function(e, settings) {
+
         // Enable users to download files straight from the table
         $(this).find('a').each(function() {
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');
         });
 
-        var scroll_target = settings.json.scroll_target;
+        {% if scroll_target == '' %}
+        var scroll_target = '';
+        {% else %}
+        var scroll_target = '{{ scroll_target }}';
+        {% endif %}
+
+        // Only trigger this scrolling functionality once per page load
+        if ( !scrolled )
+            scrolled = true;
+        else
+            return false;
+
         if ( scroll_target != '' ) {
             // Scroll to a specific record in the search results
             var target = '.DataRecord_' + scroll_target;
@@ -361,7 +443,7 @@
                     $('html, body').animate({
                         scrollTop: $(target).offset().top-75
                     }, 500);
-                }, 250);    // Need a bit of a delay for datatables.js to finish its resizing
+                }, 250);    // delay doesn't actually matter here
             }
             else {
                 // The record isn't displayed on this page, so reset to the top
@@ -372,6 +454,70 @@
             // Don't have a specific record to scroll to, so reset to the top of the page
             window.scrollTo(0, 0);
         }
+
+{% if page_length < records_total %}
+        // This version of the page displays up to 10k records at once, but the current database
+        //  has more than that...due to not using the "ajax" parameter, and only printing {{ page_length }}
+        //  records to the page in the first place, datatables.js currently thinks there's only 1 page
+        //  of data.
+
+        // This isn't correct, obviously, but since the automatic pagination can't work, it needs
+        //  to be done manually...
+        var offset = {{ offset }};
+        var page_length = {{ page_length }};
+        var records_total = {{ records_total }};
+
+        var last_page = Math.ceil( records_total / page_length );
+        var has_previous = false;
+        if ( offset > 1 )
+            has_previous = true;
+        var has_next = false;
+        if ( offset < last_page )
+            has_next = true;
+
+        // In order to "manually" add pagination, need to build up some HTML for the buttons
+        var paginate_html = '';
+        paginate_html += '<div id="TextResults_paginate" class="dataTables_paginate paging_input">';
+        // if ( on_first_page )
+        //     paginate_html += '<span id="TextResults_first" class="first paginate_button disabled">First</span>';
+        // else
+        //     paginate_html += '<span id="TextResults_first" class="first paginate_button">First</span>';
+        if ( !has_previous )
+            paginate_html += '<span id="TextResults_previous" class="previous paginate_button disabled">Previous</span>';
+        else
+            paginate_html += '<span id="TextResults_previous" class="previous paginate_button">Previous</span>';
+
+        paginate_html += '<span>Page ' + offset + ' of ' + last_page + '</span>';
+
+        if ( !has_next )
+            paginate_html += '<span id="TextResults_next" class="next paginate_button disabled">Next</span>';
+        else
+            paginate_html += '<span id="TextResults_next" class="next paginate_button">Next</span>';
+        // if ( on_last_page )
+        //     paginate_html += '<span id="TextResults_last" class="last paginate_button disabled">Last</span>';
+        // else
+        //     paginate_html += '<span id="TextResults_last" class="last paginate_button">Last</span>';
+        paginate_html += '</div>';
+
+        // This HTML gets appended after the existing info divs...datatables.js won't add otherwise
+        //  empty pagination divs to the page
+        $(".dataTables_info").parent().each(function() {
+            $(this).append(paginate_html);
+        });
+
+        // Also need to attach event handlers to the new buttons
+        $(".paginate_button").on('click', function() {
+            var offset = {{ offset }};
+            var page_length = {{ page_length }};
+            var records_total = {{ records_total }};
+            var last_page = Math.ceil( records_total / page_length );
+
+            if ( $(this).hasClass('previous') && offset > 1 )
+                UpdateURL( '{{ path_str }}' + '/' + (offset-1) );
+            else if ( $(this).hasClass('next') && offset < last_page )
+                UpdateURL( '{{ path_str }}' + '/' + (offset+1) );
+        });
+{% endif %}
 
         {# NOTE - need to include this here so it executes after the table finishes drawing, instead of after page load #}
         {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {

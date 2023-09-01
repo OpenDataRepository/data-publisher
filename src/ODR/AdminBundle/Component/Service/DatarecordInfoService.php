@@ -247,13 +247,7 @@ class DatarecordInfoService
         $associated_datarecords = array();
         if ($include_links) {
             // Need to locate all linked datarecords for the provided datarecord
-            $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$grandparent_datarecord_id);
-            if ($associated_datarecords == false) {
-                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($grandparent_datarecord_id);
-
-                // Save the list of associated datarecords back into the cache
-                $this->cache_service->set('associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords);
-            }
+            $associated_datarecords = $this->dti_service->getAssociatedDatarecords($grandparent_datarecord_id);
         }
         else {
             // Don't want any datarecords that are linked to from the given grandparent datarecord

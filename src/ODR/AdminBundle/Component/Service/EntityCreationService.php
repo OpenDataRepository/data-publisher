@@ -2607,6 +2607,7 @@ class EntityCreationService
         $theme_meta->setIsDefault(false);
         $theme_meta->setShared(false);
         $theme_meta->setIsTableTheme(false);
+        $theme_meta->setDisplaysAllResults(false);
 
         $theme_meta->setSourceSyncVersion(1);
 

@@ -63,6 +63,11 @@ class ThemeMeta
     private $isTableTheme;
 
     /**
+     * @var bool
+     */
+    private $displaysAllResults;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -266,6 +271,30 @@ class ThemeMeta
     public function getIsTableTheme()
     {
         return $this->isTableTheme;
+    }
+
+    /**
+     * Set displaysAllResults.
+     *
+     * @param bool $displaysAllResults
+     *
+     * @return ThemeMeta
+     */
+    public function setDisplaysAllResults($displaysAllResults)
+    {
+        $this->displaysAllResults = $displaysAllResults;
+
+        return $this;
+    }
+
+    /**
+     * Get displaysAllResults.
+     *
+     * @return bool
+     */
+    public function getDisplaysAllResults()
+    {
+        return $this->displaysAllResults;
     }
 
     /**
