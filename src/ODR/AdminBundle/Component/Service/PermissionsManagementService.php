@@ -165,16 +165,15 @@ class PermissionsManagementService
             $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
 
             // Don't need to validate or filter the search key...search as a super-admin
-            $search_result = $this->search_api_service->performSearch(
+            $complete_datarecord_list = $this->search_api_service->performSearch(
                 $datatype,
                 $search_key,
                 array(), // empty user permissions array since searching as super admin
-                array(), // use default sort order for datatype
-                array(), // sort ascending by default
+                true,    // want to return the complete datarecord list
+                array(), // complete datarecord lists can't be sorted
+                array(),
                 true     // search as super admin, so no filtering takes place
             );
-
-            $complete_datarecord_list = $search_result['complete_datarecord_list'];
 
             return $complete_datarecord_list;
         }

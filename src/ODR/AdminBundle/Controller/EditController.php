@@ -2558,12 +2558,18 @@ class EditController extends ODRCustomController
                 }
 
                 // No problems, so get the datarecords that match the search
-                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
-                if ( is_null($cached_search_results) ) {
-                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                $original_datarecord_list = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($original_datarecord_list) ) {
+                    $original_datarecord_list = $search_api_service->performSearch(
+                        $datatype,
+                        $search_key,
+                        $user_permissions,
+                        false,  // only want the grandparent datarecord ids that match the search
+                        $sort_datafields,
+                        $sort_directions
+                    );
+                    $odr_tab_service->setSearchResults($odr_tab_id, $original_datarecord_list);
                 }
-                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------

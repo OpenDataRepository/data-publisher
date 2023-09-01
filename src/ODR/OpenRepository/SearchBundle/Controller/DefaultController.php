@@ -1021,14 +1021,20 @@ class DefaultController extends Controller
             }
 
             // Run the search specified by the search key
-            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-            $datarecords = $search_results['grandparent_datarecord_list'];
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions,
+                false,  // only want the grandparent datarecord ids that match the search
+                $sort_datafields,
+                $sort_directions
+            );
             // Want to store this so it isn't being re-run constantly...    // TODO - should this work exactly the same way as the Display/Edit controllers?
-            $odr_tab_service->setSearchResults($odr_tab_id, $search_results);
+            $odr_tab_service->setSearchResults($odr_tab_id, $grandparent_datarecord_list);
 
             // Bypass search results list entirely if only one datarecord...
-            if ( count($datarecords) == 1 && $intent === 'searching') {
-                $datarecord_id = $datarecords[0];
+            if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {
+                $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
                 return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $filtered_search_key);
@@ -1049,7 +1055,7 @@ class DefaultController extends Controller
             // print microtime(true) - $start; exit();
 
             $html = $odrcc->renderList(
-                $datarecords,
+                $grandparent_datarecord_list,
                 $datatype,
                 $theme,
                 $user,
@@ -1217,13 +1223,17 @@ class DefaultController extends Controller
             // Ensure the user isn't trying to search on something they can't access...
             $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
             // Run a search on the given parameters
-            $result = $search_api_service->performSearch($datatype, $filtered_search_key, $user_permissions);
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $filtered_search_key,
+                $user_permissions
+            );    // this only returns grandparent datarecord ids
 
 
             // Load the cached versions of the first couple datarecords matching the search
             $dr_array = array();
             $output = array();
-            foreach ($result['grandparent_datarecord_list'] as $num => $dr_id) {
+            foreach ($grandparent_datarecord_list as $num => $dr_id) {
                 $dr = $dri_service->getDatarecordArray($dr_id, false);
 
                 // Only store the cached datarecord if the user can view it

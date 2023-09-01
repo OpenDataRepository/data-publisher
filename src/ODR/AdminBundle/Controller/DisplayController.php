@@ -293,12 +293,18 @@ class DisplayController extends ODRCustomController
                 }
 
                 // No problems, so get the datarecords that match the search
-                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
-                if ( is_null($cached_search_results) ) {
-                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                $original_datarecord_list = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($original_datarecord_list) ) {
+                    $original_datarecord_list = $search_api_service->performSearch(
+                        $datatype,
+                        $search_key,
+                        $user_permissions,
+                        false,  // only want the grandparent datarecord ids that match the search
+                        $sort_datafields,
+                        $sort_directions
+                    );
+                    $odr_tab_service->setSearchResults($odr_tab_id, $original_datarecord_list);
                 }
-                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------
@@ -1664,11 +1670,18 @@ class DisplayController extends ODRCustomController
             $filename_list = array();
             $filename_count = array();
 
-            // Going to need the list of all datarecords that matched the search
-            $search_result = $search_api_service->performSearch($grandparent_datatype, $search_key, $user_permissions);
-            $dr_list = $search_result['complete_datarecord_list'];
 
-            // Using the cached datatype array is untenable for this...query the database directly
+            // Loading and digging through potentially thousands of cached datarecord entries is
+            //  untenable...faster to query the database directly for the relevant info
+
+            // Going to need the list of all datarecords that matched the search
+            $dr_list = $search_api_service->performSearch(
+                $grandparent_datatype,
+                $search_key,
+                $user_permissions,
+                true  // need the child/linked descendant records, not just grandparents...
+            );
+
             $query = $em->createQuery(
                'SELECT partial drf.{id},
                     partial f.{id, ext, original_checksum},
