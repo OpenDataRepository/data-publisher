@@ -2,7 +2,7 @@ odr_plugins.chemin.qanalyze:
     name: Qanalyze XRD Analysis
     category: Chemin
     plugin_type: datafield
-    render: true
+    render: odr_plugins.chemin.qanalyze
     version: 1.4.0
     override_fields: true
     override_field_reload: false

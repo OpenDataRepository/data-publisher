@@ -1,15 +1,5 @@
 {% spaceless %}
 
-    <div class="ODRFileDatafield_header pure-u-1">
-    {% if not datarecord_is_fake %}
-        <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
-        <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
-    {% else %}
-        <i class="fa fa-download fa-lg ODRDownloadAllFiles"></i>&nbsp;
-        <span>{{ datafield.dataFieldMeta.fieldName }}</span>
-    {% endif %}
-    </div>
-
     {% for file in files %}
     <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
         {% set file_meta = file.fileMeta %}
@@ -43,6 +33,7 @@
                 </span>
             </span>
 
+            {% if uses_file_renamer_plugin is not defined or not uses_file_renamer_plugin %}
             <i class="fa fa-lg fa-edit ODRFileRenameTrigger Pointer" title="Rename File"></i>
             <input id="ODRFile_{{ file.id }}_rename"
                    class="ODRFileRenameInput"
@@ -55,6 +46,7 @@
             <button class="pure-button ODRFileRenameButton" title="Save changes to filename" style="display: none;">
                 <i class="fa fa-lg fa-save"></i>
             </button>
+            {% endif %}
 
             <a class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
         </span>

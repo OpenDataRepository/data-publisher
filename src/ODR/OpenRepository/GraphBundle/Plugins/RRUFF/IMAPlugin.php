@@ -33,7 +33,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
-use ODR\AdminBundle\Component\Event\PostMassEditEvent;
+use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -49,7 +49,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -58,7 +58,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
-class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, PostMassEditEventInterface
+class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, DatafieldReloadOverrideInterface, MassEditTriggerEventInterface
 {
 
     /**
@@ -788,7 +788,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     false,    // no sense trying to delay flush
                     false    // don't fire PostUpdate event...nothing depends on these fields
                 );
-                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
+                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onPostUpdate()'));
 
                 // This only works because the datafields getting updated aren't files/images or
                 //  radio/tag fields
@@ -830,11 +830,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      *  - "IMA Formula" => "Chemical Elements"
      *  - "RRUFF Formula" => "Valence Elements"
      *
-     * @param PostMassEditEvent $event
+     * @param MassEditTriggerEvent $event
      *
      * @throws \Exception
      */
-    public function onPostMassEdit(PostMassEditEvent $event)
+    public function onMassEditTrigger(MassEditTriggerEvent $event)
     {
         // Need these variables defined out here so that the catch block can use them in case
         //  of an error
@@ -879,7 +879,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $source_value = $source_entity->getValue();
                     if ($typeclass === 'DatetimeValue')
                         $source_value = $source_value->format('Y-m-d H:i:s');
-                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onPostMassEdit()'));
+                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
 
                     // Store the renderpluginfield name that will be modified
                     $dest_rpf_name = null;
@@ -916,7 +916,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         false,    // no sense trying to delay flush
                         false    // don't fire PostUpdate event...nothing depends on these fields
                     );
-                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onPostMassEdit()'));
+                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onMassEditTrigger()'));
 
                     // This only works because the datafields getting updated aren't files/images or
                     //  radio/tag fields
@@ -925,7 +925,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostMassEdit()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -938,7 +938,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onPostMassEdit()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', array(self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
             }
         }
@@ -946,8 +946,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns the given datafield's renderpluginfield name if it should respond to the onPostUpdate
-     * or onPostMassEdit events, or null if it shouldn't.
+     * Returns the given datafield's renderpluginfield name if it should respond to the PostUpdate
+     * or MassEditTrigger events, or null if it shouldn't.
      *
      * @param DataFields $datafield
      *
@@ -996,7 +996,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * Returns the storage entity that the onPostUpdate or onPostMassEdit events will write to.
+     * Returns the storage entity that the PostUpdate or MassEditTrigger events will overwrite.
      *
      * @param ODRUser $user
      * @param DataType $datatype
@@ -1555,7 +1555,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * job without actually changing their values.
      *
      * @param array $render_plugin_instance
-     * @return array An array where the keys are datafield ids, and the values aren't used
+     * @return array An array where the values are datafield ids
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1571,16 +1571,47 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 //            'End Member Formula' => 'End Member Elements',
         );
 
-        $ret = array(
-            'label' => $render_plugin_instance['renderPlugin']['pluginName'],
-            'fields' => array()
-        );
-
+        $ret = array();
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) )
-                $ret['fields'][ $rpf['id'] ] = 1;
+                $ret[] = $rpf['id'];
         }
 
         return $ret;
+    }
+
+    /**
+     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
+     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
+     * may not want to activate if the user has also entered a value in the relevant field.
+     *
+     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
+     * should always be activated, or false if it should only be activated when the user didn't
+     * also enter a value into the field.
+     *
+     * @param array $render_plugin_instance
+     * @return array
+     */
+    public function getMassEditTriggerFields($render_plugin_instance)
+    {
+        // Only interested in overriding datafields mapped to these rpf entries
+        $relevant_datafields = array(
+            'Mineral Display Name' => 'Mineral Name',
+            'Mineral Display Abbreviation' => 'Mineral Abbreviation',
+            'IMA Formula' => 'Chemistry Elements',
+            'RRUFF Formula' => 'Valence Elements',
+//            'End Member Formula' => 'End Member Elements',
+        );
+
+        $trigger_fields = array();
+        foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
+            if ( isset($relevant_datafields[$rpf_name]) ) {
+                // The relevant fields should only have the MassEditTrigger event activated when the
+                //  user didn't also specify a new value
+                $trigger_fields[ $rpf['id'] ] = false;
+            }
+        }
+
+        return $trigger_fields;
     }
 }

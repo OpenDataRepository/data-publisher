@@ -416,16 +416,19 @@ class ODRRenderService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param string $odr_tab_id
+     * @param array $mass_edit_trigger_datafields
      * @param Theme|null $theme
      *
      * @return string
      */
-    public function getMassEditHTML($user, $datatype, $odr_tab_id, $theme = null)
+    public function getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields, $theme = null)
     {
         $template_name = 'ODRAdminBundle:MassEdit:massedit_ajax.html.twig';
         $extra_parameters = array(
             'odr_tab_id' => $odr_tab_id,
             'include_links' => false,
+
+            'mass_edit_trigger_datafields' => $mass_edit_trigger_datafields,
         );
 
         $datarecord = null;

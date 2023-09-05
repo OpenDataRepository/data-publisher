@@ -2287,7 +2287,7 @@ function ReloadFileDatafield(datarecord_id, datafield_id) {
     url = url.substring(0, (url.length - 3));
     url += datarecord_id + '/' + datafield_id;
 
-    var file_datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id + " .ODRFileDatafield");
+    var file_datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id + " .ODRFileDatafield .ODRFileDatafield_content");
 
     $.ajax({
         cache: false,

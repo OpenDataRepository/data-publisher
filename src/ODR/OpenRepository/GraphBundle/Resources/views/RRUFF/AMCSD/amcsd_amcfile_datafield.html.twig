@@ -42,26 +42,38 @@
 
         {#<fieldset>#}
         <div class="ODRFileDatafield">
+            <div class="ODRFileDatafield_header pure-u-1">
+            {% if not datarecord_is_fake %}
+                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+                <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+            {% else %}
+                <i class="fa fa-download fa-lg ODRDownloadAllFiles"></i>&nbsp;
+                <span>{{ datafield.dataFieldMeta.fieldName }}</span>
+            {% endif %}
+            </div>
+
             {% if datarecord_is_fake %}
             <div class="pure-u-1 Info" title="Record must be saved before files can be uploaded" style="opacity: 45%;">
             {% endif %}
 
-            {# If this datatype is top-level, the the only way to update the rest of the fields after deleting a file is to reload the entire page #}
-            {% set file_delete_callback = 'function() { window.location.reload(); }' %}
-            {% if not is_top_level %}
-                {# If it's not top level, then should attempt to surgically reload the childtype #}
-                {# NOTE - can't use datarecord.parent, because that won't work when the datatype is linked to #}
-                {% set file_delete_callback = 'function() { ReloadEditChild(' ~ datarecord.dataType.id ~ ',' ~ parent_datarecord.id ~ '); }' %}
-            {% endif %}
+                <div class="ODRFileDatafield_content pure-u-1">
+                {# If this datatype is top-level, the the only way to update the rest of the fields after deleting a file is to reload the entire page #}
+                {% set file_delete_callback = 'function() { window.location.reload(); }' %}
+                {% if not is_top_level %}
+                    {# If it's not top level, then should attempt to surgically reload the childtype #}
+                    {# NOTE - can't use datarecord.parent, because that won't work when the datatype is linked to #}
+                    {% set file_delete_callback = 'function() { ReloadEditChild(' ~ datarecord.dataType.id ~ ',' ~ parent_datarecord.id ~ '); }' %}
+                {% endif %}
 
-            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
-                'datafield': datafield,
-                'datarecord': datarecord,
-                'files': valuefield,
+                {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                    'datafield': datafield,
+                    'datarecord': datarecord,
+                    'files': valuefield,
 
-                'datarecord_is_fake': datarecord_is_fake,
-                'file_delete_callback': file_delete_callback,
-            } %}
+                    'datarecord_is_fake': datarecord_is_fake,
+                    'file_delete_callback': file_delete_callback,
+                } %}
+                </div>
 
             {% if datarecord_is_fake %}
             </div>

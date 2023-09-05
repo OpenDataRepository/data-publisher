@@ -44,7 +44,11 @@
                 <li id="ODRRenderPlugin_FileRenamer_dt_{{ dt_id }}" class="ODRRenderPlugin_FileRenamer_dt_container ODRHidden">
                     <div class="ODRRenderPlugin_FileRenamer_dt_header">
                         <span class="ODRRenderPlugin_FileRenamer_dt_name">{{ dt_data['name'] }}</span>
+                        {% if dt_data['fields']|length == 0 %}
+                        <span class="FRight">(No valid fields)</span>
+                        {% else %}
                         <span class="FRight"><i class="fa fa-caret-right"></i></span>
+                        {% endif %}
                     </div>
                     <ul class="{# ODRHidden #} ODRRenderPlugin_FileRenamer_df_list">
                     {% for df_id,df_data in dt_data['fields'] %}

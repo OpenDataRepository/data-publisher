@@ -2,12 +2,12 @@
 
 /**
  * Open Data Repository Data Publisher
- * Post MassEdit Event Interface
+ * MassEditTrigger Event Interface
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * All render plugins that listen to the PostMassEdit Event must implement this interface.
+ * All render plugins that listen to the MassEditTrigger Event must implement this interface.
  *
  * While MassEdit typically only creates/runs jobs when users want to change values, there are a
  * handful of instances where it's useful for plugins to run their stuff on large numbers of records
@@ -24,7 +24,7 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
 
-interface PostMassEditEventInterface
+interface MassEditTriggerEventInterface
 {
 
     /**
@@ -32,7 +32,22 @@ interface PostMassEditEventInterface
      * job without actually changing their values.
      *
      * @param array $render_plugin_instance
-     * @return array An array where the keys are datafield ids, and the values don't really matter
+     * @return array An array where the values are datafield ids
      */
     public function getMassEditOverrideFields($render_plugin_instance);
+
+
+    /**
+     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
+     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
+     * may not want to activate if the user has also entered a value in the relevant field.
+     *
+     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
+     * should always be activated, or false if it should only be activated when the user didn't
+     * also enter a value into the field.
+     *
+     * @param array $render_plugin_instance
+     * @return array
+     */
+    public function getMassEditTriggerFields($render_plugin_instance);
 }

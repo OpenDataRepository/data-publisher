@@ -140,8 +140,9 @@ class ODREventSubscriber implements EventSubscriberInterface
             FilePreEncryptEvent::NAME => 'onFilePreEncrypt',
             // Other storage entities
             PostUpdateEvent::NAME => 'onPostUpdate',
-            PostMassEditEvent::NAME => 'onPostMassEdit',
 
+            // Generic
+            MassEditTriggerEvent::NAME => 'onMassEditTrigger',
             // Plugins
             PluginAttachEvent::NAME => 'onPluginAttach',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
@@ -159,7 +160,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param string $event_name
      * @param DataType|null $datatype
      * @param DataFields|null $datafield
-     * @param string|null $plugin_classname
+     * @param string|null $plugin_classname If provided, then only check the given plugin
      *
      * @return string[]
      */
@@ -1258,6 +1259,48 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
     /**
+     * Handles dispatched MassEditTrigger events
+     *
+     * @param MassEditTriggerEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onMassEditTrigger(MassEditTriggerEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onMassEditTrigger()', $event->getErrorInfo());
+
+        try {
+            // Determine whether any render plugins should run something in response to this event
+            $drf = $event->getDataRecordFields();
+            $datafield = $drf->getDataField();
+            $datatype = $datafield->getDataType();
+
+            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $event->getPluginClassName());
+            if ( !empty($relevant_plugins) ) {
+                // If any plugins remain, then load each plugin and call their required function
+                self::relayEvent($relevant_plugins, $event);
+            }
+        }
+        catch (\Throwable $e) {
+            if ( $this->env !== 'dev' ) {
+                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
+                //  any additional subscribers won't run either
+                $base_info = array(self::class);
+                $event_info = $event->getErrorInfo();
+                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+            }
+            else {
+                // ...don't particularly want to rethrow the error since it'll interrupt everything
+                //  downstream of the event (such as file encryption...), but having the error
+                //  disappear is less ideal on the dev environment...
+                throw $e;
+            }
+        }
+    }
+
+
+    /**
      * Handles dispatched PluginAttach events
      *
      * @param PluginAttachEvent $event
@@ -1363,48 +1406,6 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datatype = $rpi->getDataType();
 
             $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
-            if ( !empty($relevant_plugins) ) {
-                // If any plugins remain, then load each plugin and call their required function
-                self::relayEvent($relevant_plugins, $event);
-            }
-        }
-        catch (\Throwable $e) {
-            if ( $this->env !== 'dev' ) {
-                // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
-                //  any additional subscribers won't run either
-                $base_info = array(self::class);
-                $event_info = $event->getErrorInfo();
-                $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
-            }
-            else {
-                // ...don't particularly want to rethrow the error since it'll interrupt everything
-                //  downstream of the event (such as file encryption...), but having the error
-                //  disappear is less ideal on the dev environment...
-                throw $e;
-            }
-        }
-    }
-
-
-    /**
-     * Handles dispatched PostMassEdit events
-     *
-     * @param PostMassEditEvent $event
-     *
-     * @throws \Throwable
-     */
-    public function onPostMassEdit(PostMassEditEvent $event)
-    {
-        if ( $this->debug )
-            $this->logger->debug('ODREventSubscriber::onPostMassEdit()', $event->getErrorInfo());
-
-        try {
-            // Determine whether any render plugins should run something in response to this event
-            $drf = $event->getDataRecordFields();
-            $datafield = $drf->getDataField();
-            $datatype = $datafield->getDataType();
-
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);

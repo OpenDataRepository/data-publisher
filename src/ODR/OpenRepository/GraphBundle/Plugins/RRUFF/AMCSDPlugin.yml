@@ -2,7 +2,7 @@ odr_plugins.rruff.amcsd:
     name: AMCSD Plugin
     category: RRUFF
     plugin_type: datatype
-    render: true
+    render: odr_plugins.rruff.amcsd
     version: 1.4.0
     override_fields: true
     override_field_reload: false
@@ -13,7 +13,7 @@ odr_plugins.rruff.amcsd:
         DatarecordCreatedEvent: onDatarecordCreate
         FileDeletedEvent: onFileDeleted
         FilePreEncryptEvent: onFilePreEncrypt
-#        PostMassEditEvent: onPostMassEdit    # TODO - ...do I want to allow users to trigger this via MassEdit?
+#        MassEditTriggerEvent: onMassEditTrigger    # TODO - ...don't think listening to this is useful...if a file can't be read for values, then reading it again doesn't really help
 
     ##### IMPORTANT #####
     # The "name" values defined for each of the required fields are critical  e.g.  name: fileno
