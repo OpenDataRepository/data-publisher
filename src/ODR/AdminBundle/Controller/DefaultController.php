@@ -50,15 +50,29 @@ class DefaultController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
-            $html = $this->renderView(
-                'ODRAdminBundle:Default:index.html.twig',
-                array(
-                    'user' => $user,
-                    'datatype_permissions' => $datatype_permissions,
-                    'site_baseurl' => $this->container->getParameter('site_baseurl')
-                )
-            );
+            // TODO Wordpress Integrated
+            if($this->container->getParameter('odr_wordpress_integrated')) {
+                // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
+                $html = $this->renderView(
+                    'ODRAdminBundle:Default:index.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'site_baseurl' => $this->container->getParameter('site_baseurl')
+                    )
+                );
+            }
+            else {
+                // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
+                $html = $this->renderView(
+                    'ODRAdminBundle:Default:default_full.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'site_baseurl' => $this->container->getParameter('site_baseurl')
+                    )
+                );
+            }
 
             $response = new Response($html);
             $response->headers->set('Content-Type', 'text/html');

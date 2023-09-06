@@ -1512,7 +1512,7 @@ pre .support.value  {
         margin: 0.5em 0;
     }
     .ODRTagSearchDiv {
-        max-height: 200px;
+        max-height: 400px;
         overflow-y: auto;
         overflow-x: hidden;
     }
@@ -1561,16 +1561,16 @@ pre .support.value  {
 
 
 /* END Search Template Customizations */
-footer {
+.odr-footer {
     height: 48px;
 }
 
-footer .ODRLogoImage {
+.odr-footer .ODRLogoImage {
     height: 48px;
     background: white;
 }
 
-footer .ODRLogoImage img {
+.odr-footer .ODRLogoImage img {
     height: 48px;
 }
 
@@ -1758,7 +1758,7 @@ body {
     margin: 0 0 38px;
 }
 
-footer {
+.odr-footer {
     position: absolute;
     left: 0;
     bottom: 0;
@@ -3849,13 +3849,14 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagWrapper .ODRTagLabel {
     cursor: default;
+    display: inline !important;
 }
 .ODRTagWrapper .ODRTagLabel p {
     display: inline;
 }
 .ODRTagGroup {
     position: relative;
-    padding-left: 15px;
+    padding-left: 6px;
     margin-top: 5px;
 }
 .ODRTagGroup:before {
@@ -3875,7 +3876,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRTagSpacer {
     display: inline-block;
-    padding-left: 9px;
+    width: 15px;
 }
 
 
@@ -4522,4 +4523,77 @@ i {
 }
 .DynamicGraphSettingsDiv_close {
     text-align: right;
+}
+
+.ODRSearchDatafieldFilter {
+    display: inline;
+    float: right;
+
+    font-size: 14px;
+    color: black;
+}
+.ODRDatePickerSearch_clear {
+    display: inline;
+    float: right;
+
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 14px;
+}
+
+.ODRStoredSearchKeySelection_header {
+    text-align: left;
+    text-indent: 15px;
+    font-size: 16px;
+    /*color: #555;*/
+
+    border-color: #6fa5c7;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+
+    margin-top: 5px;
+    margin-bottom: 15px;
+    width: 90%;
+}
+.ODRStoredSearchKeySelection_header > p {
+    margin: 5px;
+}
+.ODRStoredSearchKeySelection_sidebar {
+    overflow-y: scroll;
+    max-height: 700px;
+}
+.ODRStoredSearchKeySelection_controls {
+    padding-top: 10px;
+    padding-left: 10px;
+}
+.ODRStoredSearchKeySelection_list {
+
+}
+.ODRStoredSearchKeySelection_list > p {
+    font-weight: bold;
+}
+
+#ODRStoredSearchKey_empty {
+    padding-left: 20px;
+}
+#ODRStoredSearchKeys_form {
+    display: none;
+}
+
+.ODRFileRenameInput {
+    margin-right: 2px;
+}
+.ODRFileRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
+}
+.ODRImageRenameInput {
+    margin-right: 2px;
+}
+.ODRImageRenameButton {
+    min-width: auto !important;
+    padding: 2px !important;
+    margin: 0px !important;
 }

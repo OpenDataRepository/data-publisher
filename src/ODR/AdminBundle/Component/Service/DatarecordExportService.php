@@ -178,6 +178,7 @@ class DatarecordExportService
             );
         }
 
+        // print json_encode($stacked_datarecord_array);exit();
 
         // ----------------------------------------
         // Determine which template to use for rendering

@@ -1,0 +1,55 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
+
+{% set unique_id = parent_datarecord.id ~ '_' ~ datatype.id %}
+<div id="Datatables_{{ unique_id }}_wrapper" class="ODRTableOuterWrap ODRRenderPluginContent">    {# display_ajax.html.twig won't hide anything with .ODRRenderPluginContent #}
+    <div class="ODRTableWrap">
+        <table id="Datatables_{{ unique_id }}" class="display ODRDatatableInstance">
+            <thead>
+            <tr>
+                <th></th>    {# empty column header for the sortvalue #}
+            {% for theme_element in theme.themeElements %}
+                {% if theme_element.themeDataFields is defined and theme_element.themeElementMeta.hidden == 0 %}
+                    {% for theme_datafield in theme_element.themeDataFields %}
+                        {% set datafield_id = theme_datafield.dataField.id %}
+                        {% if datatype['dataFields'][datafield_id] is defined and theme_datafield.hidden == 0 %}
+                            {% set datafield = datatype['dataFields'][datafield_id] %}
+                            <th title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</th>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for dr_id, datarecord in datarecord_array %}
+                <tr>
+                    {% include 'ODRAdminBundle:Display:display_fieldarea_table.html.twig' with {
+                        'datatype_array': datatype_array,
+                        'datarecord': datarecord,
+                        'theme_array': theme_array,
+
+                        'parent_datarecord': parent_datarecord,
+                        'target_datatype_id': target_datatype_id,
+                        'target_datarecord_id': datarecord.id,
+                        'target_theme_id': target_theme_id,
+
+                        'is_top_level': is_top_level,
+                        'is_link': is_link,
+                        'display_type': display_type,
+                        'multiple_allowed': multiple_allowed,
+                    } %}
+                </tr>
+            {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+</div><!-- end of #TextResults_wrapper -->
+
+{% include 'ODRAdminBundle:Display:display_setup_datatables.js.twig' with {'unique_id': unique_id, 'num_records': datarecord_array|length} %}
+
+{% endspaceless %}

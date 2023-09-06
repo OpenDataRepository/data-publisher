@@ -57,7 +57,7 @@
     {% endif %}
 
     {% if can_add_record and is_top_level and datatype.isMasterType == 0 %}
-        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">Add New Record</button>
+        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">Add Record</button>
     {% endif %}
 
         <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>
@@ -183,7 +183,7 @@
 {#
     function exportDatarecord() {
         // Default to JSON output
-        var url = "{{ path('odr_api_get_datarecord_single', {'datarecord_uuid': datarecord.uniqueid, 'version': 'v1' }) }}";
+        var url = "{{ path('odr_api_get_datarecord_single', {'record_uuid': datarecord.uniqueid, 'version': 'v1' }) }}";
         // url = url.substring(0, (url.length-1));
         url += '?download=file';
         // alert(url);  return;

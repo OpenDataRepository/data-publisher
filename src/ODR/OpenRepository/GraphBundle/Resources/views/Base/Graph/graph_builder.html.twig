@@ -32,7 +32,7 @@
     <link src="../../css/custom.css" type="text/css" rel="stylesheet" />
 
     {#<script src="../../js/libs/jquery-1.7.2.js"></script>#}
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="../../js/libs/jquery-3.3.1.min.js"></script>
     {#<script src="../../js/libs/jquery-ui-1.8.21.js"></script>#}
 {#    <script src="/js/libs/jquery-ui-1.12.0.min.js"></script>#}
 
@@ -102,9 +102,12 @@
     // Why is this not cleared every time?
     var page_plots = [];
 
-    jQuery(function() {
+    jQuery(() => {
         // Plot the chart
         window['SetupGraphs_{{ odr_chart_id }}']();
+        setTimeout(() => {
+            window.odr_graph_status = 'ready';
+        }, 200)
     });
 
     if (!window.ODRChart) {

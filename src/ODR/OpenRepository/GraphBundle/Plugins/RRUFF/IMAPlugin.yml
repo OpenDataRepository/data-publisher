@@ -1,7 +1,7 @@
 odr_plugins.rruff.ima:
     name: IMA Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.1.0
     override_fields: true
@@ -96,6 +96,12 @@ odr_plugins.rruff.ima:
             description:
             type: IntegerValue
 
+        # Required by the "RRUFF Sample Links" plugin
+        tags:
+            name: Tags
+            description:
+            type: Tag
+
 
         # ----------------------------------------
         # These fields are temporary...they only exist to make it easier to import
@@ -123,10 +129,5 @@ odr_plugins.rruff.ima:
             name: Status Notes
             description:
             type: LongText
-
-        tags:
-            name: Tags
-            description:
-            type: Tag
 
     config_options:

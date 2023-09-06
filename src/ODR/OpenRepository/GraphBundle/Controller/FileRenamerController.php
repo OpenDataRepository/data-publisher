@@ -16,8 +16,6 @@
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
@@ -27,6 +25,9 @@ use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -34,13 +35,12 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\GraphBundle\Plugins\Base\FileRenamerPlugin;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -71,14 +71,10 @@ class FileRenamerController extends ODRCustomController
 
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var Logger $logger */
             $logger = $this->container->get('logger');
 
@@ -128,7 +124,7 @@ class FileRenamerController extends ODRCustomController
             if ( isset($dt['dataFields']) && isset($dt['dataFields'][$datafield->getId()]) ) {
                 $df = $dt['dataFields'][$datafield->getId()];
                 if ( isset($df['renderPluginInstances']) ) {
-                    foreach ($df['renderPluginInstances'] as $num => $rpi) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.file_renamer' ) {
                             // Datafield is using the correct plugin...
                             $plugin_classname = 'odr_plugins.base.file_renamer';
@@ -236,11 +232,39 @@ class FileRenamerController extends ODRCustomController
                     if ( is_array($new_filenames) ) {
                         $logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
 
-                        // Clear the relevant cache entries
-                        $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-                        // Delete any cached search results involving this datafield
-                        $search_cache_service->onDatafieldModify($datafield);
-                        $search_cache_service->onDatarecordModify($datarecord);
+
+                        // ----------------------------------------
+                        // Fire off an event notifying that the modification of the datafield is done
+                        try {
+                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                            /** @var EventDispatcherInterface $event_dispatcher */
+                            $dispatcher = $this->get('event_dispatcher');
+                            $event = new DatafieldModifiedEvent($datafield, $user);
+                            $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
+
+                        // Since a file got renamed, need to mark the record as updated
+                        try {
+                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                            /** @var EventDispatcherInterface $event_dispatcher */
+                            $dispatcher = $this->get('event_dispatcher');
+                            $event = new DatarecordModifiedEvent($datarecord, $user);
+                            $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
                     }
                 }
             }

@@ -11,7 +11,7 @@
  * via render plugins.  As such, an event is needed for notification that a datarecord has been
  * created, and therefore needs to have its ID generated.
  *
- * There are probably other potential uses of this, but none come to mind at the moment.
+ * Stuff that needs synchronization via API also probably will find this event useful.
  */
 
 namespace ODR\AdminBundle\Component\Event;
@@ -55,7 +55,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the datarecord that the file was deleted from.
+     * Returns the datarecord that just got created.
      *
      * @return DataRecord
      */
@@ -66,7 +66,7 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the user that deleted the file.
+     * Returns the user that created the datarecord.
      *
      * @return ODRUser
      */

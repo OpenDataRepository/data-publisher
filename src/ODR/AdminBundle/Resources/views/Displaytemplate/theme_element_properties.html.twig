@@ -1,0 +1,53 @@
+{% spaceless %}
+
+{% set has_datafields = false %}
+{% set has_childtype = false %}
+{% set child_is_link = false %}
+{% set has_render_plugin_instance = false %}
+
+{% if theme_element.themeDataFields is defined %}
+    {% set has_datafields = true %}
+{% elseif theme_element.themeDataType is defined %}
+    {% set has_childtype = true %}
+
+    {% if theme_element.themeDataType[0].is_link == 1 %}
+        {% set child_is_link = true %}
+    {% endif %}
+{% elseif theme_element.themeRenderPluginInstance is defined %}
+    {% set has_render_plugin_instance = true %}
+{% endif %}
+
+<script>
+    if (theme_element_properties === undefined)
+        var theme_element_properties = [];
+
+    theme_element_properties[{{ theme_element.id }}] = {};
+
+    {% if has_childtype %}
+    theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
+    {% else %}
+    theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
+    {% endif %}
+
+    {% if has_datafields %}
+    theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
+    {% else %}
+    theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
+    {% endif %}
+
+    {% if child_is_link %}
+    theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
+    {% else %}
+    theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
+    {% endif %}
+
+    {% if has_render_plugin_instance %}
+    theme_element_properties[{{ theme_element.id }}].has_render_plugin_instance = 1;
+    {% else %}
+    theme_element_properties[{{ theme_element.id }}].has_render_plugin_instance = 0;
+    {% endif %}
+
+    {#console.log('theme_element {{ theme_element.id }}', theme_element_properties[{{ theme_element.id }}]);#}
+</script>
+
+{% endspaceless %}

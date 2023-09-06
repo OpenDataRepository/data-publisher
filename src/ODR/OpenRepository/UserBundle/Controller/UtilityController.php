@@ -57,16 +57,21 @@ class UtilityController extends Controller
         $url = $request->query->get('url');
         $site_baseurl = $this->container->getParameter('site_baseurl').'/';    // need to add a trailing slash...
 
-        $pos = strpos($url, $site_baseurl);
-        if ( !($pos === 5 || $pos === 6) ) {    // protocol could be either 'http:' or 'https:'...
-            // The baseurl is assumed to be of the format "//odr.io", but technically
-            //  "//www.odr.io" is supposed to work too...
-            $site_baseurl = '//www.' . substr($site_baseurl, 2);
-            $pos = strpos($url, $site_baseurl);
-            if ( !($pos === 5 || $pos === 6) ) {
-                // Only throw an exception if neither format matches
-                throw new ODRBadRequestException('Invalid query string', 0xed466573);
-            }
+        // Generate a bare baseurl from the site_baseurl
+        $bare_url = preg_replace('/^(\/\/)/', '', $site_baseurl);
+        // Remove any portion after the domain
+        $bare_url_parts = preg_split('/\//', $bare_url);
+        $check_url =  $bare_url_parts[0];
+
+        // Strip http:// & https:// from incoming URL
+        $test_url = preg_replace('/^(?:https?:\/\/)?/', '', $url);
+
+        if (
+            !preg_match("/^$check_url/", $test_url)
+            && !preg_match("/^www\.$check_url/", $test_url)
+        ) {    // protocol could be either 'http:' or 'https:'...
+            // Only throw an exception if neither format matches
+            throw new ODRBadRequestException('Invalid query string', 0xed466573);
         }
 
         // Ensure all target paths are cleared before saving

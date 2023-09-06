@@ -154,6 +154,7 @@ class ThemeController extends ODRCustomController
      */
     private function canModifyTheme($user, $theme, $datafield = null)
     {
+
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -208,33 +209,45 @@ class ThemeController extends ODRCustomController
             throw new ODRForbiddenException();
 
         // ...and also have to be able to at least view the datatype being modified
-        if ( !$pm_service->canViewDatatype($user, $datatype) )
+        if ( !$pm_service->canViewDatatype($user, $datatype) ) {
+            print '111' . $user; exit();
             throw new ODRForbiddenException();
+        }
         // If this theme is a "local copy" of a remote datatype, then also need to be able to view
         //  the local datatype to be able to make changes to this theme
-        if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) )
+        if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) ) {
+            print '222' . $user; exit();
             throw new ODRForbiddenException();
+        }
 
         // If the action is modifying a themeDatafield, then they need to be able to view the datafield too
-        if ( !is_null($datafield) && !$pm_service->canViewDatafield($user, $datafield) )
+        if ( !is_null($datafield) && !$pm_service->canViewDatafield($user, $datafield) ) {
+            print '333' . $user; exit();
             throw new ODRForbiddenException();
+        }
 
         // Master themes can only be modified by admins of the local datatype
-        if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) )
+        if ( $theme->getThemeType() === 'master' && !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
+            print '444' . $user; exit();
             throw new ODRForbiddenException();
+        }
         // Datatype admins of remote datatypes shouldn't necessarily be able to modify "local copies"
         //  made by other datatypes linking to said remote datatypes
 
         // If the user didn't create this theme...
         if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
-            if ( $theme->getParentTheme()->isDefault() && $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
+            // TODO - This doesn't make sense to me (NAS)
+            if ( $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
+            // if ( $theme->getParentTheme()->isDefault() && $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
                 // ...they're allowed to modify it only if it's the datatype's default theme and
                 //  they're an admin of the local datatype
 
+                // TODO Should this be "grandparent theme"
                 // Need to use $theme->getParentTheme() here because the "isDefault" property is only
                 //  updated for the top-level theme
             }
             else {
+                print '555' . $user; exit();
                 // ...if the above is not true, then they're not allowed to modify it
                 throw new ODRForbiddenException();
             }
@@ -395,8 +408,10 @@ class ThemeController extends ODRCustomController
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                     );
-                    if ($is_short_form)
+                    if ($is_short_form) {
                         $properties['isTableTheme'] = $submitted_data->getIsTableTheme();
+                        $properties['displaysAllResults'] = $submitted_data->getDisplaysAllResults();
+                    }
 
                     $emm_service->updateThemeMeta($user, $theme, $properties);
 
@@ -1012,16 +1027,16 @@ class ThemeController extends ODRCustomController
 //            if ($theme->getThemeType() == 'table')
 //                throw new \Exception('Not allowed to delete a theme element from a table theme');
 
-            // Don't allow deletion of themeElement if it still has datafields or a child/linked datatype attached to it
-            $theme_datatypes = $theme_element->getThemeDataType();
-            $theme_datafields = $theme_element->getThemeDataFields();
+            // Don't allow deletion of themeElement if it still is being used for something
+            if ( $theme_element->getThemeDataFields()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that contains datafields');
+            if ( $theme_element->getThemeDataType()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that contains child/linked datatypes');
+            if ( $theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new ODRBadRequestException('Unable to delete a theme element that is being used by a render plugin');
 
-            // TODO - allow deletion of theme elements that still have datafields or a child/linked datatype attached to them?
-            if ( count($theme_datatypes) > 0 || count($theme_datafields) > 0 )
-                throw new ODRBadRequestException('Unable to delete a theme element that contains datafields or datatypes');
 
             // Going to delete both the themeElement and its meta entry...
-            // Also delete the meta entry
             $entities_to_remove = array();
             $entities_to_remove[] = $theme_element;
             $entities_to_remove[] = $theme_element->getThemeElementMeta();
@@ -2067,12 +2082,11 @@ class ThemeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure there's not a child or linked datatype in the ending theme_element before actually moving this datafield into it
-            /** @var ThemeDataType[] $theme_datatypes */
-            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')
-                ->findBy( array('themeElement' => $ending_theme_element_id) );
-            if ( count($theme_datatypes) > 0 )
+            // Ensure this datafield isn't trying to move into an illegal theme element
+            if ( $ending_theme_element->getThemeDataType()->count() > 0 )
                 throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
+            if ( $ending_theme_element->getThemeRenderPluginInstance()->count() > 0 )
+                throw new \Exception('Unable to move a Datafield into a ThemeElement that is already being used by a RenderPlugin');
 
             // NOTE - could technically check for deleted datafields, but it *shouldn't* matter if
             //  any exist...don't think displayOrder can get messed up, and it's not really a

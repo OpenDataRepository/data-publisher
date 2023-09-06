@@ -14,9 +14,10 @@
 {% endif %}
 
 <div class="ODRFormWrap">
-    <div class="header">
+    <div class="ODRShortResultsTitle">
     {% if datatype != null %}
-        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+        <span class="ODRShortResultsHeaderLeft">Display Records - {{ datatype.dataTypeMeta.shortName }}</span>
+        <span class="ODRShortResultsHeaderRight">[uuid: {{ datatype.unique_id }}]</span>
     {% endif %}
     </div>
 
@@ -34,6 +35,8 @@
             'initial_datatype_id': initial_datatype_id,
             'initial_theme_id': initial_theme_id,
             'editable_datarecord_list': editable_datarecord_list,
+
+            'is_datatype_admin': is_datatype_admin,
 
             'offset': offset,
             'page_length': page_length,

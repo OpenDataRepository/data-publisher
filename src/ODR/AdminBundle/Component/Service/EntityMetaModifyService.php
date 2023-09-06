@@ -45,6 +45,7 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\RenderPluginOptionsMap;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagSelection;
@@ -67,10 +68,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class EntityMetaModifyService
 {
-    /**
-     * @var string
-     */
-    private $env;
 
     /**
      * @var EntityManager
@@ -92,6 +89,9 @@ class EntityMetaModifyService
      */
     private $event_dispatcher;
 
+    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+
     /**
      * @var Logger
      */
@@ -101,7 +101,6 @@ class EntityMetaModifyService
     /**
      * EntityMetaModifyService constructor.
      *
-     * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
@@ -109,14 +108,12 @@ class EntityMetaModifyService
      * @param Logger $logger
      */
     public function __construct(
-        string $environment,
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
         EventDispatcherInterface $event_dispatcher,
         Logger $logger
     ) {
-        $this->env = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
@@ -224,34 +221,41 @@ class EntityMetaModifyService
 
 
     /**
-     * Returns true if caller should create a new meta entry, or false otherwise.
-     * Currently, this decision is based on when the last change was made, and who made the change
-     * ...if change was made by a different person, or within the past hour, don't create a new entry
+     * Returns true if caller should create a new meta/storage entity, or false otherwise.
+     *
+     * Currently, a new meta/storage entity should get created unless $user has made a change to the
+     * same entity within the past hour.
      *
      * @param ODRUser $user
      * @param mixed $meta_entry
+     * @param \DateTime|null $modification_datetime
      *
      * @return boolean
      */
-    private function createNewMetaEntry($user, $meta_entry)
+    private function createNewMetaEntry($user, $meta_entry, $modification_datetime = null)
     {
-        $current_datetime = new \DateTime();
+        if ( is_null($modification_datetime) )
+            $modification_datetime = new \DateTime();
 
         /** @var \DateTime $last_updated */
-        /** @var ODRUser $last_updated_by */
         $last_updated = $meta_entry->getUpdated();
+        /** @var ODRUser $last_updated_by */
         $last_updated_by = $meta_entry->getUpdatedBy();
 
-        // If this change is being made by a different user, create a new meta entry
+        // If this change is being made by a different user, create a new meta entity
         if ( $last_updated == null || $last_updated_by == null || $last_updated_by->getId() !== $user->getId() )
             return true;
 
-        // If change was made over an hour ago, create a new meta entry
-        $interval = $last_updated->diff($current_datetime);
+        $interval = $last_updated->diff($modification_datetime);
+        // If the new change is supposed to be made "in the past" due to API shennanigans, then a new
+        //  entity should always be created
+        if ( $interval->invert === 1 )
+            return true;
+        // If change was made over an hour ago, create a new meta entity
         if ( $interval->y > 0 || $interval->m > 0 || $interval->d > 0 || $interval->h > 1 )
             return true;
 
-        // Otherwise, update the existing meta entry
+        // Otherwise, update the existing meta entity
         return false;
     }
 
@@ -267,10 +271,11 @@ class EntityMetaModifyService
      * @param DataFields $datafield
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataFieldsMeta
      */
-    public function updateDatafieldMeta($user, $datafield, $properties, $delay_flush = false)
+    public function updateDatafieldMeta($user, $datafield, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Verify that changes to certain properties are given as Doctrine entities instead of ids
@@ -417,19 +422,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_datafield_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old DatafieldMeta entry
             $remove_old_entry = true;
 
             $new_datafield_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_datafield_meta->setCreated(new \DateTime());
-            $new_datafield_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_datafield_meta->setCreated($created);
             $new_datafield_meta->setCreatedBy($user);
-            $new_datafield_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -498,6 +504,7 @@ class EntityMetaModifyService
         if ( isset($properties['master_published_revision']) )
             $new_datafield_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
 
+        $new_datafield_meta->setUpdated($created);
         $new_datafield_meta->setUpdatedBy($user);
 
         // Delete the old meta entry if it's getting replaced
@@ -546,7 +553,7 @@ class EntityMetaModifyService
                 $props = array(
                     'isDefault' => false
                 );
-                self::updateRadioOptionsMeta($user, $ro, $props, true);    // don't flush immediately
+                self::updateRadioOptionsMeta($user, $ro, $props, true, $created);    // don't flush immediately
             }
 
             // If not delaying flush, then save the changes made to the radio options now
@@ -570,17 +577,18 @@ class EntityMetaModifyService
 
 
     /**
-     * Copies the given DatarecordMeta entry into a new DatarecordMeta entry for the purposes of
-     * soft-deletion.
+     * Compares the given properties array against the given Datarecord's meta entry, and either
+     * updates the existing DatarecordMeta entry or clones a new one if needed.
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataRecordMeta
      */
-    public function updateDatarecordMeta($user, $datarecord, $properties, $delay_flush = false)
+    public function updateDatarecordMeta($user, $datarecord, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var DataRecordMeta $old_meta_entry */
@@ -605,19 +613,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_datarecord_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the existing DatarecordMeta entry
             $remove_old_entry = true;
 
             $new_datarecord_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_datarecord_meta->setCreated(new \DateTime());
-            $new_datarecord_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_datarecord_meta->setCreated($created);
             $new_datarecord_meta->setCreatedBy($user);
-            $new_datarecord_meta->setUpdatedBy($user);
         }
         else {
             $new_datarecord_meta = $old_meta_entry;
@@ -628,6 +637,7 @@ class EntityMetaModifyService
         if ( isset($properties['publicDate']) )
             $new_datarecord_meta->setPublicDate( $properties['publicDate'] );
 
+        $new_datarecord_meta->setUpdated($created);
         $new_datarecord_meta->setUpdatedBy($user);
 
 
@@ -653,16 +663,18 @@ class EntityMetaModifyService
 
 
     /**
-     * Copies the given DataTree entry into a new DataTree entry for the purposes of soft-deletion.
+     * Compares the given properties array against the given Datatree's meta entry, and either
+     * updates the existing DatatreeMeta entry or clones a new one if needed.
      *
      * @param ODRUser $user
      * @param DataTree $datatree
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTreeMeta
      */
-    public function updateDatatreeMeta($user, $datatree, $properties, $delay_flush = false)
+    public function updateDatatreeMeta($user, $datatree, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var DataTreeMeta $old_meta_entry */
@@ -688,19 +700,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_datatree_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old DatatreeMeta entry
             $remove_old_entry = true;
 
             $new_datatree_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_datatree_meta->setCreated(new \DateTime());
-            $new_datatree_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_datatree_meta->setCreated($created);
             $new_datatree_meta->setCreatedBy($user);
-            $new_datatree_meta->setUpdatedBy($user);
         }
         else {
             $new_datatree_meta = $old_meta_entry;
@@ -713,6 +726,7 @@ class EntityMetaModifyService
         if ( isset($properties['is_link']) )
             $new_datatree_meta->setIsLink( $properties['is_link'] );
 
+        $new_datatree_meta->setUpdated($created);
         $new_datatree_meta->setUpdatedBy($user);
 
 
@@ -751,10 +765,11 @@ class EntityMetaModifyService
      * @param DataType $datatype
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeMeta
      */
-    public function updateDatatypeMeta($user, $datatype, $properties, $delay_flush = false)
+    public function updateDatatypeMeta($user, $datatype, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Verify that changes to certain properties are given as Doctrine entities instead of ids
@@ -849,19 +864,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_datatype_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the existing DatatypeMeta entry
             $remove_old_entry = true;
 
             $new_datatype_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_datatype_meta->setCreated(new \DateTime());
-            $new_datatype_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_datatype_meta->setCreated($created);
             $new_datatype_meta->setCreatedBy($user);
-            $new_datatype_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -966,6 +982,7 @@ class EntityMetaModifyService
         if ( isset($properties['tracking_master_revision']) )
             $new_datatype_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
 
+        $new_datatype_meta->setUpdated($created);
         $new_datatype_meta->setUpdatedBy($user);
 
 
@@ -991,17 +1008,18 @@ class EntityMetaModifyService
 
 
     /**
-     * Copies the contents of the given ThemeDatafield entity into a new ThemeDatafield entity if
-     * something was changed
+     * Copies the contents of the given DatatypeSpecialFields entity into a new entity if something
+     * was changed.
      *
      * @param ODRUser $user
      * @param DataTypeSpecialFields $dtsf
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeSpecialFields
      */
-    public function updateDatatypeSpecialField($user, $dtsf, $properties, $delay_flush = false)
+    public function updateDatatypeSpecialField($user, $dtsf, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
@@ -1020,19 +1038,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_dtsf = null;
-        if ( self::createNewMetaEntry($user, $dtsf) ) {
+        if ( self::createNewMetaEntry($user, $dtsf, $created) ) {
             // Clone the old ThemeDatafield entry
             $remove_old_entry = true;
 
             $new_dtsf = clone $dtsf;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_dtsf->setCreated(new \DateTime());
-            $new_dtsf->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_dtsf->setCreated($created);
             $new_dtsf->setCreatedBy($user);
-            $new_dtsf->setUpdatedBy($user);
         }
         else {
             // Update the existing entry
@@ -1044,6 +1063,7 @@ class EntityMetaModifyService
         if (isset($properties['displayOrder']))
             $new_dtsf->setDisplayOrder( $properties['displayOrder'] );
 
+        $new_dtsf->setUpdated($created);
         $new_dtsf->setUpdatedBy($user);
 
         // Delete the old meta entry if needed
@@ -1061,17 +1081,18 @@ class EntityMetaModifyService
 
 
     /**
-     * Modifies a meta entry for a given File entity by copying the old meta entry to a new meta entry,
-     * updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     * Compares the given properties array against the given File's meta entry, and either updates
+     * the existing FileMeta entry or clones a new one if needed.
      *
      * @param ODRUser $user
      * @param File $file
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return FileMeta
      */
-    public function updateFileMeta($user, $file, $properties, $delay_flush = false)
+    public function updateFileMeta($user, $file, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var FileMeta $old_meta_entry */
@@ -1099,19 +1120,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_file_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old FileMeta entry
             $remove_old_entry = true;
 
             $new_file_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_file_meta->setCreated(new \DateTime());
-            $new_file_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_file_meta->setCreated($created);
             $new_file_meta->setCreatedBy($user);
-            $new_file_meta->setUpdatedBy($user);
         }
         else {
             $new_file_meta = $old_meta_entry;
@@ -1127,6 +1149,7 @@ class EntityMetaModifyService
         if ( isset($properties['publicDate']) )
             $new_file_meta->setPublicDate( $properties['publicDate'] );
 
+        $new_file_meta->setUpdated($created);
         $new_file_meta->setUpdatedBy($user);
 
 
@@ -1160,10 +1183,11 @@ class EntityMetaModifyService
      * @param GroupDatatypePermissions $permission
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return GroupDatatypePermissions
      */
-    public function updateGroupDatatypePermission($user, $permission, $properties, $delay_flush = false)
+    public function updateGroupDatatypePermission($user, $permission, $properties, $delay_flush = false, $created = null)
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
@@ -1186,19 +1210,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_permission = null;
-        if ( self::createNewMetaEntry($user, $permission) ) {
+        if ( self::createNewMetaEntry($user, $permission, $created) ) {
             // Clone the existing GroupDatatypePermissions entry
             $remove_old_entry = true;
 
             $new_permission = clone $permission;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_permission->setCreated(new \DateTime());
-            $new_permission->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_permission->setCreated($created);
             $new_permission->setCreatedBy($user);
-            $new_permission->setUpdatedBy($user);
         }
         else {
             $new_permission = $permission;
@@ -1220,6 +1245,7 @@ class EntityMetaModifyService
         if ( isset( $properties['is_datatype_admin']) )
             $new_permission->setIsDatatypeAdmin( $properties['is_datatype_admin'] );
 
+        $new_permission->setUpdated($created);
         $new_permission->setUpdatedBy($user);
 
 
@@ -1247,10 +1273,11 @@ class EntityMetaModifyService
      * @param GroupDatafieldPermissions $permission
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return GroupDatafieldPermissions
      */
-    public function updateGroupDatafieldPermission($user, $permission, $properties, $delay_flush = false)
+    public function updateGroupDatafieldPermission($user, $permission, $properties, $delay_flush = false, $created = null)
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
@@ -1268,19 +1295,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_permission = null;
-        if ( self::createNewMetaEntry($user, $permission) ) {
+        if ( self::createNewMetaEntry($user, $permission, $created) ) {
             // Clone the existing GroupDatafieldPermissions entry
             $remove_old_entry = true;
 
             $new_permission = clone $permission;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_permission->setCreated(new \DateTime());
-            $new_permission->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_permission->setCreated($created);
             $new_permission->setCreatedBy($user);
-            $new_permission->setUpdatedBy($user);
         }
         else {
             $new_permission = $permission;
@@ -1292,6 +1320,7 @@ class EntityMetaModifyService
         if ( isset( $properties['can_edit_datafield']) )
             $new_permission->setCanEditDatafield( $properties['can_edit_datafield'] );
 
+        $new_permission->setUpdated($created);
         $new_permission->setUpdatedBy($user);
 
 
@@ -1304,24 +1333,24 @@ class EntityMetaModifyService
         if (!$delay_flush)
             $this->em->flush();
 
-
         // Return the new entry
         return $new_permission;
     }
 
 
     /**
-     * Copies the contents of the given GroupMeta entity into a new GroupMeta entity if something
-     * was changed
+     * Compares the given properties array against the given Group's meta entry, and either updates
+     * the existing GroupMeta entry or clones a new one if needed.
      *
      * @param ODRUser $user
      * @param Group $group
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return GroupMeta
      */
-    public function updateGroupMeta($user, $group, $properties, $delay_flush = false)
+    public function updateGroupMeta($user, $group, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var GroupMeta $old_meta_entry */
@@ -1348,19 +1377,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_group_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the existing GroupMeta entry
             $remove_old_entry = true;
 
             $new_group_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_group_meta->setCreated(new \DateTime());
-            $new_group_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_group_meta->setCreated($created);
             $new_group_meta->setCreatedBy($user);
-            $new_group_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -1376,6 +1406,7 @@ class EntityMetaModifyService
         if ( isset($properties['datarecord_restriction']) )
             $new_group_meta->setDatarecordRestriction( $properties['datarecord_restriction'] );
 
+        $new_group_meta->setUpdated($created);
         $new_group_meta->setUpdatedBy($user);
 
 
@@ -1395,24 +1426,27 @@ class EntityMetaModifyService
             $this->em->refresh($group);
         }
 
-
         // Return the new entry
         return $new_group_meta;
     }
 
 
     /**
-     * Modifies a meta entry for a given Image entity by copying the old meta entry to a new meta entry,
-     * updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     * Compares the given properties array against the given Image's meta entry, and either updates
+     * the existing ImageMeta entry or clones a new one if needed.
+     *
+     * Resized Images (i.e. thumbnails) do not have their own meta entry, but use their parent's
+     * meta entry instead.
      *
      * @param ODRUser $user
      * @param Image $image
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ImageMeta
      */
-    public function updateImageMeta($user, $image, $properties, $delay_flush = false)
+    public function updateImageMeta($user, $image, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var ImageMeta $old_meta_entry */
@@ -1441,19 +1475,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_image_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old ImageMeta entry
             $remove_old_entry = true;
 
             $new_image_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_image_meta->setCreated(new \DateTime());
-            $new_image_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_image_meta->setCreated($created);
             $new_image_meta->setCreatedBy($user);
-            $new_image_meta->setUpdatedBy($user);
         }
         else {
             $new_image_meta = $old_meta_entry;
@@ -1471,6 +1506,7 @@ class EntityMetaModifyService
         if ( isset($properties['display_order']) )
             $new_image_meta->setDisplayorder( $properties['display_order'] );
 
+        $new_image_meta->setUpdated($created);
         $new_image_meta->setUpdatedBy($user);
 
 
@@ -1503,10 +1539,11 @@ class EntityMetaModifyService
      * @param RadioOptions $radio_option
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioOptionsMeta
      */
-    public function updateRadioOptionsMeta($user, $radio_option, $properties, $delay_flush = false)
+    public function updateRadioOptionsMeta($user, $radio_option, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var RadioOptionsMeta $old_meta_entry */
@@ -1534,19 +1571,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_radio_option_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old RadioOptionsMeta entry
             $remove_old_entry = true;
 
             $new_radio_option_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_radio_option_meta->setCreated(new \DateTime());
-            $new_radio_option_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_radio_option_meta->setCreated($created);
             $new_radio_option_meta->setCreatedBy($user);
-            $new_radio_option_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -1571,6 +1609,7 @@ class EntityMetaModifyService
         if ( isset($properties['isDefault']) )
             $new_radio_option_meta->setIsDefault( $properties['isDefault'] );
 
+        $new_radio_option_meta->setUpdated($created);
         $new_radio_option_meta->setUpdatedBy($user);
 
 
@@ -1608,10 +1647,11 @@ class EntityMetaModifyService
      * @param RadioSelection $radio_selection
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioSelection
      */
-    public function updateRadioSelection($user, $radio_selection, $properties, $delay_flush = false)
+    public function updateRadioSelection($user, $radio_selection, $properties, $delay_flush = false, $created = null)
     {
         // No point making new entry if nothing is getting changed
         $changes_made = false;
@@ -1630,19 +1670,20 @@ class EntityMetaModifyService
         // TODO - ...if so, then MassEditController needs to be modified so it doesn't always trigger postMassEdit events
 
         // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_entity = null;
-        if ( self::createNewMetaEntry($user, $radio_selection) ) {
+        if ( self::createNewMetaEntry($user, $radio_selection, $created) ) {
             // Clone the old RadioSelection entry
             $remove_old_entry = true;
 
             $new_entity = clone $radio_selection;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_entity->setCreated(new \DateTime());
-            $new_entity->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_entity->setCreated($created);
             $new_entity->setCreatedBy($user);
-            $new_entity->setUpdatedBy($user);
         }
         else {
             $new_entity = $radio_selection;
@@ -1652,6 +1693,7 @@ class EntityMetaModifyService
         if ( isset($properties['selected']) )
             $new_entity->setSelected( $properties['selected'] );
 
+        $new_entity->setUpdated($created);
         $new_entity->setUpdatedBy($user);
 
 
@@ -1677,10 +1719,11 @@ class EntityMetaModifyService
      * @param ODRUser $user
      * @param RenderPluginMap $render_plugin_map
      * @param array $properties
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return bool
      */
-    public function updateRenderPluginMap($user, $render_plugin_map, $properties, $delay_flush = false)
+    public function updateRenderPluginMap($user, $render_plugin_map, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Verify that changes to certain properties are given as Doctrine entities instead of ids
@@ -1723,19 +1766,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_rpm = null;
-        if ( self::createNewMetaEntry($user, $render_plugin_map) ) {
+        if ( self::createNewMetaEntry($user, $render_plugin_map, $created) ) {
             // Clone the old RenderPluginMap entry
             $remove_old_entry = true;
 
             $new_rpm = clone $render_plugin_map;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_rpm->setCreated(new \DateTime());
-            $new_rpm->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_rpm->setCreated($created);
             $new_rpm->setCreatedBy($user);
-            $new_rpm->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -1751,6 +1795,7 @@ class EntityMetaModifyService
                 $new_rpm->setDataField( $properties['dataField'] );
         }
 
+        $new_rpm->setUpdated($created);
         $new_rpm->setUpdatedBy($user);
         $this->em->persist($new_rpm);
 
@@ -1778,10 +1823,11 @@ class EntityMetaModifyService
      * @param RenderPluginOptionsMap $render_plugin_options_map
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return bool
      */
-    public function updateRenderPluginOptionsMap($user, $render_plugin_options_map, $properties, $delay_flush = false)
+    public function updateRenderPluginOptionsMap($user, $render_plugin_options_map, $properties, $delay_flush = false, $created = null)
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
@@ -1798,19 +1844,20 @@ class EntityMetaModifyService
             return false;
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_rpom = null;
-        if ( self::createNewMetaEntry($user, $render_plugin_options_map) ) {
+        if ( self::createNewMetaEntry($user, $render_plugin_options_map, $created) ) {
             // Clone the old RenderPluginOptionsMap entry
             $remove_old_entry = true;
 
             $new_rpom = clone $render_plugin_options_map;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_rpom->setCreated(new \DateTime());
-            $new_rpom->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_rpom->setCreated($created);
             $new_rpom->setCreatedBy($user);
-            $new_rpom->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -1822,6 +1869,7 @@ class EntityMetaModifyService
         if (isset($properties['value']))
             $new_rpom->setValue( $properties['value'] );
 
+        $new_rpom->setUpdated($created);
         $new_rpom->setUpdatedBy($user);
         $this->em->persist($new_rpom);
 
@@ -1849,11 +1897,12 @@ class EntityMetaModifyService
      * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
      * @param array $properties
      * @param bool $delay_flush
-     * @param bool $fire_event
+     * @param bool $fire_event  If false, then don't fire the PostUpdateEvent
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
-    public function updateStorageEntity($user, $entity, $properties, $delay_flush = false, $fire_event = true)
+    public function updateStorageEntity($user, $entity, $properties, $delay_flush = false, $fire_event = true, $created = null)
     {
         // Determine which type of entity to create if needed
         $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
@@ -1885,8 +1934,6 @@ class EntityMetaModifyService
                 // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
                 //  event subscribers will prevent file encryption otherwise...
                 try {
-                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                     $event = new PostUpdateEvent($entity, $user);
                     $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
 
@@ -1896,14 +1943,13 @@ class EntityMetaModifyService
                     // ...the event stuff is likely going to "disappear" any error it encounters, but
                     //  might as well rethrow anything caught here since there shouldn't be a critical
                     //  process downstream anyways
-                    if ( $this->env === 'dev' )
-                        throw $e;
+//                    if ( $this->env === 'dev' )
+//                        throw $e;
                 }
             }
 
             return $entity;
         }
-
 
         // If this is an IntegerValue entity, set the value back to an integer or null so it gets
         //  saved correctly
@@ -1917,9 +1963,12 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_entity = null;
-        if ( self::createNewMetaEntry($user, $entity) ) {
+        if ( self::createNewMetaEntry($user, $entity, $created) ) {
             // Create a new entry and copy the previous one's data over
             $remove_old_entry = true;
 
@@ -1934,6 +1983,7 @@ class EntityMetaModifyService
             if ($typeclass == 'DecimalValue')
                 $new_entity->setOriginalValue( $entity->getOriginalValue() );
 
+            $new_entity->setCreated($created);
             $new_entity->setCreatedBy($user);
         }
         else {
@@ -1944,6 +1994,7 @@ class EntityMetaModifyService
         //  without being isset()...also,  isset( array[key] ) == false  when  array(key => null)
         $new_entity->setValue( $properties['value'] );
 
+        $new_entity->setUpdated($created);
         $new_entity->setUpdatedBy($user);
 
 
@@ -1962,8 +2013,6 @@ class EntityMetaModifyService
             // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
             //  event subscribers will prevent file encryption otherwise...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 $event = new PostUpdateEvent($new_entity, $user);
                 $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
 
@@ -1973,12 +2022,91 @@ class EntityMetaModifyService
                 // ...the event stuff is likely going to "disappear" any error it encounters, but
                 //  might as well rethrow anything caught here since there shouldn't be a critical
                 //  process downstream anyways
-                if ( $this->env === 'dev' )
-                    throw $e;
+//                if ( $this->env === 'dev' )
+//                    throw $e;
             }
         }
 
         return $new_entity;
+    }
+
+
+    /**
+     * Copies the contents of the given StoredSearchKey entity into a new entity if something
+     * was changed.
+     *
+     * @param ODRUser $user
+     * @param StoredSearchKey $ssk
+     * @param array $properties
+     * @param bool $delay_flush
+     *
+     * @return StoredSearchKey
+     */
+    public function updateStoredSearchKey($user, $ssk, $properties, $delay_flush = false)
+    {
+        // ----------------------------------------
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            // Not allowed to change datatype
+            'storageLabel' => $ssk->getStorageLabel(),
+            'searchKey' => $ssk->getSearchKey(),
+            'isDefault' => $ssk->getIsDefault(),
+            'isPublic' => $ssk->getIsPublic(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $ssk;
+
+
+        // Determine whether to create a new entry or modify the previous one
+        $remove_old_entry = false;
+        $new_ssk = null;
+        if ( self::createNewMetaEntry($user, $ssk) ) {
+            // Clone the old ThemeDatafield entry
+            $remove_old_entry = true;
+
+            $new_ssk = clone $ssk;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_ssk->setCreated(new \DateTime());
+            $new_ssk->setUpdated(new \DateTime());
+            $new_ssk->setCreatedBy($user);
+            $new_ssk->setUpdatedBy($user);
+        }
+        else {
+            // Update the existing entry
+            $new_ssk = $ssk;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['storageLabel']) )
+            $new_ssk->setStorageLabel( $properties['storageLabel'] );
+        if ( isset($properties['searchKey']) )
+            $new_ssk->setSearchKey( $properties['searchKey'] );
+        if ( isset($properties['isDefault']) )
+            $new_ssk->setIsDefault( $properties['isDefault'] );
+        if ( isset($properties['isPublic']) )
+            $new_ssk->setIsPublic( $properties['isPublic'] );
+
+        $new_ssk->setUpdatedBy($user);
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($ssk);
+
+        // Save the new meta entry
+        $this->em->persist($new_ssk);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        // Return the new entry
+        return $new_ssk;
     }
 
 
@@ -1990,10 +2118,11 @@ class EntityMetaModifyService
      * @param Tags $tag
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagMeta
      */
-    public function updateTagMeta($user, $tag, $properties, $delay_flush = false)
+    public function updateTagMeta($user, $tag, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var TagMeta $old_meta_entry */
@@ -2020,19 +2149,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_tag_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old TagMeta entry
             $remove_old_entry = true;
 
             $new_tag_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_tag_meta->setCreated(new \DateTime());
-            $new_tag_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_tag_meta->setCreated($created);
             $new_tag_meta->setCreatedBy($user);
-            $new_tag_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2055,6 +2185,7 @@ class EntityMetaModifyService
         if ( isset($properties['displayOrder']) )
             $new_tag_meta->setDisplayOrder( $properties['displayOrder'] );
 
+        $new_tag_meta->setUpdated($created);
         $new_tag_meta->setUpdatedBy($user);
 
 
@@ -2092,10 +2223,11 @@ class EntityMetaModifyService
      * @param TagSelection $tag_selection
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return TagSelection
      */
-    public function updateTagSelection($user, $tag_selection, $properties, $delay_flush = false)
+    public function updateTagSelection($user, $tag_selection, $properties, $delay_flush = false, $created = null)
     {
         // No point making new entry if nothing is getting changed
         $changes_made = false;
@@ -2114,19 +2246,20 @@ class EntityMetaModifyService
         // TODO - ...if so, then MassEditController needs to be modified so it doesn't always trigger postMassEdit events
 
         // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_entity = null;
-        if ( self::createNewMetaEntry($user, $tag_selection) ) {
+        if ( self::createNewMetaEntry($user, $tag_selection, $created) ) {
             // Clone the old TagSelection entry
             $remove_old_entry = true;
 
             $new_entity = clone $tag_selection;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_entity->setCreated(new \DateTime());
-            $new_entity->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_entity->setCreated($created);
             $new_entity->setCreatedBy($user);
-            $new_entity->setUpdatedBy($user);
         }
         else {
             $new_entity = $tag_selection;
@@ -2136,6 +2269,7 @@ class EntityMetaModifyService
         if ( isset($properties['selected']) )
             $new_entity->setSelected( $properties['selected'] );
 
+        $new_entity->setUpdated($created);
         $new_entity->setUpdatedBy($user);
 
 
@@ -2162,10 +2296,11 @@ class EntityMetaModifyService
      * @param ThemeDataField $theme_datafield
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataField
      */
-    public function updateThemeDatafield($user, $theme_datafield, $properties, $delay_flush = false)
+    public function updateThemeDatafield($user, $theme_datafield, $properties, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Verify that changes to certain properties are given as Doctrine entities instead of ids
@@ -2195,19 +2330,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_theme_datafield = null;
-        if ( self::createNewMetaEntry($user, $theme_datafield) ) {
+        if ( self::createNewMetaEntry($user, $theme_datafield, $created) ) {
             // Clone the old ThemeDatafield entry
             $remove_old_entry = true;
 
             $new_theme_datafield = clone $theme_datafield;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_theme_datafield->setCreated(new \DateTime());
-            $new_theme_datafield->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_theme_datafield->setCreated($created);
             $new_theme_datafield->setCreatedBy($user);
-            $new_theme_datafield->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2228,6 +2364,7 @@ class EntityMetaModifyService
         if (isset($properties['hidden']))
             $new_theme_datafield->setHidden( $properties['hidden'] );
 
+        $new_theme_datafield->setUpdated($created);
         $new_theme_datafield->setUpdatedBy($user);
 
 
@@ -2254,10 +2391,11 @@ class EntityMetaModifyService
      * @param ThemeDataType $theme_datatype
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeDataType
      */
-    public function updateThemeDatatype($user, $theme_datatype, $properties, $delay_flush = false)
+    public function updateThemeDatatype($user, $theme_datatype, $properties, $delay_flush = false, $created = null)
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
@@ -2274,19 +2412,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_theme_datatype = null;
-        if ( self::createNewMetaEntry($user, $theme_datatype) ) {
+        if ( self::createNewMetaEntry($user, $theme_datatype, $created) ) {
             // Clone the old ThemeDatatype entry
             $remove_old_entry = true;
 
             $new_theme_datatype = clone $theme_datatype;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_theme_datatype->setCreated(new \DateTime());
-            $new_theme_datatype->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_theme_datatype->setCreated($created);
             $new_theme_datatype->setCreatedBy($user);
-            $new_theme_datatype->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2298,6 +2437,7 @@ class EntityMetaModifyService
         if (isset($properties['display_type']))
             $new_theme_datatype->setDisplayType( $properties['display_type'] );
 
+        $new_theme_datatype->setUpdated($created);
         $new_theme_datatype->setUpdatedBy($user);
 
 
@@ -2324,10 +2464,11 @@ class EntityMetaModifyService
      * @param ThemeElement $theme_element
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeElementMeta
      */
-    public function updateThemeElementMeta($user, $theme_element, $properties, $delay_flush = false)
+    public function updateThemeElementMeta($user, $theme_element, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var ThemeElementMeta $old_meta_entry */
@@ -2355,19 +2496,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $theme_element_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old ThemeelementMeta entry
             $remove_old_entry = true;
 
             $theme_element_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $theme_element_meta->setCreated(new \DateTime());
-            $theme_element_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $theme_element_meta->setCreated($created);
             $theme_element_meta->setCreatedBy($user);
-            $theme_element_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2385,6 +2527,7 @@ class EntityMetaModifyService
         if ( isset($properties['cssWidthXL']) )
             $theme_element_meta->setCssWidthXL( $properties['cssWidthXL'] );
 
+        $theme_element_meta->setUpdated($created);
         $theme_element_meta->setUpdatedBy($user);
 
         // Delete the old meta entry if needed
@@ -2416,10 +2559,11 @@ class EntityMetaModifyService
      * @param Theme $theme
      * @param array $properties
      * @param bool $delay_flush
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return ThemeMeta
      */
-    public function updateThemeMeta($user, $theme, $properties, $delay_flush = false)
+    public function updateThemeMeta($user, $theme, $properties, $delay_flush = false, $created = null)
     {
         // Load the old meta entry
         /** @var ThemeMeta $old_meta_entry */
@@ -2439,6 +2583,7 @@ class EntityMetaModifyService
             'shared' => $old_meta_entry->getShared(),
             'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
+            'displaysAllResults' => $old_meta_entry->getDisplaysAllResults(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2450,19 +2595,20 @@ class EntityMetaModifyService
 
 
         // Determine whether to create a new meta entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
         $remove_old_entry = false;
         $new_theme_meta = null;
-        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
             // Clone the old ThemeMeta entry
             $remove_old_entry = true;
 
             $new_theme_meta = clone $old_meta_entry;
 
-            // These properties aren't automatically updated when persisting the cloned entity...
-            $new_theme_meta->setCreated(new \DateTime());
-            $new_theme_meta->setUpdated(new \DateTime());
+            // These properties need to be specified in order to be saved properly...
+            $new_theme_meta->setCreated($created);
             $new_theme_meta->setCreatedBy($user);
-            $new_theme_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2497,6 +2643,10 @@ class EntityMetaModifyService
             }
         }
 
+        if ( isset($properties['displaysAllResults']) )
+            $new_theme_meta->setDisplaysAllResults( $properties['displaysAllResults'] );
+
+        $new_theme_meta->setUpdated($created);
         $new_theme_meta->setUpdatedBy($user);
 
         // Delete the old meta entry if it's getting replaced

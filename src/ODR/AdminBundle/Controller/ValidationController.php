@@ -12,9 +12,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
@@ -42,9 +39,11 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\HttpFoundation\Request;
@@ -288,10 +287,14 @@ class ValidationController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
 
             $query = $em->createQuery(
                'SELECT dtm
@@ -377,6 +380,11 @@ class ValidationController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
@@ -390,11 +398,6 @@ class ValidationController extends ODRCustomController
 
             /** @var FieldType $default_fieldtype */
             $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
-
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
 
             $batch_size = 100;
             $count = 0;
@@ -768,6 +771,7 @@ class ValidationController extends ODRCustomController
                     $tm->setShared(false);
                     $tm->setSourceSyncVersion(0);
                     $tm->setIsTableTheme(false);
+                    $tm->setDisplaysAllResults(false);
 
                     $tm->setCreatedBy($user);
                     $tm->setUpdatedBy($user);
@@ -1098,6 +1102,77 @@ class ValidationController extends ODRCustomController
                 $conn->rollBack();
 
             $source = 0xabcdef00;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     * @return Response
+     */
+    public function findduplicatespecialfieldsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+            $conn = $em->getConnection();
+            $query =
+               'SELECT dtsf.id AS dtsf_id, dtsf.field_purpose, dtsf.display_order, dtsf.data_type_id AS dt_id, df.id AS df_id
+                FROM odr_data_type_special_fields dtsf
+                LEFT JOIN odr_data_fields df ON dtsf.data_field_id = df.id
+                WHERE dtsf.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            print '<pre>';
+
+            $entries = array();
+            $duplicates = array();
+            foreach ($results as $result) {
+                $dtsf_id = $result['dtsf_id'];
+                $dt_id = $result['dt_id'];
+                $df_id = $result['df_id'];
+                $field_purpose = $result['field_purpose'];
+                $display_order = $result['display_order'];
+
+                if ( !isset($entries[$dt_id]) )
+                    $entries[$dt_id] = array();
+                if ( !isset($entries[$dt_id][$field_purpose]) )
+                    $entries[$dt_id][$field_purpose] = array();
+
+                if ( !isset($entries[$dt_id][$field_purpose][$df_id]) )
+                    $entries[$dt_id][$field_purpose][$df_id] = $display_order;
+                else {
+                    print 'duplicate entry for dt '.$dt_id.' df '.$df_id.' field_purpose '.$field_purpose."\n";
+                    $duplicates[] = $dtsf_id;
+                }
+            }
+
+            $query = 'UPDATE odr_data_type_special_fields dtsf SET dtsf.deletedAt = NOW() WHERE dtsf.id IN ('.implode(',', $duplicates).') AND deletedAt IS NULL';
+            print "\n\n".$query."\n";
+
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x8bc7022b;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1677,11 +1752,11 @@ class ValidationController extends ODRCustomController
 
         if ( isset($query_targets['DataFields']['masterDataField']) ) {
             unset( $query_targets['DataFields']['masterDataField'] );
-            print '>> TODO - ignore undeleted DataField entities that reference deleted masterDataFields??'."\n";
+            print '>> TODO - modify undeleted DataField entities to no longer reference deleted masterDataFields??'."\n";
         }
         if ( isset($query_targets['DataType']['masterDataType']) ) {
             unset( $query_targets['DataType']['masterDataType'] );
-            print '>> TODO - ignore undeleted DataType entities that reference deleted masterDataTypes??'."\n";
+            print '>> TODO - modify undeleted DataType entities to no longer reference deleted masterDataTypes??'."\n";
         }
         print "\n";
 
@@ -1700,10 +1775,15 @@ class ValidationController extends ODRCustomController
      */
     public function themeElementcheckAction(Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             $query = $em->createQuery(
                'SELECT t.id AS t_id, te.id AS te_id, tdf.id AS tdf_id, df.id AS df_id, tdt.id AS tdt_id, dt.id AS dt_id
                 FROM ODRAdminBundle:Theme AS t
@@ -1768,14 +1848,19 @@ class ValidationController extends ODRCustomController
      */
     public function finddatatypeswithoutmasterthemesAction($check_top_level, Request $request)
     {
-        $top_level = true;
-        if ( $check_top_level == 0 )
-            $top_level = false;
-
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            $top_level = true;
+            if ( $check_top_level == 0 )
+                $top_level = false;
+
             $query = null;
             if (!$top_level) {
                 $query = $em->createQuery(
@@ -1977,6 +2062,11 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             $query =
                'SELECT
                     t.id AS t_id, t.parent_theme_id, t.source_theme_id, t.data_type_id AS dt_id,
@@ -2028,6 +2118,176 @@ class ValidationController extends ODRCustomController
 
 
     /**
+     * UUIDs are supposed to be unique, but if they're not...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixduplicateuuidsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
+
+
+            // ----------------------------------------
+            // The first set of entities should never have any duplicates...
+            $entities = array(
+                'odr_data_type' => 'unique_id',
+                'odr_data_fields' => 'field_uuid',
+                'odr_data_record' => 'unique_id',
+                'odr_file' => 'unique_id',
+                'odr_image' => 'unique_id',
+            );
+
+            print '<pre>';
+            foreach ($entities as $table_name => $field_name) {
+                print 'checking '.$table_name.'...'."\n";
+
+                $query =
+                   'SELECT e.id AS id, e.'.$field_name.' AS uuid
+                    FROM '.$table_name.' e';
+                // Do NOT want to exclude deleted rows
+                $results = $conn->fetchAll($query);
+
+                $duplicates = array();
+                $tmp = array();
+                foreach ($results as $result) {
+                    $id = $result['id'];
+                    $uuid = $result['uuid'];
+
+                    if ( is_null($uuid) ) {
+                        print "\t".'entity '.$id.' does not have a uuid'."\n";
+                        $duplicates[] = $id;
+                    }
+                    else if ( !isset($tmp[$uuid]) ) {
+                        $tmp[$uuid] = $id;
+                    }
+                    else {
+                        print "\t".'entity '.$id.' has the same uuid as entity '.$tmp[$uuid]."\n";
+                        $duplicates[] = $id;
+                    }
+                }
+                print "\n\n";
+
+                // Regardless of whether any entity has a duplicate uuid, or is missing a uuid...
+                //  the fix is the same
+                foreach ($duplicates as $id) {
+                    switch ($table_name) {
+                        case 'odr_data_type':
+                            $new_uuid = $uuid_service->generateDatatypeUniqueId();
+                            print 'UPDATE '.$table_name.' SET template_group = "'.$new_uuid.'" WHERE grandparent_id = '.$id.';'."\n";
+                            print 'UPDATE '.$table_name.' SET '.$field_name.' = "'.$new_uuid.'" WHERE id = '.$id.';'."\n";
+                            break;
+                        case 'odr_data_fields':
+                            $new_uuid = $uuid_service->generateDatafieldUniqueId();
+                            print 'UPDATE '.$table_name.' SET template_field_uuid = "'.$new_uuid.'" WHERE master_datafield_id = '.$id.';'."\n";
+                            print 'UPDATE '.$table_name.' SET '.$field_name.' = "'.$new_uuid.'" WHERE id = '.$id.';'."\n";
+                            break;
+                        case 'odr_data_record':
+                            $new_uuid = $uuid_service->generateDatarecordUniqueId();
+                            print 'UPDATE '.$table_name.' SET '.$field_name.' = "'.$new_uuid.'" WHERE id = '.$id.';'."\n";
+                            break;
+                        case 'odr_file':
+                            $new_uuid = $uuid_service->generateFileUniqueId();
+                            print 'UPDATE '.$table_name.' SET '.$field_name.' = "'.$new_uuid.'" WHERE id = '.$id.';'."\n";
+                            break;
+                        case 'odr_image':
+                            $new_uuid = $uuid_service->generateImageUniqueId();
+                            print 'UPDATE '.$table_name.' SET '.$field_name.' = "'.$new_uuid.'" WHERE id = '.$id.';'."\n";
+                            break;
+                    }
+                }
+                print "\n\n";
+            }
+
+
+            // ----------------------------------------
+            // The second set of entities are allowed to have duplicates
+            $entities = array(
+                'odr_radio_options' => 'radio_option_uuid',
+                'odr_tags' => 'tag_uuid',
+            );
+
+            foreach ($entities as $table_name => $field_name) {
+                print 'checking '.$table_name.'...'."\n";
+
+                $query =
+                   'SELECT e.id AS id, e.'.$field_name.' AS uuid, df.id AS df_id
+                    FROM '.$table_name.' e
+                    LEFT JOIN odr_data_fields df ON e.data_fields_id = df.id
+                    WHERE df.master_datafield_id IS NULL';
+                // Do NOT want to exclude deleted rows
+                $results = $conn->fetchAll($query);
+
+                $duplicates = array();
+                $tmp = array();
+                foreach ($results as $result) {
+                    $id = $result['id'];
+                    $uuid = $result['uuid'];
+                    $df_id = $result['df_id'];
+
+                    if ( is_null($uuid) ) {
+                        print "\t".'entity '.$id.' does not have a uuid'."\n";
+                        $duplicates[] = $id;
+                    }
+                    else if ( !isset($tmp[$uuid]) ) {
+                        $tmp[$uuid] = array('id' => $id, 'df_id' => $df_id);
+                    }
+                    else {
+                        print "\t".'entity '.$id.' (df '.$tmp[$uuid]['df_id'].') has the same uuid as entity '.$tmp[$uuid]['id']."\n";
+                        $duplicates[] = array('id' => $id, 'df_id' => $df_id);
+                    }
+                }
+                print "\n\n";
+
+                foreach ($duplicates as $id) {
+                    switch ($table_name) {
+                        case 'odr_radio_options':
+                            $new_uuid = $uuid_service->generateRadioOptionUniqueId();
+                            print 'TODO'."\n";
+                            break;
+                        case 'odr_tags':
+                            $new_uuid = $uuid_service->generateTagUniqueId();
+                            print 'TODO'."\n";
+                            break;
+                    }
+                }
+                print "\n\n";
+            }
+
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x291bd39f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
      * A number of datafields in the database have a master datafield, but don't also have its
      * associated field_uuid as their template_field_uuid...
      *
@@ -2042,11 +2302,17 @@ class ValidationController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $conn = $em->getConnection();
-
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            $conn = $em->getConnection();
             $conn->beginTransaction();
 
             $query = $em->createQuery(
@@ -2112,6 +2378,11 @@ class ValidationController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             $query = $em->createQuery(
                'SELECT u.id AS user_id, g.id AS group_id
                 FROM ODROpenRepositoryUserBundle:User AS u
@@ -2174,6 +2445,12 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
             $conn->beginTransaction();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
 
             // ----------------------------------------
             // Determine whether a datatypeMeta entry is claiming a datafield that belongs to another
@@ -2359,6 +2636,11 @@ class ValidationController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
 
             // TODO - needs to be able to define existing fieldtypes?
             // Define what the fieldtype table should have...arrays is [typeclass] => typename
@@ -2979,7 +3261,11 @@ class ValidationController extends ODRCustomController
                 throw new ODRException('Unable to open dmp file');
 
             // ...still is useful to return how many datarecords will be deleted though
-            print '<html><pre>number of datarecords: '.count($datarecord_ids).'</pre></html>';
+            print
+                '<html>
+                    <pre>number of datarecords: '.count($datarecord_ids).'</pre>
+                    <pre>dmp file written to /app/tmp/user_'.$user->getId().'/purge.dmp</pre>
+                </html>';
 
             // ----------------------------------------
             // Set up the dmp file...
@@ -3133,6 +3419,13 @@ class ValidationController extends ODRCustomController
             }
             else {
                 fprintf($handle, "# No datatypeSpecialField entries to delete\n");
+            }
+
+            if ( !empty($datatype_ids) ) {
+                fprintf($handle, "DELETE FROM odr_stored_search_keys ssk WHERE ssk.data_type_id IN (".implode(',', $datatype_ids).");\n");
+            }
+            else {
+                fprintf($handle, "# No storedSearchKey entries to delete\n");
             }
 
             if ( !empty($datatype_ids) ) {

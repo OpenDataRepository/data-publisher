@@ -15,13 +15,12 @@
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
+use ODR\AdminBundle\Controller\WPAutoLoginController;
 // Entities
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
@@ -36,15 +35,17 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Events
-use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
-use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
 use ODR\AdminBundle\Form\DatetimeValueForm;
@@ -57,10 +58,9 @@ use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -70,10 +70,8 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
@@ -83,11 +81,40 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Symfony\Component\Templating\EngineInterface;
 
 
 class EditController extends ODRCustomController
 {
+
+//    public function __construct() {
+//
+//        // Check for Wordpress Integration
+////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//        if($this->getParameter('wordpress_integrated')) {
+//            $odr_wordpress_user = getenv("WORDPRESS_USER");
+//            if ($odr_wordpress_user) {
+//                // print $odr_wordpress_user . ' ';
+//                /** @var ODRUser $user */
+//                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
+//                print 'asdf';exit();
+//            }
+//        }
+//        else {
+//            print 'kasdfkafds';exit();
+//        }
+//        // Here, "public" is the name of the firewall in your security.yml
+//        $token = new UsernamePasswordToken($user, $user->getPassword(), "public", $user->getRoles());
+//
+//        // For older versions of Symfony, use security.context here
+//        $this->get("security.token_storage")->setToken($token);
+//
+//        // Fire the login event
+//        // Logging the user in above the way we do it doesn't do this automatically
+//        $event = new InteractiveLoginEvent($request, $token);
+//        $this->get("event_dispatcher")->dispatch("security.interactive_login", $event);
+//    }
 
     /**
      * Creates a new top-level DataRecord in the database.
@@ -111,16 +138,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -193,19 +216,14 @@ class EditController extends ODRCustomController
             $em->persist($datarecord);
             $em->flush();
 
+            // ----------------------------------------
+            // Don't need to fire off a DatarecordModified event, since this new top-level record
+            //  with no values in it
+
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
                 'datarecord_id' => $datarecord->getId()
             );
-
-
-            // ----------------------------------------
-            // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dbi_service->resetDatatypeSortOrder($datatype->getId());
-            // Delete all search results that can change
-            $search_cache_service->onDatarecordCreate($datatype);
-
-            // Since this is a new top-level datarecord, there's nothing to mark as updated
         }
         catch (\Exception $e) {
             $source = 0x2d4d92e6;
@@ -242,18 +260,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab needed Entities from the repository
@@ -325,6 +337,23 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
+            // Need to fire off a DatarecordModified event for the parent datarecord
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($parent_datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+
             // ----------------------------------------
             // Get edit_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
@@ -332,15 +361,6 @@ class EditController extends ODRCustomController
                 'datatype_id' => $datatype_id,
                 'parent_id' => $parent_datarecord->getId(),
             );
-
-            // Delete all search results that can change
-            $search_cache_service->onDatarecordCreate($datatype);
-
-            // Delete the cached string containing the ordered list of datarecords for this datatype
-            $dbi_service->resetDatatypeSortOrder($datatype->getId());
-
-            // Refresh the cache entries for the new datarecord's parent
-            $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
         }
         catch (\Exception $e) {
             $source = 0x3d2835d5;
@@ -384,14 +404,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var ThemeInfoService $theme_info_service */
@@ -426,25 +442,12 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // ----------------------------------------
-            // Check whether any jobs that are currently running would interfere with the deletion
-            //  of this datarecord
-            $new_job_data = array(
-                'job_type' => 'delete_datarecord',
-                'target_entity' => $datarecord,
-            );
-
-            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
-            if ( !is_null($conflicting_job) )
-                throw new ODRConflictException('Unable to delete this Datarecord, as it would interfere with an already running '.$conflicting_job.' job');
-
 
             // ----------------------------------------
-            // NOTE - changes here should also be made in MassEditController::massDeleteAction()
-            // ----------------------------------------
-
-
             // Store whether this was a deletion for a top-level datarecord or not
+            $datatype = $datarecord->getDataType();
+            $parent_datarecord = $datarecord->getParent();
+
             $is_top_level = true;
             if ( $datatype->getId() !== $parent_datarecord->getDataType()->getId() )
                 $is_top_level = false;
@@ -456,171 +459,8 @@ class EditController extends ODRCustomController
                 $is_link = true;
 
 
-            // ----------------------------------------
-            // Recursively locate all children of this datarecord
-            $parent_ids = array();
-            $parent_ids[] = $datarecord->getId();
-
-            $datarecords_to_delete = array();
-            $datarecords_to_delete[] = $datarecord->getId();
-
-            while ( count($parent_ids) > 0 ) {
-                // Can't use the grandparent datarecord property, because this deletion request
-                //  could be for a datarecord that isn't top-level
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
-                    WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
-                    AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-                )->setParameters( array('parent_ids' => $parent_ids) );
-                $results = $query->getArrayResult();
-
-                $parent_ids = array();
-                foreach ($results as $result) {
-                    $dr_id = $result['dr_id'];
-
-                    $parent_ids[] = $dr_id;
-                    $datarecords_to_delete[] = $dr_id;
-                }
-            }
-//print '<pre>'.print_r($datarecords_to_delete, true).'</pre>';  exit();
-
-            // Locate all datarecords that link to any of the datarecords that will be deleted...
-            //  they will need to have their cache entries rebuilt
-            $query = $em->createQuery(
-               'SELECT DISTINCT(gp.id) AS ancestor_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS gp WITH ancestor.grandparent = gp
-                WHERE ldt.descendant IN (:datarecord_ids)
-                AND ldt.deletedAt IS NULL
-                AND ancestor.deletedAt IS NULL AND gp.deletedAt IS NULL'
-            )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
-            $results = $query->getArrayResult();
-
-            $ancestor_datarecord_ids = array();
-            foreach ($results as $result)
-                $ancestor_datarecord_ids[] = $result['ancestor_id'];
-//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
-
-
-            // If the datarecord contains any datafields that are being used as a sortfield for
-            //  other datatypes, then need to clear the default sort order for those datatypes
-            $query = $em->createQuery(
-               'SELECT DISTINCT(l_dt.id) AS dt_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose = :field_purpose
-                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datarecords_to_delete' => $datarecords_to_delete,
-                    'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                )
-            );
-            $results = $query->getArrayResult();
-
-            $datatypes_to_reset_order = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $datatypes_to_reset_order[] = $dt_id;
-            }
-
-
-            // ----------------------------------------
-            // Since this needs to make updates to multiple tables, use a transaction
-            $conn = $em->getConnection();
-            $conn->beginTransaction();
-
-            // TODO - delete datarecordfield entries as well?
-            // TODO - delete radio/tagSelection entries as well?
-
-            // ...delete all linked_datatree entries that reference these datarecords
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
-                SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
-                WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
-                AND ldt.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'deleted_by' => $user->getId(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-
-            // ...delete each meta entry for the datarecords to be deleted
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
-                SET drm.deletedAt = :now
-                WHERE drm.dataRecord IN (:datarecord_ids)
-                AND drm.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-
-            // ...delete all of the datarecords
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecord AS dr
-                SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
-                WHERE dr.id IN (:datarecord_ids)
-                AND dr.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'deleted_by' => $user->getId(),
-                    'datarecord_ids' => $datarecords_to_delete
-                )
-            );
-            $rows = $query->execute();
-
-            // No error encountered, commit changes
-//$conn->rollBack();
-            $conn->commit();
-
-            // -----------------------------------
-            // Mark this now-deleted datarecord's parent (and all its parents) as updated unless
-            //  it was already a top-level datarecord
-            if ( !$is_top_level )
-                $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
-
-            // If this was a top-level datarecord that just got deleted...
-            if ( $is_top_level ) {
-                // ...then ensure no other datarecords think they're still linked to this
-                $dri_service->deleteCachedDatarecordLinkData($ancestor_datarecord_ids);
-            }
-
-            // Delete all search cache entries that could reference the deleted datarecords
-            $search_cache_service->onDatarecordDelete($datatype);
-            // Force anything that linked to this datatype to rebuild link entries since at least
-            //  one record got deleted
-            $search_cache_service->onLinkStatusChange($datatype);
-
-            // Force a rebuild of the cache entries for each datarecord that linked to the records
-            //  that just got deleted
-            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
-                $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('cached_table_data_'.$dr_id);
-            }
-
-
-            // ----------------------------------------
-            // Reset sort order for the datatypes found earlier
-            foreach ($datatypes_to_reset_order as $num => $dt_id)
-                $cache_service->delete('datatype_'.$dt_id.'_record_order');
-
-            // NOTE: don't actually need to delete cached graphs for the datatype...the relevant
-            //  plugins will end up requesting new graphs without the files for the deleted records
+            // Delete the datarecord
+            $ed_service->deleteDatarecord($datarecord, $user);
 
 
             // ----------------------------------------
@@ -634,7 +474,7 @@ class EditController extends ODRCustomController
                 )->setParameters(array('datatype' => $datatype->getId()));
                 $remaining = $query->getArrayResult();
 
-                // Determine where to redirect since the current datareccord is now deleted
+                // Determine where to redirect since the current datarecord is now deleted
                 $url = '';
                 if ($search_key == '') {
                     $search_key = $search_key_service->encodeSearchKey(
@@ -692,14 +532,14 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Deletes a user-uploaded file from the database.
+     * Renames the given file.
      *
-     * @param integer $file_id The database id of the File to delete.
+     * @param integer $file_id
      * @param Request $request
      *
      * @return Response
      */
-    public function deletefileAction($file_id, Request $request)
+    public function renamefileAction($file_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -707,16 +547,24 @@ class EditController extends ODRCustomController
         $return['d'] = "";
 
         try {
+            $post = $request->request->all();
+            if ( !isset($post['filename']) )
+                throw new ODRBadRequestException();
+
+
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab the necessary entities
@@ -751,68 +599,164 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Delete the decrypted version of this file from the server, if it exists
-            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
-            $filename = 'File_'.$file_id.'.'.$file->getExt();
-            $absolute_path = realpath($file_upload_path).'/'.$filename;
 
-            if ( file_exists($absolute_path) )
-                unlink($absolute_path);
-
-            // Save who deleted the file
-            $file->setDeletedBy($user);
-            $em->persist($file);
-            $em->flush($file);
-
-            // Delete the file and its current metadata entry
-            $file_meta = $file->getFileMeta();
-            $file_meta->setDeletedAt(new \DateTime());
-            $em->persist($file_meta);
-
-            $file->setDeletedBy($user);
-            $file->setDeletedAt(new \DateTime());
-            $em->persist($file);
-
-            $em->flush();
-
-
-            // -----------------------------------
-            // Mark this file's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // Delete cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
+            // Update the filename
+            $props = array(
+                'original_filename' => $post['filename']
+            );
+            $emm_service->updateFileMeta($user, $file, $props);
 
 
             // ----------------------------------------
-            // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-            //  event subscribers will prevent file encryption otherwise...
+            // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
-                $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
             catch (\Exception $e) {
-                // ...don't particularly want to rethrow the error since it'll interrupt
-                //  everything downstream of the event (such as file encryption...), but
-                //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                    throw $e;
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
+            // Need to fire off a DatarecordModified event because a file's public status was changed
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
-            // -----------------------------------
-            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
-            //  the upload button again since this datafield's only file just got deleted
-            if ( !$datafield->getAllowMultipleUploads() )
-                $return['d'] = array('need_reload' => true);
-
+            // TODO - return?
         }
         catch (\Exception $e) {
-            $source = 0x08e2fe10;
+            $source = 0xcc319597;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renames the given image.
+     *
+     * @param integer $image_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function renameimageAction($image_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['filename']) )
+                throw new ODRBadRequestException();
+
+
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Grab the necessary entities
+            /** @var Image $image */
+            $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
+
+            $datafield = $image->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datarecord = $image->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Images that aren't done encrypting shouldn't be modified
+            if ($image->getEncryptKey() == '')
+                throw new ODRNotFoundException('Image');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Update the filename
+            $props = array(
+                'original_filename' => $post['filename']
+            );
+            $emm_service->updateImageMeta($user, $image, $props);
+
+
+            // ----------------------------------------
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Need to fire off a DatarecordModified event because a file's public status was changed
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // TODO - return?
+        }
+        catch (\Exception $e) {
+            $source = 0xb2eda2e9;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -845,10 +789,11 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -960,8 +905,29 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this file's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Need to fire off a DatarecordModified event because a file's public status was changed
+            try {
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // TODO - implement searching based on public status of file/image?
         }
@@ -1002,8 +968,6 @@ class EditController extends ODRCustomController
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1015,6 +979,10 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
 
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
@@ -1092,13 +1060,127 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // Need to fire off a DatarecordModified event because an image's public status got changed
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
             // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {
             $source = 0xf051d2f4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Deletes a user-uploaded file from the database.
+     *
+     * @param integer $file_id The database id of the File to delete.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function deletefileAction($file_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // Grab the necessary entities
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getEncryptKey() === '')
+                throw new ODRNotFoundException('File');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Delete the file
+            $ed_service->deleteFile($file, $user);
+
+            // Don't need to fire off any events
+
+
+            // -----------------------------------
+            // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
+            //  the upload button again since this datafield's only file just got deleted
+            if ( !$datafield->getAllowMultipleUploads() )
+                $return['d'] = array('need_reload' => true);
+
+        }
+        catch (\Exception $e) {
+            $source = 0x08e2fe10;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1132,12 +1214,10 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab the necessary entities
@@ -1146,10 +1226,13 @@ class EditController extends ODRCustomController
             if ($image == null)
                 throw new ODRNotFoundException('Image');
 
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
+
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
-            $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
@@ -1174,51 +1257,17 @@ class EditController extends ODRCustomController
             // --------------------
 
 
-            // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
-            /** @var Image[] $images */
-            $images = $repo_image->findBy( array('parent' => $image->getId()) );
-            foreach ($images as $img) {
-                // Ensure no decrypted version of any of the thumbnails exist on the server
-                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
-                if ( file_exists($local_filepath) )
-                    unlink($local_filepath);
-
-                // Delete the alternate sized image from the database
-                $img->setDeletedBy($user);
-                $img->setDeletedAt(new \DateTime());
-                $em->persist($img);
-            }
-
-            // Ensure no decrypted version of the original image exists on the server
-            $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
-            if ( file_exists($local_filepath) )
-                unlink($local_filepath);
-
-            // Delete the image's meta entry
-            $image_meta = $image->getImageMeta();
-            $image_meta->setDeletedAt(new \DateTime());
-            $em->persist($image_meta);
-
             // Delete the image
-            $image->setDeletedBy($user);
-            $image->setDeletedAt(new \DateTime());
-            $em->persist($image);
+            $ed_service->deleteImage($image, $user);
 
-            $em->flush();
+            // Don't need to fire off any events
 
 
+            // -----------------------------------
             // If this datafield only allows a single upload, tell edit_ajax.html.twig to show the
             //  the upload button again since this datafield's only image got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
-
-
-            // ----------------------------------------
-            // Mark this image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // Delete cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
         }
         catch (\Exception $e) {
             $source = 0xee8e8649;
@@ -1273,6 +1322,10 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
+
+            // If called on an image that is resized, silently update the original image instead
+            if ( !is_null($image->getParent()) )
+                $image = $image->getParent();
 
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
@@ -1413,8 +1466,7 @@ class EditController extends ODRCustomController
                 $em->flush();
             }
 
-            // Don't need to mark the datareord as updated...it already happened when the images
-            //  got re-encrypted
+            // Don't need to fire off events here...ODRUploadService handles it
         }
         catch (\Exception $e) {
             $source = 0x4093b173;
@@ -1452,8 +1504,6 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1534,8 +1584,24 @@ class EditController extends ODRCustomController
                 $em->flush();
 
 
-            // Mark the image's datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // ----------------------------------------
+            // While this is a pretty weak reason to require a DatarecordModified event, it does
+            //  technically make a change to the cached entries, and any remote copies maintained
+            //  over RSS are technically out of sync until they redownload
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordModifiedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
         }
         catch (\Exception $e) {
             $source = 0x8b01c7e4;
@@ -1571,14 +1637,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1621,11 +1683,25 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Fire off a DatarecordPublicStatusChanged event...this will also end up triggering
+            //  the database changes and cache clearing that a DatarecordModified event would cause
 
-            // Delete cached search results involving this datarecord
-            $search_cache_service->onDatarecordPublicStatusChange($datarecord);
+            // NOTE: do NOT want to also fire off a DatarecordModified event...this would effectively
+            //  double the work any event subscribers (such as RSS) would have to do
+            try {
+                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                /** @var EventDispatcherInterface $event_dispatcher */
+                $dispatcher = $this->get('event_dispatcher');
+                $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
+                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
 
 
             // ----------------------------------------
@@ -1651,7 +1727,8 @@ class EditController extends ODRCustomController
     /**
      * Parses a $_POST request to update the contents of a datafield.
      * File and Image uploads are handled by @see FlowController
-     * Changes to RadioSelections are handled by EditController::radioselectionAction()
+     * Changes to RadioSelections are handled by EditController::radioselectionAction(), and changes
+     * to Tags are handled by TagsController::tagselectionAction()
      *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
@@ -1675,18 +1752,12 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
 
@@ -1706,7 +1777,6 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datafield');
 
 
-            // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -1719,7 +1789,6 @@ class EditController extends ODRCustomController
             if ( $datafield->getPreventUserEdits() )
                 throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
             // --------------------
-
 
             // ----------------------------------------
             // Determine class of form needed
@@ -1819,8 +1888,8 @@ class EditController extends ODRCustomController
                                 $new_value = '';
                         }
 
-
-                        // Save the value
+                        // Save the value...this will also fire a PostUpdate event, which will cause
+                        //  any datafields derived from this particular field to update if needed
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
 
 
@@ -1887,46 +1956,36 @@ class EditController extends ODRCustomController
                         }
 
                         // ----------------------------------------
-                        // Mark this datarecord as updated
-                        $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-                        // Delete any cached search results involving this datafield
-                        $search_cache_service->onDatafieldModify($datafield);
-                        $search_cache_service->onDatarecordModify($datarecord);
-
-
-                        // Unfortunately, need to determine whether derived datafield shennanigans
-                        //  were involved...
-                        $dt_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links...
-                        $derived_datafields = self::findDerivedDatafields($dt_array);
-
-                        $all_datafields = array($datafield->getId() => 1);
-                        if ( !empty($derived_datafields) ) {
-                            foreach ($derived_datafields as $derived_df_id => $source_df_ids) {
-                                if ( in_array($datafield->getId(), $source_df_ids) )
-                                    $all_datafields[$derived_df_id] = 1;
-                            }
+                        // Fire off an event notifying that the modification of the datafield is done
+                        try {
+                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                            /** @var EventDispatcherInterface $event_dispatcher */
+                            $dispatcher = $this->get('event_dispatcher');
+                            $event = new DatafieldModifiedEvent($datafield, $user);
+                            $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                         }
-                        $all_datafields = array_keys($all_datafields);
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
 
-                        $query = $em->createQuery(
-                           'SELECT dtsf
-                            FROM ODRAdminBundle:DataTypeSpecialFields dtsf
-                            WHERE dtsf.dataField IN (:datafield_list) AND dtsf.field_purpose = :field_purpose
-                            AND dtsf.deletedAt IS NULL'
-                        )->setParameters(
-                            array(
-                                'datafield_list' => $all_datafields,
-                                'field_purpose' => DataTypeSpecialFields::SORT_FIELD
-                            )
-                        );
-                        $dtsf_list = $query->getResult();
-                        /** @var DataTypeSpecialFields[] $dtsf_list */
-
-                        foreach ($dtsf_list as $dtsf) {
-                            // Delete the default ordering of any datatype that relies on these
-                            //  datafields
-                            $cache_service->delete('datatype_'.$dtsf->getDataType()->getId().'_record_order');
+                        // Mark this datarecord as updated
+                        try {
+                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+                            /** @var EventDispatcherInterface $event_dispatcher */
+                            $dispatcher = $this->get('event_dispatcher');
+                            $event = new DatarecordModifiedEvent($datarecord, $user);
+                            $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
                         }
                     }
                 }
@@ -1948,56 +2007,6 @@ class EditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * TODO - move this to a service?  but it would have to import the symfony container...
-     * Looks through the cached datatype array to determine whether any of the used render plugins
-     * derive values for any of their datafields.
-     *
-     * @param array $datatype_array
-     *
-     * @return array
-     */
-    private function findDerivedDatafields($datatype_array)
-    {
-        $derived_datafields = array();
-
-        foreach ($datatype_array as $dt_id => $dt) {
-            // For each render plugin this datatype is using...
-            foreach ($dt['renderPluginInstances'] as $num => $rpi) {
-                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-
-                // Check whether any of the renderPluginField entries are derived prior to attempting to
-                //  load the renderPlugin itself
-                $load_render_plugin = false;
-                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
-                    if ( isset($rpf['properties']['is_derived']) ) {
-                        $load_render_plugin = true;
-                        break;
-                    }
-                }
-
-                // If a datafield from this plugin is derived...
-                if ($load_render_plugin) {
-                    /** @var DatafieldDerivationInterface $render_plugin */
-                    $render_plugin = $this->container->get($plugin_classname);
-
-                    if ($render_plugin instanceof DatafieldDerivationInterface) {
-                        // ...then request an array of the datafields that are derived from some other
-                        //  field so the rest of FakeEdit can use it
-                        $tmp = $render_plugin->getDerivationMap($rpi);
-                        foreach ($tmp as $derived_df_id => $source_datafields)
-                            $derived_datafields[$derived_df_id] = $source_datafields;
-
-                        // TODO - multiple plugins attempting to derive the value in the same datafield?
-                    }
-                }
-            }
-        }
-
-        return $derived_datafields;
     }
 
 
@@ -2509,6 +2518,12 @@ class EditController extends ODRCustomController
                     // User can't view the results of this search key, redirect to the one they can view
                     return $search_redirect_service->redirectToEditPage($datarecord_id, $search_theme_id, $filtered_search_key, $offset);
                 }
+                $search_params = $search_key_service->decodeSearchKey($search_key);
+
+                // Ensure the tab refers to the given search key
+                $expected_search_key = $odr_tab_service->getSearchKey($odr_tab_id);
+                if ( $expected_search_key !== $search_key )
+                    $odr_tab_service->setSearchKey($odr_tab_id, $search_key);
 
                 // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
                 //  will display stuff in a different order
@@ -2516,7 +2531,23 @@ class EditController extends ODRCustomController
                 $sort_directions = array();
 
                 $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
-                if ( is_null($sort_criteria) ) {
+                if ( !is_null($sort_criteria) ) {
+                    // Prefer the criteria from the user's session whenever possible
+                    $sort_datafields = $sort_criteria['datafield_ids'];
+                    $sort_directions = $sort_criteria['sort_directions'];
+                }
+                else if ( isset($search_params['sort_by']) ) {
+                    // If the user's session doesn't have anything but the search key does, then
+                    //  use that
+                    foreach ($search_params['sort_by'] as $display_order => $data) {
+                        $sort_datafields[$display_order] = intval($data['sort_df_id']);
+                        $sort_directions[$display_order] = $data['sort_dir'];
+                    }
+
+                    // Store this in the user's session
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
+                }
+                else {
                     // No criteria set...get this datatype's current list of sort fields, and convert
                     //  into a list of datafield ids for storing this tab's criteria
                     foreach ($datatype->getSortFields() as $display_order => $df) {
@@ -2525,19 +2556,20 @@ class EditController extends ODRCustomController
                     }
                     $odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
                 }
-                else {
-                    // Load the criteria from the user's session
-                    $sort_datafields = $sort_criteria['datafield_ids'];
-                    $sort_directions = $sort_criteria['sort_directions'];
-                }
 
                 // No problems, so get the datarecords that match the search
-                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
-                if ( is_null($cached_search_results) ) {
-                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                $original_datarecord_list = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($original_datarecord_list) ) {
+                    $original_datarecord_list = $search_api_service->performSearch(
+                        $datatype,
+                        $search_key,
+                        $user_permissions,
+                        false,  // only want the grandparent datarecord ids that match the search
+                        $sort_datafields,
+                        $sort_directions
+                    );
+                    $odr_tab_service->setSearchResults($odr_tab_id, $original_datarecord_list);
                 }
-                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------
@@ -2830,7 +2862,7 @@ class EditController extends ODRCustomController
             // Generate a csrf token to use if the user wants to revert back to an earlier value
             $current_typeclass = $datafield->getFieldType()->getTypeClass();
 
-            /** @var \Symfony\Component\Security\Csrf\CsrfTokenManager $token_generator */
+            /** @var CsrfTokenManager $token_generator */
             $token_generator = $this->get('security.csrf.token_manager');
 
             $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();

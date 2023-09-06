@@ -11,12 +11,22 @@
 
     <div id="odr_radio_option_design" class="ODRRadioOptionWrapper_design pure-form">
         <div class="ODRThemeElement">
+        {% if datafield.masterDataField is null %}
             <div class="ODRTagMoveHelpDiv">
                 Saving will happen automatically as changes are made.  Press the escape key to close without saving.
             </div>
+        {% else %}
+            <div class="ODRTagMoveHelpDiv">
+                The contents of this field are derived from the master template, and can't be changed from here.
+            </div>
+        {% endif %}
         {% if sort_by_name %}
             <div class="ODRTagMoveHelpDiv">
                 After saving, the system will automatically update the radio options to be in alphabetical order.
+            </div>
+        {% elseif datafield.masterDataField is not null %}
+            <div class="ODRTagMoveHelpDiv">
+                The radio options can still be moved, however, by clicking and dragging with the <i class="fa fa-arrows Cursor"></i> icon.
             </div>
         {% else %}
             <div class="ODRTagMoveHelpDiv">
@@ -249,6 +259,7 @@
                 // Reload parts of the page so that the new radio option shows up
                 ReloadDatafield(data.d.datafield_id);
                 loadRadioOptionEditDialog(data.d.datafield_id, data.d.radio_option_id);
+                FindDuplicateRadioOptionNames();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -294,6 +305,7 @@
                 // Remove the option from this modal
                 $("#radio_option_" + radio_option_id).remove();
                 initRadioOptions();
+                FindDuplicateRadioOptionNames();
 
                 // Also reload the datafield on the page so it no longer displays the deleted option
                 ReloadDatafield(data.d.datafield_id);

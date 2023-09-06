@@ -45,6 +45,8 @@
  *
  * Any place that fires off this event should refresh the File/Image before continuing with the
  * encryption process, because the properties (and where to find it, see getFile()) might have changed.
+ *
+ * The docs for FilePostEncryptEvent may also be of interest.
  */
 
 namespace ODR\AdminBundle\Component\Event;
@@ -133,9 +135,11 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
+        $typeclass = $this->datafield->getFieldType()->getTypeClass();
+
         return array(
             self::NAME,
-            'file '.$this->file->getId(),
+            $typeclass.' '.$this->file->getId(),
             'df '.$this->datafield->getId(),
         );
     }

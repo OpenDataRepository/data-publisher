@@ -47,13 +47,18 @@
         // If user is on the base search page for a datatype...
         if (window.location.hash.length === 0) {
             // ...then immediately trigger a search with "default" criteria
-            doSearch();
+            doSearch('{{ path('odr_search_results') }}');
 
             // Don't immediately return...the search controls need initialization
             // return;
         }
     });
 
+    /**
+     * Toggles the search sidebar between "basic" and "advanced" modes.  In "basic" mode, only the
+     * general search box can be modified...in "advanced" mode, all datafields and metadata can be
+     * modified.
+     */
     function changeSearch() {
         if ($("#search_type").val() === 'basic') {
             // Show all advanced search datafields
@@ -81,19 +86,46 @@
         }
     }
 
+    /**
+     * Reloads the page so the default search is guaranteed to display.
+     */
     function doReset() {
         {# Redirect to get rid of anything that would match the route 'odr_search_immediate' #}
         window.location.href = '{{ path('odr_search', {'search_slug': search_slug}) }}';
     }
 
-    function doSearch() {
+    /**
+     * Serializes the search sidebar and POSTs the data to the given URL.
+     *
+     * If the given URL is equivalent to the path for the route 'odr_search_results', then a
+     * regular search is triggered, and the user is redirected to the search results afterwards.
+     *
+     * If a callback function is provided, then it will be given whatever the POST returned.
+     *
+     * @param {String} target_url
+     * @param {HTMLElement} context
+     * @param {Function} callback
+     */
+    function doSearch(target_url, context = undefined, callback = undefined) {
+        // ----------------------------------------
+        var is_actual_search = true;
+        if ( target_url != '{{ path('odr_search_results') }}' )
+            is_actual_search = false;
+
+        if (context == undefined)
+            context = $("#odr_content").find("#ODRSearchSidebar").first();
+
+        if (callback == undefined)
+            callback = function() {}
+
+        // ----------------------------------------
         // Values for Radio datafields need to be manually set
-        $(".ODRRadioSearchDiv").each(function () {
+        $(context).find(".ODRRadioSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
 
             // Reset the input's value since this is rebuilding the search value from scratch
-            var datafield = $("#datafield_" + datafield_id);
+            var datafield = $(this).children("#datafield_" + datafield_id);
             datafield.val('');
 
             var str = '';
@@ -107,8 +139,7 @@
                     return;
 
                 has_selections = true;
-
-                if (!first_selection) {
+                if ( !first_selection ) {
                     str += ',' + value;
                 }
                 else {
@@ -122,27 +153,26 @@
         });
 
         // Same for tag datafields
-        $(".ODRTagSearchDiv").each(function () {
+        $(context).find(".ODRTagSearchDiv").each(function () {
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
 
             // Reset the input's value since this is rebuilding the search value from scratch
-            var datafield = $("#datafield_" + datafield_id);
+            var datafield = $(this).children("#datafield_" + datafield_id);
             datafield.val('');
 
             var str = '';
             var first_selection = true;
             var has_selections = false;
 
-            $(this).find('input')/*.not('.ODRSearchParentTag')*/.each(function () {
+            $(this).find('input').each(function () {
                 // Grab the tag
                 var value = $(this).val().trim();
                 if (value == '')
                     return;
 
                 has_selections = true;
-
-                if (!first_selection) {
+                if ( !first_selection ) {
                     str += ',' + value;
                 }
                 else {
@@ -156,7 +186,7 @@
         });
 
         // Ensure the two parts of the search criteria for a file/image match
-        $(".ODRFileDatafieldName").each(function () {
+        $(context).find(".ODRFileDatafieldName").each(function () {
             var df_id_data = $(this).attr('id').split(/_/);
             var df_id = df_id_data[1];
 
@@ -174,19 +204,45 @@
             }
         });
 
-        // Request search results
-        var url = '{{ path('odr_search_results') }}';
 
-        showSearchOverlay( $("#ODRSearchIntent").val() );
+        var search_form = $(context).find("#search_form");
+        // console.log(search_form);
 
+        var post_data = $(search_form).serialize();
+        // var df_values = post_data.split(/&/);
+        // var cleaned = [];
+        // $.each(df_values, function(index, elem) {
+        //     if ( elem.charAt(elem.length-1) !== '=' )
+        //         cleaned.push(elem);
+        // });
+        // console.log( cleaned.join('&') );
+
+        // NOTE: due to advanced search removing all disabled attributes, the resulting post will
+        //  typically have a bunch of blank entries...ODR automatically filters these superfluous
+        //  entries out when it returns the search key
+
+        // ----------------------------------------
         // TODO - need to communicate which theme to use...
+
+        // Request search results
+        if ( is_actual_search )
+            showSearchOverlay( $("#ODRSearchIntent").val() );
 
         $.ajax({
             type: 'POST',
-            url: url,
+            url: target_url,
             dataType: 'json',
-            data: $("#search_form").serialize(),
+            data: post_data,
             success: function (data, textStatus, jqXHR) {
+                // If this wasn't a "regular" search request, then execute the given callback
+                if ( !is_actual_search ) {
+                    callback(data);
+                    return true;
+                }
+
+                // ----------------------------------------
+                // If this was a "regular" search request, then do required setup before redirecting
+                //  the user
                 if ( $("#ODRSearchIntent").val() === 'searching' ) {
                     // Overwrite any currently existing tab id, since a new search was performed
                     if (window.sessionStorage.getItem('odr_tab_id')) {
@@ -209,13 +265,13 @@
                     url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
                     // Save the search key so TODO
-                    $("#ODRSidebarSearchKey").val(data.d.search_key);
+                    $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
 
                     // UpdateURL() will end up forcing a hashchange event one way or another
                     UpdateURL(url);
                     // hideSearchOverlay();    // Don't hide search overlay here, rendering takes longer than searching
                 }
-                else if ( $("#ODRSearchIntent").val() === 'linking' ) {
+                else if ( $(context).find("#ODRSearchIntent").val() === 'linking' ) {
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length - 10);
                     url += data.d.search_key + '/1/linking';
@@ -226,10 +282,10 @@
                         url: url,
                         dataType: 'json',
                         success: function (data, textStatus, jqXHR) {
-                            $("#ODRSidebarSearchKey").val(data.d.search_key);
-                            $("#ODRSearchBoxContent").html(data.d.html);
+                            $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
+                            $(context).find("#ODRSearchBoxContent").html(data.d.html);
 
-                            hideSearchOverlay();
+                            // hideSearchOverlay();
                         }
                     });
                 }
@@ -237,6 +293,11 @@
             error: function (jqXHR, textStatus, errorThrown) {
                 // TODO - should everything get reset on an error?
                 // doReset();
+
+                // If an error was encountered and this wasn't a real search, it was most likely
+                //  a request from one of ODR's modals...close the modal so the error can be seen
+                if ( !is_actual_search )
+                    closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
 
@@ -254,12 +315,75 @@
             }
         });
     }
+
+    /**
+     * When a tag is clicked, it's useful to visually notify the state of the tag's parent too...
+     * @param {HTMLElement} source_element
+     */
+    function applyToTagParents(source_element) {
+        var parent_tag = $(source_element).parent().parent().not('div');
+        if ( $(parent_tag).length === 0)
+            return;
+
+        // $(parent_tag) should be a <li class="ODRTagItem"> element
+        var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
+        var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+        var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
+        // var total_count = $(parent_tag).children('ul').find('.fa').length;
+        if (selected_count === 0 && unselected_count === 0) {
+            // No children selected, so this one should be unselected too
+            $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+        }
+        /*
+        else if (selected_count === total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
+        }
+        else if (unselected_count === total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
+        }
+        */
+        else if (selected_count > 0) {
+            // Some children selected, so this one should be partially selected
+            $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+        }
+        else if (unselected_count > 0) {
+            // No children are selected, but at least one child is unselected...so this one
+            //  should be partially unselected
+            $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+        }
+
+        // The parent tag should no longer have a selection of its own
+        $(parent_tag).children('label').find('input').val('');
+
+        // Need to recursively apply this stuff to the parent tag as well
+        applyToTagParents( $(parent_tag) );
+    }
+
+
+    /**
+     * When a tag is clicked, all of its children need to have their selections cleared...
+     * @param {HTMLElement} source_element
+     */
+    function applyToTagChildren(source_element) {
+        var child_tag_group = $(source_element).children('.ODRTagGroup').first();
+        if ( $(child_tag_group).length === 0 )
+            return;
+
+        $(child_tag_group).find('i').each(function() {
+            $(this).removeClass('fa-check fa-ban partial');
+        });
+        $(child_tag_group).find('input').each(function() {
+            $(this).val('');
+        });
+    }
 </script>
 
 <script>
 
     var search_content = "";
-
+{#
     $(function() {
         setupBackgroundImage();
     });
@@ -275,6 +399,7 @@
         }
         {% endif %}
     }
+#}
 </script>
 
 {% endspaceless %}

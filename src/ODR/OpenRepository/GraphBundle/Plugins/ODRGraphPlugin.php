@@ -18,6 +18,8 @@ use ODR\AdminBundle\Entity\DataFields;
 // Symfony
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Bridge\Monolog\Logger;
+use Pheanstalk\Pheanstalk;
 
 abstract class ODRGraphPlugin
 {
@@ -25,6 +27,11 @@ abstract class ODRGraphPlugin
      * @var EngineInterface
      */
     private $templating;
+
+    /**
+     * @var Pheanstalk
+     */
+    private $pheanstalk;
 
     /**
      * @var string
@@ -36,6 +43,10 @@ abstract class ODRGraphPlugin
      */
     private $odr_web_directory;
 
+    /**
+     * @var Logger
+     */
+    private $logger;
 
     /**
      * GraphPlugin constructor.
@@ -43,17 +54,21 @@ abstract class ODRGraphPlugin
      * @param EngineInterface $templating
      * @param string $odr_tmp_directory
      * @param string $odr_web_directory
+     * @param Logger $logger
      */
     public function __construct(
         EngineInterface $templating,
+        Pheanstalk $pheanstalk,
         string $odr_tmp_directory,
-        string $odr_web_directory
+        string $odr_web_directory,
+        Logger $logger
     ) {
         $this->templating = $templating;
+        $this->pheanstalk = $pheanstalk;
         $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
+        $this->logger = $logger;
     }
-
 
     /**
      * Gets phantomJS to build a static graph, and moves the resulting SVG into the proper directory.
@@ -61,6 +76,7 @@ abstract class ODRGraphPlugin
      * @param array $page_data A Map holding all the data that is needed for creating the graph
      *                          html, and for the phantomjs js server to render it.
      * @param string $filename The name that the svg file should have.
+     *
      *
      * @throws \Exception
      *
@@ -78,7 +94,6 @@ abstract class ODRGraphPlugin
         $datatype_folder = 'datatype_'.$page_data['target_datatype_id'].'/';
         $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
 
-
         // The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
         $output1 = $this->templating->render(
             $page_data['template_name'], $page_data
@@ -94,32 +109,41 @@ abstract class ODRGraphPlugin
         // The final svg needs to be in a web-accessible directory
         $output_svg = $output_path.'graphs/'.$datatype_folder.$filename;
 
+        // Create node call
+        $this->logger->debug('ODRGraphPlugin:: IN THE GRAPH RENDERER');
+        $this->logger->debug('ODRGraphPlugin:: ' . "Chart__".$file_id_list.'.html');
+        $this->logger->debug('ODRGraphPlugin:: ' . $page_data['odr_chart_id']);
+        $this->logger->debug('ODRGraphPlugin:: ' . $output_tmp_svg);
+        $this->logger->debug('ODRGraphPlugin:: ' . __DIR__);
+
         // JSON data to be passed to the phantom js server
         $json_data = array(
-            "data" => array(
-                'URL' => $output_path."Chart__".$file_id_list.'.html',
-                'selector' => $page_data['odr_chart_id'],
-                'output' => $output_tmp_svg
-            )
+            'input_html' => "Chart__".$file_id_list.'.html',
+            'output_svg' => $output_tmp_svg,
+            'selector' => $page_data['odr_chart_id']
         );
+        $this->logger->debug('ODRGraphPlugin:: JSON Encode');
+        $payload = json_encode($json_data);
+        $this->logger->debug('ODRGraphPlugin:: Get Pheanstalk');
+        $this->logger->debug('ODRGraphPlugin:: Pheanstalk Put');
+        $this->pheanstalk->useTube('create_graph_preview')->put($payload, 1, 0); // , $priority, $delay);
 
-        $data_string = json_encode($json_data);
-
-        // Curl request to the PhantomJS server
-        $ch = curl_init('localhost:9494');
-
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-Type: application/json',
-            'Content-Length: ' . strlen($data_string)
-        ));
-
-        $response = curl_exec($ch);
-        curl_close($ch);
+        $this->logger->debug('ODRGraphPlugin:: Start waiting.');
+        // Wait for JobID for 2 seconds
+        $wait_time = 0;
+        for($i = 0; $i < 50; $i++) {
+            usleep(40000);
+            if ( file_exists($output_tmp_svg) ) {
+                // go on to processing if file exists.
+                $wait_time = $i;
+                break;
+            }
+        }
+        $this->logger->debug('ODRGraphPlugin:: Done waiting: ' . $wait_time * 40 . "ms");
 
         // Parse output to fix CamelCase in SVG element
         if ( file_exists($output_tmp_svg) ) {
+            $this->logger->debug('ODRGraphPlugin:: Output File Exists');
             $created_file = file_get_contents($output_tmp_svg);
             $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
             $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
@@ -134,6 +158,7 @@ abstract class ODRGraphPlugin
             return '/uploads/files/graphs/'.$datatype_folder.$filename;
         }
         else {
+            $this->logger->debug('ODRGraphPlugin:: Output File Does Not Exist');
             if ( strlen($output_svg) > 40 ) {
                 $output_svg = "..." . substr($output_svg,(strlen($output_svg) - 40), strlen($output_svg));
             }
@@ -178,4 +203,20 @@ abstract class ODRGraphPlugin
             }
         }
     }
+
+    // TODO - is this even useful to have anymore?  it was in DatabaseInfoService, under the function resetDatatypeSortOrder()
+//    public static function deleteCachedGraphsByDatatype($datatype_id)
+//    {
+//        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+//        if ( file_exists($graph_filepath) ) {
+//            $files = scandir($graph_filepath);
+//            foreach ($files as $filename) {
+//                // TODO - assumes linux?
+//                if ($filename === '.' || $filename === '..')
+//                    continue;
+//
+//                unlink($graph_filepath.'/'.$filename);
+//            }
+//        }
+//    }
 }

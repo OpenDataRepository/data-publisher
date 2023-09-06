@@ -58,6 +58,21 @@
         </div>
     {% endif %}
 
+    <div id="ThemeDesignWrapperMessage">
+        <div class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Larger Browser Recommended</h3>
+                    <div class="ODRBodyContent">
+                        <p>To successfully use the design interface, a browser with a
+                            width of at least 1500 pixels is recommended.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <div id="ThemeDesignWrapper">
         <div id="ThemeLeftColumn" class="ODRContentWrapper">
             <div class="ODRThemeElement">
@@ -109,6 +124,7 @@
             {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'site_baseurl': site_baseurl,
 
                 'initial_datatype_id': initial_datatype_id,
                 'initial_theme_id': theme.id,
@@ -431,10 +447,11 @@
                 });
 
                 // ----------------------------------------
-                // Delete ThemeElement/Group Box is always available...the user has admin permissions
-                //  to the local dataype, and is only modifying a copy of the master theme for a
+                // Delete ThemeElement/Group Box is only available when the themeElement is empty
+                // Permissions aren't a factor here, because the user always has permissions to delete
+                //  from the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
-                if ( !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
+                if ( !props.has_render_plugin_instance && !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
                     tools.del_dt.removeClass('faded');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
@@ -446,7 +463,6 @@
                 }
                 else {
                     tools.del_dt.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
-                    // tools.del_dt.unbind('click');
                 }
                 break;
 
@@ -611,8 +627,7 @@
         });
 
         // Don't want to be able to highlight everything...
-        $("#content").find(".ODRInnerBox").disableSelection();
-
+        $("#odr_content").find(".ODRInnerBox").disableSelection();
 
         // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
         //  setup for introJS is run...

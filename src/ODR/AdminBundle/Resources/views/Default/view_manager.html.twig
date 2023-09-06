@@ -63,7 +63,7 @@
 {% if notitle is defined %}
 {% else %}
     <h1 class="no-margin-top-phone">
-        <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        <span>{{ title }} &raquo; <span class="ODRRecordName">{{ datatype.dataTypeMeta.shortName }}</span></span>
         {% if page_type != 'edit' %}
         <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
         {% endif %}
@@ -93,7 +93,7 @@
         {% if display_add_record %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ODRAddRecord" class="pure-button">
-                    Add New Record
+                    Add Record
                 </label>
             </li>
         {% endif %}

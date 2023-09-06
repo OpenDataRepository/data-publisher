@@ -105,7 +105,9 @@
         {% for dr_id, file_name in odr_chart_output_files %}
             {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
             <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
-                <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
+                <img class="pure-u-1" src="{{ path('odr_plugin_graph_static',
+                    {'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id }
+                ) }}.svg?nocache=1" />
                 <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
             </div><!-- end of .ODRGraph -->
             {% endif %}
@@ -240,6 +242,8 @@ var SetupGraphs_{{ odr_chart_id }} = function(graph_type = undefined) {
     if ( graph_type === undefined )
         $("#{{ odr_chart_id }}_graph_type").val();
     odr_chart_{{ odr_chart_id }}.GraphData(graph_type);
+    // Block 2
+    window.odr_graph_status = 'ready';
 };
 
 var {{ odr_chart_id }}_initialized = false;

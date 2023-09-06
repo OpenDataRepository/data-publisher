@@ -22,6 +22,8 @@
     'initial_datarecord': datarecord,
     'initial_theme_id': initial_theme_id,
 
+    'is_datatype_admin': is_datatype_admin,
+
     'is_top_level': is_top_level,
 } %}
 
@@ -39,6 +41,13 @@
         $(window).unbind('resize').resize(function() {
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
             WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+        });
+
+        // Hide child datatypes without theme elements
+        $(".ODRChildDatatype").each(function(index,elem) {
+            var child_theme_elements = $(elem).find('.ODRThemeElement,.ODRRenderPluginContent');
+            if ( child_theme_elements.length == 0 )
+                $(elem).parent().parent().hide();
         });
 
         // Resize everything prior to divs being hidden

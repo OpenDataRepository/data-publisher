@@ -1,7 +1,7 @@
 odr_plugins.base.map:
     name: Map Plugin
     category: Base
-    datatype: true
+    plugin_type: datatype
     render: true
     version: 1.4.0
     override_fields: true

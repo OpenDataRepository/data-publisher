@@ -86,6 +86,9 @@ class CheminReferencesPlugin implements DatatypePluginInterface
 
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Grab various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
 
@@ -106,8 +109,34 @@ class CheminReferencesPlugin implements DatatypePluginInterface
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
+                if ($df == null) {
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // The plugin can't continue executing in either case...
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
+                else {
+                    // All of this plugin's fields really should be public...so actually throw an
+                    //  error if any of them aren't and the user can do something about it
+
+                    // If the datafield is non-public...
+                    $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
+                    if ( $df_public_date == '2200-01-01 00:00:00' ) {
+                        if ( !$is_datatype_admin )
+                            // ...but the user can't do anything about it, then just refuse to execute
+                            return '';
+                        else
+                            // ...the user can do something about it, so they need to fix it
+                            throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are part of a reference MUST be public.');
+                    }
+                }
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
@@ -117,7 +146,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface
                 // The datafield may have a render plugin that should be executed, but only if
                 //  it's not a file field...
                 if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
-                    foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['render'] === true ) {
                             // ...if it does, then create an array entry for it
                             $datafield_mapping[$key] = array(
@@ -185,6 +214,17 @@ class CheminReferencesPlugin implements DatatypePluginInterface
 
                     $datafield_mapping[$key] = trim($value);
                 }
+            }
+
+            // Need to try to ensure urls are valid...
+            if ( $datafield_mapping['url'] !== '' ) {
+                // Ensure that DOIs that aren't entirely links still are valid
+                if ( strpos($datafield_mapping['url'], 'doi:') === 0 )
+                    $datafield_mapping['url'] = 'https://doi.org/'.trim( substr($datafield_mapping['url'], 4) );
+
+                // Ensure that the values have an 'https://' prefix
+                if ( strpos($datafield_mapping['url'], 'http') !== 0 )
+                    $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
             }
 
             // Going to render the reference differently if it's top-level...

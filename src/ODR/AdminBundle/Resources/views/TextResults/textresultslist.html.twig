@@ -83,7 +83,7 @@
             #}
             "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
 
-            {# have  web/js/mylibs/jquery_datatables/datatables.input.js  handle pagination #}
+            {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
 
             "responsive": true,
@@ -102,6 +102,9 @@
 
                 // Need to fix problems with the 'order' parameter before it gets saved...
                 data.order = datatablesStateSave_cleanOrder(data.order);
+                // Need these in there too
+                data.datatype_id = {{ datatype.id }};
+                data.theme_id = {{ theme.id }};
                 // console.log('state save', data);
 
                 $.ajax({
@@ -122,26 +125,69 @@
                     "dataType": "json",
                     "type": "POST",
                     "success": function(json) {
-                        // Symfony properly quotes everything in the JSON return, but DataTables state loading will break if some of the properties are strings...
-                        if ( json.start !== undefined) {
-                            // don't seem to need to convert the json.time parameter...
-                            json.start = parseInt(json.start);
-                            json.length = parseInt(json.length);
+                        // console.log('state load raw', json);
+
+                        // There are two entries in the data received from ODR...
+                        state = json.state;
+                        var sort_criteria = json.sort_criteria;
+
+                        // Symfony properly quotes everything in the JSON return, but DataTables
+                        //  state loading will break if some of the properties are strings...
+                        if ( state.start !== undefined) {
+                            state.start = parseInt(state.start);
+                            state.length = parseInt(state.length);
+
+                            // Don't seem to need to convert the json.time parameter
                         }
-                        if ( json.columns !== undefined ) {
-                            for (var i = 0; i < json.columns.length; i++) {
-                                if ( json.columns[i].visible === "false" )
-                                    json.columns[i].visible = false;
-                                else if ( json.columns[i].visible === "true" )
-                                    json.columns[i].visible = true;
+                        if ( state.columns !== undefined ) {
+                            for (var i = 0; i < state.columns.length; i++) {
+                                if ( state.columns[i].visible === "false" )
+                                    state.columns[i].visible = false;
+                                else if ( state.columns[i].visible === "true" )
+                                    state.columns[i].visible = true;
                             }
                         }
 
-                        state = json;
+                        // Need to also convert any sort_criteria into the correct datatables.js ordering
+                        // console.log( sort_criteria );
+                        if ( sort_criteria !== undefined && sort_criteria.datafield_ids.length > 0 ) {
+                            var table_obj = $("#TextResults").DataTable();
+
+                            var datafield_ids = sort_criteria.datafield_ids;
+                            var sort_directions = sort_criteria.sort_directions;
+
+                            // Need to use a for loop here, because there could be multiple sort_criteria
+                            var new_col_order = [];
+                            for (var i = 0; i < datafield_ids.length; i++) {
+                                var df_id = datafield_ids[i];
+                                var dir = sort_directions[i];
+
+                                // Use the internal name selector provided by datatables.js
+                                // @see TableThemeHelperService::getColumnNames()
+                                var col = table_obj.column( df_id + ':name' ).index();
+                                if ( col !== undefined ) {
+                                    // If the datafield being sorted by is in the table, then instruct
+                                    //  datatables.js to sort on that column
+                                    new_col_order.push([col, dir]);
+                                }
+                                else {
+                                    // If any datafield in the sort_criteria is not in the table,
+                                    //  then default back to the default_sortorder column
+                                    new_col_order = [ [1, "asc"] ];
+                                    break;
+                                }
+                            }
+
+                            // Don't need to draw after setting the order, apparently...most likely
+                            //  because the table doesn't actually exist yet
+                            // console.log( 'new_col_order', new_col_order );
+                            if ( new_col_order.length > 0 )
+                                table_obj.order( new_col_order );
+                        }
                     }
                 });
 
-                // console.log('state load', state);
+                // console.log('state load after', state);
                 return state;
             },
 
@@ -299,9 +345,8 @@
         }
     });
 
-    // Enable users to download files straight from the table
     $("#TextResults").on('draw.dt', function(e, settings) {
-        // Attach required attributes to any <a> element in the table
+        // Enable users to download files straight from the table
         $(this).find('a').each(function() {
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');

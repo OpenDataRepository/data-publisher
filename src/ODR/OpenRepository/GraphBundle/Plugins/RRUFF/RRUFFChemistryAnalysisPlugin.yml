@@ -1,7 +1,7 @@
 odr_plugins.rruff.chemistry_analysis:
     name: RRUFF Chemistry Analysis Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: false
     version: 0.0.1
     override_fields: false
@@ -69,7 +69,7 @@ odr_plugins.rruff.chemistry_analysis:
             description:
             type: Image
             properties:
-                - single_uploads_only
+#                - single_uploads_only    # More recent chemistry entries have more than one image
 
         microprobe_file:
             name: Microprobe Data

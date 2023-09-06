@@ -53,7 +53,7 @@ class ODRTabHelperService
         $this->request_stack = $request_stack;
         $this->token_generator = $token_generator;
 
-        $this->default_page_length = 100;
+        $this->default_page_length = 25;
     }
 
 
@@ -65,6 +65,49 @@ class ODRTabHelperService
     public function createTabId()
     {
         return substr($this->token_generator->generateToken(), 0, 15);
+    }
+
+
+    /**
+     * Returns the search_key this tab is currently displaying.
+     *
+     * @param string $odr_tab_id
+     * @return string|null
+     */
+    public function getSearchKey($odr_tab_id)
+    {
+        // Check that the requested tab exists in the user's session
+        $tab_data = self::getTabData($odr_tab_id);
+        if ( is_null($tab_data) )
+            return null;
+
+        // Return the stored search key if it exists
+        if ( isset($tab_data['search_key']) )
+            return $tab_data['search_key'];
+        else
+            return null;
+    }
+
+
+    /**
+     * Sets the search_key this tab is currently displaying.
+     *
+     * IMPORTANT: deletes all other data in the session for this tab...needing to change the search
+     * key implies the rest of the settings are also out of date.
+     *
+     * @param string $odr_tab_id
+     * @param string $search_key
+     * @return bool
+     */
+    public function setSearchKey($odr_tab_id, $search_key)
+    {
+        if ( $odr_tab_id == '' || $search_key == '' )
+            return false;
+
+        // Overwrite any existing data for this tab with the new search key
+        self::setTabData($odr_tab_id, array('search_key' => $search_key));
+
+        return true;
     }
 
 
@@ -172,6 +215,17 @@ class ODRTabHelperService
 
 
     /**
+     * Returns whatever ODR's default page length for a search results page is.
+     *
+     * @return int
+     */
+    public function getDefaultPageLength()
+    {
+        return $this->default_page_length;
+    }
+
+
+    /**
      * Returns the page length (currently either 10, 25, 50, or 100) for the specified browser tab.
      * If the tab doesn't have a page length value set, then a default value of 100 is set.
      *
@@ -183,9 +237,14 @@ class ODRTabHelperService
     {
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
-        if ( is_null($tab_data) || !isset($tab_data['page_length']) ) {
-            // If for some reason this value doesn't exist, set to the default page_length
-            $tab_data = array('page_length' => $this->default_page_length);
+        if ( is_null($tab_data) ) {
+            // If no data exists for this tab, then create an entry for it
+            $tab_data = array();
+        }
+
+        if ( !isset($tab_data['page_length']) ) {
+            // If the page_length value doesn't exist, set to the default page_length
+            $tab_data['page_length'] = $this->default_page_length;
             self::setTabData($odr_tab_id, $tab_data);
 
             return $this->default_page_length;
@@ -318,11 +377,21 @@ class ODRTabHelperService
         if ( is_null($tab_data) )
             return false;
 
-        // Store the resulting tab data
-        $tab_data['sort_criteria'] = array(
-            'datafield_ids' => $datafield_ids,
-            'sort_directions' => $sort_directions,
-        );
+        if ( !empty($datafield_ids) && !empty($sort_directions) ) {
+            // If both datafields and sort directions are specified, then store those
+            $tab_data['sort_criteria'] = array(
+                'datafield_ids' => $datafield_ids,
+                'sort_directions' => $sort_directions,
+            );
+        }
+        else {
+            // ...if not, then interpret it as a request to clear any existing sort criteria
+            unset( $tab_data['sort_criteria'] );
+
+            // Doing this will typically cause ODR to revert back to any "sort_by" criteria the
+            //  search key defines...and if that doesn't exist, then to the default sort order for
+            //  the given datatype
+        }
         self::setTabData($odr_tab_id, $tab_data);
 
         return true;
@@ -351,7 +420,7 @@ class ODRTabHelperService
         }
 
         // If the requested tab does not exist in the user's session, then the given parameters
-        //  are different by default
+        //  are different by definition
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) )
             return true;

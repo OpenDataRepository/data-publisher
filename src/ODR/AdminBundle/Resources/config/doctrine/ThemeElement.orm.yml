@@ -25,21 +25,28 @@ ODR\AdminBundle\Entity\ThemeElement:
     oneToMany:
         themeDataFields:
             targetEntity: ThemeDataField
-            cascade: ["persist"]
+            cascade: [ "persist" ]
             mappedBy: themeElement
             inversedBy: null
             orphanRemoval: false
 
         themeDataType:
             targetEntity: ThemeDataType
-            cascade: ["persist"]
+            cascade: [ "persist" ]
+            mappedBy: themeElement
+            inversedBy: null
+            orphanRemoval: false
+
+        themeRenderPluginInstance:
+            targetEntity: ThemeRenderPluginInstance
+            cascade: [ "persist" ]
             mappedBy: themeElement
             inversedBy: null
             orphanRemoval: false
 
         themeElementMeta:
             targetEntity: ThemeElementMeta
-            cascade: ["persist"]
+            cascade: [ "persist" ]
             mappedBy: themeElement
             inversedBy: null
             orphanRemoval: false

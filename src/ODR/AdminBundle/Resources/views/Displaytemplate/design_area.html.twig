@@ -1,4 +1,7 @@
 {% spaceless %}
+
+{% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
+
 <div id="ODRDatatypeDesign" class="ODRFormWrap ODRDesign pure-u-1">
 
     {% include 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig' with {
@@ -14,6 +17,8 @@
 
         'is_link': 0,
         'is_top_level': 1,
+        'display_type': ACCORDION_HEADER,
+        'multiple_allowed': 0,
     } %}
 
 </div><!-- End of .ODRFormWrap -->

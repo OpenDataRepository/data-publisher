@@ -1,7 +1,7 @@
 odr_plugins.rruff.infrared_spectra:
     name: RRUFF Infrared Spectra Plugin
     category: RRUFF
-    datatype: true
+    plugin_type: datatype
     render: false
     version: 0.0.1
     override_fields: false

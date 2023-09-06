@@ -19,6 +19,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 // Events
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
@@ -26,6 +27,8 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 // Symfony
+use Pheanstalk\Pheanstalk;
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
@@ -45,9 +48,24 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     private $crypto_service;
 
     /**
+     * @var Pheanstalk
+     */
+    private $pheanstalk;
+
+    /**
+     * @var string
+     */
+    private $odr_tmp_directory;
+
+    /**
      * @var string
      */
     private $odr_web_directory;
+
+    /**
+     * @var Logger
+     */
+    private $logger;
 
 
     /**
@@ -55,20 +73,27 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
+     * @param Pheanstalk $pheanstalk
      * @param string $odr_tmp_directory
      * @param string $odr_web_directory
+     * @param Logger $logger
      */
     public function __construct(
         EngineInterface $templating,
         CryptoService $crypto_service,
+        Pheanstalk $pheanstalk,
         string $odr_tmp_directory,
-        string $odr_web_directory
+        string $odr_web_directory,
+        Logger $logger
     ) {
-        parent::__construct($templating, $odr_tmp_directory, $odr_web_directory);
+        parent::__construct($templating, $pheanstalk, $odr_tmp_directory, $odr_web_directory, $logger);
 
         $this->templating = $templating;
         $this->crypto_service = $crypto_service;
+        $this->pheanstalk = $pheanstalk;
+        $this->odr_tmp_directory = $odr_tmp_directory;
         $this->odr_web_directory = $odr_web_directory;
+        $this->logger = $logger;
     }
 
 
@@ -116,6 +141,9 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
         try {
             // ----------------------------------------
+            // Need this to determine whether to throw an error or not
+            $is_datatype_admin = $rendering_options['is_datatype_admin'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -130,8 +158,19 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
                     $df = $datatype['dataFields'][$rpf_df_id];
 
-                if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
+                if ( $df == null ) {
+                    // If the datafield doesn't exist in the datatype_array, then either the datafield
+                    //  is non-public and the user doesn't have permissions to view it (most likely),
+                    //  or the plugin somehow isn't configured correctly
+
+                    // The plugin can't continue executing in either case...
+                    if ( !$is_datatype_admin )
+                        // ...regardless of what actually caused the issue, the plugin shouldn't execute
+                        return '';
+                    else
+                        // ...but if a datatype admin is seeing this, then they probably should fix it
+                        throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
+                }
 
                 // Grab the field name specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
@@ -304,6 +343,8 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'multiple_allowed' => $rendering_options['multiple_allowed'],
                 'display_graph' => $display_graph,
 
+                'is_datatype_admin' => $is_datatype_admin,
+
                 // Options for graph display
                 'plugin_options' => $options,
 
@@ -465,7 +506,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
 
     /**
-     * Handles when a file is deleted from a datafield that's using this plugin.
+     * Called when a file is deleted from a datafield that's using this plugin.
      *
      * @param FileDeletedEvent $event
      */
@@ -473,4 +514,17 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     {
         parent::deleteCachedGraphs($event->getFileId(), $event->getDatafield());
     }
+
+
+    /**
+     * Called when a file finishes encryption after being uploaded to a datafield that's using
+     * this plugin.
+     *
+     * @param FilePostEncryptEvent $event
+     */
+    public function onFilePostEncrypt(FilePostEncryptEvent $event)
+    {
+        // TODO - method stub
+    }
+
 }

@@ -22,6 +22,9 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
 use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -56,6 +59,9 @@ class ODRUploadService
      * @var EventDispatcherInterface
      */
     private $event_dispatcher;
+
+    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
     /**
      * @var Pheanstalk
@@ -122,7 +128,7 @@ class ODRUploadService
     /**
      * Given a path to a file that exists on the server, and some information about where its info
      * is supposed to be stored in the database...this function creates the required supporting ODR
-     * entities, triggers a PreEncrypt Event for the File, and then starts the asynch encryption
+     * entities, triggers a PreEncrypt Event for the File, and then starts the async encryption
      * process.
      *
      * For a File, the encryption process is deferred through beanstalk because of the possibility
@@ -131,19 +137,21 @@ class ODRUploadService
      * @param string $filepath The path to the uploaded file on the server
      * @param ODRUser $user
      * @param DataRecordFields $drf
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     * @param \DateTime|null $public_date If provided, then the public date is set to this
      *
      * @return File The new incomplete File entity for the file at $filepath...The beanstalk process
      *              will be deleting the file at $filepath and modifying the File entity at some
      *              unknown time in the future.  USE WITH CAUTION.
      */
-    public function uploadNewFile($filepath, $user, $drf)
+    public function uploadNewFile($filepath, $user, $drf, $created = null, $public_date = null)
     {
         // Ensure the filepath is valid
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('The file at "'.$filepath.'" does not exist on the server', true, 0x6fe6e25d);
 
         // The user uploaded a File...create a database entry with as much info as possible
-        $file = $this->ec_service->createFile($user, $drf, $filepath);
+        $file = $this->ec_service->createFile($user, $drf, $filepath, $created, $public_date);
 
 
         // ----------------------------------------
@@ -154,8 +162,6 @@ class ODRUploadService
         // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
         //  event subscribers will prevent file encryption otherwise...
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new FilePreEncryptEvent($file, $drf->getDataField());
             $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
         }
@@ -172,6 +178,8 @@ class ODRUploadService
         //  check for and handle the event dispatching completion...
 
         // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+
+        // Additionally, CryptoService handles firing all other events for files
 
         // ----------------------------------------
         // Reload the file incase the FilePreEncryptEvent screwed with the filepath
@@ -227,17 +235,20 @@ class ODRUploadService
      * @param string $filepath The path to the uploaded file on the server
      * @param ODRUser $user
      * @param DataRecordFields $drf
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     * @param \DateTime|null $public_date If provided, then the public date is set to this
+     * @param int|null $display_order If provided, then the display_order is set to this
      *
      * @return Image
      */
-    public function uploadNewImage($filepath, $user, $drf)
+    public function uploadNewImage($filepath, $user, $drf, $created = null, $public_date = null, $display_order = null)
     {
         // Ensure the filepath is valid
         if ( !file_exists($filepath) )
             throw new ODRNotFoundException('The image at "'.$filepath.'" does not exist on the server', true, 0x5a301f18);
 
         // The user uplaoded an Image...create a database entry with as much info as possible
-        $image = $this->ec_service->createImage($user, $drf, $filepath);
+        $image = $this->ec_service->createImage($user, $drf, $filepath, $created, $public_date, $display_order);
 
 
         // ----------------------------------------
@@ -248,8 +259,6 @@ class ODRUploadService
         // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
         //  event subscribers will prevent file encryption otherwise...
         try {
-            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             $event = new FilePreEncryptEvent($image, $drf->getDataField());
             $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
         }
@@ -292,6 +301,47 @@ class ODRUploadService
         // TODO - should encryption be deferred through beanstalk instead?
         $this->crypto_service->encryptImage($image->getId(), $filepath);
 
+
+        // ----------------------------------------
+        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
+        //  fire off events inside CryptoService...it would end up firing off one event for the
+        //  original image, then another for each thumbnail created
+        $datarecord = $image->getDataRecord();
+        $datafield = $image->getDataField();
+
+        try {
+            $event = new FilePostEncryptEvent($image, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
         return $image;
     }
 
@@ -323,6 +373,8 @@ class ODRUploadService
 
         // Encrypt the given file, storing its relevant information back in $existing_file
         $this->crypto_service->encryptFile($existing_file->getId(), $filepath);
+
+        // CryptoService handles firing events for files
     }
 
 
@@ -384,5 +436,46 @@ class ODRUploadService
 
         // Encrypt the original version of the image, storing its information back in $existing_image
         $this->crypto_service->encryptImage($existing_image->getId(), $filepath);
+
+
+        // ----------------------------------------
+        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
+        //  fire off events inside CryptoService...it would end up firing off one event for the
+        //  original image, then another for each thumbnail created
+        $datarecord = $existing_image->getDataRecord();
+        $datafield = $existing_image->getDataField();
+
+        try {
+            $event = new FilePostEncryptEvent($existing_image, $datafield);
+            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
+            $event = new DatafieldModifiedEvent($datafield, $user);
+            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
+
+        try {
+            $event = new DatarecordModifiedEvent($datarecord, $user);
+            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+        }
+        catch (\Exception $e) {
+            // ...don't want to rethrow the error since it'll interrupt everything after this
+            //  event
+//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                throw $e;
+        }
     }
 }

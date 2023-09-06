@@ -5,6 +5,7 @@
 {% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 {% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
+{% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
 
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 
@@ -31,6 +32,11 @@
 
             {% if context == 'edit' %}
             <span class="DataRecordTools">
+                <i
+                    class="fa fa-info-circle Info ODRAncestorBlurb"
+                    rel="{% if is_link == 0 %}child{% else %}link{% endif %}"
+                ></i>
+
                 {# The following don't need to check multiple_allowed, since the child/linked datatype always has zero records here #}
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
                 <i
@@ -69,6 +75,11 @@
 
             {% if context == 'edit' and (multiple_allowed == 1 or datarecord_list|length == 0) %}
             <span class="DataRecordTools">
+                <i
+                    class="fa fa-info-circle Info ODRAncestorBlurb"
+                    rel="{% if is_link == 0 %}child{% else %}link{% endif %}"
+                ></i>
+
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
                 <i
                     class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
@@ -105,7 +116,9 @@
             {% endif %}
 
             {% if not datarecord_is_fake %}
-                <button class="pure-button ODRTabButton" rel="{{ datarecord.id }}">{{ datarecord.nameField_value }}</button>
+                <button class="pure-button ODRTabButton ODRRecordName" rel="{{ datarecord.id }}">
+                    {{ datarecord.nameField_value }}
+                </button>
             {% else %}
                 <button class="pure-button ODRTabButton" rel="{{ datarecord.id }}" title="This is a temporary record...">
                     <i class="fa fa-lg fa-hourglass-half Pointer tooltip"></i>
@@ -122,6 +135,11 @@
 
             {% if context == 'edit' and (multiple_allowed == 1 or datarecord_list|length == 0) %}
             <span class="DataRecordTools">
+                <i
+                    class="fa fa-info-circle Info ODRAncestorBlurb"
+                    rel="{% if is_link == 0 %}child{% else %}link{% endif %}"
+                ></i>
+
                 {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
                 <i
                     class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"
@@ -151,7 +169,7 @@
 
             {% if datarecord_list|length > 0 %}
             <span class="ODRSelectWrap AccordionSelect">
-                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect">
+                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect ODRRecordName">
                 {% for num, datarecord in datarecord_list %}
                     {% set datarecord_is_fake = false %}
                     {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
@@ -169,13 +187,18 @@
             {% endif %}
         </h3>
 
-{% elseif display_type == LIST_HEADER %}  {# list display_type #}
+{% elseif display_type == LIST_HEADER or display_type == TABLE_CONTENT %}  {# list/table display_type #}
     {# just a header here...accordion_footer.html.twig doesn't need a closing tag #}
     <h3 class="ODRListDisplayHeader ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ datatype.dataTypeMeta.shortName }}</a>
 
         {% if context == 'edit' and (multiple_allowed == 1 or datarecord_list|length == 0) %}
         <span class="DataRecordTools">
+            <i
+                class="fa fa-info-circle Info ODRAncestorBlurb"
+                rel="{% if is_link == 0 %}child{% else %}link{% endif %}"
+            ></i>
+
             {% if (is_link == 0 and can_add_record) or (is_link == 1 and can_edit_parent_record) %}
             <i
                 class="fa fa-plus Pointer tooltip {% if is_link == 0 %}ODRAddChildRecord{% else %}ODRAddLinkedRecord{% endif %}"

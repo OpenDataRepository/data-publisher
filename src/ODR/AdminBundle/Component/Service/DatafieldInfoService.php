@@ -174,7 +174,7 @@ class DatafieldInfoService
 
         // Also shouldn't delete datafields that are being used by the Datatype's render plugins...
         if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
                     if ( $rpf_df['id'] === $datafield_id ) {
                         $render_plugin_name = $rpi['renderPlugin']['pluginName'];
@@ -248,7 +248,7 @@ class DatafieldInfoService
 
         // Check whether a datatype plugin is using this datafield
         if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                     if ( $rpf['id'] === $datafield_id ) {
                         // This datafield is being used by a datatype plugin
@@ -264,7 +264,7 @@ class DatafieldInfoService
 
         // Check whether a datafield plugin is using this datafield
         if ( !empty($df['renderPluginInstances']) ) {
-            foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
                     // If this point is reached, the datafield is using a datafield plugin
                     foreach ($rpf['properties'] as $key => $value) {
@@ -576,7 +576,7 @@ class DatafieldInfoService
 
         // If the datatype is using a render plugin...
         if ( !empty($dt['renderPluginInstances']) ) {
-            foreach ($dt['renderPluginInstances'] as $rpi_num => $rpi) {
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 // ...then determine the allowed fieldtypes for each of its defined datafields
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
                     $df_id = $rpf_df['id'];
@@ -627,7 +627,7 @@ class DatafieldInfoService
 
             // If the datafield is using a render plugin...
             if ( !empty($df['renderPluginInstances']) ) {
-                foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
+                foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                     // There's only going to be one rpf in here, but don't know the array key beforehand
                     foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
                         // ...then the fieldtype can't be changed from what the render plugin requires
