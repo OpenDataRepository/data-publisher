@@ -213,7 +213,7 @@
     /**
      * Redirects an anonymous user to ODR's login page.
      */
-    {% set wordpress_integrated = true %}
+    {% set wordpress_integrated = false %}
     {% if wordpress_integrated %}
     function ODRLogin() {
         let current_page = window.location.href
@@ -238,7 +238,7 @@
             redirect_url += '/login';
 
         redirect_url = '{{ site_baseurl }}{{ path('fos_user_security_login') }}';
-        alert(redirect_url);
+        // alert(redirect_url);
 
         // Append the fragment if it exists
         if (fragment !== '')

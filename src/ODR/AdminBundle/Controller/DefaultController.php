@@ -65,7 +65,7 @@ class DefaultController extends ODRCustomController
             else {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
                 $html = $this->renderView(
-                    'ODRAdminBundle:Default:full.html.twig',
+                    'ODRAdminBundle:Default:default_full.html.twig',
                     array(
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,

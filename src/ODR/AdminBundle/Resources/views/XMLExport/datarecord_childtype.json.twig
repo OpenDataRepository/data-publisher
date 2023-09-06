@@ -73,13 +73,16 @@
             {% endif %}
             {# Fields #}
             {% if
-                datarecord.dataType.masterDataType
+                version == "v4"
+                and datarecord.dataType.masterDataType
                 and datarecord.dataType.masterDataType.unique_id
                 and datarecord.dataType.masterDataType.unique_id is not empty
              %}
                 "fields_{{ datarecord.dataType.masterDataType.unique_id }}": [
-            {% else %}
+            {% elseif version == "v4" %}
                 "fields_{{ datarecord.dataType.unique_id }}": [
+            {% else %}
+                "fields": [
             {% endif %}
                 {% set field_block %}
                 {% for dt_datafield in datatype_array[datarecord.dataType.id].dataFields %}
@@ -121,10 +124,12 @@
                 {% endset %}
                 {{ field_block|comma|raw }}
             ],
-            {% if datarecord.dataType.masterDataType %}
+            {% if version == "v4" and datarecord.dataType.masterDataType %}
                 "records_{{ datarecord.dataType.masterDataType.unique_id }}": [
-            {% else %}
+            {% elseif version == "v4" %}
                 "records_{{ datarecord.dataType.unique_id }}": [
+            {% else %}
+                "records": [
             {% endif %}
                 {# Check for Children #}
                 {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}

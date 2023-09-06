@@ -4,7 +4,7 @@
 # export XDEBUG_CONFIG="idekey=phpstorm_xdebug"
 #cd $ODR_PATH
 
-cd /home/rruff/data-publisher
+cd /home/odr/data-publisher
 
 #php app/console odr_record:migrate >> app/logs/migrate.log 2>&1 &
 #php app/console odr_record:mass_edit >> app/logs/mass_edit.log 2>&1 &
