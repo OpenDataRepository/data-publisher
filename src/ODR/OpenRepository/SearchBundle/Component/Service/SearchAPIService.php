@@ -415,10 +415,13 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
-     * @param DataType $datatype
+     * @param DataType|null $datatype     Really shouldn't be null, but can compensate for it
      * @param string $search_key
      * @param array $user_permissions     The permissions of the user doing the search, or an empty
      *                                    array when not logged in
+     * @param bool $return_complete_list  If false, then returns a sorted list of grandparent
+     *                                    datarecord ids...if true, then returns an unsorted list of
+     *                                    child/linked datarecords that weren't excluded from the search
      * @param int[] $sort_datafields      An ordered list of the datafields to sort by, or an empty
      *                                    array to sort by whatever is default for the datatype
      * @param string[] $sort_directions   An ordered list of which direction to sort each datafield
@@ -427,7 +430,7 @@ class SearchAPIService
      *
      * @return array
      */
-    public function performSearch($datatype, $search_key, $user_permissions, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
+    public function performSearch($datatype, $search_key, $user_permissions, $return_complete_list = false, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
     {
         // ----------------------------------------
         // This really shouldn't be null, but just in case...
@@ -610,14 +613,20 @@ class SearchAPIService
         }
 
 
-        // Traverse $inflated_list to get the final set of datarecords that match the search
-        // TODO - only run this when starting a MassEdit/CSVExport job?
-        $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
-        $datarecord_ids = array_keys($datarecord_ids);
+        // ----------------------------------------
+        // If the user needs a list of datarecords that includes child/linked descendants...
+        if ( $return_complete_list ) {
+            // ...then traverse $inflated_list to get the final set of datarecords that match the search
+            $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
+            $datarecord_ids = array_keys($datarecord_ids);
+
+            // No sense running anything else
+            return $datarecord_ids;
+        }
 
 
-        // Traverse the top-level of $inflated_list to get the grandparent datarecords that matched
-        //  the search
+        // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
+        //  search...can traverse the top-level of $inflated list for that
         $grandparent_ids = array();
         if ( isset($inflated_list[$datatype->getId()]) ) {
             foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
@@ -707,14 +716,8 @@ class SearchAPIService
 
 
         // ----------------------------------------
-        // Save/return the end result
-        $search_result = array(
-            'complete_datarecord_list' => $datarecord_ids,
-            'grandparent_datarecord_list' => $sorted_datarecord_list,
-        );
-
         // There's no point to caching the end result...it depends heavily on the user's permissions
-        return $search_result;
+        return $sorted_datarecord_list;
     }
 
 

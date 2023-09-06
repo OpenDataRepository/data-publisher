@@ -788,9 +788,13 @@ class TrackingController extends ODRCustomController
                 if ( !is_null($target_search_key) ) {
                     // ...but only if something other than the datatype id was specified
                     if ( count($search_params) > 1 ) {
-                        $search_results = $search_api_service->performSearch($grandparent_datatype, $target_search_key, $user_permissions);
-                        $criteria['grandparent_datarecord_ids'] = $search_results['grandparent_datarecord_list'];
+                        $criteria['grandparent_datarecord_ids'] = $search_api_service->performSearch(
+                            $grandparent_datatype,
+                            $target_search_key,
+                            $user_permissions
+                        );    // this only returns grandparent datarecord ids
                     }
+
                     // If just the datatype id was specified, then the search will match "any"
                     //  datarecord...so the criteria might as well not specify any datarecord ids
                     //  in that case

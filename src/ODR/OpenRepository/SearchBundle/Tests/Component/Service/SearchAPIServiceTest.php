@@ -40,9 +40,17 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
-        $search_results = $search_api_service->performSearch(null, $search_key, array(), array(), array(), $search_as_super_admin);
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,         // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),      // search testing is with either zero permissions, or super-admin permissions
+            false,        // only want grandparent datarecord ids here
+            array(),      // testing doesn't need a specific set of sort datafields...
+            array(),      // ...or a specific sort order
+            $search_as_super_admin
+        );
 
-        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $search_results['grandparent_datarecord_list'] );
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
     /**
@@ -60,9 +68,17 @@ class SearchAPIServiceTest extends WebTestCase
 
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
-        $search_results = $search_api_service->performSearch(null, $search_key, array(), array(), array(), $search_as_super_admin);
+        $complete_datarecord_list = $search_api_service->performSearch(
+            null,         // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),      // search testing is with either zero permissions, or super-admin permissions
+            true,         // want all child/linked descendants that match the search here
+            array(),      // the complete datarecord list can't be sorted
+            array(),
+            $search_as_super_admin
+        );
 
-        $this->assertEqualsCanonicalizing( $expected_datarecord_ids, $search_results['complete_datarecord_list'] );
+        $this->assertEqualsCanonicalizing( $expected_datarecord_ids, $complete_datarecord_list );
     }
 
 
