@@ -1,5 +1,8 @@
 {% spaceless %}
 
+{% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
+{% set datarecord_is_fake = false %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -85,12 +88,20 @@
     {% set render_plugin_instance = null %}
     {% set can_execute_plugin = false %}
 
+    {% set uses_file_renamer_plugin = false %}
+
     {% for rpi_num,rpi in datafield.renderPluginInstances %}
-        {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+        {% if rpi.renderPlugin.pluginClassName == 'odr_plugins.base.file_renamer' %}
+            {% set uses_file_renamer_plugin = true %}
+        {% endif %}
+
+        {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
             {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
 
             {# Only want to save the render_plugin_instance if it's render-able #}
-            {% set render_plugin_instance = rpi %}
+            {% if can_execute_plugin %}
+                {% set render_plugin_instance = rpi %}
+            {% endif %}
         {% endif %}
     {% endfor %}
 
@@ -132,15 +143,28 @@
 
         {#<fieldset>#}
         <div class="ODRFileDatafield">
-            {# Don't want to execute anything special after a file gets deleted #}
-{#            {% set file_delete_callback = 'function() {}' %}#}
-            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
-                'datafield': datafield,
-                'datarecord': datarecord,
-                'files': valuefield,
+            <div class="ODRFileDatafield_header pure-u-1">
+            {% if not datarecord_is_fake %}
+                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+                <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+            {% else %}
+                <i class="fa fa-download fa-lg ODRDownloadAllFiles"></i>&nbsp;
+                <span>{{ datafield.dataFieldMeta.fieldName }}</span>
+            {% endif %}
+            </div>
 
-                'datarecord_is_fake': false,
-            } %}
+            <div class="ODRFileDatafield_content pure-u-1">
+                {# Don't want to execute anything special after a file gets deleted #}
+                {#{% set file_delete_callback = 'function() {}' %}#}
+                {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                    'datafield': datafield,
+                    'datarecord': datarecord,
+                    'files': valuefield,
+
+                    'datarecord_is_fake': datarecord_is_fake,
+                    'uses_file_renamer_plugin': uses_file_renamer_plugin,
+                } %}
+            </div>
         </div>
 
         <div class="pure-u-1" {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>

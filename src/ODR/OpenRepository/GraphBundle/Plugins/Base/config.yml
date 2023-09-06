@@ -81,3 +81,16 @@ services:
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $templating: '@templating'
             $logger: "@logger"
+
+    odr_plugins.base.file_header_inserter:
+        class: '%odr_plugin_base_classpath%\Base\FileHeaderInserterPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $crypto_service: "@odr.crypto_service"
+            $database_info_service: "@odr.database_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
+            $upload_service: "@odr.upload_service"
+            $odr_tmp_directory: '%odr_tmp_directory%'
+            $templating: '@templating'
+            $logger: "@logger"

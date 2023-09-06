@@ -2,7 +2,7 @@ odr_plugins.base.graph:
     name: Graph Plugin
     category: Base
     plugin_type: datatype
-    render: true
+    render: odr_plugins.base.graph
     version: 1.5.0
     override_fields: false
     override_field_reload: false

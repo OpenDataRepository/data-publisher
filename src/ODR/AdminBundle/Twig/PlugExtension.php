@@ -13,10 +13,13 @@
 
 namespace ODR\AdminBundle\Twig;
 
+// Entities
 use ODR\AdminBundle\Entity\RenderPlugin;
+// Interfaces
+use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PostMassEditEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 
 class PlugExtension extends \Twig_Extension
@@ -45,6 +48,7 @@ class PlugExtension extends \Twig_Extension
             RenderPlugin::DATATYPE_PLUGIN => 'datatype',
             RenderPlugin::THEME_ELEMENT_PLUGIN => 'themeElement',
             RenderPlugin::DATAFIELD_PLUGIN => 'datafield',
+            RenderPlugin::ARRAY_PLUGIN => 'array',
         );
     }
 
@@ -56,9 +60,11 @@ class PlugExtension extends \Twig_Extension
     public function getFilters()
     {
         return array(
+            new \Twig\TwigFilter('can_execute_array_plugin', array($this, 'canExecuteArrayPluginFilter')),
             new \Twig\TwigFilter('can_execute_datatype_plugin', array($this, 'canExecuteDatatypePluginFilter')),
             new \Twig\TwigFilter('can_execute_theme_element_plugin', array($this, 'canExecuteThemeElementPluginFilter')),
             new \Twig\TwigFilter('can_execute_datafield_plugin', array($this, 'canExecuteDatafieldPluginFilter')),
+            new \Twig\TwigFilter('array_plugin', array($this, 'arrayPluginFilter')),
             new \Twig\TwigFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
             new \Twig\TwigFilter('theme_element_plugin_placeholder', array($this, 'themeElementPluginPlaceholderFilter')),
             new \Twig\TwigFilter('theme_element_plugin', array($this, 'themeElementPluginFilter')),
@@ -261,13 +267,44 @@ class PlugExtension extends \Twig_Extension
     }
 
     /**
+     * Returns whether the Array RenderPlugin should be run in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datatype
+     * @param array $rendering_options
+     *
+     * @return bool|string
+     * @throws \Exception
+     */
+    public function canExecuteArrayPluginFilter($render_plugin_instance, $datatype, $rendering_options)
+    {
+        try {
+            // Determine whether the render plugin should be run
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::ARRAY_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as an Array Plugin</div>';
+
+            /** @var ArrayPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->canExecutePlugin($render_plugin_instance, $datatype, $rendering_options);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
      * Returns whether the Datatype RenderPlugin should be run in the current context.
      *
      * @param array $render_plugin_instance
      * @param array $datatype
      * @param array $rendering_options
      *
-     * @return bool
+     * @return bool|string
      * @throws \Exception
      */
     public function canExecuteDatatypePluginFilter($render_plugin_instance, $datatype, $rendering_options)
@@ -298,7 +335,7 @@ class PlugExtension extends \Twig_Extension
      * @param array $datatype
      * @param array $rendering_options
      *
-     * @return bool
+     * @return bool|string
      * @throws \Exception
      */
     public function canExecuteThemeElementPluginFilter($render_plugin_instance, $datatype, $rendering_options)
@@ -330,7 +367,7 @@ class PlugExtension extends \Twig_Extension
      * @param array $datarecord
      * @param array $rendering_options
      *
-     * @return bool
+     * @return bool|string
      * @throws \Exception
      */
     public function canExecuteDatafieldPluginFilter($render_plugin_instance, $datafield, $datarecord, $rendering_options)
@@ -350,6 +387,41 @@ class PlugExtension extends \Twig_Extension
                 throw $e;
             else
                 return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].': '.$e->getMessage().'</div>';
+        }
+    }
+
+
+    /**
+     * Loads and executes a RenderPlugin for a datatype.
+     *
+     * @param array $datarecord_array
+     * @param array $datatype
+     * @param array $render_plugin_instance
+     * @param array $theme_array
+     * @param array $rendering_options
+     * @param array $parent_datarecord
+     *
+     * @return ArrayPluginReturn|string
+     * @throws \Exception
+     */
+    public function arrayPluginFilter($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array())
+    {
+        try {
+            // Ensure this only is run on a render plugin for a datatype
+            $render_plugin = $render_plugin_instance['renderPlugin'];
+            if ( $render_plugin['plugin_type'] !== RenderPlugin::ARRAY_PLUGIN )
+                return '<div class="ODRPluginErrorDiv">ERROR: Unable to render the '.$this->plugin_types[ $render_plugin['plugin_type'] ].' RenderPlugin "'.$render_plugin['pluginName'].'" attached to Datatype '.$datatype['id'].' as an Array Plugin</div>';
+
+            // Load and execute the render plugin
+            /** @var ArrayPluginInterface $svc */
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord);
+        }
+        catch (\Exception $e) {
+            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                throw $e;
+            else
+                return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -494,34 +566,6 @@ class PlugExtension extends \Twig_Extension
                 throw $e;
             else
                 return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
-        }
-    }
-
-
-    /**
-     * Returns an array of the fields that the RenderPlugin would like to to have the option to
-     * trigger the PostMassEditEvent on, even if values in that datafield aren't being changed.
-     *
-     * @param array $render_plugin_instance
-     *
-     * @return array
-     * @throws \Exception
-     */
-    public function getMassEditOverideFieldsFilter($render_plugin_instance)
-    {
-        try {
-            // This particular filter works with both datatype and datafield plugins
-            $render_plugin = $render_plugin_instance['renderPlugin'];
-
-            // Load and execute the render plugin
-            /** @var PostMassEditEventInterface $svc */
-            $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->getMassEditOverrideFields($render_plugin_instance);
-        }
-        catch (\Exception $e) {
-            // Since this is only being called from MassEdit, throwing an error here should be acceptable
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                throw $e;
         }
     }
 

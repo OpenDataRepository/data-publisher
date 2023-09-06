@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -64,11 +66,11 @@
             {# Instead, we want to render the related reference if it exists #}
             {% set rendering_options = {'is_top_level': false, 'context': 'text', 'is_datatype_admin': is_datatype_admin} %}
 
-            {# The render plugin should always be able to be run, so just extract the render plugin instance #}
+            {# The RRUFF Reference plugin should always be able to be run, so just extract the render plugin instance #}
             {% set render_plugin_instance = null %}
             {% set can_execute_plugin = true %}
             {% for rpi_num,rpi in reference_dt.renderPluginInstances %}
-                {% if rpi.renderPlugin.active and rpi.renderPlugin.render %}
+                {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render == 'odr_plugins.rruff.rruff_references' %}
                     {# Only want to save the render_plugin_instance if it's render-able #}
                     {% set render_plugin_instance = rpi %}
                 {% endif %}

@@ -117,7 +117,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             // Need this to determine whether to throw an error or not
             $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
-            // This plugin has no required fields or options, but does require a descendent that is
+            // This plugin has no required fields or options, but does require a descendant that is
             //  using the "IMA Plugin"
             $ima_plugin_dt = null;
             $rpm = null;
@@ -141,7 +141,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             if ( is_null($rpm) ) {
                 if ( $is_datatype_admin )
                     // Only throw an error if the user is a datatype admin...
-                    throw new \Exception('Unable to locate a descendent datatype using the "IMA Plugin"');
+                    throw new \Exception('Unable to locate a descendant datatype using the "IMA Plugin"');
                 else
                     // ...because if they're not, then the user can't do anything about it
                     return '';

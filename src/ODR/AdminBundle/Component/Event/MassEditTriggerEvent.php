@@ -2,18 +2,27 @@
 
 /**
  * Open Data Repository Data Publisher
- * Post MassEdit Event
+ * MassEdit Trigger Event
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This event exists so plugins can run their stuff as part of the MassEdit process without necessarily
- * having to change the current values in the relevant datafields.
+ * This event exists so users can trigger plugin-granted modifications for specific fields, without
+ * necessarily having to change the current values in said datafields.
  *
- * The event is run after most modifications in MassEditController::massUpdateWorkerValuesAction()...
- * the only exception being when MassEditController calls EntityMetaModifyService::updateStorageEntity().
- * The function in that service fires off a PostUpdateEvent, and I can't think of an application
- * where it makes sense to listen to the PostMassEditEvent, but not the PostUpdateEvent.
+ *
+ * The MassEdit system "asks" the plugins which datafields to enable this functionality for...then
+ * once the user has submitted the MassEdit POST, the system again "asks" the selected plugins whether
+ * they only want to do their thing when explicitly requested.
+ *
+ * For instance, the FileHeaderInserter plugin has to lookup a bunch of values in the cached arrays,
+ * then decrypt/modify/re-encrypt each relevant file in that datafield...something which should be
+ * avoided unless absolutely necessary.
+ *
+ * Other plugins intend to use this event as a substitute of sorts for the PostUpdate event...they
+ * don't want the MassEditTrigger event to fire when the PostUpdate event would (due to the user
+ * putting a new value in the MassEdit field), because that would needlessly duplicate effort...
+ * and it's easier for the controller to enforce this than the UI.
  */
 
 namespace ODR\AdminBundle\Component\Event;
@@ -25,7 +34,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class PostMassEditEvent extends Event implements ODREventInterface
+class MassEditTriggerEvent extends Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.post_massedit_event';
@@ -40,19 +49,27 @@ class PostMassEditEvent extends Event implements ODREventInterface
      */
     private $user;
 
+    /**
+     * @var string
+     */
+    private $plugin_classname;
+
 
     /**
-     * PostMassEditEvent constructor.
+     * MassEditTriggerEvent constructor.
      *
      * @param DataRecordFields $drf
      * @param ODRUser $user
+     * @param string $plugin_classname
      */
     public function __construct(
         DataRecordFields $drf,
-        ODRUser $user
+        ODRUser $user,
+        string $plugin_classname
     ) {
         $this->drf = $drf;
         $this->user = $user;
+        $this->plugin_classname = $plugin_classname;
     }
 
 
@@ -68,13 +85,24 @@ class PostMassEditEvent extends Event implements ODREventInterface
 
 
     /**
-     * Returns the user that triggered this event.
+     * Returns the user that triggered the change to this datafield.
      *
      * @return ODRUser
      */
     public function getUser()
     {
         return $this->user;
+    }
+
+
+    /**
+     * Returns which plugin this event should trigger.
+     *
+     * @return string
+     */
+    public function getPluginClassName()
+    {
+        return $this->plugin_classname;
     }
 
 

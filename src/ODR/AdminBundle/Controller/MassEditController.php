@@ -42,7 +42,7 @@ use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
-use ODR\AdminBundle\Component\Event\PostMassEditEvent;
+use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -53,7 +53,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
@@ -61,7 +60,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
@@ -101,6 +100,8 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
@@ -215,6 +216,74 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // In order for the MassEditTrigger event to work, it needs a list of datafields that
+            //  render plugins might want to overwrite...easiest way to do this is to first figure
+            //  out whether the datatype has any plugins that listen to the MassEditTrigger event
+            $mass_edit_trigger_plugins = array();
+
+            $dt_array = $dbi_service->getDatatypeArray($datatype_id, false);    // not allowed to mass edit linked datatypes
+            foreach ($dt_array as $dt_id => $dt) {
+                // Check any plugins attached to the datatype...
+                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                    $plugin_events = $rpi['renderPlugin']['renderPluginEvents'];
+                    if ( isset($plugin_events['MassEditTriggerEvent']) ) {
+                        // ...if the plugin listens to the MassEditTrigger Event, then store its name
+                        //  so it can be queried later
+                        $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                        if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
+                            $mass_edit_trigger_plugins[$plugin_classname] = array();
+                        $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
+                    }
+                }
+
+                // Check any plugins attached to the datatype's datafields...
+                if ( !empty($dt['dataFields']) ) {
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                            $plugin_events = $rpi['renderPlugin']['renderPluginEvents'];
+                            if ( isset($plugin_events['MassEditTriggerEvent']) ) {
+                                // ...if the plugin listens to the MassEditTrigger Event, then store
+                                //  its name so it can be queried later
+                                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                                if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
+                                    $mass_edit_trigger_plugins[$plugin_classname] = array();
+                                $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Now that the relevant plugins have been found...
+            $mass_edit_trigger_datafields = array();
+
+            foreach ($mass_edit_trigger_plugins as $plugin_classname => $rpi_list) {
+                // ...load up each of the plugins...
+                /** @var MassEditTriggerEventInterface $plugin_svc */
+                $plugin_svc = $this->container->get($plugin_classname);
+
+                // ...and "ask" them what fields they intend to override
+                foreach ($rpi_list as $num => $rpi) {
+                    $rp_id = $rpi['renderPlugin']['id'];
+                    $rp_name = $rpi['renderPlugin']['pluginName'];
+
+                    $ret = $plugin_svc->getMassEditOverrideFields($rpi);
+                    foreach ($ret as $df_id) {
+                        if ( !isset($mass_edit_trigger_datafields[$df_id]) )
+                            $mass_edit_trigger_datafields[$df_id] = array();
+
+                        // Need to be able to differentiate between which plugin the user requested
+                        //  in case the field has multiple plugins that could be run
+                        $mass_edit_trigger_datafields[$df_id][] = array(
+                            'plugin_id' => $rp_id,
+                            'plugin_name' => $rp_name
+                        );
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
             // Generate the HTML required for a header
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
@@ -226,7 +295,7 @@ class MassEditController extends ODRCustomController
             );
 
             // Get the mass edit page rendered
-            $page_html = $odr_render_service->getMassEditHTML($user, $datatype, $odr_tab_id);
+            $page_html = $odr_render_service->getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields);
 
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
@@ -461,34 +530,86 @@ class MassEditController extends ODRCustomController
                         throw new ODRBadRequestException('Invalid value given for the datafield "'.$df->getFieldName().'"');
 
 
-                    // Otherwise, store which datatype this datafield belongs to
+                    // Otherwise, store that this datatype is being affected by the MassEdit job...
                     $dt_id = $df->getDataType()->getId();
-                    if ( !isset($datatype_list[$dt_id]) )
-                        $datatype_list[$dt_id] = 1;
-
+                    $datatype_list[$dt_id] = 1;
+                    // ...and store which datatype this datafield belongs to
                     $datafield_list[$df_id] = $dt_id;
                 }
             }
 
-            // If the user wants to trigger the PostMassEditEvent, then just need to ensure the
+            // If the user wants to trigger the MassEditTrigger event, then just need to ensure the
             //  datafield belongs to this datatype
-            foreach ($event_triggers as $df_id => $val) {
-                /** @var DataFields $df */
-                $df = $repo_datafield->find($df_id);
-
+            $plugin_response_cache = array();
+            foreach ($event_triggers as $df_id => $plugin_ids) {
                 // Ensure the datafield belongs to the top-level datatype or one of its descendants
-                $df_array = self::getDatafieldArray($dt_array, $df_id);
+                $tmp = self::getDatafieldArray($dt_array, $df_id);
+                $dt_id = $tmp['dt_id'];
+                $cached_df = $tmp['cached_df'];
 
-                // Since a render plugin will be making the changes, it doesn't actually matter
-                //  whether the user has edit permissions to this field or not
+                // Verify the datafield is using the plugin mentioned in the event trigger, and that
+                //  the plugin actually responds to the MassEditTrigger Event
+                foreach ($plugin_ids as $rp_id => $num) {
+                    $rpi = self::getRenderPluginInstance($dt_array[$dt_id], $rp_id, $df_id);
 
-                // Could technically validate whether this field uses a plugin with event, but it
-                //  doesn't really matter...just store which datatype this datafield belongs to
-                $dt_id = $df->getDataType()->getId();
-                if ( !isset($datatype_list[$dt_id]) )
-                    $datatype_list[$dt_id] = 1;
+                    // If the datafield isn't being affected by the given render plugin, or the plugin
+                    //  doesn't respond to MassEditTrigger events...then throw an exception
+                    if ( !isset($rpi['renderPlugin']['renderPluginEvents']['MassEditTriggerEvent']) )
+                        throw new ODRBadRequestException('Invalid render plugin id given for the datafield "'.$cached_df['dataFieldMeta']['fieldName'].'"');
 
+                    // The actual background jobs need to have the plugin classname so they can
+                    //  specify which plugin to listen to...the datafield could have multiple
+                    //  plugins, and the user probably doesn't want all of them to activate in that
+                    //  case
+                    $event_triggers[$df_id][$rp_id] = $rpi['renderPlugin']['pluginClassName'];
+
+                    // Just because the user checked the checkbox to activate the plugin for this
+                    //  field doesn't necessarily mean the plugin should execute.  Certain plugins
+                    //  will always want to activate...but others do their thing as part of the
+                    //  PostUpdate event, and therefore do not want to activate if the user also
+                    //  entered a value for MassEdit to update with
+                    $rpi_id = $rpi['id'];
+                    if ( !isset($plugin_response_cache[$rpi_id]) ) {
+                        // Need to load the plugin service via the classname...
+                        /** @var MassEditTriggerEventInterface $plugin_svc */
+                        $plugin_svc = $this->container->get( $rpi['renderPlugin']['pluginClassName'] );
+                        // ...so the plugin can return whether to trigger the event depending on
+                        //  whether the user has entered a value or not
+                        $plugin_response_cache[$rpi_id] = $plugin_svc->getMassEditTriggerFields($rpi);
+                    }
+                    else {
+                        // The plugin has already responded to this request...
+                        $plugin_response = $plugin_response_cache[$rpi_id];
+
+                        if ( $plugin_response[$df_id] === true ) {
+                            // ...the plugin wants the MassEditTrigger event to activate regardless
+                            //  of whether the user changed a value in the field or not
+                            /* do nothing */
+                        }
+                        else if ( !isset($datafields[$df_id]) ) {
+                            // ...the plugin only wants the MassEditTrigger event to activate when
+                            //  the user did NOT change a value in the field
+                            /* do nothing */
+                        }
+                        else {
+                            // If neither of the above conditions are true, then the event should
+                            //  not be triggered
+                            unset( $event_triggers[$df_id][$rp_id] );
+                        }
+                    }
+                }
+
+                // Since a render plugin will be making the changes, it technically doesn't matter
+                //  whether the user has edit permissions to this field or not...just guarantee that
+                //  the loops which create the background jobs will do something for this datafield
+                $datatype_list[$dt_id] = 1;
                 $datafield_list[$df_id] = $dt_id;
+            }
+
+            // Ensure the previous unset() calls haven't left empty arrays lying around
+            foreach ($event_triggers as $df_id => $plugin_ids) {
+                if ( empty($plugin_ids) )
+                    unset( $event_triggers[$df_id] );
             }
 
 
@@ -661,11 +782,12 @@ class MassEditController extends ODRCustomController
                         // If the user wants to change the value of a datafield...
                         $payload['value'] = $datafields[$df_id];
                     }
-                    else if ( isset($event_triggers[$df_id]) ) {
-                        // If the user just wants to trigger an event on this field...
-                        $payload['event_trigger'] = 1;
+                    if ( isset($event_triggers[$df_id]) ) {
+                        // If the user wants to trigger execution of a plugin(s) on this field...
+                        $payload['event_trigger'] = json_encode( $event_triggers[$df_id] );
                     }
-                    else {
+
+                    if ( !isset($datafields[$df_id]) && !isset($event_triggers[$df_id]) ) {
                         // ...the datafield should've had a value in one or the other
                         throw new ODRException('missing data for datafield '.$df_id.', to submit for mass edit');
                     }
@@ -714,12 +836,56 @@ class MassEditController extends ODRCustomController
     {
         // Attempt to locate the requested cached datafield array entry...
         foreach ($dt_array as $dt_id => $dt) {
-            if ( isset($dt['dataFields'][$df_id]) )
-                return $dt['dataFields'][$df_id];
+            if ( isset($dt['dataFields'][$df_id]) ) {
+                return array(
+                    'dt_id' => $dt_id,
+                    'cached_df' => $dt['dataFields'][$df_id]
+                );
+            }
         }
 
         // ...array entry doesn't exist, throw an error
         throw new ODRBadRequestException('Unable to locate array entry for datafield '.$df_id);
+    }
+
+
+    /**
+     * Searches the cached datatype array to find the renderPluginInstance array that affects the
+     * given datafield.
+     *
+     * @param array $cached_dt
+     * @param int $rp_id
+     * @param int $df_id
+     * @return array
+     */
+    private function getRenderPluginInstance($cached_dt, $rp_id, $df_id)
+    {
+        // Don't know whether the plugin is a datatype or a datafield plugin...check datatype
+        //  plugins first
+        foreach ($cached_dt['renderPluginInstances'] as $rpi_id => $rpi) {
+            if ( $rpi['renderPlugin']['id'] === $rp_id ) {
+                // Datatype plugins can affect more than one datafield, so need to determine if
+                //  it maps to the given datafield
+                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
+                    // The 'id' property of the renderPluginField is actually a datafield id, not
+                    //  a renderPluginField id
+                    if ( $rpf['id'] === $df_id )
+                        return $rpi;
+                }
+            }
+        }
+
+        // If it's not a datatype plugin, then check the datafield plugins
+        $cached_df = $cached_dt['dataFields'][$df_id];
+        foreach ($cached_df['renderPluginInstances'] as $rpi_id => $rpi) {
+            if ( $rpi['renderPlugin']['id'] === $rp_id ) {
+                // Datafield plugins can only affect one datafield, so don't need to keep looking
+                return $rpi;
+            }
+        }
+
+        // If this point is reached, then the given render plugin doesn't affect the given datafield
+        return array();
     }
 
 
@@ -927,9 +1093,9 @@ class MassEditController extends ODRCustomController
             if ( isset($post['value']) )
                 $value = $post['value'];
 
-            $event_trigger = false;
+            $event_trigger = array();
             if ( isset($post['event_trigger']) )
-                $event_trigger = true;
+                $event_trigger = json_decode( $post['event_trigger'] );
 
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
@@ -953,6 +1119,12 @@ class MassEditController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var Logger $logger */
             $logger = $this->get('logger');
+
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -1048,23 +1220,21 @@ class MassEditController extends ODRCustomController
                     }
                 }
 
-                if ( !is_null($value) || $event_trigger ) {
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PostMassEditEvent($drf, $user);
-                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
+                // $event_trigger will only have an entry for this datafield if the event is supposed
+                //  to be triggered
+                if ( !empty($event_trigger) ) {
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
                     }
                 }
             }
@@ -1112,23 +1282,21 @@ class MassEditController extends ODRCustomController
                     }
                 }
 
-                if ( !is_null($value) || $event_trigger ) {
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PostMassEditEvent($drf, $user);
-                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
+                // $event_trigger will only have an entry for this datafield if the event is supposed
+                //  to be triggered
+                if ( !empty($event_trigger) ) {
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
                     }
                 }
             }
@@ -1186,25 +1354,23 @@ class MassEditController extends ODRCustomController
                         $em->flush();
                 }
 
-                if ( $has_files && (!is_null($value) || $event_trigger) ) {
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                // $event_trigger will only have an entry for this datafield if the event is supposed
+                //  to be triggered
+                if ( !empty($event_trigger) ) {
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PostMassEditEvent($drf, $user);
-                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
                     }
                 }
             }
@@ -1262,25 +1428,23 @@ class MassEditController extends ODRCustomController
                         $em->flush();
                 }
 
-                if ( $has_images && (!is_null($value) || $event_trigger) ) {
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+                // $event_trigger will only have an entry for this datafield if the event is supposed
+                //  to be triggered
+                if ( !empty($event_trigger) ) {
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PostMassEditEvent($drf, $user);
-                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-                            throw $e;
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
                     }
                 }
             }
@@ -1290,18 +1454,12 @@ class MassEditController extends ODRCustomController
                 $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getStringValue();
 
-                // Currently, there's no situation where the PostMassEdit event will do anything
-                //  different than the PostUpdate event that updateStorageEntity() fires, so want
-                //  to ensure only one of the events fires
-                $changes_made = false;
-
                 if ( !is_null($value) ) {
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
-                        $changes_made = true;
                     }
                     else {
                         /* do nothing, current value in entity already matches desired value */
@@ -1309,25 +1467,23 @@ class MassEditController extends ODRCustomController
                     }
                 }
 
-                if ( !$changes_made && $event_trigger ) {
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        $drf = $storage_entity->getDataRecordFields();
+                // $event_trigger will only have an entry for this datafield if the event is supposed
+                //  to be triggered
+                if ( !empty($event_trigger) ) {
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $drf = $storage_entity->getDataRecordFields();
 
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PostMassEditEvent($drf, $user);
-                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ($this->container->getParameter('kernel.environment') === 'dev')
-                            throw $e;
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
                     }
                 }
             }
@@ -1337,18 +1493,12 @@ class MassEditController extends ODRCustomController
                 $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                 $old_value = $storage_entity->getValue();
 
-                // Currently, there's no situation where the PostMassEdit event will do anything
-                //  different than the PostUpdate event that updateStorageEntity() fires, so want
-                //  to ensure only one of the events fires
-                $changes_made = false;
-
                 if ( !is_null($value) ) {
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
-                        $changes_made = true;
                     }
                     else {
                         /* do nothing, current value in entity already matches desired value */
@@ -1356,25 +1506,23 @@ class MassEditController extends ODRCustomController
                     }
                 }
 
-                if ( !$changes_made && $event_trigger ) {
-                    // This is wrapped in a try/catch block because any uncaught exceptions thrown
-                    //  by the event subscribers will prevent further progress...
-                    try {
-                        $drf = $storage_entity->getDataRecordFields();
+                // $event_trigger will only have an entry for this datafield if the event is supposed
+                //  to be triggered
+                if ( !empty($event_trigger) ) {
+                    foreach ($event_trigger as $rp_id => $rp_classname) {
+                        try {
+                            $drf = $storage_entity->getDataRecordFields();
 
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
-                        $event = new PostMassEditEvent($drf, $user);
-                        $dispatcher->dispatch(PostMassEditEvent::NAME, $event);
-                    }
-                    catch (\Exception $e) {
-                        // ...don't particularly want to rethrow the error since it'll interrupt
-                        //  everything downstream of the event (such as file encryption...), but
-                        //  having the error disappear is less ideal on the dev environment...
-                        if ($this->container->getParameter('kernel.environment') === 'dev')
-                            throw $e;
+                            $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
+                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't particularly want to rethrow the error since it'll interrupt
+                            //  everything downstream of the event (such as file encryption...), but
+                            //  having the error disappear is less ideal on the dev environment...
+                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                                throw $e;
+                        }
                     }
                 }
             }
@@ -1383,10 +1531,6 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Mark this datarecord as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
                 $event = new DatarecordModifiedEvent($datarecord, $user);
                 $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
             }
@@ -1412,10 +1556,6 @@ class MassEditController extends ODRCustomController
                     // In theory, being here means the job is done, so delete all search cache entries
                     //  relevant to this datatype
                     try {
-                        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                        /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
                         $event = new DatatypeImportedEvent($datatype, $user);
                         $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
                     }
@@ -1448,56 +1588,6 @@ class MassEditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * TODO - move this to a service?  but it would have to import the symfony container...
-     * Looks through the cached datatype array to determine whether any of the used render plugins
-     * derive values for any of their datafields.
-     *
-     * @param array $datatype_array
-     *
-     * @return array
-     */
-    private function findDerivedDatafields($datatype_array)
-    {
-        $derived_datafields = array();
-
-        foreach ($datatype_array as $dt_id => $dt) {
-            // For each render plugin this datatype is using...
-            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
-                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-
-                // Check whether any of the renderPluginField entries are derived prior to attempting to
-                //  load the renderPlugin itself
-                $load_render_plugin = false;
-                foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf) {
-                    if ( isset($rpf['properties']['is_derived']) ) {
-                        $load_render_plugin = true;
-                        break;
-                    }
-                }
-
-                // If a datafield from this plugin is derived...
-                if ($load_render_plugin) {
-                    /** @var DatafieldDerivationInterface $render_plugin */
-                    $render_plugin = $this->container->get($plugin_classname);
-
-                    if ($render_plugin instanceof DatafieldDerivationInterface) {
-                        // ...then request an array of the datafields that are derived from some other
-                        //  field so the rest of FakeEdit can use it
-                        $tmp = $render_plugin->getDerivationMap($rpi);
-                        foreach ($tmp as $derived_df_id => $source_datafields)
-                            $derived_datafields[$derived_df_id] = $source_datafields;
-
-                        // TODO - multiple plugins attempting to derive the value in the same datafield?
-                    }
-                }
-            }
-        }
-
-        return $derived_datafields;
     }
 
 

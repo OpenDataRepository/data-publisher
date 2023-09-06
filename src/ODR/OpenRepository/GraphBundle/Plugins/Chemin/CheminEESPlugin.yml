@@ -2,7 +2,7 @@ odr_plugins.chemin.cheminees:
     name: Chemin EES Plugin
     category: Chemin
     plugin_type: datatype
-    render: true
+    render: odr_plugins.chemin.cheminees
     version: 1.3.0
     override_fields: false
     override_field_reload: false

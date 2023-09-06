@@ -1667,7 +1667,6 @@ class EntityMetaModifyService
             return $radio_selection;
 
         // TODO - should changing radio/tag selections also trigger postUpdate events?  The Event itself isn't set up for it...
-        // TODO - ...if so, then MassEditController needs to be modified so it doesn't always trigger postMassEdit events
 
         // Determine whether to create a new entry or modify the previous one
         if ( is_null($created) )
@@ -2243,7 +2242,6 @@ class EntityMetaModifyService
             return $tag_selection;
 
         // TODO - should changing radio/tag selections also trigger postUpdate events?  The Event itself isn't set up for it...
-        // TODO - ...if so, then MassEditController needs to be modified so it doesn't always trigger postMassEdit events
 
         // Determine whether to create a new entry or modify the previous one
         if ( is_null($created) )

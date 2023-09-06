@@ -46,6 +46,8 @@
 
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,
+
+        'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
     } %}
 
 </div>
@@ -522,8 +524,9 @@ function doMassUpdate() {
     // ...and add selected triggers back in
     $("#MassEditForm .ODRMassEdit_EventTrigger").each(function() {
         var datafield_id = $(this).attr('rel');
-        if ( $(this).find('input').is(':checked') ) {
-            var element = $("<input>", {"id": "EventTrigger_" + datafield_id, "class": "massedit_form_event_trigger", "type": "hidden", "value": 1, "name": "event_triggers[" + datafield_id + "]"});
+        var checkbox = $(this).find('input');
+        if ( $(checkbox).is(':checked') ) {
+            var element = $("<input>", {"id": "EventTrigger_" + datafield_id, "class": "massedit_form_event_trigger", "type": "hidden", "value": 1, "name": "event_triggers[" + datafield_id + "][" + $(checkbox).val() + "]"});
             $("#massedit_form").append(element);
         }
     });

@@ -2284,7 +2284,13 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Given a datarecord and datafield, re-render and return the html for files uploaded to that datafield.
+     * Given a datarecord and datafield, re-render and return the html for files uploaded to that
+     * datafield.
+     *
+     * This controller action is not a duplicate of self::reloaddatafieldAction()...this one is called
+     * after files are uploaded, and directly queries the database so that it picks up files that
+     * haven't been encrypted yet.  The other action works solely from the cache entries, and those
+     * won't be updated until after encryption has finished.
      *
      * @param integer $datafield_id  The database id of the DataField inside the DataRecord to re-render.
      * @param integer $datarecord_id The database id of the DataRecord to re-render
@@ -2335,10 +2341,27 @@ class EditController extends ODRCustomController
             // --------------------
 
             // Don't run if the datafield isn't a file datafield
-            if ( $datafield->getFieldType()->getTypeClass() !== 'File' )
-                throw new ODRBadRequestException('Datafield is not of a File Typeclass');
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if (  $typeclass !== 'File' )
+                throw new ODRBadRequestException('reloadfiledatafield() called on a "'.$typeclass.'" datafield');
 
 
+            // ----------------------------------------
+            // Would prefer the built-in file renaming feature to not work when the FileRenamer
+            //  plugin is active...
+            // Thanks to long covid this coupling is the least horrible method I can figure out
+            // TODO - fix this somehow, please
+            $uses_file_renamer_plugin = false;
+            foreach ($datafield->getRenderPluginInstances() as $rpi) {
+                /** @var RenderPluginInstance $rpi */
+                if ( $rpi->getRenderPlugin()->getPluginClassName() === 'odr_plugins.base.file_renamer' ) {
+                    $uses_file_renamer_plugin = true;
+                    break;
+                }
+            }
+
+
+            // ----------------------------------------
             // Load all files uploaded to this datafield
             $query = $em->createQuery(
                'SELECT f, fm, f_cb
@@ -2359,7 +2382,6 @@ class EditController extends ODRCustomController
                 $file_list[$num] = $file;
             }
 
-
             // Render and return the HTML for the list of files
             $return['d'] = array(
                 'html' => $templating->render(
@@ -2370,6 +2392,7 @@ class EditController extends ODRCustomController
                         'files' => $file_list,
 
                         'datarecord_is_fake' => false,    // "Fake" records can't reach this, because they don't have a datarecord_id
+                        'uses_file_renamer_plugin' => $uses_file_renamer_plugin,
                     )
                 )
             );

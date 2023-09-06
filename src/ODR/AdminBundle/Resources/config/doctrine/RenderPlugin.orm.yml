@@ -44,7 +44,7 @@ ODR\AdminBundle\Entity\RenderPlugin:
             nullable: false
             column: active
         render:
-            type: boolean
+            type: string
             nullable: false
             column: render
 

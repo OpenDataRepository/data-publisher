@@ -13,18 +13,24 @@
  * this situation, then C will effectively be rendered twice on the page, albeit with different
  * records and usually in different areas of the page.
  *
- * In this situation, C will typically be some sort of a reference datatype that's been linked to
- * multiple times...in which case it's easier for users to understand if these multiple instances
- * are "merged" together into a single ThemeElement.
+ * At the moment, this situation only arises when C is some sort of a reference datatype that's been
+ * linked to multiple times...in which case it's easier for users to understand when these multiple
+ * instances are "merged" together into a single ThemeElement.
  *
  *
  * Fortunately, the rendering system can be easily "deceived" by moving the contents of the cached
- * datarecord array around, and "view" mode has nothing to be broken by performing this move.  This
- * doesn't work in "edit" mode though, because moving the records around means the "edit" UI can't
- * determine whether the user is modifying the B->C link, or the A->C link...for now.
+ * datarecord array around, and nothing actually breaks in Display mode by doing this.  This does
+ * not work for Edit mode, however, because combining the records into a single themeElement means
+ * there's no way to determine which of the links the user wants to add a record too...do they mean
+ * the B->C link, or the A->C link?
  *
  * This plugin is still something of a hack though, and the average user probably won't understand
  * what's going on when it refuses to work.
+ *
+ *
+ * NOTE: this plugin's actions mean that the display settings (show/hide, accordion/dropdown/etc) for
+ * themeElements which aren't the selected destination "don't matter" outside of Edit mode. There's
+ * no good way to indicate on the layout design pages what this plugin is going to do, unfortunately.
  *
  */
 
@@ -36,19 +42,19 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
-use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSettingsDialogOverrideInterface
+class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettingsDialogOverrideInterface
 {
 
     /**
@@ -368,45 +374,33 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
 
 
     /**
-     * Executes the Linked Descendant Merger Plugin on the provided datarecords
+     * Executes the Linked Descendant Merger plugin on the provided datarecords
      *
-     * @param array $datarecords
+     * @param array $datarecord_array
      * @param array $datatype
      * @param array $render_plugin_instance
      * @param array $theme_array
      * @param array $rendering_options
      * @param array $parent_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
      *
-     * @return string
+     * @return ArrayPluginReturn|null
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array())
     {
         try {
+            // ----------------------------------------
+            // If no rendering context set, then return nothing so ODR's default templating will
+            //  do its job
+            if ( !isset($rendering_options['context']) )
+                return null;
+
+
             // ----------------------------------------
             // Need this to determine whether to throw an error or not
             $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
             // This render plugin has no fields to deal with
-
-            // The datatype array shouldn't be wrapped with its ID number here...
-            $initial_datatype_id = $datatype['id'];
-
-            // The theme array is stacked, so there should be only one entry to find here...
-            $initial_theme_id = '';
-            $theme = array();
-            foreach ($theme_array as $t_id => $t) {
-                $initial_theme_id = $t_id;
-                $theme = $t;
-            }
-
-            // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
-            foreach ($datarecords as $dr_id => $dr)
-                $datarecord = $dr;
 
 
             // ----------------------------------------
@@ -422,96 +416,54 @@ class LinkedDescendantMergerPlugin implements DatatypePluginInterface, PluginSet
 
             // If the config is invalid, don't execute the plugin
             if ( empty($plugin_config) )
-                return '';
-
-
-            // The second step is to locate each group of datarecords listed in the plugin...
-            $dr_list = array();
-            foreach ($plugin_config as $num => $dt_group) {
-                // ...need to keep them separated from each other, incase the plugin was configured
-                //  to run on multiple linked descendant datatypes at the same time...
-                $dr_list[$num] = array();
-
-                foreach ($dt_group['src'] as $prefix_num => $prefix) {
-                    // Since the cached array is stacked, it's easier to gather the records recursively
-                    // Since $datarecord was passed in to this function, don't need to check permissions
-                    $tmp_dr_list = self::getDescendantDatarecords($datarecord, $prefix);
-
-                    // Add each datarecord that was returned to the full list of records
-                    foreach ($tmp_dr_list as $dr_id => $dr)
-                        $dr_list[$num][$dr_id] = $dr;
-                }
-            }
-
-            // Now that we have lists of all datarecords that need to get moved, find the destination
-            //  for each group of datarecords
-            foreach ($plugin_config as $num => $dt_group) {
-                if ( !empty($dr_list[$num]) )
-                    self::moveDatarecords($datarecord, $dr_list[$num], $dt_group['dest']);
-            }
-
-
-            // NOTE - this means that the display settings (show/hide, accordion/dropdown/etc) for
-            //  the links which aren't the selected destination "don't matter" outside of Edit mode
-            // There's currently no good way to indicate on the layout design pages what this
-            //  plugin is doing
+                return null;
 
 
             // ----------------------------------------
-            // If no rendering context set, then return nothing so ODR's default templating will
-            //  do its job
-            if ( !isset($rendering_options['context']) )
-                return '';
+            // Because this plugin could be getting called on a descendant datatype, $datarecord_array
+            //  could have multiple datarecords...
+            $modified_datarecord_array = array();
+            foreach ($datarecord_array as $datarecord_id => $datarecord) {
+                // For each datarecord belonging to this datatype...
+                $dr_list = array();
+                foreach ($plugin_config as $num => $dt_group) {
+                    // The plugin could've been configured to run on multiple linked descendant
+                    //  datatypes at the same time, so the lists need to be separated according to
+                    //  the relevant config
+                    $dr_list[$num] = array();
 
-            // Otherwise, need to provide the modified datarecord array info to the templating so
-            //  that it ends up displaying correctly
-            $output = '';
-            if ( $rendering_options['context'] === 'display' ) {
-                $theme_type = $rendering_options['theme_type'];
-                if ( $theme_type !== ThemeDataType::DATATABLES_CONTENT ) {
-                    $output = $this->templating->render(
-                        'ODRAdminBundle:Display:display_fieldarea.html.twig',
-                        array(
-                            'datatype_array' => array($initial_datatype_id => $datatype),
-                            'datarecord' => $datarecord,
-                            'theme_array' => array($initial_theme_id => $theme),
+                    foreach ($dt_group['src'] as $prefix_num => $prefix) {
+                        // ...pull out this datarecord's descendants that are listed by the config
+                        $tmp_dr_list = self::getDescendantDatarecords($datarecord, $prefix);
 
-                            'target_datatype_id' => $initial_datatype_id,
-                            'parent_datarecord' => $parent_datarecord,
-                            'target_datarecord_id' => $datarecord['id'],
-                            'target_theme_id' => $initial_theme_id,
-
-                            'is_datatype_admin' => $is_datatype_admin,
-
-                            'is_top_level' => $rendering_options['is_top_level'],
-                            'is_link' => $rendering_options['is_link'],
-                            'display_type' => $rendering_options['display_type'],
-                            'multiple_allowed' => $rendering_options['multiple_allowed'],
-                        )
-                    );
+                        // Add each descendant to another list of records...
+                        foreach ($tmp_dr_list as $dr_id => $dr)
+                            $dr_list[$num][$dr_id] = $dr;
+                    }
                 }
-                else {
-                    $output = $this->templating->render(
-                        'ODRAdminBundle:Display:display_setup_table_layout.html.twig',
-                        array(
-                            'datatype_array' => array($initial_datatype_id => $datatype),
-                            'datarecord' => array($datarecord['id'] => $datarecord),
-                            'theme_array' => array($initial_theme_id => $theme),
 
-                            'target_datatype_id' => $initial_datatype_id,
-                            'parent_datarecord' => $parent_datarecord,
-                            'target_theme_id' => $initial_theme_id,
-
-                            'is_top_level' => $rendering_options['is_top_level'],
-                            'is_link' => $rendering_options['is_link'],
-                            'display_type' => $rendering_options['display_type'],
-                            'multiple_allowed' => $rendering_options['multiple_allowed'],
-                        )
-                    );
+                // Now that we have lists of all datarecords that need to get moved, splice each
+                //  group of records into their desired destinations
+                foreach ($plugin_config as $num => $dt_group) {
+                    if ( !empty($dr_list[$num]) )
+                        self::moveDatarecords($datarecord, $dr_list[$num], $dt_group['dest']);
                 }
+
+                // Store the modified datarecord into a different array to be returned later
+                $modified_datarecord_array[$datarecord_id] = $datarecord;
             }
 
-            return $output;
+
+            // ----------------------------------------
+            // Otherwise, need to provide the modified datarecord array info to the templating so
+            //  that it ends up displaying correctly
+            $modifications = new ArrayPluginReturn(
+                $datatype,
+                $modified_datarecord_array,
+                $theme_array
+            );
+
+            return $modifications;
         }
         catch (\Exception $e) {
             // Just rethrow the exception
