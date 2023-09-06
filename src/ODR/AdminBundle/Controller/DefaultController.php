@@ -50,15 +50,18 @@ class DefaultController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            // TODO Wordpress Integrated
-            if($this->container->getParameter('odr_wordpress_integrated')) {
+            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+
+            if ($is_wordpress_integrated) {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
                 $html = $this->renderView(
                     'ODRAdminBundle:Default:index.html.twig',
                     array(
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
-                        'site_baseurl' => $this->container->getParameter('site_baseurl')
+                        'site_baseurl' => $site_baseurl,
+                        'odr_wordpress_integrated' => $is_wordpress_integrated,
                     )
                 );
             }
@@ -69,7 +72,8 @@ class DefaultController extends ODRCustomController
                     array(
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
-                        'site_baseurl' => $this->container->getParameter('site_baseurl')
+                        'site_baseurl' => $site_baseurl,
+                        'odr_wordpress_integrated' => $is_wordpress_integrated,
                     )
                 );
             }

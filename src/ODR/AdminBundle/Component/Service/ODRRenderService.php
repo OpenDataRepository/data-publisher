@@ -31,12 +31,16 @@ use ODR\AdminBundle\Exception\ODRException;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Form\FormFactory;
 
 
 class ODRRenderService
 {
+
+    /**
+     * @var string
+     */
+    private $site_baseurl;
 
     /**
      * @var EntityManager
@@ -89,11 +93,6 @@ class ODRRenderService
     private $emm_service;
 
     /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
      * @var FormFactory
      */
     private $form_factory;
@@ -110,8 +109,9 @@ class ODRRenderService
 
 
     /**
-     * ODR Render Service
+     * ODRRender Service
      *
+     * @param string $site_baseurl
      * @param EntityManager $entity_manager
      * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
@@ -122,12 +122,12 @@ class ODRRenderService
      * @param CloneThemeService $clone_theme_service
      * @param CloneTemplateService $clone_template_service
      * @param EntityMetaModifyService $entity_meta_modify_service
-     * @param ContainerInterface $container
      * @param FormFactory $form_factory
      * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
+        string $site_baseurl,
         EntityManager $entity_manager,
         DatabaseInfoService $database_info_service,
         DatafieldInfoService $datafield_info_service,
@@ -139,10 +139,10 @@ class ODRRenderService
         CloneTemplateService $clone_template_service,
         EntityMetaModifyService $entity_meta_modify_service,
         FormFactory $form_factory,
-        ContainerInterface $container,
         EngineInterface $templating,
         Logger $logger
     ) {
+        $this->site_baseurl = $site_baseurl;
         $this->em = $entity_manager;
         $this->dbi_service = $database_info_service;
         $this->dfi_service = $datafield_info_service;
@@ -154,7 +154,6 @@ class ODRRenderService
         $this->clone_template_service = $clone_template_service;
         $this->emm_service = $entity_meta_modify_service;
         $this->form_factory = $form_factory;
-        $this->container = $container;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -196,7 +195,7 @@ class ODRRenderService
         $extra_parameters = array(
             'fieldtype_array' => $fieldtype_array,
             'has_datarecords' => $has_datarecords,
-            'site_baseurl' => $this->container->getParameter('site_baseurl'),
+            'site_baseurl' => $this->site_baseurl,
 
             'sync_with_template' => false,
             'sync_metadata_with_template' => false,
@@ -263,7 +262,7 @@ class ODRRenderService
         // ----------------------------------------
         $template_name = 'ODRAdminBundle:Theme:theme_ajax.html.twig';
         $extra_parameters = array(
-            'site_baseurl' => $this->container->getParameter('site_baseurl'),
+            'site_baseurl' => $this->site_baseurl,
 //            'display_mode' => "wizard",
             'display_mode' => 'edit',
             'search_key' => $search_key,
@@ -476,7 +475,7 @@ class ODRRenderService
         $template_name = 'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig';
         $extra_parameters = array(
             'odr_tab_id' => $odr_tab_id,
-            'site_baseurl' => $this->container->getParameter('site_baseurl'),
+            'site_baseurl' => $this->site_baseurl,
 //            'include_links' => false,
         );
 
@@ -553,7 +552,7 @@ class ODRRenderService
 
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
-        $extra_parameters['site_baseurl'] = $this->container->getParameter('site_baseurl');
+        $extra_parameters['site_baseurl'] = $this->site_baseurl;
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -1083,7 +1082,7 @@ class ODRRenderService
         $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = array(
             'is_datatype_admin' => $is_datatype_admin,
-            'site_baseurl' => $this->container->getParameter('site_baseurl'),
+            'site_baseurl' => $this->site_baseurl,
             'datafield_properties' => array(),
         );
 
@@ -1421,7 +1420,7 @@ class ODRRenderService
                 'datatype' => $target_datatype,
                 'datarecord' => $target_datarecord,
                 'datafield' => $target_datafield,
-                'site_baseurl' => $this->container->getParameter('site_baseurl'),
+                'site_baseurl' => $this->site_baseurl,
 
                 'is_link' => $is_link,
                 'is_datatype_admin' => $is_datatype_admin,

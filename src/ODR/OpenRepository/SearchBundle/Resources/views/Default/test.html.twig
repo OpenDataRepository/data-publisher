@@ -50,5 +50,5 @@
 {% block body %}
     {{ records }}
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
-    {{ js.write(logged_in) }}
+    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated) }}
 {% endblock %}

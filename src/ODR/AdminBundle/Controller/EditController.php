@@ -1777,6 +1777,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datafield');
 
 
+            // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();

@@ -43,17 +43,22 @@ class ODRTabHelperService
     /**
      * ODRTabHelperService constructor.
      *
+     * @param string $default_search_results_limit
      * @param RequestStack $request_stack
      * @param TokenGenerator $token_generator
      */
     public function __construct(
+        string $default_search_results_limit,
         RequestStack $request_stack,
         TokenGenerator $token_generator
     ) {
         $this->request_stack = $request_stack;
         $this->token_generator = $token_generator;
 
-        $this->default_page_length = 25;
+        if ( is_numeric($default_search_results_limit) )
+            $this->default_page_length = intval($default_search_results_limit);
+        else
+            $this->default_page_length = 100;
     }
 
 

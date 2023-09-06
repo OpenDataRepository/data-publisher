@@ -1,4 +1,4 @@
-{% macro write(logged_in, site_baseurl) %}
+{% macro write(logged_in, site_baseurl, odr_wordpress_integrated) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
@@ -213,8 +213,7 @@
     /**
      * Redirects an anonymous user to ODR's login page.
      */
-    {% set wordpress_integrated = false %}
-    {% if wordpress_integrated %}
+    {% if odr_wordpress_integrated %}
     function ODRLogin() {
         let current_page = window.location.href
         window.location.href = '/wp-login.php?redirect_to=' + current_page;

@@ -221,7 +221,7 @@
     $(function() {
         // disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
         // Remove the sidebar.  Slows down design page
-        $("#ODRSearchSidebar").fadeOut('fast').remove();
+        $("#odr_content").children("#ODRSearchSidebar").remove();
 
         initPage();
 
@@ -2143,7 +2143,7 @@
 
         // Attach event handlers to most of the rest of the input elements
         tdf_odpf.find("select").each(function() {
-            console.log('Setting up datafield.');
+            // console.log('Setting up datafield.');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2162,7 +2162,7 @@
         });
 
         tdf_odpf.find("textarea").each(function() {
-            console.log('Setting up datafield. 2');
+            // console.log('Setting up datafield. 2');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2190,7 +2190,7 @@
             });
         });
         tdf_odpf.find("input").each(function() {
-            console.log('Setting up datafield. 3');
+            // console.log('Setting up datafield. 3');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -2231,7 +2231,7 @@
 
         // Override the handler for the fieldtype selector
         tdf_odpf.find("#DatafieldsForm_field_type").each(function() {
-            console.log('Setting up datafield. 4');
+            // console.log('Setting up datafield. 4');
             // Grab Datafield id
             var datafield_id_data = tdf_odpf.attr('id').split(/_/);
             var datafield_id =  datafield_id_data[1];

@@ -45,6 +45,10 @@
     {% if theme.theme_type == "table" %}
         <div class="ODRViewNote">[ Table view. ]</div>
     {% endif %}
+
+    {% if not theme.public %}
+        <div class="ODRViewNote">[ Not Public. ]</div>
+    {% endif %}
     </div>
 
     <div class="pure-u-1 pure-u-md-5-24">
@@ -62,33 +66,35 @@
         {% if user != "anon." and theme.created_by == user.id and not theme.public %}
             {# users can always make one of their own themes public #}
             <li class="ODRMakeViewPublic">make view public (usable by others)</li>
+            {# datatype admins are not allowed to make other users' themes public #}
         {%  elseif user != "anon." and theme.created_by == user.id and theme.public and theme.is_default != 1 and theme.theme_type != "master" %}
             {# users can only make one of their own themes private if it's not a default or master theme #}
             <li class="ODRMakeViewPublic">make view private</li>
         {% endif %}
 
         {% if is_datatype_admin and theme.public and theme.is_default != 1 %}
-            {# datatype admins can set a public theme as the default for a database #}
+            {# datatype admins can set any public theme as the default for a database #}
             <li class="ODRDefaultDatabase">make default for database</li>
         {% endif %}
 
             <li>
             {% if user != "anon." and theme.created_by == user.id and theme.theme_type != "master" %}
                 {# users can edit non-master themes they created #}
-                <span class="ODRModifyTheme">edit view</span>
-            {% elseif is_datatype_admin and (theme.theme_type == "master" or theme.is_default == 1) %}
-                {# datatype admins are also allowed to edit both default and master themes whether they created them or not #}
-                <span class="ODRModifyTheme">edit view</span>
+                <span class="ODRModifyTheme">edit view</span> |
+            {% elseif is_datatype_admin %}
+                {# datatype admins are also allowed to edit any theme for this datatype #}
+                <span class="ODRModifyTheme">edit view</span> |
             {% endif %}
 
             {% if user != "anon." %}
                 {# users are allowed to make their own copy of any theme #}
-                | <span class="ODRCopyModifyTheme">copy view</span>
+                <span class="ODRCopyModifyTheme">copy view</span>
             {% endif %}
 
             {% if user != "anon." and theme.created_by == user.id and theme.is_default != 1 and theme.theme_type != "master" %}
                 {# users can delete themes, but only if they created it, and it's not a default theme, and it's not a master theme #}
                 | <span class="ODRDeleteTheme">delete view</span>
+                {# datatype admins are not allowed to delete other users' themes #}
             {% endif %}
             </li>
         </ul>

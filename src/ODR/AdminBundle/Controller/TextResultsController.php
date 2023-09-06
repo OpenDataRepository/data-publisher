@@ -222,8 +222,8 @@ class TextResultsController extends ODRCustomController
             // NOTE: moved into self::datatablesstatesaveAction()
 //            // If the datarecord lists don't exist in the user's session, then they need to get created
 //            // If the sorting criteria changed, then the datarecord lists need to get rebuilt
-//            $sort_datafields = array();
-//            $sort_directions = array();
+            $sort_datafields = array();
+            $sort_directions = array();
 //
 //            if ( empty($sort_cols) || ( count($sort_cols) === 1 && $sort_cols[0] < 2 ) ) {
 //                // datatables.js isn't using a sort column, or is using the default sort column

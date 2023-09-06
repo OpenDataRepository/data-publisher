@@ -2,49 +2,28 @@
 
 /**
  * Open Data Repository Data Publisher
- * Remote Controller
+ * SearchCache Controller
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Holds functions that help users set up and configure the "ODR Remote Search" javascript module,
- * intended for use by a 3rd party website.
- *
- * These controller actions help the user select the (subset of) datatype/datafields that they're
- * interested in searching from their own website...a second piece of javascript is then generated
- * that configures the module, allowing it to build the base64 search keys that ODR's search system
- * expects.
- *
- * People can then enter search terms on the 3rd party website, and get redirected to the equivalent
- * search results page on ODR.
+ * Inserts all records of a datatype into a pheanstalk queue so they can be cached in the background.
  */
 
 namespace ODR\OpenRepository\SearchBundle\Controller;
 
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\DatatreeInfoService;
-use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
-use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
-use Symfony\Bundle\TwigBundle\TwigEngine;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+
 
 class SearchCacheController extends Controller
 {

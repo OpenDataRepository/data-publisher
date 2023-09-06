@@ -241,9 +241,11 @@
                 }
 
                 // ----------------------------------------
+                var intent = $(context).find("#ODRSearchIntent").val();
+
                 // If this was a "regular" search request, then do required setup before redirecting
                 //  the user
-                if ( $("#ODRSearchIntent").val() === 'searching' ) {
+                if ( intent === 'searching' ) {
                     // Overwrite any currently existing tab id, since a new search was performed
                     if (window.sessionStorage.getItem('odr_tab_id')) {
                         // Tell the server to stop storing data for the old tab
@@ -271,7 +273,7 @@
                     UpdateURL(url);
                     // hideSearchOverlay();    // Don't hide search overlay here, rendering takes longer than searching
                 }
-                else if ( $(context).find("#ODRSearchIntent").val() === 'linking' ) {
+                else if ( intent === 'linking' ) {
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length - 10);
                     url += data.d.search_key + '/1/linking';
@@ -283,7 +285,7 @@
                         dataType: 'json',
                         success: function (data, textStatus, jqXHR) {
                             $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
-                            $(context).find("#ODRSearchBoxContent").html(data.d.html);
+                            $("#ODRSearchBoxContent").html(data.d.html);
 
                             // hideSearchOverlay();
                         }

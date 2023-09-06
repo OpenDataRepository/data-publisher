@@ -107,6 +107,7 @@ services:
     odr.tab_helper_service:
         class: ODR\AdminBundle\Component\Service\ODRTabHelperService
         arguments:
+            $default_search_results_limit: "%default_search_results_limit%"
             $request_stack: "@request_stack"
             $token_generator: "@fos_user.util.token_generator"
 
@@ -174,8 +175,6 @@ services:
             $datatree_info_service: "@odr.datatree_info_service"
             $search_api_service: "@odr.search_api_service"
             $logger: "@logger"
-            $user_manager: "@fos_user.user_manager"
-            $wordpress_integrated: "%odr_wordpress_integrated%"
 
     odr.user_group_management_service:
         class: ODR\AdminBundle\Component\Service\ODRUserGroupMangementService
@@ -234,6 +233,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
+            $permissions_service: "@odr.permissions_management_service"
             $session: "@session"
             $logger: "@logger"
 
@@ -299,6 +299,7 @@ services:
     odr.render_service:
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
+            $site_baseurl: "%site_baseurl%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"
@@ -310,7 +311,6 @@ services:
             $clone_template_service: "@odr.clone_template_service"
             $entity_meta_modify_service: "@odr.entity_meta_modify_service"
             $form_factory: "@form.factory"
-            $container: "@service_container"
             $templating: "@templating"
             $logger: "@logger"
 

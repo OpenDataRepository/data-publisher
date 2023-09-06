@@ -269,6 +269,7 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Default:index.html.twig',
                 array(
@@ -286,6 +287,7 @@ class DefaultController extends Controller
                     'site_baseurl' => $site_baseurl,
                     'search_string' => $search_string,
                     'odr_tab_id' => $odr_tab_id,
+                    'odr_wordpress_integrated' => $is_wordpress_integrated,
 
                     // required for background image
                     'background_image_id' => $background_image_id,
@@ -562,8 +564,9 @@ class DefaultController extends Controller
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             // Wordpress Integrated - use full & body
             $site_baseurl = $this->container->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             // print "WP Header: " . $request->wordpress_header; exit();
-            if($this->container->getParameter('odr_wordpress_integrated')) {
+            if ( $is_wordpress_integrated ) {
 
                 // WPNonce Should exist
                 $logout_url = wp_logout_url();
@@ -575,7 +578,7 @@ class DefaultController extends Controller
                         'user' => $admin_user,
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
-                        'wordpress_integrated' => true,
+                        'odr_wordpress_integrated' => $is_wordpress_integrated,
                         'logout_url' => $logout_url,
 
                         'user_list' => $user_list,
@@ -611,7 +614,6 @@ class DefaultController extends Controller
                         'user' => $admin_user,
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
-                        'wordpress_integrated' => false,
 
                         'user_list' => $user_list,
                         'logged_in' => $logged_in,
@@ -622,6 +624,7 @@ class DefaultController extends Controller
                         'site_baseurl' => $site_baseurl,
                         'search_string' => $search_string,
                         'odr_tab_id' => $odr_tab_id,
+                        'odr_wordpress_integrated' => $is_wordpress_integrated,
 
                         // required for background image
                         'background_image_id' => $background_image_id,

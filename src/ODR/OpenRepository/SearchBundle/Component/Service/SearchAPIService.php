@@ -415,13 +415,14 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
-     * @param DataType|null $datatype     Really shouldn't be null, but can compensate for it
+     * @param DataType|null $datatype     Preferably not null, but can parse $search_key if so
      * @param string $search_key
      * @param array $user_permissions     The permissions of the user doing the search, or an empty
      *                                    array when not logged in
      * @param bool $return_complete_list  If false, then returns a sorted list of grandparent
      *                                    datarecord ids...if true, then returns an unsorted list of
-     *                                    child/linked datarecords that weren't excluded from the search
+     *                                    the grandparent datarecords and all their descendents that
+     *                                    match the search
      * @param int[] $sort_datafields      An ordered list of the datafields to sort by, or an empty
      *                                    array to sort by whatever is default for the datatype
      * @param string[] $sort_directions   An ordered list of which direction to sort each datafield
@@ -620,7 +621,7 @@ class SearchAPIService
             $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
             $datarecord_ids = array_keys($datarecord_ids);
 
-            // No sense running anything else
+            // There's no correct method to sort this list, so might as well return immediately
             return $datarecord_ids;
         }
 

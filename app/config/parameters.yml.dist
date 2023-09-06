@@ -20,7 +20,6 @@ parameters:
     # Is this a Wordpress-integrated Installation
     odr_wordpress_integrated: false
 
-
     # This is used to generate redirects and file download links in the site
     # NOTE - no protocol, and no trailing forward slash  e.g. "//odr.io"
     wordpress_site_baseurl: "[[ enter wordpress integration url here ]]"
@@ -43,6 +42,7 @@ parameters:
     # database_uuids: ['ias9lasdf8jsadflss', '9dsfasfdasdfks',...]
     #
     elastic_dataset_uuids: [(Bracketed array of databse uuids)]
+
     #
     # END Elastic Search Configuration
     #
@@ -73,7 +73,10 @@ parameters:
     # NOTE - This should NOT have a trailing backslash or be quoted
     odr_plugin_base_classpath: ODR\OpenRepository\GraphBundle\Plugins
 
-    # TODO
+    # This directory is used by APIController::addfileAction() for when a POST request wants to
+    #  "upload" files already on the server...need to ensure this directory has a+wrx permissions,
+    #  because the process running the controller action tends to be different than the process that
+    #  actually "uploads" the files...
     uploaded_files_path: '/tmp/odr_uploaded_files'
 
     memcached.servers:
