@@ -52,6 +52,12 @@ class RenderPlugin
      */
     const ARRAY_PLUGIN = 4;
 
+    /*
+     * These technically don't "render" anything, but instead completely override the search system
+     * for specific datafields.  Ideally, they still respect the search system caching.
+     */
+    const SEARCH_PLUGIN = 5;
+
 
     /**
      * @var integer

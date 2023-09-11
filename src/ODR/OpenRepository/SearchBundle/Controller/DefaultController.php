@@ -595,11 +595,16 @@ class DefaultController extends Controller
                         'background_image_id' => $background_image_id,
 
                         // datatype/datafields to search
-                        'search_params' => array(),
                         'target_datatype' => $target_datatype,
                         'datatype_array' => $datatype_array,
                         'datatype_relations' => $datatype_relations,
-//                    'available_themes' => $available_themes,
+
+                        // defaults if needed
+                        'search_key' => $search_key,
+                        'search_params' => $search_params,
+
+                        // theme selection
+//                        'available_themes' => $available_themes,
                         'preferred_theme_id' => $preferred_theme_id,
                     )
                 );
@@ -630,10 +635,13 @@ class DefaultController extends Controller
                         'background_image_id' => $background_image_id,
 
                         // datatype/datafields to search
-                        'search_params' => array(),
                         'target_datatype' => $target_datatype,
                         'datatype_array' => $datatype_array,
                         'datatype_relations' => $datatype_relations,
+
+                        // defaults if needed
+                        'search_key' => $search_key,
+                        'search_params' => $search_params,
 
                         // theme selection
 //                    'available_themes' => $available_themes,

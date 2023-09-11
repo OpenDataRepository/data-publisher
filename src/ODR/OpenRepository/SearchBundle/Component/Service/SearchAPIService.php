@@ -16,18 +16,21 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\RenderPlugin;
 // Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
 class SearchAPIService
@@ -64,6 +67,11 @@ class SearchAPIService
     // There are also situations where a datarecord needs to be set to not match a search
     const DISABLE_MATCHES_MASK = 0b1100;
 
+
+    /**
+     * @var ContainerInterface
+     */
+    private $container;
 
     /**
      * @var EntityManager
@@ -104,6 +112,7 @@ class SearchAPIService
     /**
      * SearchAPIService constructor.
      *
+     * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
@@ -113,6 +122,7 @@ class SearchAPIService
      * @param Logger $logger
      */
     public function __construct(
+        ContainerInterface $container,
         EntityManager $entity_manager,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
@@ -121,6 +131,7 @@ class SearchAPIService
         CacheService $cache_service,
         Logger $logger
     ) {
+        $this->container = $container;
         $this->em = $entity_manager;
         $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
@@ -513,6 +524,17 @@ class SearchAPIService
                         $dr_list = $this->search_service->searchModifiedBy($entity, $search_term['user']);
                     else if ($key === 'publicStatus')
                         $dr_list = $this->search_service->searchPublicStatus($entity, $search_term['value']);
+                    else if ( isset($hydrated_entities['renderPlugin'][$entity_id]) ) {
+                        // The render plugin is already loaded, stored by the id of the datafield
+                        //  that is using it
+                        $tmp = $hydrated_entities['renderPlugin'][$entity_id];
+                        /** @var SearchPluginInterface $rp */
+                        $rp = $tmp['renderPlugin'];
+                        $rpo = $tmp['renderPluginOptions'];
+
+                        // The plugin will return the same format that the regular searches do
+                        $dr_list = $rp->searchPluginField($entity, $search_term, $rpo);
+                    }
                     else {
                         // Datafield search depends on the typeclass of the field
                         $typeclass = $entity->getFieldType()->getTypeClass();
@@ -764,8 +786,11 @@ class SearchAPIService
         // ----------------------------------------
         // Need to hydrate all of the datafields/datatypes so the search functions work
         $datafields = array();
-        if ( !empty($datafield_ids) )
+        $render_plugins = array();
+        if ( !empty($datafield_ids) ) {
             $datafields = self::hydrateDatafields($search_type, $datafield_ids);
+            $render_plugins = self::hydrateRenderPlugins($search_type, $datafield_ids);
+        }
 
 
         // Because of permissions, need to hydrate all datatypes...
@@ -780,7 +805,8 @@ class SearchAPIService
         // Return the hydrated arrays
         return array(
             'datafield' => $datafields,
-            'datatype' => $datatypes
+            'renderPlugin' => $render_plugins,
+            'datatype' => $datatypes,
         );
     }
 
@@ -844,6 +870,92 @@ class SearchAPIService
         }
 
         return $datafields;
+    }
+
+
+    /**
+     * Loads render plugins that affect search results prior to use.
+     *
+     * @param string $search_type
+     * @param array $datafield_ids
+     *
+     * @return array
+     */
+    private function hydrateRenderPlugins($search_type, $datafield_ids)
+    {
+        $render_plugins = array();
+
+        if ( $search_type === 'datatype' ) {
+            // For a regular search, need to hydrate all datafields being searched on
+            $params = array(
+                'datafield_ids' => $datafield_ids,
+                'plugin_type' => RenderPlugin::SEARCH_PLUGIN,
+            );
+
+            // Due to search plugins only being allowed on datafields, the query below does not
+            //  have to use the renderPluginMap table
+            $query = $this->em->createQuery(
+               'SELECT df.id AS df_id, rp.pluginClassName AS plugin_classname,
+                    rpom.value AS rpom_value, rpod.name AS rpod_name
+                FROM ODRAdminBundle:RenderPlugin AS rp
+                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                WHERE rp.plugin_type = :plugin_type AND rp.active = 1 AND df.id IN (:datafield_ids)
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+                AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
+                AND df.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getArrayResult();
+
+            // Only want to load each render plugin once...
+            $render_plugins_cache = array();
+            $render_plugin_options = array();
+            foreach ($results as $result) {
+                $plugin_classname = $result['plugin_classname'];
+
+                if ( !isset($render_plugins_cache[$plugin_classname]) ) {
+                    /** @var SearchPluginInterface $plugin */
+                    $plugin = $this->container->get($plugin_classname);
+                    $render_plugins_cache[$plugin_classname] = $plugin;
+                }
+
+                $option_name = $result['rpod_name'];
+                $option_value = $result['rpom_value'];
+
+                if ( !is_null($option_name) ) {
+                    if ( !isset($render_plugin_options[$plugin_classname]) )
+                        $render_plugin_options[$plugin_classname] = array();
+                    $render_plugin_options[$plugin_classname][$option_name] = $option_value;
+                }
+            }
+
+            // Need to arrange the plugins by the id of the datafield that is using them, though
+            foreach ($results as $result) {
+                $df_id = $result['df_id'];
+                $plugin_classname = $result['plugin_classname'];
+
+                $render_plugins[$df_id] = array(
+                    'renderPlugin' => $render_plugins_cache[$plugin_classname],
+                );
+
+                // The render plugin may not have had any options...
+                if ( isset($render_plugin_options[$plugin_classname]) ) {
+                    // ...but if it does, then save them to return
+                    $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$plugin_classname];
+                }
+                else {
+                    // If it didn't have any options, then just provide an empty array
+                    $render_plugins[$df_id]['renderPluginOptions'] = array();
+                }
+            }
+        }
+        else {
+            throw new ODRNotImplementedException('unable to run search plugins across templates...');
+        }
+
+        return $render_plugins;
     }
 
 

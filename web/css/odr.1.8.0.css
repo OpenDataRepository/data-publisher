@@ -3303,6 +3303,9 @@ form .row {
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;
 }
+.ODRFileInfo > p {
+    margin: 5px 0px 0px;
+}
 
 .ODRTruncateFilename {
     display: inline-block;
