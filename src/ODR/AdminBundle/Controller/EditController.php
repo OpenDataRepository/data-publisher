@@ -14,6 +14,8 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use ODR\AdminBundle\Controller\WPAutoLoginController;
 // Entities
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -85,6 +87,34 @@ use Symfony\Component\Templating\EngineInterface;
 
 class EditController extends ODRCustomController
 {
+
+//    public function __construct() {
+//
+//        // Check for Wordpress Integration
+////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//        if($this->getParameter('wordpress_integrated')) {
+//            $odr_wordpress_user = getenv("WORDPRESS_USER");
+//            if ($odr_wordpress_user) {
+//                // print $odr_wordpress_user . ' ';
+//                /** @var ODRUser $user */
+//                $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
+//                print 'asdf';exit();
+//            }
+//        }
+//        else {
+//            print 'kasdfkafds';exit();
+//        }
+//        // Here, "public" is the name of the firewall in your security.yml
+//        $token = new UsernamePasswordToken($user, $user->getPassword(), "public", $user->getRoles());
+//
+//        // For older versions of Symfony, use security.context here
+//        $this->get("security.token_storage")->setToken($token);
+//
+//        // Fire the login event
+//        // Logging the user in above the way we do it doesn't do this automatically
+//        $event = new InteractiveLoginEvent($request, $token);
+//        $this->get("event_dispatcher")->dispatch("security.interactive_login", $event);
+//    }
 
     /**
      * Creates a new top-level DataRecord in the database.
@@ -1761,7 +1791,6 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
             // --------------------
 
-
             // ----------------------------------------
             // Determine class of form needed
             $typeclass = $datafield->getFieldType()->getTypeClass();
@@ -2553,12 +2582,18 @@ class EditController extends ODRCustomController
                 }
 
                 // No problems, so get the datarecords that match the search
-                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
-                if ( is_null($cached_search_results) ) {
-                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                $original_datarecord_list = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($original_datarecord_list) ) {
+                    $original_datarecord_list = $search_api_service->performSearch(
+                        $datatype,
+                        $search_key,
+                        $user_permissions,
+                        false,  // only want the grandparent datarecord ids that match the search
+                        $sort_datafields,
+                        $sort_directions
+                    );
+                    $odr_tab_service->setSearchResults($odr_tab_id, $original_datarecord_list);
                 }
-                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------

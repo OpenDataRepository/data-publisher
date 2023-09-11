@@ -1950,7 +1950,6 @@ class EntityMetaModifyService
             return $entity;
         }
 
-
         // If this is an IntegerValue entity, set the value back to an integer or null so it gets
         //  saved correctly
         if ($typeclass == 'IntegerValue') {
@@ -2582,6 +2581,7 @@ class EntityMetaModifyService
             'shared' => $old_meta_entry->getShared(),
             'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
+            'displaysAllResults' => $old_meta_entry->getDisplaysAllResults(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2640,6 +2640,9 @@ class EntityMetaModifyService
                 $this->em->persist($theme);
             }
         }
+
+        if ( isset($properties['displaysAllResults']) )
+            $new_theme_meta->setDisplaysAllResults( $properties['displaysAllResults'] );
 
         $new_theme_meta->setUpdated($created);
         $new_theme_meta->setUpdatedBy($user);

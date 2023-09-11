@@ -55,6 +55,17 @@ services:
         tags:
             - { name: "kernel.event_subscriber" }
 
+    # Event subscriber for Kernel Events and Wordpress Integration
+    odr.kernel_event_subscriber:
+        class: ODR\AdminBundle\Component\Event\WPAutoLoginSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $user_manager: "@fos_user.user_manager"
+            $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
+
     # Services for improved data retrieval model
     odr.cache_service:
         class: ODR\AdminBundle\Component\Service\CacheService
@@ -96,6 +107,7 @@ services:
     odr.tab_helper_service:
         class: ODR\AdminBundle\Component\Service\ODRTabHelperService
         arguments:
+            $default_search_results_limit: "%default_search_results_limit%"
             $request_stack: "@request_stack"
             $token_generator: "@fos_user.util.token_generator"
 
@@ -221,6 +233,7 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
+            $permissions_service: "@odr.permissions_management_service"
             $session: "@session"
             $logger: "@logger"
 
@@ -240,6 +253,7 @@ services:
             $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
             $router: "@router"
@@ -285,6 +299,7 @@ services:
     odr.render_service:
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
+            $site_baseurl: "%site_baseurl%"
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datafield_info_service: "@odr.datafield_info_service"

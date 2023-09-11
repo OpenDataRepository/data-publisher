@@ -146,7 +146,7 @@ class ReferencesPlugin implements DatatypePluginInterface
                 //  it's not a file field...
                 if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
                     foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                        if ( $rpi['renderPlugin']['render'] === true ) {
+                        if ( $rpi['renderPlugin']['render'] !== false ) {
                             // ...if it does, then create an array entry for it
                             $datafield_mapping[$key] = array(
                                 'datafield' => $df,

@@ -25,9 +25,9 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 // Symfony
-use Pheanstalk\Pheanstalk;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
+use Pheanstalk\Pheanstalk;
 // Other
 use Ramsey\Uuid\Uuid;
 
@@ -64,7 +64,6 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * @var Logger
      */
     private $logger;
-
 
     /**
      * GraphPlugin constructor.

@@ -116,3 +116,14 @@ services:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPowderDiffractionPlugin'
         arguments:
             $logger: "@logger"
+
+    # ----------------------------------------
+    odr_plugins.rruff.chemical_elements_search:
+        class: '%odr_plugin_base_classpath%\RRUFF\ChemicalElementsSearchPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $search_service: "@odr.search_service"
+            $sort_service: "@odr.sort_service"
+            $templating: "@templating"
+            $logger: "@logger"

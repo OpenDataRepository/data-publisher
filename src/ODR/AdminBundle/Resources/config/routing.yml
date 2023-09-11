@@ -7,6 +7,8 @@ odr_admin_homepage:
 odr_logout:
     path:  /logout
 
+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1527,6 +1529,7 @@ odr_purge_datatype:
     defaults: { _controller: ODRAdminBundle:Validation:purge }
     requirements:
         datatype_ids: "^[0-9,]+$"
+
 odr_purge_files:
     path: /admin/purge_files
     defaults: { _controller: ODRAdminBundle:Validation:purgefiles }
@@ -1574,7 +1577,7 @@ odr_api_get_datatype_list:
     defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
     methods: [ GET ]
     requirements:
-        version: 'v1'
+        version: 'v\d+'
         _format: '|json|xml'
 
 odr_api_get_template_list:
@@ -1593,6 +1596,23 @@ odr_api_get_datatype_single:
         version: 'v\d+'
         datatype_uuid: '^[a-z0-9]+$'
         _format: '|json|xml'
+
+#odr_api_get_jsonld_test:
+#    path:  /api/{version}/jsonld
+#    defaults: { _controller: ODRAdminBundle:API:jsonLD, version: 'v5', dataset_uuid: '9d26d533e9bfe1907a18280cfc25'}
+#    methods: [ GET ]
+#    requirements:
+#        version: 'v\d+'
+#        dataset_uuid: '^[a-z0-9]+$'
+
+#
+odr_api_get_jsonld:
+    path:  /api/{version}/jsonld/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:jsonLD, version: 'v5' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
 
 #
 # Gets master templates
@@ -1888,6 +1908,7 @@ odr_api_dataset_quota:
         dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
+
 #
 # API Update dataset
 # PUT /api/vX/dataset
@@ -1982,7 +2003,7 @@ odr_api_record_public:
 # Get an individual dataset record
 #
 odr_api_get_dataset_record:
-    path: /api/{version}/dataset/record/{record_uuid}
+    path: ^/api/{version}/dataset/record/{record_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
     methods: [ GET ]
     requirements:
@@ -1999,7 +2020,7 @@ odr_api_user_permissions:
         _format: '|json|xml'
 
 odr_api_user_check:
-    path: /api/{version}/user
+    path: ^/api/{version}/user
     defaults: { _controller: ODRAdminBundle:API:user, _format: json, version: 'v3' }
     methods: [ POST ]
     requirements:
@@ -2016,7 +2037,6 @@ odr_api_user_check:
 #        version: 'v\d+'
 #        _format: '|json|xml'
 
-
 #-----------------------------------------
 # Migration Controller
 odr_migrate_1.0:
@@ -2027,7 +2047,6 @@ odr_migrate_1.1:
     path:  /admin/migrate/1.1
     defaults: { _controller: ODRAdminBundle:Migration:migrate_1_1_ }
 
-#-----------------------------------------
 
 #-----------------------------------------
 # Tracking Controller

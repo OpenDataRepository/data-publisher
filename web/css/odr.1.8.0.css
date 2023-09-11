@@ -1561,16 +1561,16 @@ pre .support.value  {
 
 
 /* END Search Template Customizations */
-footer {
+.odr-footer {
     height: 48px;
 }
 
-footer .ODRLogoImage {
+.odr-footer .ODRLogoImage {
     height: 48px;
     background: white;
 }
 
-footer .ODRLogoImage img {
+.odr-footer .ODRLogoImage img {
     height: 48px;
 }
 
@@ -1758,7 +1758,7 @@ body {
     margin: 0 0 38px;
 }
 
-footer {
+.odr-footer {
     position: absolute;
     left: 0;
     bottom: 0;
@@ -3302,6 +3302,9 @@ form .row {
 }
 .ODRFileInfoDiv:hover .ODRFileInfo {
     visibility: visible;
+}
+.ODRFileInfo > p {
+    margin: 5px 0px 0px;
 }
 
 .ODRTruncateFilename {

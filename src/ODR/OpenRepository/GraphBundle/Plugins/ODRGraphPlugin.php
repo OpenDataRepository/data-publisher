@@ -16,11 +16,10 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 // Symfony
-use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
-
+use Pheanstalk\Pheanstalk;
 
 abstract class ODRGraphPlugin
 {
@@ -127,12 +126,12 @@ abstract class ODRGraphPlugin
         $payload = json_encode($json_data);
         $this->logger->debug('ODRGraphPlugin:: Get Pheanstalk');
         $this->logger->debug('ODRGraphPlugin:: Pheanstalk Put');
-        $this->pheanstalk->useTube('create_graph_preview')->put($payload, Pheanstalk::DEFAULT_PRIORITY, 0); // , $priority, $delay);
+        $this->pheanstalk->useTube('create_graph_preview')->put($payload, 1, 0); // , $priority, $delay);
 
         $this->logger->debug('ODRGraphPlugin:: Start waiting.');
-        // Wait for JobID for 20 seconds
+        // Wait for JobID for 2 seconds
         $wait_time = 0;
-        for($i = 0; $i < 500; $i++) {
+        for($i = 0; $i < 50; $i++) {
             usleep(40000);
             if ( file_exists($output_tmp_svg) ) {
                 // go on to processing if file exists.

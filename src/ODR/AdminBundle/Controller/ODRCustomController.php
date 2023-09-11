@@ -67,7 +67,7 @@ class ODRCustomController extends Controller
     {
         // -----------------------------------
         // Grab necessary objects
-        $session = $this->get('session');
+        $session = $this->get('session');    // NOTE: has to be $this->get(), not $request->get()
 
         $use_jupyterhub = false;
         $jupyterhub_config = $this->getParameter('jupyterhub_config');
@@ -84,12 +84,19 @@ class ODRCustomController extends Controller
         $dbi_service = $this->container->get('odr.database_info_service');
         /** @var DatarecordInfoService $dri_service */
         $dri_service = $this->container->get('odr.datarecord_info_service');
+        /** @var DatatreeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatree_info_service');
+        /** @var ODRTabHelperService $odr_tab_service */
+        $odr_tab_service = $this->container->get('odr.tab_helper_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
         /** @var ThemeInfoService $theme_service */
         $theme_service = $this->container->get('odr.theme_info_service');
-        /** @var ODRTabHelperService $odr_tab_service */
-        $odr_tab_service = $this->container->get('odr.tab_helper_service');
+        /** @var SearchService $search_service */
+        $search_service = $this->container->get('odr.search_service');
+        /** @var TableThemeHelperService $tth_service */
+        $tth_service = $this->container->get('odr.table_theme_helper_service');
+
         /** @var EngineInterface $templating */
         $templating = $this->get('templating');
 
@@ -151,6 +158,23 @@ class ODRCustomController extends Controller
 
         // Grab the page length for this tab from the session, if possible
         $page_length = $odr_tab_service->getPageLength($odr_tab_id);
+
+        // Due to the existence of table themes that display all records, the page_length variable
+        //  in the user's session needs to be verified that it makes sense for the currently
+        //  selected theme
+        if ( $intent !== 'linking' && $theme->getIsTableTheme() && $theme->getDisplaysAllResults() ) {
+            // ...despite being named "display all records", there's actually a limit of 10k per page
+            $page_length = 10000;
+            $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+        }
+        else {
+            // ...but if the user is not viewing all records, then ensure the page length is not
+            //  effectively infinite
+            if ( $page_length > 100 ) {
+                $page_length = $odr_tab_service->getDefaultPageLength();
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+            }
+        }
 
 
         // -----------------------------------
@@ -224,9 +248,24 @@ class ODRCustomController extends Controller
         if ( (($offset-1) * $page_length) > count($original_datarecord_list) )
             $offset = 1;
 
+        $records_total = count($original_datarecord_list);
+
         // Reduce datarecord_list to just the list that will get rendered
-        $start = ($offset-1) * $page_length;
-        $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
+        $datarecord_list = array();
+        if ( $intent !== 'linking' && $theme->getIsTableTheme() && $theme->getDisplaysAllResults() ) {
+            // Only respect "display all results" if this is a non-linking table theme...
+            $page_length = 10000;
+
+            // ...and since "display all results" is actually "display up to 10,000", the list
+            //  still needs to be sliced in case there's a stupidly large database
+            $start = ($offset-1) * $page_length;
+            $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
+        }
+        else {
+            // Every other combination respects $page_length
+            $start = ($offset-1) * $page_length;
+            $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
+        }
 
         //
         $has_datarecords = true;
@@ -238,12 +277,6 @@ class ODRCustomController extends Controller
         $final_html = '';
         // All theme types other than table
         if ( $theme->getThemeType() != 'table' ) {
-            // -----------------------------------
-            /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
-
             // -----------------------------------
             // Load and stack the cached theme data...this can happen now since it's not filtered
             $theme_array = $theme_service->getThemeArray($theme->getId());
@@ -302,7 +335,7 @@ class ODRCustomController extends Controller
             // -----------------------------------
             // Determine where on the page to scroll to if possible
             $scroll_target = '';
-            if ($session->has('scroll_target')) {
+            if ( !is_null($session) && $session->has('scroll_target') ) {
                 $scroll_target = $session->get('scroll_target');
                 if ($scroll_target !== '') {
                     // Don't scroll to someplace on the page if the datarecord isn't displayed
@@ -345,6 +378,7 @@ class ODRCustomController extends Controller
                     )
                 );
             }
+            // var_dump($stacked_datatype_array); exit();
 
             // -----------------------------------
             // Finally, render the list
@@ -392,11 +426,39 @@ class ODRCustomController extends Controller
             // -----------------------------------
             $theme_array = $theme_service->getThemeArray($theme->getId());
 
-            // Determine the columns to use for the table
-            /** @var TableThemeHelperService $tth_service */
-            $tth_service = $this->container->get('odr.table_theme_helper_service');
-            $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
-//exit( '<pre>'.print_r($column_data, true).'</pre>' );
+            $column_data = array();
+            $row_data = array();
+            $scroll_target = '';
+            if ( $intent !== 'linking' && $theme->getDisplaysAllResults() ) {
+                // Determine the columns to use for the table
+                $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId(), 'array');
+
+                // NOTE: it seems that $datarecord_list doesn't have to be sorted prior to calling
+                //  getRowData()...datatables.js will re-sort the rows on the page to match the
+                //  saved state
+
+                // When displaying all results it's better for the rows to be built here so twig
+                //  can print them, bypassing TextResultsController::datatablesrowrequestAction()
+                //  completely
+                $row_data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
+
+                // ...due to this bypass, the scroll target needs to be set here if it exists
+                if ( !is_null($session) && $session->has('scroll_target') ) {
+                    $scroll_target = $session->get('scroll_target');
+                    if ($scroll_target !== '') {
+                        // Don't scroll to someplace on the page if the datarecord isn't displayed
+                        if ( !in_array($scroll_target, $datarecords) )
+                            $scroll_target = '';
+
+                        // Null out the scroll target in the session so it only works once
+                        $session->set('scroll_target', '');
+                    }
+                }
+            }
+            else {
+                // Get the columns to use for the table in json format
+                $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
+            }
 
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
@@ -405,10 +467,12 @@ class ODRCustomController extends Controller
             // TODO - this doubles the initial workload for a table page...is there a way to get the table plugin to not run the first load via ajax?
 
             // -----------------------------------
-            //
+            // Select the correct template for rendering
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
             if ($intent == 'linking')
                 $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
+            else if ( $theme->getDisplaysAllResults() )
+                $template = 'ODRAdminBundle:TextResults:textresultslist_full.html.twig';
 
             $final_html = $templating->render(
                 $template,
@@ -417,9 +481,14 @@ class ODRCustomController extends Controller
                     'has_datarecords' => $has_datarecords,
                     'column_names' => $column_names,
                     'num_columns' => $num_columns,
+
+                    'row_data' => $row_data,
+                    'records_total' => $records_total,
+                    'path_str' => $path_str,
+
                     'odr_tab_id' => $odr_tab_id,
                     'page_length' => $page_length,
-//                    'scroll_target' => $scroll_target,
+                    'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
                     'theme_array' => $theme_array,

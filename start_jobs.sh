@@ -31,8 +31,6 @@ php app/console odr_datatype:clone_and_link_monitor >> app/logs/clone_and_link_m
 
 php app/console odr_datatype:sync_template >> app/logs/sync_template.log 2>&1 &
 
-#cd /home/odr/data-publisher/phantomjs_server
-#phantomjs phantomjs_svg_server.js >> ../app/logs/phantom.log 2>&1 &
 cd /home/odr/data-publisher/puppeteer_graphs
 node graph_renderer_daemon.js >> ../app/logs/graph_preview_1.log 2>&1 &
 node graph_renderer_daemon.js >> ../app/logs/graph_preview_2.log 2>&1 &

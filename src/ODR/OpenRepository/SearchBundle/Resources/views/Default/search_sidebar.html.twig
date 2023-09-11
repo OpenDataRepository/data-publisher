@@ -294,7 +294,7 @@
      */
     function InitSearchSidebar(context = undefined) {
         if (context == undefined )
-            context = $("#content").children("#ODRSearchSidebar").first();
+            context = $("#odr_content").children("#ODRSearchSidebar").first();
 
         $(context).find("#search_top").hide();
         $(context).find(".ODRInput").prop("disabled", true);

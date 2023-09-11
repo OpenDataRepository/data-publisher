@@ -83,7 +83,7 @@
             #}
             "dom": '<"FLeft"il><"FRight"p>rt<"FLeft"il><"FRight"p>',
 
-            {# have  web/js/mylibs/jquery_datatables/datatables.input.js  handle pagination #}
+            {# have  web/js/mylibs/DataTables/datatables.input.js  handle pagination #}
             "pagingType": "input",
 
             "responsive": true,
@@ -102,6 +102,9 @@
 
                 // Need to fix problems with the 'order' parameter before it gets saved...
                 data.order = datatablesStateSave_cleanOrder(data.order);
+                // Need these in there too
+                data.datatype_id = {{ datatype.id }};
+                data.theme_id = {{ theme.id }};
                 // console.log('state save', data);
 
                 $.ajax({
@@ -342,9 +345,8 @@
         }
     });
 
-    // Enable users to download files straight from the table
     $("#TextResults").on('draw.dt', function(e, settings) {
-        // Attach required attributes to any <a> element in the table
+        // Enable users to download files straight from the table
         $(this).find('a').each(function() {
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');

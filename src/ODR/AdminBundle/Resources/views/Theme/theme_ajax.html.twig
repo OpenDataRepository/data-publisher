@@ -58,6 +58,21 @@
         </div>
     {% endif %}
 
+    <div id="ThemeDesignWrapperMessage">
+        <div class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Larger Browser Recommended</h3>
+                    <div class="ODRBodyContent">
+                        <p>To successfully use the design interface, a browser with a
+                            width of at least 1500 pixels is recommended.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <div id="ThemeDesignWrapper">
         <div id="ThemeLeftColumn" class="ODRContentWrapper">
             <div class="ODRThemeElement">
@@ -109,6 +124,7 @@
             {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
+                'site_baseurl': site_baseurl,
 
                 'initial_datatype_id': initial_datatype_id,
                 'initial_theme_id': theme.id,
@@ -611,8 +627,7 @@
         });
 
         // Don't want to be able to highlight everything...
-        $("#content").find(".ODRInnerBox").disableSelection();
-
+        $("#odr_content").find(".ODRInnerBox").disableSelection();
 
         // Need InitDatatypeTools() to intialize the .ODRThemeElementHandle elements before the
         //  setup for introJS is run...

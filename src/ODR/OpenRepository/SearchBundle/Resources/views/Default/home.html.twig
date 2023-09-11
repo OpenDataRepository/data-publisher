@@ -1,0 +1,63 @@
+{% extends '::body.html.twig' %}
+
+{# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
+
+{% set site_baseurl = site_baseurl %}
+{% set logged_in = false %}
+{% set current_user = '' %}
+{% if user != 'anon.' %}
+    {% set logged_in = true %}
+    {% set current_user = user.getuserstring %}
+{% endif %}
+
+{% if logged_in == false %}
+    {% set header_middle_title = 'Search' %}
+    {% if search_slug == 'admin' %}
+        {% set header_middle_path = path('odr_admin_homepage') %}
+    {% else %}
+        {% set header_middle_path = path('odr_search', {'search_slug': search_slug} ) %}
+    {% endif %}
+
+    {% set header_right_title = 'Login' %}
+    {% set header_right_path = '' %}
+    {% set header_right_js = 'ODRLogin();' %}
+{% else %}
+    {% set header_middle_title = 'Search' %}
+    {% if search_slug == 'admin' %}
+        {% set header_middle_path = path('odr_admin_homepage') %}
+    {% else %}
+        {% set header_middle_path = path('odr_search', {'search_slug': search_slug} ) %}
+    {% endif %}
+
+    {% set header_right_title = 'Logout' %}
+    {% if wordpress_integrated %}
+        {% set header_right_path = logout_url|raw %}
+    {% else %}
+        {% set header_right_path = path('odr_logout') %}
+    {% endif %}
+    {% set header_right_js = '' %}
+{% endif %}
+
+{% block title %}{{ window_title }}{% endblock %}
+
+{% set use_navigation_block = false %}
+{% if user != 'anon.' %}
+    {% set use_navigation_block = true %}
+{% endif %}
+
+{% block navigation_top %}
+    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
+{% endblock %}
+
+{# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODRAdminBundle:Default:index.html.twig #}
+{% block body %}
+    <div id="ODRSearchSidebar" class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchHidden">
+        {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' %}
+    </div>
+    <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide">
+        {% include 'ODROpenRepositorySearchBundle:Default:search.html.twig' %}
+    </div>
+
+    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
+    {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated) }}
+{% endblock %}

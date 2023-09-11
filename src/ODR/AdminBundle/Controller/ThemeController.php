@@ -210,6 +210,7 @@ class ThemeController extends ODRCustomController
         // ...and also have to be able to at least view the datatype being modified
         if ( !$pm_service->canViewDatatype($user, $datatype) )
             throw new ODRForbiddenException();
+
         // If this theme is a "local copy" of a remote datatype, then also need to be able to view
         //  the local datatype to be able to make changes to this theme
         if ( !$pm_service->canViewDatatype($user, $local_parent_datatype) )
@@ -227,18 +228,11 @@ class ThemeController extends ODRCustomController
 
         // If the user didn't create this theme...
         if ( $theme->getCreatedBy()->getId() !== $user->getId() ) {
-            if ( $theme->getParentTheme()->isDefault() && $pm_service->isDatatypeAdmin($user, $local_parent_datatype) ) {
-                // ...they're allowed to modify it only if it's the datatype's default theme and
-                //  they're an admin of the local datatype
-
-                // Need to use $theme->getParentTheme() here because the "isDefault" property is only
-                //  updated for the top-level theme
-            }
-            else {
-                // ...if the above is not true, then they're not allowed to modify it
+            // ...then they're only allowed to modify it if they're an admin of the local datatype
+            if ( !$pm_service->isDatatypeAdmin($user, $local_parent_datatype) )
                 throw new ODRForbiddenException();
-            }
         }
+
         // Otherwise, user created the theme, so they're allowed to modify it
     }
 
@@ -395,8 +389,10 @@ class ThemeController extends ODRCustomController
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                     );
-                    if ($is_short_form)
+                    if ($is_short_form) {
                         $properties['isTableTheme'] = $submitted_data->getIsTableTheme();
+                        $properties['displaysAllResults'] = $submitted_data->getDisplaysAllResults();
+                    }
 
                     $emm_service->updateThemeMeta($user, $theme, $properties);
 

@@ -48,12 +48,13 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldDerivationInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
-use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 // Symphony
@@ -257,7 +258,7 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         // Datatype and Datafield plugins have different configuration requirements...
-        $is_datatype_plugin = $is_theme_element_plugin = $is_datafield_plugin = $is_array_plugin = false;
+        $is_datatype_plugin = $is_theme_element_plugin = $is_datafield_plugin = $is_array_plugin = $is_search_plugin = false;
         $plugin_type = strtolower($plugin_config['plugin_type']);
 
         if ($plugin_type === 'datatype')
@@ -268,6 +269,8 @@ class PluginsController extends ODRCustomController
             $is_datafield_plugin = true;
         else if ($plugin_type === 'array')
             $is_array_plugin = true;
+        else if ($plugin_type === 'search')
+            $is_search_plugin = true;
         else
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" has an invalid entry for the "plugin_type" key');
 
@@ -281,6 +284,8 @@ class PluginsController extends ODRCustomController
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Datafield plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement DatafieldPluginInterface');
         else if ( $is_array_plugin && !($plugin_service instanceof ArrayPluginInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Array plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement ArrayPluginInterface');
+        else if ( $is_search_plugin && !($plugin_service instanceof SearchPluginInterface) )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Search plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement SearchPluginInterface');
 
 
         if ( $is_datatype_plugin ) {
@@ -303,11 +308,28 @@ class PluginsController extends ODRCustomController
         }
         else if ( $is_datafield_plugin ) {
             // A datafield plugin must define exactly one "required_field"
-            if ( count($plugin_config['required_fields']) !== 1 )
+            if ( !is_array($plugin_config['required_fields']) || count($plugin_config['required_fields']) !== 1 )
                 throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a Datafield Plugin and must define exactly one entry in the "required_fields" option');
         }
         else if ( $is_array_plugin ) {
             // An array plugin doesn't have to define anything
+        }
+        else if ( $is_search_plugin ) {
+            // A search plugin isn't allowed to override any part of rendering
+            if ( $plugin_config['override_fields'] !== false
+                || $plugin_config['override_field_reload'] !== false
+                || $plugin_config['override_child'] !== false
+                || $plugin_config['override_table_fields'] !== false
+            ) {
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a Search Plugin, and is not allowed to override fields, childs, or reloading');
+            }
+
+            // It must define exactly one "required_field" for right now...
+            if ( !is_array($plugin_config['required_fields']) || count($plugin_config['required_fields']) !== 1 )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a Search Plugin and must define exactly one entry in the "required_fields" option');
+            // ...and must not define any events
+            if ( is_array($plugin_config['registered_events']) && count($plugin_config['registered_events']) > 0 )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a Search Plugin and is not allowed to register any events');
         }
 
         // The ThemeElement plugin is the only one allowed to have the 'required_theme_elements' key
@@ -321,6 +343,7 @@ class PluginsController extends ODRCustomController
         else if ( $plugin_config['override_table_fields'] === false && ($plugin_service instanceof TableResultsOverrideInterface) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" must not implement TableResultsOverrideInterface');
 
+
         // The "render" key isn't allowed to have a value of 'true' anymore
         if ( $plugin_config['render'] === true )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not allowed to have a value of "true" for the "render" key');
@@ -328,11 +351,15 @@ class PluginsController extends ODRCustomController
         if ( is_numeric($plugin_config['render']) )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is not allowed to have a numeric value for the "render" key');
 
-        // The ThemeElement and Array plugins aren't allowed to have a non-false value for the "render" key
+        // ThemeElement and Array plugins aren't allowed to have a non-false value for the "render" key
         if ( $is_theme_element_plugin && $plugin_config['render'] !== false )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a ThemeElement Plugin, and must have a value of false for the "render" key');
         if ( $is_array_plugin && $plugin_config['render'] !== false )
             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is an Array Plugin, and must have a value of false for the "render" key');
+
+        // Search plugins aren't allowed to have a false value for the "render" key
+        if ( $is_search_plugin && $plugin_config['render'] === false )
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" is a Search Plugin, and must not have a value of false for the "render" key');
 
 
         // ----------------------------------------
@@ -380,6 +407,10 @@ class PluginsController extends ODRCustomController
                 }
 
                 if ( isset($field_data['properties']) ) {
+                    // Search plugins aren't allowed to define any of these properties
+                    if ( $is_search_plugin )
+                        throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", required_field "'.$field_id.'" is not allowed to have any additional properties');
+
                     foreach ($field_data['properties'] as $key) {
                         if ( !in_array($key, $allowed_properties) )
                             throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", required_field "'.$field_id.'" has an invalid property "'.$key.'"');
@@ -436,21 +467,24 @@ class PluginsController extends ODRCustomController
         }
 
 
-        // An array plugin isn't allowed to implement most of the other utility interfaces
-        if ( $is_array_plugin )
-        {
-            if ( $plugin_service instanceof DatafieldDerivationInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
-            if ( $plugin_service instanceof DatafieldReloadOverrideInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
-            if ( $plugin_service instanceof MassEditTriggerEventInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement MassEditTriggerEventInterface');
-            if ( $plugin_service instanceof TableResultsOverrideInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement TableResultsOverrideInterface');
+        // Array and search plugins are't allowed to implement most of the other utility interfaces
+        if ( $is_array_plugin || $is_search_plugin ) {
+            $type = 'Array';
+            if ( $is_search_plugin )
+                $type = 'Search';
 
-            // It is allowed to implement PluginSettingsDialogOverrideInterface
+            if ( $plugin_service instanceof DatafieldDerivationInterface )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
+            if ( $plugin_service instanceof DatafieldReloadOverrideInterface )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
+            if ( $plugin_service instanceof MassEditTriggerEventInterface )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement MassEditTriggerEventInterface');
+            if ( $plugin_service instanceof TableResultsOverrideInterface )
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement TableResultsOverrideInterface');
+
+            // They are allowed to implement PluginSettingsDialogOverrideInterface
 //            if ( $plugin_service instanceof PluginSettingsDialogOverrideInterface )
-//                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Array plugin "'.get_class($plugin_service).'" is not allowed to implement PluginSettingsDialogOverrideInterface');
+//                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement PluginSettingsDialogOverrideInterface');
         }
 
         // Datafield plugins can't implement DatafieldDerivationInterface...they only reference a
@@ -799,6 +833,8 @@ class PluginsController extends ODRCustomController
                 $plugin_type = RenderPlugin::DATAFIELD_PLUGIN;
             else if ( $plugin_type === 'array' )
                 $plugin_type = RenderPlugin::ARRAY_PLUGIN;
+            else if ( $plugin_type === 'search' )
+                $plugin_type = RenderPlugin::SEARCH_PLUGIN;
 
             if ( $installed_plugin_data['plugin_type'] !== $plugin_type ) {
                 $plugins_needing_updates[$plugin_classname]['plugin_type'][] = $plugin_type;
@@ -1232,33 +1268,61 @@ class PluginsController extends ODRCustomController
             // ...if it's in use...
             if ( !empty($rp['renderPluginInstance']) ) {
                 // ----------------------------------------
-                // Complain when the config file wants to change a datatype/themeElement/array plugin
-                //  to a datafield plugin, or vice versa...the datafield plugin stores mapping and
-                //  renderPluginInstance info differently.
-                // Switching between the other types of plugins, however, is allowed
+                // The datatype, themeElement, and array plugins are based off datatypes, while the
+                //  datafield and search plugins are based off datafields...the two types store the
+                //  relevant renderPluginMap and renderPluginInstance data differently, so they can't
+                //  be converted to a plugin of the other type
                 if ( isset($plugins_with_updates[$plugin_classname]['plugin_type']) ) {
-                    $current_plugin_type = '';
-                    if ( $rp['plugin_type'] === RenderPlugin::DATATYPE_PLUGIN )
+                    $current_plugin_type = $rp['plugin_type'];
+                    if ( $current_plugin_type === RenderPlugin::DATATYPE_PLUGIN )
                         $current_plugin_type = 'database';
-                    else if ( $rp['plugin_type'] === RenderPlugin::THEME_ELEMENT_PLUGIN )
+                    else if ( $current_plugin_type === RenderPlugin::THEME_ELEMENT_PLUGIN )
                         $current_plugin_type = 'themeElement';
-                    else if ( $rp['plugin_type'] === RenderPlugin::DATAFIELD_PLUGIN )
+                    else if ( $current_plugin_type === RenderPlugin::DATAFIELD_PLUGIN )
                         $current_plugin_type = 'datafield';
-                    else if ( $rp['plugin_type'] === RenderPlugin::ARRAY_PLUGIN )
+                    else if ( $current_plugin_type === RenderPlugin::ARRAY_PLUGIN )
                         $current_plugin_type = 'array';
+                    else if ( $current_plugin_type === RenderPlugin::SEARCH_PLUGIN )
+                        $current_plugin_type = 'search';
 
-                    $converting_to_datafield_plugin = $converting_from_datafield_plugin = false;
-                    if ( $current_plugin_type === 'datafield' )
-                        $converting_from_datafield_plugin = true;
-                    if ( $plugins_with_updates[$plugin_classname]['plugin_type'] === RenderPlugin::DATAFIELD_PLUGIN )
-                        $converting_to_datafield_plugin = true;
+                    $new_plugin_type = $plugins_with_updates[$plugin_classname]['plugin_type'][0];
+                    if ( $new_plugin_type === RenderPlugin::DATATYPE_PLUGIN )
+                        $new_plugin_type = 'database';
+                    else if ( $new_plugin_type === RenderPlugin::THEME_ELEMENT_PLUGIN )
+                        $new_plugin_type = 'themeElement';
+                    else if ( $new_plugin_type === RenderPlugin::DATAFIELD_PLUGIN )
+                        $new_plugin_type = 'datafield';
+                    else if ( $new_plugin_type === RenderPlugin::ARRAY_PLUGIN )
+                        $new_plugin_type = 'array';
+                    else if ( $new_plugin_type === RenderPlugin::SEARCH_PLUGIN )
+                        $new_plugin_type = 'search';
 
-                    if ($converting_to_datafield_plugin) {
-                        // Database currently lists this as a datatype plugin, but this entry in
-                        //  $plugins_needing_updates means it wants to change to a datafield plugin
+
+                    $converting_to_datafield_mapping = $converting_from_datafield_mapping = false;
+                    if (
+                        ($current_plugin_type === 'database' || $current_plugin_type === 'themeElement' || $current_plugin_type === 'array')
+                        &&
+                        ($new_plugin_type === 'datafield' || $new_plugin_type === 'search')
+                    ) {
+                        $converting_to_datafield_mapping = true;
+                    }
+                    if (
+                        ($current_plugin_type === 'datafield' || $current_plugin_type === 'search')
+                        &&
+                        ($new_plugin_type === 'database' || $new_plugin_type === 'themeElement' || $new_plugin_type === 'array')
+                    ) {
+                        $converting_from_datafield_mapping = true;
+                    }
+
+
+                    if ($converting_to_datafield_mapping) {
+                        // Database currently lists this as a datatype/themeElement/array plugin, but
+                        //  this entry in $plugins_needing_updates means it wants to change to a
+                        //  datafield/search plugin
                         foreach ($rp['renderPluginInstance'] as $rpi_num => $rpi) {
                             // Extract the datatype's name from the first mapped field
-                            $dt = $rpi['renderPluginMap'][0]['dataType'];
+                            $df = $rpi['renderPluginMap'][0]['dataField'];
+                            $dt = $df['dataType'];
                             $dt_name = $dt['dataTypeMeta'][0]['shortName'];
                             $grandparent_dt_id = $dt['grandparent']['id'];
 
@@ -1268,19 +1332,22 @@ class PluginsController extends ODRCustomController
                                 $grandparent_dt_id,
                                 $dt_name,
                                 '',    // empty datafield name
-                                'Unable to directly convert this '.$current_plugin_type.' plugin into a datafield plugin'
+                                'Converting this '.$current_plugin_type.' plugin into a '.$new_plugin_type.' plugin would break the existing renderPluginMap entries'
                             );
                         }
                     }
-                    else if ($converting_from_datafield_plugin) {
-                        // Database currently lists this as a datafield plugin, but this entry in
-                        //  $plugins_needing_updates means it wants to change to a datatype plugin
+                    else if ($converting_from_datafield_mapping) {
+                        // Database currently lists this as a datafield/search plugin, but this entry
+                        //  in $plugins_needing_updates means it wants to change to a
+                        //  datatype/themeElement/array plugin
                         foreach ($rp['renderPluginInstance'] as $rpi_num => $rpi) {
                             // Extract the name for the datafield and the datatype
-                            $rpm = $rpi['renderPluginMap'][0];
-                            $dt_name = $rpm['dataType']['dataTypeMeta'][0]['shortName'];
-                            $grandparent_dt_id = $rpm['dataType']['grandparent']['id'];
-                            $df_name = $rpm['dataField']['dataFieldMeta'][0]['fieldName'];
+                            $df = $rpi['renderPluginMap'][0]['dataField'];
+                            $df_name = $df['dataFieldMeta'][0]['fieldName'];
+
+                            $dt = $df['dataType'];
+                            $dt_name = $dt['dataTypeMeta'][0]['shortName'];
+                            $grandparent_dt_id = $dt['grandparent']['id'];
 
                             self::insertPluginUpdateError(
                                 $plugin_update_problems,
@@ -1288,7 +1355,7 @@ class PluginsController extends ODRCustomController
                                 $grandparent_dt_id,
                                 $dt_name,
                                 $df_name,
-                                'Unable to directly convert this datafield plugin into a '.$current_plugin_type.' plugin'
+                                'Converting this '.$current_plugin_type.' plugin into a '.$new_plugin_type.' plugin would break the existing renderPluginMap entries'
                             );
                         }
                     }
@@ -1558,6 +1625,8 @@ class PluginsController extends ODRCustomController
                 $render_plugin->setPluginType( RenderPlugin::DATAFIELD_PLUGIN );
             else if ( $plugin_type === 'array' )
                 $render_plugin->setPluginType( RenderPlugin::ARRAY_PLUGIN );
+            else if ( $plugin_type === 'search' )
+                $render_plugin->setPluginType( RenderPlugin::SEARCH_PLUGIN );
 
             if ( $plugin_data['override_fields'] === false )    // Yaml parser sets these to true/false values
                 $render_plugin->setOverrideFields(false);
@@ -1810,10 +1879,11 @@ class PluginsController extends ODRCustomController
 
             // Determine whether any of the installed render plugins differ from their config files
             $plugins_with_updates = self::getPluginDiff($em, $installed_plugins, $available_plugins);
-            if ( !isset($plugins_with_updates[$plugin_classname]) )
+            if ( !isset($plugins_with_updates['raw'][$plugin_classname]) )
                 throw new ODRException('This RenderPlugin has no updates');
 
             // Determine whether any of the plugins that need updates are going to be problematic
+            $plugins_with_updates = $plugins_with_updates['raw'];
             $plugin_update_problems = self::getPluginUpdateProblems($em, $plugins_with_updates);
             if ( !isset($plugin_update_problems[$plugin_classname]) )
                 throw new ODRException('This RenderPlugin has no problems with updating');
@@ -2005,6 +2075,8 @@ class PluginsController extends ODRCustomController
                 $render_plugin->setPluginType( RenderPlugin::DATAFIELD_PLUGIN );
             else if ( $plugin_type === 'array' )
                 $render_plugin->setPluginType( RenderPlugin::ARRAY_PLUGIN );
+            else if ( $plugin_type === 'search' )
+                $render_plugin->setPluginType( RenderPlugin::SEARCH_PLUGIN );
 
             if ( $plugin_data['override_fields'] === false )
                 $render_plugin->setOverrideFields(false);
@@ -2529,7 +2601,7 @@ class PluginsController extends ODRCustomController
                 );
             }
             else {
-                // ...otherwise, this is a request for a datafield...load all available datafield
+                // Otherwise, this is a request for a datafield...load all available datafield/search
                 //  render plugins
                 $query = $em->createQuery(
                    'SELECT rp
@@ -2541,6 +2613,7 @@ class PluginsController extends ODRCustomController
                     array(
                         'plugin_types' => array(
                             RenderPlugin::DATAFIELD_PLUGIN,
+                            RenderPlugin::SEARCH_PLUGIN,
                         )
                     )
                 );
@@ -2586,6 +2659,9 @@ class PluginsController extends ODRCustomController
                     //  which prevents them from clobbering datatype/datafield plugins.
 
                     // Array plugins don't render anything, so they can always get executed if needed
+
+                    // Search plugins don't technically render, but they completely override ODR's
+                    //  searching mechanisms...and as such, they also do not play nice with each other
                 }
             }
 

@@ -67,6 +67,11 @@ class ThemeInfoService
     private $dti_service;
 
     /**
+     * @var PermissionsManagementService
+     */
+    private $pm_service;
+
+    /**
      * @var Session
      */
     private $session;
@@ -83,6 +88,7 @@ class ThemeInfoService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
+     * @param PermissionsManagementService $permissions_service
      * @param Session $session
      * @param Logger $logger
      */
@@ -90,12 +96,14 @@ class ThemeInfoService
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatreeInfoService $datatree_info_service,
+        PermissionsManagementService $permissions_service,
         Session $session,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatree_info_service;
+        $this->pm_service = $permissions_service;
         $this->session = $session;
         $this->logger = $logger;
     }
@@ -141,13 +149,16 @@ class ThemeInfoService
         $results = $query->getResult();
 
         // Filter the list of themes based on what the user is allowed to see
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
         $filtered_themes = array();
         foreach ($results as $theme) {
             /** @var Theme $theme */
 
-            // Only allow user to view if the theme is shared, or they created it
+            // Only allow user to view if the theme is shared, or they created it, or they're an
+            //  admin of this datatype
             if ( $theme->isShared()
                 || $user !== 'anon.' && $user->getId() == $theme->getCreatedBy()->getId()
+                || $is_datatype_admin
             ) {
                 $theme_record = array(
                     'id' => $theme->getId(),

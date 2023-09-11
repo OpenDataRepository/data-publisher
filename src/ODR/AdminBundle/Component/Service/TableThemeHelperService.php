@@ -48,6 +48,11 @@ class TableThemeHelperService
     private $dri_service;
 
     /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
+
+    /**
      * @var PermissionsManagementService
      */
     private $pm_service;
@@ -80,6 +85,7 @@ class TableThemeHelperService
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
+     * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
      * @param Router $router
@@ -90,6 +96,7 @@ class TableThemeHelperService
         CacheService $cache_service,
         DatabaseInfoService $database_info_service,
         DatarecordInfoService $datarecord_info_service,
+        DatatreeInfoService $datatree_info_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         Router $router,
@@ -99,6 +106,7 @@ class TableThemeHelperService
         $this->cache_service = $cache_service;
         $this->dbi_service = $database_info_service;
         $this->dri_service = $datarecord_info_service;
+        $this->dti_service = $datatree_info_service;
         $this->pm_service = $permissions_service;
         $this->theme_service = $theme_info_service;
         $this->router = $router;
@@ -126,40 +134,81 @@ class TableThemeHelperService
      * @param ODRUser $user
      * @param int $datatype_id
      * @param int $theme_id
+     * @param string $format
      *
      * @return array
      */
-    public function getColumnNames($user, $datatype_id, $theme_id)
+    public function getColumnNames($user, $datatype_id, $theme_id, $format = "json")
     {
-        // First and second columns are always datarecord id and sort value, respectively
-        $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
-        $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
-        $num_columns = 2;
+        if ($format === 'array') {
+            // In this situation, datatables.js won't query the server for a subset of records to
+            //  display...they'll all be dumped onto the page, so they need to be in array format
+            //  so twig doesn't have to parse json
 
-        // Get the array versions of the datafields being viewed by the user
-        $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e67);
-        foreach ($df_array as $num => $df) {
-            // Extract the datafield's name and escape any double-quotes it has
-            $fieldname = $df['dataFieldMeta']['fieldName'];
-            $fieldname = str_replace('"', "\\\"", $fieldname);
+            // First and second columns are always datarecord id and sort value, respectively
+            $column_names = array(0 => array('title' => 'datarecord_id'), 1 => array('title' => 'datarecord_sortvalue') );
+            $num_columns = 2;
 
-            // datatables.js uses the "title" property for the column label, and makes the "name"
-            //  property availble for selecting columns via its own column() selector
-            //  @see https://datatables.net/reference/type/column-selector#{string}:name
-            // Of note is that the "name" property does not show up in the table's HTML
-            $column_names .= '{"name":"'.$df['id'].'","title":"'.$fieldname.'",';
+            // NOTE - despite datatables.js not needing the 'datarecord_sortvalue' column when
+            //  displaying all records, it has to be left in...everywhere that attempts to decipher
+            //  sort criteria assumes that column exists
 
-            // If dynamically added, the edit link column will have a priority of 10000
-            //  and therefore won't be hidden if there's too many columns for the screen
-            // @see https://datatables.net/reference/option/columns.responsivePriority#Type
-            $column_names .= '"responsivePriority":11000},';
+            // Get the array versions of the datafields being viewed by the user
+            $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e66);
+            foreach ($df_array as $num => $df) {
+                // Extract the datafield's name and escape any double-quotes it has
+                $fieldname = $df['dataFieldMeta']['fieldName'];
+                $fieldname = str_replace('"', "\\\"", $fieldname);
 
-            $num_columns++;
+                // datatables.js uses the "title" property for the column label, and makes the "name"
+                //  property availble for selecting columns via its own column() selector
+                //  @see https://datatables.net/reference/type/column-selector#{string}:name
+                // Of note is that the "name" property does not show up in the table's HTML
+                $column_names[] = array('name' => $df['id'], 'title' => $fieldname);
+
+                // Can't set the priority for the edit link column here
+
+                $num_columns++;
+            }
+
+            // Return the data back to the user
+            $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
+            return $column_data;
+        }
+        else if ($format === 'json') {
+            // First and second columns are always datarecord id and sort value, respectively
+            $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
+            $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
+            $num_columns = 2;
+
+            // Get the array versions of the datafields being viewed by the user
+            $df_array = self::getTableThemeDatafields($datatype_id, $theme_id, $user, 0x4ffd4e67);
+            foreach ($df_array as $num => $df) {
+                // Extract the datafield's name and escape any double-quotes it has
+                $fieldname = $df['dataFieldMeta']['fieldName'];
+                $fieldname = str_replace('"', "\\\"", $fieldname);
+
+                // datatables.js uses the "title" property for the column label, and makes the "name"
+                //  property availble for selecting columns via its own column() selector
+                //  @see https://datatables.net/reference/type/column-selector#{string}:name
+                // Of note is that the "name" property does not show up in the table's HTML
+                $column_names .= '{"name":"'.$df['id'].'","title":"'.$fieldname.'",';
+
+                // If dynamically added, the edit link column will have a priority of 10000
+                //  and therefore won't be hidden if there's too many columns for the screen
+                // @see https://datatables.net/reference/option/columns.responsivePriority#Type
+                $column_names .= '"responsivePriority":11000},';
+
+                $num_columns++;
+            }
+
+            // Return the data back to the user
+            $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
+            return $column_data;
         }
 
-        // Return the data back to the user
-        $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
-        return $column_data;
+        // If this point is reached, then the $format argument is invalid
+        throw new ODRException('Invalid argument $format passed to TableThemeHelperService::getColumnNames()');
     }
 
 
@@ -263,44 +312,11 @@ class TableThemeHelperService
             // If linked datarecords need to be loaded to complete the table data...
             if ( $needs_linked_data ) {
                 // ...then determine which ones to load
-                $associated_datarecords = array();
-                if ( is_null($table_dr_array) )
-                    $table_dr_array = $this->dri_service->getDatarecordArray($search_dr_id);    // do want links
+                $associated_datarecords = $this->dti_service->getAssociatedDatarecords($search_dr_id, "table");
+                // This call will only return records from a link which only allows single records,
+                //  due to passing in the value "table"
 
-                // NOTE: not using $this->dti_service->getAssociatedDatarecords($search_dr_id) here,
-                //  because that loads datarecords which belong to multiple-allowed descendant
-                //  datatypes...which aren't legal for table themes
-                $datarecords_to_check = array($search_dr_id);
-                while ( !empty($datarecords_to_check) ) {
-                    $tmp = array();
-
-                    foreach ($datarecords_to_check as $num => $dr_id) {
-                        $dr = $table_dr_array[$dr_id];
-                        // If this datarecord has descendants...
-                        if ( isset($dr['children']) ) {
-                            // ...then for each descendant child/linked datatype it has...
-                            foreach ($dr['children'] as $descendant_dt_id => $descendant_dr_list) {
-                                // ...if that child/linked datatype only allows a single record...
-                                if ( isset($table_dt_array[$descendant_dt_id]) ) {
-                                    // ...then store the id of that record so it can have its table
-                                    //  data loaded
-                                    $associated_datarecords[] = $descendant_dr_list[0];
-
-                                    // Also want to check whether that record has any descendants
-                                    //  of its own that satisfy this criteria
-                                    $tmp[] = $descendant_dr_list[0];
-                                }
-                            }
-                        }
-                    }
-
-                    // Continue trying to find descendants if possible
-                    $datarecords_to_check = $tmp;
-                }
-
-
-                // Finally...need to load the table data for the rest of the records found in the
-                //  while loop
+                // Need to load the table data for each of the records found...
                 foreach ($associated_datarecords as $num => $tmp_dr_id) {
                     // Ensure the original datarecord isn't loaded again...
                     if ( $tmp_dr_id !== $search_dr_id ) {

@@ -11,7 +11,8 @@
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
             {% if intent == 'searching' %}
-                <span>Record {{ counter }} - Click here to view</span>
+                <span>Record {{ counter }} * - Click here to view</span>
+                <span class="ODRShortResultsUUID">{{ datarecord.unique_id }}</span>
                 {% if can_edit_datarecord %}
                 <span class="ODRShortResultsHeader_edit">Click here to edit</span>
                 {% endif %}

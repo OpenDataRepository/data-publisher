@@ -16,18 +16,21 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\RenderPlugin;
 // Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
 class SearchAPIService
@@ -64,6 +67,11 @@ class SearchAPIService
     // There are also situations where a datarecord needs to be set to not match a search
     const DISABLE_MATCHES_MASK = 0b1100;
 
+
+    /**
+     * @var ContainerInterface
+     */
+    private $container;
 
     /**
      * @var EntityManager
@@ -104,6 +112,7 @@ class SearchAPIService
     /**
      * SearchAPIService constructor.
      *
+     * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
@@ -113,6 +122,7 @@ class SearchAPIService
      * @param Logger $logger
      */
     public function __construct(
+        ContainerInterface $container,
         EntityManager $entity_manager,
         DatatreeInfoService $datatree_info_service,
         SearchService $search_service,
@@ -121,6 +131,7 @@ class SearchAPIService
         CacheService $cache_service,
         Logger $logger
     ) {
+        $this->container = $container;
         $this->em = $entity_manager;
         $this->dti_service = $datatree_info_service;
         $this->search_service = $search_service;
@@ -415,10 +426,14 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
-     * @param DataType $datatype
+     * @param DataType|null $datatype     Preferably not null, but can parse $search_key if so
      * @param string $search_key
      * @param array $user_permissions     The permissions of the user doing the search, or an empty
      *                                    array when not logged in
+     * @param bool $return_complete_list  If false, then returns a sorted list of grandparent
+     *                                    datarecord ids...if true, then returns an unsorted list of
+     *                                    the grandparent datarecords and all their descendents that
+     *                                    match the search
      * @param int[] $sort_datafields      An ordered list of the datafields to sort by, or an empty
      *                                    array to sort by whatever is default for the datatype
      * @param string[] $sort_directions   An ordered list of which direction to sort each datafield
@@ -427,7 +442,7 @@ class SearchAPIService
      *
      * @return array
      */
-    public function performSearch($datatype, $search_key, $user_permissions, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
+    public function performSearch($datatype, $search_key, $user_permissions, $return_complete_list = false, $sort_datafields = array(), $sort_directions = array(), $search_as_super_admin = false)
     {
         // ----------------------------------------
         // This really shouldn't be null, but just in case...
@@ -509,6 +524,17 @@ class SearchAPIService
                         $dr_list = $this->search_service->searchModifiedBy($entity, $search_term['user']);
                     else if ($key === 'publicStatus')
                         $dr_list = $this->search_service->searchPublicStatus($entity, $search_term['value']);
+                    else if ( isset($hydrated_entities['renderPlugin'][$entity_id]) ) {
+                        // The render plugin is already loaded, stored by the id of the datafield
+                        //  that is using it
+                        $tmp = $hydrated_entities['renderPlugin'][$entity_id];
+                        /** @var SearchPluginInterface $rp */
+                        $rp = $tmp['renderPlugin'];
+                        $rpo = $tmp['renderPluginOptions'];
+
+                        // The plugin will return the same format that the regular searches do
+                        $dr_list = $rp->searchPluginField($entity, $search_term, $rpo);
+                    }
                     else {
                         // Datafield search depends on the typeclass of the field
                         $typeclass = $entity->getFieldType()->getTypeClass();
@@ -610,14 +636,20 @@ class SearchAPIService
         }
 
 
-        // Traverse $inflated_list to get the final set of datarecords that match the search
-        // TODO - only run this when starting a MassEdit/CSVExport job?
-        $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
-        $datarecord_ids = array_keys($datarecord_ids);
+        // ----------------------------------------
+        // If the user needs a list of datarecords that includes child/linked descendants...
+        if ( $return_complete_list ) {
+            // ...then traverse $inflated_list to get the final set of datarecords that match the search
+            $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
+            $datarecord_ids = array_keys($datarecord_ids);
+
+            // There's no correct method to sort this list, so might as well return immediately
+            return $datarecord_ids;
+        }
 
 
-        // Traverse the top-level of $inflated_list to get the grandparent datarecords that matched
-        //  the search
+        // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
+        //  search...can traverse the top-level of $inflated list for that
         $grandparent_ids = array();
         if ( isset($inflated_list[$datatype->getId()]) ) {
             foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
@@ -707,14 +739,8 @@ class SearchAPIService
 
 
         // ----------------------------------------
-        // Save/return the end result
-        $search_result = array(
-            'complete_datarecord_list' => $datarecord_ids,
-            'grandparent_datarecord_list' => $sorted_datarecord_list,
-        );
-
         // There's no point to caching the end result...it depends heavily on the user's permissions
-        return $search_result;
+        return $sorted_datarecord_list;
     }
 
 
@@ -760,8 +786,11 @@ class SearchAPIService
         // ----------------------------------------
         // Need to hydrate all of the datafields/datatypes so the search functions work
         $datafields = array();
-        if ( !empty($datafield_ids) )
+        $render_plugins = array();
+        if ( !empty($datafield_ids) ) {
             $datafields = self::hydrateDatafields($search_type, $datafield_ids);
+            $render_plugins = self::hydrateRenderPlugins($search_type, $datafield_ids);
+        }
 
 
         // Because of permissions, need to hydrate all datatypes...
@@ -776,7 +805,8 @@ class SearchAPIService
         // Return the hydrated arrays
         return array(
             'datafield' => $datafields,
-            'datatype' => $datatypes
+            'renderPlugin' => $render_plugins,
+            'datatype' => $datatypes,
         );
     }
 
@@ -840,6 +870,92 @@ class SearchAPIService
         }
 
         return $datafields;
+    }
+
+
+    /**
+     * Loads render plugins that affect search results prior to use.
+     *
+     * @param string $search_type
+     * @param array $datafield_ids
+     *
+     * @return array
+     */
+    private function hydrateRenderPlugins($search_type, $datafield_ids)
+    {
+        $render_plugins = array();
+
+        if ( $search_type === 'datatype' ) {
+            // For a regular search, need to hydrate all datafields being searched on
+            $params = array(
+                'datafield_ids' => $datafield_ids,
+                'plugin_type' => RenderPlugin::SEARCH_PLUGIN,
+            );
+
+            // Due to search plugins only being allowed on datafields, the query below does not
+            //  have to use the renderPluginMap table
+            $query = $this->em->createQuery(
+               'SELECT df.id AS df_id, rp.pluginClassName AS plugin_classname,
+                    rpom.value AS rpom_value, rpod.name AS rpod_name
+                FROM ODRAdminBundle:RenderPlugin AS rp
+                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                WHERE rp.plugin_type = :plugin_type AND rp.active = 1 AND df.id IN (:datafield_ids)
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+                AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
+                AND df.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getArrayResult();
+
+            // Only want to load each render plugin once...
+            $render_plugins_cache = array();
+            $render_plugin_options = array();
+            foreach ($results as $result) {
+                $plugin_classname = $result['plugin_classname'];
+
+                if ( !isset($render_plugins_cache[$plugin_classname]) ) {
+                    /** @var SearchPluginInterface $plugin */
+                    $plugin = $this->container->get($plugin_classname);
+                    $render_plugins_cache[$plugin_classname] = $plugin;
+                }
+
+                $option_name = $result['rpod_name'];
+                $option_value = $result['rpom_value'];
+
+                if ( !is_null($option_name) ) {
+                    if ( !isset($render_plugin_options[$plugin_classname]) )
+                        $render_plugin_options[$plugin_classname] = array();
+                    $render_plugin_options[$plugin_classname][$option_name] = $option_value;
+                }
+            }
+
+            // Need to arrange the plugins by the id of the datafield that is using them, though
+            foreach ($results as $result) {
+                $df_id = $result['df_id'];
+                $plugin_classname = $result['plugin_classname'];
+
+                $render_plugins[$df_id] = array(
+                    'renderPlugin' => $render_plugins_cache[$plugin_classname],
+                );
+
+                // The render plugin may not have had any options...
+                if ( isset($render_plugin_options[$plugin_classname]) ) {
+                    // ...but if it does, then save them to return
+                    $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$plugin_classname];
+                }
+                else {
+                    // If it didn't have any options, then just provide an empty array
+                    $render_plugins[$df_id]['renderPluginOptions'] = array();
+                }
+            }
+        }
+        else {
+            throw new ODRNotImplementedException('unable to run search plugins across templates...');
+        }
+
+        return $render_plugins;
     }
 
 

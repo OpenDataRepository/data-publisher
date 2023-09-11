@@ -184,14 +184,16 @@ class MassEditController extends ODRCustomController
                 return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
             }
 
-            // Get the list of every single datarecords specified by this search key
-            // Don't care about sorting here
-            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
-            $grandparent_list = implode(',', $search_results['grandparent_datarecord_list']);
-            $datarecord_list = implode(',', $search_results['complete_datarecord_list']);
+
+            // Get the list of grandparent datarecords specified by this search key
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions
+            );    // this will only return grandparent datarecord ids
 
             // If the user is attempting to view a datarecord from a search that returned no results...
-            if ( $filtered_search_key !== '' && $datarecord_list === '' ) {
+            if ( count($grandparent_datarecord_list) === 0 ) {
                 // ...redirect to the "no results found" page
                 return $search_redirect_service->redirectToSearchResult($filtered_search_key, $search_theme_id);
             }
@@ -208,8 +210,6 @@ class MassEditController extends ODRCustomController
                 $list = array();
 
             $list[$odr_tab_id] = array(
-                'datarecord_list' => $grandparent_list,
-                'complete_datarecord_list' => $datarecord_list,
                 'encoded_search_key' => $filtered_search_key
             );
             $session->set('mass_edit_datarecord_lists', $list);
@@ -365,6 +365,8 @@ class MassEditController extends ODRCustomController
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
             /** @var TrackedJobService $tracked_job_service */
@@ -426,27 +428,33 @@ class MassEditController extends ODRCustomController
             if ( !isset($list[$odr_tab_id]) )
                 throw new ODRBadRequestException('Missing MassEdit session variable');
 
-            if ( !isset($list[$odr_tab_id]['encoded_search_key'])
-                || !isset($list[$odr_tab_id]['datarecord_list'])
-                || !isset($list[$odr_tab_id]['complete_datarecord_list'])
-            ) {
+            if ( !isset($list[$odr_tab_id]['encoded_search_key']) )
                 throw new ODRBadRequestException('Malformed MassEdit session variable');
-            }
 
             $search_key = $list[$odr_tab_id]['encoded_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
 
 
-            // Need a list of datarecords from the user's session to be able to edit them...
-            $complete_datarecord_list = trim($list[$odr_tab_id]['complete_datarecord_list']);
-            $datarecords = trim($list[$odr_tab_id]['datarecord_list']);
-            if ($complete_datarecord_list === '' || $datarecords === '') {
-                // ...but no such datarecord list exists....redirect to search results page
+            // Need both lists of datarecords that the search can return...
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions
+            );    // this will only return grandparent datarecord ids
+
+            if ( count($grandparent_datarecord_list) === 0 ) {
+                // If no such datarecord list exists....redirect to search results page
                 return $search_redirect_service->redirectToSearchResult($search_key, 0);
             }
-            $complete_datarecord_list = explode(',', $complete_datarecord_list);
-            $datarecords = explode(',', $datarecords);
+            $datarecords = $grandparent_datarecord_list;
+
+            $complete_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions,
+                true
+            );    // this will also return child/linked descendant datarecord ids
 
 
             // ----------------------------------------
@@ -1610,6 +1618,8 @@ class MassEditController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
@@ -1630,6 +1640,7 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
@@ -1656,31 +1667,26 @@ class MassEditController extends ODRCustomController
             if ( !isset($list[$odr_tab_id]) )
                 throw new ODRBadRequestException('Missing MassEdit session variable');
 
-            if ( !isset($list[$odr_tab_id]['encoded_search_key'])
-                || !isset($list[$odr_tab_id]['datarecord_list'])
-                || !isset($list[$odr_tab_id]['complete_datarecord_list'])
-            ) {
+            if ( !isset($list[$odr_tab_id]['encoded_search_key']) )
                 throw new ODRBadRequestException('Malformed MassEdit session variable');
-            }
 
             $search_key = $list[$odr_tab_id]['encoded_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
 
 
-            // Need a list of datarecords from the user's session to be able to edit them...
-            $complete_datarecord_list = trim($list[$odr_tab_id]['complete_datarecord_list']);
-            $datarecords = trim($list[$odr_tab_id]['datarecord_list']);
-            if ($complete_datarecord_list === '' || $datarecords === '') {
-                // ...but no such datarecord list exists....redirect to search results page
+            // Need both lists of datarecords that the search can return...
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions
+            );    // this will only return grandparent datarecord ids
+
+            if ( count($grandparent_datarecord_list) === 0 ) {
+                // If no such datarecord list exists....redirect to search results page
                 return $search_redirect_service->redirectToSearchResult($search_key, 0);
             }
-
-            // Can't use the complete datarecord list, since that also contains linked datarecords
-            // Only want the mass delete to affect records from this datatype
-//            $complete_datarecord_list = explode(',', $complete_datarecord_list);
-            $datarecords = explode(',', $datarecords);
-
+            $datarecords = $grandparent_datarecord_list;
 
             // Shouldn't be an issue, but delete the datarecord list out of the user's session
             unset( $list[$odr_tab_id] );

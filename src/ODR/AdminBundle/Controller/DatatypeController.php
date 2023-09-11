@@ -323,7 +323,6 @@ class DatatypeController extends ODRCustomController
                 );
                 $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_data, $params);
 
-
                 // $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
                 $redirect_path = '';
                 $datatype_permissions = $pm_service->getDatatypePermissions($user);

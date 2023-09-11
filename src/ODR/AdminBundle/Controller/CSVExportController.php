@@ -155,8 +155,11 @@ class CSVExportController extends ODRCustomController
             }
 
             // Get the list of grandparent datarecords specified by this search key
-            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
-            $grandparent_datarecord_list = $search_results['grandparent_datarecord_list'];
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions
+            );    // this will only return grandparent datarecord ids
 
             // If the user is attempting to view a datarecord from a search that returned no results...
             if ( empty($grandparent_datarecord_list) ) {
@@ -444,14 +447,24 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // CSVExport needs both of the lists of datarecords from a search result...
-            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
+            // CSVExport needs both versions of the lists of datarecords from a search result...
+
             // ...the grandparent datarecord list so that the export knows how many beanstalk jobs
             //  to create in the csv_export_worker queue...
-            $grandparent_datarecord_list = $search_results['grandparent_datarecord_list'];
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions
+            );    // this only returns grandparent datarecord ids
+
             // ...and the complete datarecord list so that the csv_export_worker process can export
             //  the correct child/linked records
-            $complete_datarecord_list = $search_results['complete_datarecord_list'];
+            $complete_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions,
+                true
+            );    // this also returns child/linked descendant datarecord ids
 
             // However, the complete datarecord list can't be passed directly to the csv_export_worker
             //  queue because the list can easily exceed the maximum allowed job length...

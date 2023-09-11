@@ -130,6 +130,8 @@ class DisplayController extends ODRCustomController
      */
     public function viewAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)
     {
+        $time = microtime(true);
+        // print "Start: " . $time . "<br />";
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -289,12 +291,18 @@ class DisplayController extends ODRCustomController
                 }
 
                 // No problems, so get the datarecords that match the search
-                $cached_search_results = $odr_tab_service->getSearchResults($odr_tab_id);
-                if ( is_null($cached_search_results) ) {
-                    $cached_search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_datafields, $sort_directions);
-                    $odr_tab_service->setSearchResults($odr_tab_id, $cached_search_results);
+                $original_datarecord_list = $odr_tab_service->getSearchResults($odr_tab_id);
+                if ( is_null($original_datarecord_list) ) {
+                    $original_datarecord_list = $search_api_service->performSearch(
+                        $datatype,
+                        $search_key,
+                        $user_permissions,
+                        false,  // only want the grandparent datarecord ids that match the search
+                        $sort_datafields,
+                        $sort_directions
+                    );
+                    $odr_tab_service->setSearchResults($odr_tab_id, $original_datarecord_list);
                 }
-                $original_datarecord_list = $cached_search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------
@@ -324,6 +332,9 @@ class DisplayController extends ODRCustomController
                 $odr_tab_service->updateDatatablesOffset($odr_tab_id, $offset);
             }
 
+            $now = microtime(true);
+            // print "NOW: " . $now . "<br />";
+            // print "Elapsed: " . ($now - $time) . "<br />";
 
             // ----------------------------------------
             // Build an array of values to use for navigating the search result list, if it exists
@@ -367,6 +378,9 @@ class DisplayController extends ODRCustomController
                 )
             );
 
+            $now = microtime(true);
+            // print "NOW: " . $now . "<br />";
+            // print "Elapsed: " . ($now - $time) . "<br />";
 
             // ----------------------------------------
             // Determine the user's preferred theme
@@ -379,6 +393,9 @@ class DisplayController extends ODRCustomController
             $odr_render_service = $this->container->get('odr.render_service');
             $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $search_key, $theme);
 
+            $now = microtime(true);
+            // print "NOW: " . $now . "<br />";
+            // print "Elapsed: " . ($now - $time) . "<br />";
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -397,6 +414,9 @@ class DisplayController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
+        $now = microtime(true);
+        // print "NOW: " . $now . "<br />";
+        // print "Elapsed: " . ($now - $time); exit();
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
@@ -729,15 +749,15 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // $start = microtime(true);
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // print microtime(true) - $start . "<br />";
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
+            // print microtime(true) - $start . "<br />";
 
             // Locate the image object in the database
             /** @var Image $image */
@@ -745,6 +765,7 @@ class DisplayController extends ODRCustomController
             if ($image == null)
                 throw new ODRNotFoundException('Image');
 
+            /*
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
@@ -754,25 +775,29 @@ class DisplayController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
+            */
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
                 throw new ODRNotFoundException('Image');
 
-
-            // ----------------------------------------
-            // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if ( !$pm_service->canViewImage($user, $image) )
-                throw new ODRForbiddenException();
-            // ----------------------------------------
-
+            // print microtime(true) - $start . "<br />";
 
             // Ensure file exists before attempting to download it
             $filename = 'Image_'.$image->getId().'.'.$image->getExt();
             if ( !$image->isPublic() ) {
+
+                /** @var PermissionsManagementService $pm_service */
+                $pm_service = $this->container->get('odr.permissions_management_service');
+                // ----------------------------------------
+                // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
+                /** @var ODRUser $user */
+                $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+                if ( !$pm_service->canViewImage($user, $image) )
+                    throw new ODRForbiddenException();
+                // ----------------------------------------
+
                 // If image isn't public, then it needs to have this filename instead...
                 $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
 
@@ -843,7 +868,12 @@ class DisplayController extends ODRCustomController
                 if ( !$image_path )
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
+                // print microtime(true) - $start . "<br />";
                 $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
+                // print microtime(true) - $start . "<br />";exit();
+                // $response = new Response($url);
+                // $response->headers->set('Content-Type', 'text/html');
+                //return $response;
                 return $this->redirect($url, 301);
             }
         }
@@ -1662,11 +1692,18 @@ class DisplayController extends ODRCustomController
             $filename_list = array();
             $filename_count = array();
 
-            // Going to need the list of all datarecords that matched the search
-            $search_result = $search_api_service->performSearch($grandparent_datatype, $search_key, $user_permissions);
-            $dr_list = $search_result['complete_datarecord_list'];
 
-            // Using the cached datatype array is untenable for this...query the database directly
+            // Loading and digging through potentially thousands of cached datarecord entries is
+            //  untenable...faster to query the database directly for the relevant info
+
+            // Going to need the list of all datarecords that matched the search
+            $dr_list = $search_api_service->performSearch(
+                $grandparent_datatype,
+                $search_key,
+                $user_permissions,
+                true  // need the child/linked descendant records, not just grandparents...
+            );
+
             $query = $em->createQuery(
                'SELECT partial drf.{id},
                     partial f.{id, ext, original_checksum},

@@ -1,4 +1,4 @@
-{% macro write(logged_in) %}
+{% macro write(logged_in, site_baseurl, odr_wordpress_integrated) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
@@ -120,6 +120,9 @@
             searchToggle();
         });
 
+        // Start with Search Hidden...
+        searchToggle();
+
         {% if logged_in == true %}
         updateDashboardLink();
         {% endif %}
@@ -210,6 +213,12 @@
     /**
      * Redirects an anonymous user to ODR's login page.
      */
+    {% if odr_wordpress_integrated %}
+    function ODRLogin() {
+        let current_page = window.location.href
+        window.location.href = '/wp-login.php?redirect_to=' + current_page;
+    }
+    {% else %}
     function ODRLogin() {
         // Extract the current base url
         var baseurl = window.location.href;
@@ -227,6 +236,9 @@
         else
             redirect_url += '/login';
 
+        redirect_url = '{{ site_baseurl }}{{ path('fos_user_security_login') }}';
+        // alert(redirect_url);
+
         // Append the fragment if it exists
         if (fragment !== '')
             redirect_url += '#' + fragment;
@@ -243,6 +255,7 @@
             }
         });
     }
+    {% endif %}
 
     /**
      * Forces a complete AJAX reload of the current page.
@@ -549,9 +562,8 @@
     }
 
     function setupAccordionHighlights() {
-         $("#content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
+         $("#odr_content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
             .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
-
         // console.log('accordion highlight')
     }
 
@@ -798,7 +810,7 @@
      */
     function setupTagTree(context = null, states = 2) {
         if ( context === null )
-            context = $("#content");
+            context = $("#odr_content");
 
         $(context).find(".ODRTagParent").unbind('click').click(function(event) {
             event.stopImmediatePropagation();
