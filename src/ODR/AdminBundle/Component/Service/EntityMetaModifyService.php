@@ -2481,6 +2481,7 @@ class EntityMetaModifyService
         $existing_values = array(
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'hidden' => $old_meta_entry->getHidden(),
+            'hideBorder' => $old_meta_entry->getHideBorder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
         );
@@ -2520,6 +2521,8 @@ class EntityMetaModifyService
             $theme_element_meta->setDisplayOrder( $properties['displayOrder'] );
         if ( isset($properties['hidden']) )
             $theme_element_meta->setHidden( $properties['hidden'] );
+        if ( isset($properties['hideBorder']) )
+            $theme_element_meta->setHideBorder( $properties['hideBorder'] );
         if ( isset($properties['cssWidthMed']) )
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )

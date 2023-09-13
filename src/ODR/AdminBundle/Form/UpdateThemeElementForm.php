@@ -37,6 +37,11 @@ class UpdateThemeElementForm extends AbstractType
         );
 
         $builder->add(
+            'hideBorder',
+            HiddenType::class
+        );
+
+        $builder->add(
             'cssWidthMed',
             HiddenType::class
         );

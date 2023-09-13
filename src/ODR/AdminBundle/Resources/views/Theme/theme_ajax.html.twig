@@ -92,22 +92,27 @@
                         <div id="ODRDatatypeToolsBlock">
                             <p>
                                 <a id="ODRDatatype_addTE">
-                                    <i class="tooltip fa fa-edit ODRAddThemeElement"
-                                       title="Add Group Box"
-                                    ></i> <span class="link-text">Add Group Box</span>
+                                    <i class="tooltip fa fa-edit ODRAddThemeElement"></i>
+                                    <span class="link-text">Add Group Box</span>
                                 </a>
                             </p>
                             <p>
-                                <a id="ODRDatatype_publicStatus">
-                                    <i class="tooltip fa fa-eye fa-inverse ODRPublicDatatype"
-                                    ></i><span class="link-text"> Change Public Status</span>
+                                <a id="ODRDatatype_visibleTE">
+                                    <i class="tooltip fa fa-eye fa-inverse ODRVisibleThemeElement"></i>
+                                    <span class="link-text"> Group Box is Visible</span>
                                 </a>
                             </p>
                             <p>
-                                <a id="ODRDatatype_delete">
-                                    <i class="tooltip fa fa-trash-o ODRDeleteDatatype"
-                                       title="Delete DataType"
-                                    ></i><span class="link-text"> Delete Datatype</span>
+                                <a id="ODRDatatype_visibleTEBorder">
+                                    <i class="tooltip fa fa-eye ODRVisibleThemeElementBorder"></i>
+                                    <span class="link-text"> Show Group Box Border</span>
+                                </a>
+                            </p>
+                            <p></p>
+                            <p>
+                                <a id="ODRDatatype_deleteTE">
+                                    <i class="tooltip fa fa-trash ODRDeleteThemeElement"></i>
+                                    <span class="link-text"> Delete Group Box</span>
                                 </a>
                             </p>
                         </div>
@@ -344,9 +349,10 @@
         // console.log('ResetToolSet()');
 
         var tools = [];
-        tools.add_te   = $("#ODRDatatype_addTE");
-        tools.pub_stat = $("#ODRDatatype_publicStatus");
-        tools.del_dt   = $("#ODRDatatype_delete");
+        tools.add_te     = $("#ODRDatatype_addTE");
+        tools.visible_te = $("#ODRDatatype_visibleTE");
+        tools.border_te  = $("#ODRDatatype_visibleTEBorder");
+        tools.delete_te  = $("#ODRDatatype_deleteTE");
 
         for(var x in tools) {
             var obj = tools[x];
@@ -359,13 +365,15 @@
 
         // Reset link text
         tools.add_te.find('.link-text').html('Add Group Box');
-        tools.pub_stat.find('.link-text').html('Change Public Status');
-        tools.del_dt.find('.link-text').html('Delete Dataset');
+        tools.visible_te.find('.link-text').html('Group Box is Visible');
+        tools.border_te.find('.link-text').html('Show Group Box Border');
+        tools.delete_te.find('.link-text').html('Delete Group Box');
 
         // Reset tooltips
-        tools.add_te.attr('title', 'Add Group Box');
-        tools.pub_stat.attr('title', 'Change Public Status');
-        tools.del_dt.attr('title', 'Delete');
+        // tools.add_te.attr('title', 'Add Group Box');
+        // tools.visible_te.attr('title', 'Toggle Group Box Visibility');
+        // tools.border_te.attr('title', 'Toggle Group Box Border');
+        // tools.delete_te.attr('title', 'Delete Group Box');
     }
 
     /**
@@ -379,9 +387,10 @@
     function RenderToolSet(entity_id, tool_type, theme_element_id) {
 
         var tools = [];
-        tools.add_te   = $("#ODRDatatype_addTE");
-        tools.pub_stat = $("#ODRDatatype_publicStatus");
-        tools.del_dt   = $("#ODRDatatype_delete");
+        tools.add_te     = $("#ODRDatatype_addTE");
+        tools.visible_te = $("#ODRDatatype_visibleTE");
+        tools.border_te  = $("#ODRDatatype_visibleTEBorder");
+        tools.delete_te  = $("#ODRDatatype_deleteTE");
 
         ResetToolSet();
 
@@ -407,10 +416,7 @@
                 });
 
                 // ----------------------------------------
-                // Not allowed to change visibility of a datatype from here
-
-                // ----------------------------------------
-                // Not allowed to delete a datatype from here
+                // Not allowed to use any of the other options here
 
                 break;
 
@@ -424,27 +430,57 @@
                 if ( $(theme_element).hasClass("ODRThemeHiddenElement") || $(theme_element).hasClass("ODRThemeVisibleHiddenElement") )
                     theme_element_is_visible = false;
 
+                var is_top_level = true;
+                if ( $(theme_element).parent().parent().hasClass('ODRChildDatatype') )
+                    is_top_level = false;
+
+                var theme_element_border_visible = true;
+                if ( $("#ThemeElement_" + theme_element_id + " > .ODRInnerBox").hasClass("ODRInnerBox_HideBorder") )
+                    theme_element_border_visible = false;
+
+
                 // ----------------------------------------
                 // Can't add a ThemeElement/Group Box to a ThemeElement
 
                 // ----------------------------------------
                 // Can always change visibility of a ThemeElement
-                tools.pub_stat.removeClass('faded');
+                tools.visible_te.removeClass('faded');
 
                 if (theme_element_is_visible) {
-                    tools.pub_stat.find('i').addClass('ODRActiveIcon');
-                    tools.pub_stat.find('.link-text').html('Group Box is Visible');
-                    tools.pub_stat.attr('title', 'This Group Box and its contents will be displayed in the layout if the user is allowed to view it.');
+                    tools.visible_te.find('i').addClass('ODRActiveIcon');
+                    tools.visible_te.find('.link-text').html('Group Box is Visible');
+                    tools.visible_te.attr('title', 'This Group Box and its contents will be displayed in the layout if the user is allowed to view it.');
                 }
                 else {
-                    // tools.pub_stat.find('i').removeClass('ODRActiveIcon');
-                    tools.pub_stat.find('.link-text').html('Group Box is Not Visible');
-                    tools.pub_stat.attr('title', 'This Group Box and its contents will never be displayed.');
+                    // tools.visible_te.find('i').removeClass('ODRActiveIcon');
+                    tools.visible_te.find('.link-text').html('Group Box is Not Visible');
+                    tools.visible_te.attr('title', 'This Group Box and its contents will never be displayed.');
                 }
 
-                tools.pub_stat.unbind('click').click(function () {
+                tools.visible_te.unbind('click').click(function () {
                     toggleThemeElementVisibility(theme_element_id);
                 });
+
+                // ----------------------------------------
+                // Can only change visibility of a ThemeElement's border if it's top-level
+                if ( is_top_level ) {
+                    tools.border_te.removeClass('faded');
+
+                    if (theme_element_border_visible) {
+                        tools.border_te.find('i').addClass('ODRActiveIcon');
+                        tools.border_te.find('.link-text').html('Group Box Border is Visible');
+                        tools.border_te.attr('title', 'The border of this Group Box will be displayed.');
+                    }
+                    else {
+                        // tools.visible_te.find('i').removeClass('ODRActiveIcon');
+                        tools.border_te.find('.link-text').html('Group Box Border is Not Visible');
+                        tools.border_te.attr('title', 'The border of this Group Box will not be displayed.');
+                    }
+
+                    tools.border_te.unbind('click').click(function () {
+                        toggleThemeElementBorderVisibility(theme_element_id);
+                    });
+                }
 
                 // ----------------------------------------
                 // Delete ThemeElement/Group Box is only available when the themeElement is empty
@@ -452,17 +488,17 @@
                 //  from the local dataype, and is only modifying a copy of the master theme for a
                 //  linked/remote datatype
                 if ( !props.has_render_plugin_instance && !props.child_is_link && !props.has_childtype && !props.has_datafields ) {
-                    tools.del_dt.removeClass('faded');
-                    tools.del_dt.find('i').addClass('ODRActiveIcon');
-                    tools.del_dt.find('.link-text').html('Delete Group Box');
-                    tools.del_dt.attr('title', 'Click to delete this group box.');
+                    tools.delete_te.removeClass('faded');
+                    tools.delete_te.find('i').addClass('ODRActiveIcon');
+                    tools.delete_te.find('.link-text').html('Delete Group Box');
+                    tools.delete_te.attr('title', 'Click to delete this group box.');
 
-                    tools.del_dt.unbind('click').click(function () {
+                    tools.delete_te.unbind('click').click(function () {
                         deleteThemeElement(theme_element_id);
                     });
                 }
                 else {
-                    tools.del_dt.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
+                    tools.delete_te.attr('title', 'A Group Box can only be deleted if it is empty.  Delete all contents before attempting to delete.');
                 }
                 break;
 
@@ -480,19 +516,19 @@
 
                 // ----------------------------------------
                 // Can always change visibility of a Datafield
-                tools.pub_stat.removeClass('faded');
+                tools.visible_te.removeClass('faded');
                 if (datafield_is_visible) {
-                    tools.pub_stat.find('i').addClass('ODRActiveIcon');
-                    tools.pub_stat.find('.link-text').html('Field is Visible');
-                    tools.pub_stat.attr('title', 'This field will be displayed in the layout if the user is allowed to view it.');
+                    tools.visible_te.find('i').addClass('ODRActiveIcon');
+                    tools.visible_te.find('.link-text').html('Field is Visible');
+                    tools.visible_te.attr('title', 'This field will be displayed in the layout if the user is allowed to view it.');
                 }
                 else {
-                    // tools.pub_stat.find('i').removeClass('ODRActiveIcon');
-                    tools.pub_stat.find('.link-text').html('Field is Not Visible');
-                    tools.pub_stat.attr('title', 'This field will never be displayed.');
+                    // tools.visible_te.find('i').removeClass('ODRActiveIcon');
+                    tools.visible_te.find('.link-text').html('Field is Not Visible');
+                    tools.visible_te.attr('title', 'This field will never be displayed.');
                 }
 
-                tools.pub_stat.unbind('click').click(function () {
+                tools.visible_te.unbind('click').click(function () {
                     toggleThemeDatafieldVisibility(theme_element_id, datafield_id);
                 });
 
@@ -997,6 +1033,50 @@
                     clearAllFields();
                     ResetToolSet();
                 }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Toggles the visibility of the given theme_element's border.
+     *
+     * @param {number} theme_element_id
+     */
+    function toggleThemeElementBorderVisibility(theme_element_id) {
+
+        var url = '{{ path('odr_design_theme_element_border_visibility', {'theme_element_id': 0} ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function () {
+                notifySaved();
+
+                // Toggle hidden status of themeElement's border
+                $("#ThemeElement_" + theme_element_id + " > .ODRInnerBox").toggleClass("ODRInnerBox_HideBorder");
+
+                // Re-render the tools section
+                RenderToolSet(theme_element_id, 'theme_element');
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1610,7 +1690,7 @@
             .attr('data-intro', 'Fields are resized the same way as group boxes....click here and drag to the left or right.');
 #}
 
-        $('#ODRDatatype_publicStatus')
+        $('#ODRDatatype_visibleTE')
             .attr('data-step', '9')
             .attr('data-intro', 'The currently selected group box or field can be hidden by clicking this label.');
         $("#ODRThemeShowHidden")

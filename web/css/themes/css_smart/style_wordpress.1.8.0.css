@@ -106,6 +106,10 @@ input,
     background-color: white;
 }
 
+.ODRInnerBox_HideBorder {
+    border: none !important;
+}
+
 .ODRBodyContent {
     padding: 10px;
 }

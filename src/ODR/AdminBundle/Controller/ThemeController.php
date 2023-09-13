@@ -1122,6 +1122,7 @@ class ThemeController extends ODRCustomController
                     // Save any changes made to the form
                     $properties = array(
                         'hidden' => $submitted_data->getHidden(),
+                        'hideBorder' => $submitted_data->getHideBorder(),
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
                     );
@@ -1274,7 +1275,8 @@ class ThemeController extends ODRCustomController
 
 
     /**
-     * Toggles the hidden status of a ThemeElement.
+     * Toggles the hidden status of a ThemeElement.  This is its own action because it's toggled
+     * with a UI element, instead of using Symfony's form system.
      *
      * @param integer $theme_element_id
      * @param Request $request
@@ -1347,6 +1349,96 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xd43cc3b9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles whether a ThemeElement displays its border or not.  This is its own action because
+     * it's toggled with a UI element, instead of using Symfony's form system.
+     *
+     * The UI only allows this on themeElements for top-level datatypes to match the CSS definitions,
+     * but there's technically nothing stopping it from working on themeElements of descendents.
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeelementbordervisibilityAction($theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( !is_null($datatype->getDeletedAt()) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme);
+            // --------------------
+
+            // Users need to be able to change the "hidden" property on a "master" theme
+            // Most areas of ODR will always display themeElements/themeDatafields in a "master"
+            //  theme, but Display/SearchResults/TextResults will respect this property
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException("Unable to change hidden status of ThemeElements on a datatype's master theme");
+
+
+            // Toggle the hidden status of the specified theme_element
+            if ( $theme_element->getHideBorder() ) {
+                $properties = array(
+                    'hideBorder' => false,
+                );
+                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+            }
+            else {
+                $properties = array(
+                    'hideBorder' => true,
+                );
+                $emm_service->updateThemeElementMeta($user, $theme_element, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0x88462342;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
@@ -1509,12 +1601,17 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Might be useful in the future...
+            $is_top_level = true;
+            if ( $child_datatype->getId() !== $child_datatype->getGrandparent()->getId() )
+                $is_top_level = false;
 
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $theme_datatype,
                 array(
+                    'is_top_level' => $is_top_level,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             )->createView();
@@ -1626,11 +1723,17 @@ class ThemeController extends ODRCustomController
                 array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
             );
 
+            // Might be useful in the future...
+            $is_top_level = true;
+            if ( $child_datatype->getId() !== $child_datatype->getGrandparent()->getId() )
+                $is_top_level = false;
+
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $submitted_data,
                 array(
+                    'is_top_level' => $is_top_level,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             );

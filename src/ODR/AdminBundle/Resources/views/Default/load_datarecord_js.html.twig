@@ -1,6 +1,6 @@
 {% macro write(search_theme_id, search_key) %}
 <script>
-    function loadDataRecord(datarecord_id, target, offset) {
+    function loadDataRecord(datarecord_id, target, offset, open_in_new_tab = false) {
         var search_theme_id = "{{ search_theme_id }}";
         var search_key = "{{ search_key }}";
 
@@ -24,8 +24,13 @@
                 url += '/' + offset;
         }
 
-        // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
-        UpdateURL(url);
+        if ( open_in_new_tab ) {
+            // The given url is only the hash fragment...
+            window.open(window.location.origin + window.location.pathname + "#" + url, "_blank");
+        }
+        else {
+            UpdateURL(url);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        }
     }
 </script>
 {% endmacro %}
