@@ -3228,8 +3228,8 @@ form .row {
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
-    background: #7fb9d8 none repeat scroll 0 0;
-    color: white;
+    background: none; /* #7fb9d8 none repeat scroll 0 0; */
+    color: RGBA(77, 136, 220, 1.00);
     padding: 4px 0 4px 8px;
     font-size: 0.8em;
     border-radius: 5px 5px 0px 0px;
