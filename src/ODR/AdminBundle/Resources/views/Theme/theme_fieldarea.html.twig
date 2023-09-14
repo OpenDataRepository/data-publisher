@@ -5,16 +5,17 @@
 
 {% for theme_element in theme.themeElements %}
 
+    {% set theme_element_meta = theme_element.themeElementMeta %}
     {% set theme_element_hidden = false %}
-    {% if theme_element.themeElementMeta.hidden == 1 %}
+    {% if theme_element_meta.hidden == 1 %}
         {% set theme_element_hidden = true %}
     {% endif %}
 
 
     {% if not theme_element|is_filtered(datatype) %}
 
-    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}{% if theme_element_hidden %} ODRThemeHiddenElement{% endif %}">
-    <div class="ODRInnerBox">
+    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element_meta.cssWidthMed }} pure-u-xl-{{ theme_element_meta.cssWidthXL }}{% if theme_element_hidden %} ODRThemeHiddenElement{% endif %}">
+    <div class="ODRInnerBox{% if theme_element_meta.hideBorder %} ODRInnerBox_HideBorder{% endif %}">
         {% include 'ODRAdminBundle:Displaytemplate:theme_element_properties.html.twig' with {
             'theme_element': theme_element,
         } %}

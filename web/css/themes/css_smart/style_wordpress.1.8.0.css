@@ -106,6 +106,10 @@ input,
     background-color: white;
 }
 
+.ODRInnerBox_HideBorder {
+    border: none !important;
+}
+
 .ODRBodyContent {
     padding: 10px;
 }
@@ -453,7 +457,7 @@ h3.ui-accordion-header a {
 /* .pure-skin-odr .pure-form .ODRRecord select { */
 .pure-skin-odr .pure-form select {
     position: relative;
-    top: -2px;
+    top: -1px;
     height: 24px;
     font-size: 0.8em;
     box-shadow: none;
@@ -1387,7 +1391,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     color: RGBA(77, 136, 220, 0.99) !important;
     font-size: 12px;
     left: 0;
-    top: 0;
+    top: 6px;
     z-index: 1;
     text-align: center;
     width: 15px;
@@ -1398,7 +1402,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 .ODRSelect {
     height: 30px !important;
     width: 150px !important;
-    padding: 0 5px 0 30px !important;
+    padding: 0 5px 0 24px !important;
     outline: none;
     font-size: 16px;
     -webkit-appearance: none; /* for webkit browsers */
@@ -1567,9 +1571,9 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 }
 
 .ODRCreatedBy {
-    position: absolute;
-    top: 36px;
-    right: 10px;
+    /* position: absolute; */
+    /* top: 36px;
+    right: 10px;*/
 }
 
 #ThemeDesignArea .ODRDataField .pure-img {

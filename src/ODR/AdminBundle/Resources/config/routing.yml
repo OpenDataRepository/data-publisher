@@ -340,6 +340,12 @@ odr_design_theme_element_visibility:
     requirements:
         theme_element_id:  \d+
 
+odr_design_theme_element_border_visibility:
+    path:  /design/themeelementbordervisibility/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementbordervisibility }
+    requirements:
+        theme_element_id:  \d+
+
 odr_design_theme_datafield_visibility:
     path:  /design/themedatafieldvisibility/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Theme:themedatafieldvisibility }

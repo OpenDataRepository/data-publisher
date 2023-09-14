@@ -19,6 +19,10 @@ a {
     cursor: pointer;
 }
 
+#odr-main-content-wrapper {
+    margin-top: 100px;
+}
+
 /* from PURE buttons-core.css */
 .pure-skin-odr .pure-button {
     /* Structure */
@@ -2729,10 +2733,14 @@ form .row {
 }
 
 .ODRCreatedBy {
-    margin-top: 0.4em;
+    margin-top: -10px;
     font-size: 0.7em;
     text-align: right;
     min-height: 2em;
+}
+
+#ODRSearchButtons {
+    margin-top: -24px;
 }
 
 .ODRBrowseTitle {
@@ -3006,10 +3014,10 @@ form .row {
 }
 
 .ODRListDisplayHeader {
-    padding-left: 1.4em;
-    padding-top: 0.8em;
-    padding-bottom: 0.8em;
-    margin-bottom: 0.4em;
+    padding-left: 2em !important;
+    padding-top: 0.8em !important;
+    padding-bottom: 0.8em !important;
+    margin-bottom: 0.4em !important;
 }
 
 
@@ -3250,8 +3258,8 @@ form .row {
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
-    background: #7fb9d8 none repeat scroll 0 0;
-    color: white;
+    background: none; /* #7fb9d8 none repeat scroll 0 0; */
+    color: RGBA(77, 136, 220, 1.00);
     padding: 4px 0 4px 8px;
     font-size: 0.8em;
     border-radius: 5px 5px 0px 0px;

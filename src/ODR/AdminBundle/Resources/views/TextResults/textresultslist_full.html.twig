@@ -313,7 +313,7 @@
 
                 // ...load edit mode instead
                 // var offset = $("#TextResults").DataTable().page.info().page + 1;    // Datatables lacks correct page info in this mode
-                loadDataRecord( $(this).attr('rel'), 'edit', {{ offset }} );
+                loadDataRecord( $(this).attr('rel'), 'edit', {{ offset }}, true );
                 return;
             }
 {% endif %}
@@ -331,7 +331,7 @@
             else {
                 // A click anywhere else should load view mode of Datarecord
                 // var offset = $("#TextResults").DataTable().page.info().page + 1;    // Datatables lacks correct page info in this mode
-                loadDataRecord( $(this).attr('rel'), 'view', {{ offset }} );
+                loadDataRecord( $(this).attr('rel'), 'view', {{ offset }}, true );
             }
         });
     });

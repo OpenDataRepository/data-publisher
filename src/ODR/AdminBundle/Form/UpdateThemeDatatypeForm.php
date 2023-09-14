@@ -35,6 +35,7 @@ class UpdateThemeDatatypeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $is_top_level = $options['is_top_level'];
         $multiple_allowed = $options['multiple_allowed'];
 
         $display_choices = array(
@@ -42,10 +43,9 @@ class UpdateThemeDatatypeForm extends AbstractType
             'Tabbed' => ThemeDataType::TABBED_HEADER,
             'Select Box' => ThemeDataType::DROPDOWN_HEADER,
             'List' => ThemeDataType::LIST_HEADER,
+            'Hide Header' => ThemeDataType::NO_HEADER,
+            'Table' => ThemeDataType::DATATABLES_CONTENT,
         );
-        if (!$multiple_allowed)
-            $display_choices['Hide Header'] = ThemeDataType::NO_HEADER;
-        $display_choices['Table'] = ThemeDataType::DATATABLES_CONTENT;
 
         $builder->add(
             'dataType',
@@ -109,5 +109,6 @@ class UpdateThemeDatatypeForm extends AbstractType
 
         // Required options shouldn't have their defaults set
         $resolver->setRequired('multiple_allowed');
+        $resolver->setRequired('is_top_level');
     }
 }

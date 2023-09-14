@@ -2786,6 +2786,7 @@ class EntityCreationService
 
         $theme_element_meta->setDisplayOrder(-1);
         $theme_element_meta->setHidden(0);
+        $theme_element_meta->setHideBorder(false);
         $theme_element_meta->setCssWidthMed('1-1');
         $theme_element_meta->setCssWidthXL('1-1');
 

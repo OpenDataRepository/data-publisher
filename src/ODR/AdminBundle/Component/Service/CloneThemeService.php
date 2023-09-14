@@ -717,6 +717,7 @@ class CloneThemeService
 
         $new_tem->setDisplayOrder(-1);
         $new_tem->setHidden(1);
+        $new_tem->setHideBorder(false);
         $new_tem->setCssWidthMed('1-1');
         $new_tem->setCssWidthXL('1-1');
 

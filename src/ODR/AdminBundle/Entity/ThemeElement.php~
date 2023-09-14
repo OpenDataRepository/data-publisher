@@ -384,6 +384,16 @@ class ThemeElement
     }
 
     /**
+     * Get hide border
+     *
+     * @return boolean
+     */
+    public function getHideBorder()
+    {
+        return $this->getThemeElementMeta()->getHideBorder();
+    }
+
+    /**
      * Get cssWidthXL
      *
      * @return string
