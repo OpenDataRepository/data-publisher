@@ -86,6 +86,10 @@ odr_plugins.rruff.ima:
         # NOTE - rruff.info also had Fleischer, Handbook of Mineralogy, and End Member chemistry, but those aren't being imported
         # NOTE - ...it also had End Member Elements (derived from the RRUFF formula for some reason)
 
+        status_notes:
+            name: Status Notes
+            description:
+            type: LongText
 
         reference_a:
             name: Reference A    # TODO - this is like the "initial" reference, right?
@@ -123,10 +127,6 @@ odr_plugins.rruff.ima:
             type: ShortVarchar
         notes:
             name: Notes
-            description:
-            type: LongText
-        status_notes:
-            name: Status Notes
             description:
             type: LongText
 

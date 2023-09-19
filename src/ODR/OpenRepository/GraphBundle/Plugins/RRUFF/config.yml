@@ -33,6 +33,7 @@ services:
     odr_plugins.rruff.ima:
         class: '%odr_plugin_base_classpath%\RRUFF\IMAPlugin'
         arguments:
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $entity_manager: "@doctrine.orm.entity_manager"
             $database_info_service: "@odr.database_info_service"
             $datarecord_info_service: "@odr.datarecord_info_service"

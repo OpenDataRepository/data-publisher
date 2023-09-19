@@ -1,0 +1,69 @@
+{% spaceless %}
+
+{% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+<form class="pure-u-1" id="ViewForm_{{ unique_id }}">
+
+    {% set status_notes_warnings = status_notes_info['warnings'] %}
+
+    {# Determine whether a render plugin should be run #}
+    {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': false, 'context': 'text'} %}    {# NOTE: intentionally 'text' instead of 'display'...need to preserve IMA Plugin warnings #}
+    {% set render_plugin_instance = null %}
+    {% set can_execute_plugin = false %}
+
+    {% for rpi_num,rpi in datafield.renderPluginInstances %}
+        {% if rpi.renderPlugin.plugin_type == DATAFIELD_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+            {% set can_execute_plugin = rpi|can_execute_datafield_plugin(datafield, datarecord, rendering_options) %}
+
+            {# Only want to save the render_plugin_instance if it's render-able #}
+            {% if can_execute_plugin %}
+                {% set render_plugin_instance = rpi %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% set content = '' %}
+    {% if can_execute_plugin %}
+        {% set content = datafield|datafield_plugin(datarecord, render_plugin_instance, rendering_options) %}
+    {% endif %}
+
+    <fieldset>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+        {% if content|length > 0 %}
+            <div class="ODRRenderPluginField">{{ content|replace({"\n": "<br>"})|raw }}</div>
+        {% else %}
+            <textarea id="{{ input_id }}" class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
+        {% endif %}
+        </div>
+
+        {% if status_notes_warnings|length > 0 %}
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+            {% for warning in status_notes_warnings %}
+            <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">{{ warning }}</label>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </fieldset>
+</form>
+
+{% endspaceless %}

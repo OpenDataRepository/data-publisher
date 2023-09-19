@@ -4464,6 +4464,54 @@ i {
 }
 
 
+.ODRCellparamPlugin_button {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRCellparamPlugin_popup {
+    position: absolute;
+    z-index: 100;
+    background: white;
+    border: 2px solid black;
+    border-radius: 4px;
+    display: none;
+    font-weight: 400;
+    padding: 5px;
+}
+.ODRCellparamPlugin_popup > .ODRPseudoField {
+    margin-top: 5px;
+}
+.ODRCellparamPlugin_input {
+    /*margin: 5px !important;*/
+    font-size: 100% !important;
+}
+.ODRCellparamPlugin_textarea {
+    margin: 5px 0 0 0 !important;
+    font-size: 100% !important;
+}
+.ODRCellparamPlugin_SaveIndicator {
+    top: 8px !important;
+}
+
+
+.ODRIMAPlugin_StatusNotesTools {
+    margin: 0px 5px 5px;
+}
+.ODRIMAPlugin_StatusNotesButton {
+    min-width: 0 !important;
+    padding: 3px !important;
+    margin: 5px 5px 0 5px !important;
+}
+.ODRIMAPlugin_StatusNotesSelect {
+    width: 80%;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
 .ODRMultiDatafield_fieldtype {
     width: 100%;
 }
