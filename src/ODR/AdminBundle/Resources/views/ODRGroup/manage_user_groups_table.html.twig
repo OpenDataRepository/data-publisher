@@ -1,0 +1,229 @@
+{% spaceless %}
+
+{% if datatypes|length == 0 %}
+    <div class="ODRDatarecordListHeader">No {{ key }}s exist!</div>
+{% else %}
+    <div class="pure-u-1-2">
+        <table id="{{ id }}" class="display dataTable">
+            <thead>
+            <tr>
+                <th></th>
+                <th>Database Name</th>
+                <th>User in group?</th>
+                <th>Database is public?</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for dt_id, dt in datatypes %}
+                {% set datatype_meta = dt.dataTypeMeta %}
+                <tr>
+                    <td>
+                        <span class="ODRDatatypeInfoDiv">
+                            <i class="fa fa-lg fa-info-circle"></i>
+                            <span class="ODRDatatypeInfo">
+                                <div>
+                                    <b>Created By: </b>{{ dt.createdBy|user_string }}<b> on </b>{{ dt.created|date('Y-m-d') }}
+                                </div>
+                                <div>
+                                    <b>Description: </b>{{ datatype_meta.description }}
+                                </div>
+                            </span>
+                        </span>
+                    </td>
+                    <td>{{ datatype_meta.shortName }}</td>
+                    <td>
+                        <i
+                            id="in_datatype_{{ dt_id }}_group"
+                            class="fa fa-lg{% if user_datatype_group_membership[ dt_id ] is defined %} fa-check{% endif %} Cursor ODRGroupListCheckbox"
+                        >
+                            <span class="ODRHidden">{% if user_datatype_group_membership[ dt_id ] is defined %}1{% else %}0{% endif %}</span>
+                        </i>
+                    </td>
+                    <td>
+                    {% if datatype_meta.publicDate|is_public %}
+                        <i class="fa fa-lg fa-check Cursor ODRGroupListCheckbox"></i>
+                    {% endif %}
+                    </td>
+                    <td id="ODRDatatype_{{ dt_id }}_arrow" class="Pointer ODRListExpand">
+                        <i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ dt_id }}"></i>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pure-u-1-24"></div>
+
+    {% for dt_id, dt in datatypes %}
+        {% set datatype_meta = dt.dataTypeMeta %}
+
+        <div id="datatype_groups_{{ dt_id }}" class="ODRGroupList pure-u-11-24" rel="{{ dt_id }}">
+            <div class="pure-u-1 ODRManageGroupsHeader">Default Groups for "{{ datatype_meta.shortName }}"</div>
+
+            <div class="pure-u-1">
+                {# print out the four default groups across the top #}
+                {% set group_id = dt['groups']['view_only']['id'] %}
+                <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_only']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">View</span>
+                </span>
+
+                {% set group_id = dt['groups']['view_all']['id'] %}
+                <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_all']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">View All</span>
+                </span>
+
+                {% set group_id = dt['groups']['edit_all']['id'] %}
+                <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['edit_all']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">Edit All</span>
+                </span>
+
+                {% set group_id = dt['groups']['admin']['id'] %}
+                <span class="pure-u-1-4 Cursor" title="{{ dt['groups']['admin']['groupMeta']['groupDescription'] }}">
+                    <input
+                        type="checkbox"
+                        id="checkbox_{{ target_user.id }}_{{ group_id }}"
+                        class="ODRDefaultGroupCheckbox ODRGroupCheckbox"
+                        {% if user_group_list[group_id] is defined %}checked{% endif %}
+                    />
+                    <span class="ODRGroupName">Admin</span>
+                </span>
+            </div>
+
+            <div class="pure-u-1 ODRManageGroupsHeader">Custom Groups for "{{ datatype_meta.shortName }}"</div>
+            <div class="pure-u-1" style="margin-bottom:15px;">
+                {# print out the remaining non-default groups as a list #}
+                {% for group in datatypes[dt_id]['groups'] %}
+                    {% if group.purpose == "" %}
+                        <div class="pure-u-1">
+                            <span class="ODRDatatypeInfoDiv">
+                                <i class="fa fa-lg fa-info-circle"></i>
+                                <span class="ODRDatatypeInfo">
+                                    <div>
+                                        <b>Created By: </b>{{ group.createdBy|user_string }}<b> on </b>{{ group.created|date('Y-m-d') }}
+                                    </div>
+                                    <div>
+                                        <b>Description: </b>{{ group.groupMeta.groupDescription }}
+                                    </div>
+                                </span>
+                            </span>
+                            <span class="ODRGroupName">
+                                <input
+                                    type="checkbox"
+                                    id="checkbox_{{ target_user.id }}_{{ group['id'] }}"
+                                    class="ODRGroupCheckbox"
+                                    {% if user_group_list[ group['id'] ] is defined %}checked{% endif %}
+                                />
+                            </span>
+                            <span class="ODRGroupName Cursor">
+                                {{ group.groupMeta.groupName }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups for "{{ datatype_meta.shortName }}"</button>
+            <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View User's Effective Permissions</button>
+        </div>
+    {% endfor %}
+
+{% endif %}
+
+<script>
+    $(function() {
+        $("#{{ id }}").dataTable({
+            "paging": false,
+            "info": false,
+            "columnDefs": [
+                {
+                    "targets": [0, 4],
+                    "orderable": false,
+                    "searchable": false
+                }
+            ],
+            "order": [[1, "asc"]],
+            "language": {
+                "emptyTable": "No {{ key }}s found"
+            }
+        });
+
+        // Need to ensure that the group list div on the right stays synchronized with the selected
+        //  row of the table on the left
+        var selected_row = null;
+
+        var table = $("#{{ id }}").DataTable();
+        table.on( 'draw.dt', function() {
+            // This datatables event is called after the "order" and "search" events have fired,
+            //  and the table has been redrawn on the page...this redrawing means the position or
+            //  visibility of the group list needs to be updated
+
+            // If the group list div on the right is visible, save which row it's meant for
+            var selected_row_id = '';
+            if ( selected_row !== null )
+                selected_row_id = $(selected_row).attr('id');
+
+            // Iterate over all visible rows, attempting to find the one that is currently selected
+            var selected_element = null;
+            $(".ODRListExpand:visible").each(function() {
+                if ( $(this).children(".fa-caret-right").length > 0 ) {
+                    selected_element = $(this);
+                }
+            });
+
+
+            if ( selected_row_id !== '' && selected_element === null ) {
+                // The group list div is visible but the corresponding row wasn't found, then the
+                //  search function has hidden the corresponding row...so hide the group list div
+                $(".ODRGroupList").hide();
+                selected_row = null;
+            }
+            else if ( selected_row_id !== '' && selected_element !== null ) {
+                // The group list div and its corresponding row are both visible...ensure the group
+                //  list div is in a sensible place relative to its corresponding row
+                openGroupList( $(selected_element) );
+            }
+            else if ( selected_row_id === '' && selected_element === null ) {
+                // Neither the group list div nor its corresponding row are visible...do nothing
+            }
+            else if ( selected_row_id === '' && selected_element !== null ) {
+                // The group list div isn't displayed, but one of the rows is currently "selected"
+                //  ...reset the arrows
+                $(selected_element).children(".fa-caret-right").each(function() {   // should only return one
+                    var row_num = $(this).attr('rel');
+                    $("#datatype_groups_" + row_num).hide();
+
+                    $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+                });
+            }
+
+            // NOTE - need to also execute this whenever the table finishes drawing
+            ODRUserGroup_setupIntroJS();
+        });
+
+        $("#{{ id }}").removeAttr('style');
+        {% if hidden %}
+            $("#{{ id }}_wrapper").hide();
+        {% endif %}
+    });
+</script>
+{% endspaceless %}

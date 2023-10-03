@@ -528,6 +528,7 @@ h3.ui-accordion-header a {
 
 .ODRTableWrap,
 #ODRDatatypeList_wrapper,
+#ODRTemplateList_wrapper,
 #ODRRenderPluginList_wrapper {
     box-sizing: border-box;
     padding: 8px;

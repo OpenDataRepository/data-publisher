@@ -747,7 +747,7 @@ class ODRGroupController extends ODRCustomController
                 JOIN g.createdBy AS g_cb
                 JOIN g.groupMeta AS gm
                 WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps)
-                AND dt.is_master_type = 0 AND dt.metadata_for IS NULL
+                AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
             )->setParameters(
@@ -785,6 +785,18 @@ class ODRGroupController extends ODRCustomController
                 }
             }
 
+            // Now that all the groups have been organized per datatype, split the templates from
+            //  the datatypes
+            $templates = array();
+            foreach ($datatypes as $dt_id => $dt) {
+                if ( $dt['is_master_type'] ) {
+                    $templates[$dt_id] = $dt;
+                    unset( $datatypes[$dt_id] );
+                }
+            }
+
+
+            // ----------------------------------------
             // Also going to need which groups the target user is currently a member of
             /** @var UserGroup[] $user_groups */
             $user_groups = $em->getRepository('ODRAdminBundle:UserGroup')->findBy( array('user' => $user->getId()) );
@@ -808,6 +820,8 @@ class ODRGroupController extends ODRCustomController
                         'target_user' => $user,
 
                         'datatypes' => $datatypes,
+                        'templates' => $templates,
+
                         'user_group_list' => $user_group_list,
                         'user_datatype_group_membership' => $user_datatype_group_membership,
                     )
