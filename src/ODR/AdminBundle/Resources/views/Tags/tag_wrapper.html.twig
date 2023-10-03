@@ -6,6 +6,8 @@
             {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
                 'datafield' : datafield,
                 'tag': tag,
+
+                'disable_controls': disable_controls,
             } %}
         {% endfor %}
     </ul>

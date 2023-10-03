@@ -271,6 +271,69 @@ class CloneTemplateService
 
 
     /**
+     * Returns whether the given datafield is out of sync with its master template version.
+     * TODO - should this instead fail if any part of the datatype is out of sync?
+     *
+     * @param DataFields $datafield
+     * @return bool
+     */
+    public function isDatafieldOutOfSync($datafield)
+    {
+        // if this is not a derived field, then it's not "out of sync" by definition
+        if ( is_null($datafield->getMasterDataField()) )
+            return false;
+
+        // Going to need these...
+        $datatype = $datafield->getDataType();
+        $master_datafield = $datafield->getMasterDataField();
+        $master_datatype = $datatype->getMasterDataType();
+
+        $diff = self::getDiffWithTemplate($datatype->getGrandparent());
+        if ( empty($diff) ) {
+            // If the diff array is empty, then the datafield is in sync with its master datafield
+            return false;
+        }
+
+        // Otherwise, since the datafield in question could belong to a child datatype, and the diff
+        //  array is stacked...it's better to use recursion
+        $dt = $diff[$master_datatype->getGrandparent()->getId()];
+        return self::isDatafieldOutOfSync_worker($dt, $master_datafield->getId());
+    }
+
+
+    /**
+     * Does the recursive work for self::isDatafieldOutOfSync().
+     *
+     * @param array $dt_array
+     * @param integer $datafield_id
+     * @return bool
+     */
+    private function isDatafieldOutOfSync_worker($dt_array, $datafield_id)
+    {
+        // If this datafield has an entry in the array of differences...
+        if ( isset($dt_array['dataFields'][$datafield_id]) ) {
+            // ...then the field is out out sync
+            return true;
+        }
+        else if ( isset($dt_array['descendants']) ) {
+            // ...otherwise, check whether this datatype's descendants have the datafield
+            foreach ($dt_array['descendants'] as $dt_id => $tmp) {
+                $child_dt = $tmp['datatype'][$dt_id];
+                $ret = self::isDatafieldOutOfSync_worker($child_dt, $datafield_id);
+                if ( $ret ) {
+                    // If the datafield was found in this descendant and is out of sync, don't
+                    //  continue looking
+                    return true;
+                }
+            }
+        }
+
+        // If this point is reached, the datafield is either in sync or hasn't been found
+        return false;
+    }
+
+
+    /**
      * Returns true if the provided Datatype is missing Datafields and/or child/linked Datatypes
      * that its Master Template has.  Also, the user needs to be capable of actually making changes
      * to the layout for this to return true.
@@ -471,6 +534,7 @@ class CloneTemplateService
         // Only want to keep these keys...defining it this way because isset() is faster than in_array()
         $keep = array(
             'id' => 1,
+            'dataFieldMeta' => 1,
 //            'is_master_field' => 1,
 //            'fieldUuid' => 1,
 //            'templateFieldUuid' => 1,
@@ -480,6 +544,14 @@ class CloneTemplateService
             'tags' => 1,
             'tagTree' => 1,
         );
+        $keep_df_meta = array(
+            'is_unique' => 1,
+            'allow_multiple_uploads' => 1,
+            'radio_option_name_sort' => 1,
+            'tags_allow_multiple_levels' => 1,
+        );
+        // NOTE - if adding/removing any of these datafieldMeta entries, need to modify both
+        //  DisplaytemplateController and UpdateDataFieldsForm as well
 
         foreach ($datafields as $df_id => $df) {
             // Move the fieldtype from the datafieldMeta entry into the datafield itself
@@ -489,6 +561,10 @@ class CloneTemplateService
             foreach ($df as $key => $value) {
                 if ( !isset($keep[$key]) )
                     unset( $datafields[$df_id][$key] );
+            }
+            foreach ($df['dataFieldMeta'] as $key => $value) {
+                if ( !isset($keep_df_meta[$key]) )
+                    unset( $datafields[$df_id]['dataFieldMeta'][$key] );
             }
 
             // TODO - change of datafield public status
@@ -619,6 +695,18 @@ class CloneTemplateService
                         }
 
                         // TODO - change of datafield public status?
+
+                        // Check datafield properties...
+                        foreach ($template_datafields[$master_df_id]['dataFieldMeta'] as $key => $value) {
+                            if ( $df['dataFieldMeta'][$key] !== $value ) {
+                                // The derived field has a different value than the master field
+                                $change_made = true;
+                            }
+                            else {
+                                // Don't need to modify this property
+                                unset( $template_array[$t_dt_id]['dataFields'][$master_df_id]['dataFieldMeta'][$key] );
+                            }
+                        }
 
                         // Need to check radio options...
                         if ( isset($template_datafields[$master_df_id]['radioOptions']) ) {
@@ -1568,8 +1656,8 @@ class CloneTemplateService
                 $master_df = $this->template_datafields[$df_id];
                 $master_dt = $master_df->getDataType();
 
-                // If the derived datafield does not exist, clone it from the master template
                 if ( is_null($derived_df) ) {
+                    // If the derived datafield does not exist, clone it from the master template
                     $new_df = clone $master_df;
                     $new_df->setMasterDataField($master_df);
                     $new_df->setTemplateFieldUuid($master_df->getFieldUuid());
@@ -1622,6 +1710,17 @@ class CloneTemplateService
 
                     // Clone all render plugins for the newly created datafield
                     self::cloneRenderPlugins($indent_text, $user, null, null, $new_df);
+                }
+                else if ( !empty($df['dataFieldMeta']) ) {
+                    // If the derived datafield does exist, then ensure that several relevant
+                    //  properties remain in sync with its master datafield
+                    $props = array();
+                    foreach ($df['dataFieldMeta'] as $key => $value) {
+                        $props[$key] = $value;
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- setting "'.$key.'" to "'.$value.'"...');
+                    }
+
+                    $this->emm_service->updateDatafieldMeta($user, $derived_df, $props, true);
                 }
 
                 $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();

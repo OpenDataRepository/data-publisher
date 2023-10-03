@@ -898,7 +898,7 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignForm .ODRFloatingCheckbox {
-    margin-top: 6px;
+    /*margin-top: 6px;*/
     margin-right: 8px;
     float: left !important;
 }
@@ -932,6 +932,13 @@ ul#wizardStatus li.completed:before{
     width: 91.66vw !important;
     overflow: visible !important;
     overscroll-behavior-x: none !important;
+}
+
+.ODRThemeDesignTool {
+    float: right;
+}
+.ODRCheckboxProperty .ODRThemeDesignTool {
+    font-size: 1.25em;
 }
 
 #ThemeLeftColumn {

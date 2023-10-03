@@ -956,29 +956,48 @@ class SortService
         if (!$datafield->getRadioOptionNameSort())
             return false;
 
+        // Need to potentially look up radio options if their displayOrder gets changed
+        $repo_radio_options = $this->em->getRepository('ODRAdminBundle:RadioOptions');
+        // NOTE - individually looking radio options up paradoxically reduces the number of queries made...thanks, doctrine's hydrator
+
+        // Need the actual radio option names to sort on
         $query = $this->em->createQuery(
-           'SELECT ro, rom
+           'SELECT ro.id AS ro_id, rom.optionName, rom.displayOrder
             FROM ODRAdminBundle:RadioOptions AS ro
             JOIN ro.radioOptionMeta AS rom
-            WHERE ro.dataField = :datafield
+            WHERE ro.dataField = :datafield_id
             AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield->getId()) );
-        /** @var RadioOptions[] $results */
-        $results = $query->getResult();
+        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        $results = $query->getArrayResult();
 
+        $radio_options = array();
+        foreach ($results as $result) {
+            $ro_id = $result['ro_id'];
+            $ro_name = $result['optionName'];
+            $display_order = $result['displayOrder'];
+
+            $radio_options[$ro_id] = array('name' => $ro_name, 'order' => $display_order);
+        }
+
+
+        // ----------------------------------------
         // Sort the radio options by name
-        usort($results, function($a, $b) {    // Don't need to preserve array keys
-            /** @var RadioOptions $a */
-            /** @var RadioOptions $b */
-            return strnatcasecmp($a->getOptionName(), $b->getOptionName());
+        uasort($radio_options, function($a, $b) {    // need to preserve array keys, since they're entity ids
+            return strnatcasecmp($a['name'], $b['name']);
         });
 
         // Save any changes in the sort order
         $index = 0;
         $changes_made = false;
-        foreach ($results as $ro) {
-            if ( $ro->getDisplayOrder() !== $index ) {
-                // This radio option should be in a different spot
+        foreach ($radio_options as $option_id => $option_data) {
+            $display_order = $option_data['order'];
+
+            if ( $display_order !== $index ) {
+                // ...if a radio option is not in the correct order, then hydrate it...
+                /** @var RadioOptions $ro */
+                $ro = $repo_radio_options->find($option_id);
+
+                // ...so it can be updated to match the sorted list
                 $properties = array(
                     'displayOrder' => $index,
                 );
@@ -1011,26 +1030,13 @@ class SortService
         if ( !$datafield->getRadioOptionNameSort() )
             return false;
 
-        // Need to create a lookup of tags incase any property needs changed later...
+        // Need to potentially look up tags if their displayOrder gets changed
+        $repo_tags = $this->em->getRepository('ODRAdminBundle:Tags');
+        // NOTE - individually looking tags up paradoxically reduces the number of queries made...thanks, doctrine's hydrator
+
+        // Need the actual tag names to sort on
         $query = $this->em->createQuery(
-           'SELECT t
-            FROM ODRAdminBundle:Tags AS t
-            WHERE t.dataField = :datafield_id
-            AND t.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
-        /** @var Tags[] $results */
-        $results = $query->getResult();
-
-        // Organize the tags by their id...
-        /** @var Tags[] $tag_list */
-        $tag_list = array();
-        foreach ($results as $tag)
-            $tag_list[ $tag->getId() ] = $tag;
-
-
-        // Also need the actual tag names to sort on
-        $query = $this->em->createQuery(
-           'SELECT t.id AS tag_id, tm.tagName, p_t.id AS parent_tag_id
+           'SELECT t.id AS tag_id, tm.tagName, tm.displayOrder, p_t.id AS parent_tag_id
             FROM ODRAdminBundle:Tags AS t
             JOIN ODRAdminBundle:TagMeta AS tm WITH tm.tag = t
             LEFT JOIN ODRAdminBundle:TagTree AS tt WITH tt.child = t
@@ -1045,6 +1051,7 @@ class SortService
         foreach ($results as $result) {
             $tag_id = $result['tag_id'];
             $tag_name = $result['tagName'];
+            $display_order = $result['displayOrder'];
             $parent_tag_id = $result['parent_tag_id'];
 
             if ( is_null($parent_tag_id) )
@@ -1053,7 +1060,7 @@ class SortService
             // Each of the tags needs to be "grouped" by its parent
             if ( !isset($tag_groups[$parent_tag_id]) )
                 $tag_groups[$parent_tag_id] = array();
-            $tag_groups[$parent_tag_id][$tag_id] = $tag_name;
+            $tag_groups[$parent_tag_id][$tag_id] = array('name' => $tag_name, 'order' => $display_order);
         }
 
 
@@ -1062,7 +1069,7 @@ class SortService
         foreach ($tag_groups as $parent_tag_id => $tag_group) {
             $tmp = $tag_group;
             uasort($tmp, function($a, $b) {    // need to preserve array keys, since they're tag ids
-                return strnatcasecmp($a, $b);
+                return strnatcasecmp($a['name'], $b['name']);
             });
             $tag_groups[$parent_tag_id] = $tmp;
         }
@@ -1071,11 +1078,15 @@ class SortService
         $changes_made = false;
         foreach ($tag_groups as $parent_tag_id => $tag_group) {
             $index = 0;
-            foreach ($tag_group as $tag_id => $tag_name) {
-                $tag = $tag_list[$tag_id];
+            foreach ($tag_group as $tag_id => $tag_data) {
+                $display_order = $tag_data['order'];
 
-                if ( $tag->getDisplayOrder() !== $index ) {
-                    // ...update each tag's displayOrder to match the sorted list
+                if ( $display_order !== $index ) {
+                    // ...if a tag is not in the correct order, then hydrate it...
+                    /** @var Tags $tag */
+                    $tag = $repo_tags->find($tag_id);
+
+                    // ...so it can be updated to match the sorted list
                     $properties = array(
                         'displayOrder' => $index
                     );

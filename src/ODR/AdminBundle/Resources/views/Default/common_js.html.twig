@@ -812,10 +812,18 @@
         if ( context === null )
             context = $("#odr_content");
 
+        {# TODO - modify so this uses event bubbling instead? #}
         $(context).find(".ODRTagParent").unbind('click').click(function(event) {
             event.stopImmediatePropagation();
 
-            var tag_children_div = $(this).next().next();
+            // The Tag Design modal needs to be able to prevent collapsing/expanding
+            var tag_item = $(this).parents(".ODRTagItem").first();
+            if ( $(tag_item).find(".ODRTagHighlight").length > 0 )
+                return false;
+
+            // This div is guaranteed to be a sibling of the div that holds child tags, but there's
+            //  an uknown number of other HTML elements "in the way"...
+            var tag_children_div = $(tag_item).children('.ODRTagGroup').first();
             var icon_div = $(this).children(".fa").first();
 
             if ( states === 2 ) {
