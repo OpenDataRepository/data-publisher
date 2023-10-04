@@ -3266,7 +3266,14 @@ form .row {
 .ODRFileImageHeader {
     color: white !important;
     font-weight: bold;
-    background: #5B87E6 none repeat scroll 0 0 !important;
+    background: #6FA5C7 none repeat scroll 0 0 !important;
+}
+.ODRFileImageHeader_hidden {
+    display: none;
+}
+.ODRFileImageHeader_hidden_design {
+    /* don't actually want to hide the header in the design page... */
+    box-shadow: 0 0 4px 4px rgba(255,0,0,0.7);
 }
 
 .ODRDownloadAllFiles {

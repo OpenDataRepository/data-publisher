@@ -2662,6 +2662,7 @@ class EntityCreationService
         $theme_datafield->setCssWidthMed('1-3');
         $theme_datafield->setCssWidthXL('1-3');
         $theme_datafield->setHidden(0);
+        $theme_datafield->setHideHeader(false);
 
         $theme_datafield->setCreated($created);
         $theme_datafield->setUpdated($created);

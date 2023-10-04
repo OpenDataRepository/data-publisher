@@ -52,11 +52,9 @@
 
     {% elseif field_typename == "Image" %}
     <fieldset>
-        <span class="pure-u-1">
-            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
-                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield_meta.fieldName }}</span>
-            </h3>
-        </span>
+        <div class="ODRFileDatafield_header ODRFileImageHeader pure-u-1 {% if theme_datafield.hideHeader %}ODRFileImageHeader_hidden_design{% endif %}">
+            <span title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </div>
         <div class="pure-u-1">
             <img class="pure-img" src="{{ site_baseurl }}/img/blank.jpg" />
         </div>
