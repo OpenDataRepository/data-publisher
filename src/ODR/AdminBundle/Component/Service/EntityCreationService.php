@@ -1817,16 +1817,18 @@ class EntityCreationService
      *                              find and return the existing RadioOption with the given $datafield
      *                              and $option_name first
      * @param string $option_name
+     * @param bool $delay_uuid If true, don't automatically create a uuid for this radio option...the
+     *                          caller will need to take care of it.
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioOptions
      */
-    public function createRadioOption($user, $datafield, $force_create, $option_name, $created = null)
+    public function createRadioOption($user, $datafield, $force_create, $option_name, $delay_uuid = false, $created = null)
     {
         $radio_option = null;
         if ($force_create) {
             // We're being forced to create a new radio option...
-            $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name, $created);
+            $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name, $delay_uuid, $created);
         }
         else {
             // Otherwise, see if a radio option with this name for this datafield already exists
@@ -1860,7 +1862,7 @@ class EntityCreationService
             }
             else {
                 // Got the lock, create the radio option entry
-                $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name, $created);
+                $radio_option = self::createRadioOptionEntity($user, $datafield, $option_name, $delay_uuid, $created);
 
                 $this->em->persist($radio_option);
                 $this->em->flush();
@@ -1881,11 +1883,13 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param string $option_name
+     * @param bool $delay_uuid If true, don't automatically create a uuid for this radio option...the
+     *                          caller will need to take care of it
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return RadioOptions
      */
-    private function createRadioOptionEntity($user, $datafield, $option_name, $created = null)
+    private function createRadioOptionEntity($user, $datafield, $option_name, $delay_uuid, $created = null)
     {
         if ( is_null($created) )
             $created = new \DateTime();
@@ -1894,8 +1898,9 @@ class EntityCreationService
         $radio_option = new RadioOptions();
         $radio_option->setDataField($datafield);
         $radio_option->setOptionName($option_name);     // exists to prevent potential concurrency issues, see below
-        // All new fields require a radio option UUID
-        $radio_option->setRadioOptionUuid( $this->uuid_service->generateRadioOptionUniqueId() );
+
+        if ( !$delay_uuid )
+            $radio_option->setRadioOptionUuid( $this->uuid_service->generateRadioOptionUniqueId() );
 
         $radio_option->setCreated($created);
         $radio_option->setCreatedBy($user);
@@ -2313,8 +2318,7 @@ class EntityCreationService
      *                              $tag_name first
      * @param string $tag_name
      * @param bool $delay_uuid If true, don't automatically create a uuid for this tag...the caller
-     *                         will need to take care of it.  Only really needs to be true during
-     *                         mass tag imports.
+     *                         will need to take care of it.
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return Tags
@@ -2658,6 +2662,7 @@ class EntityCreationService
         $theme_datafield->setCssWidthMed('1-3');
         $theme_datafield->setCssWidthXL('1-3');
         $theme_datafield->setHidden(0);
+        $theme_datafield->setHideHeader(false);
 
         $theme_datafield->setCreated($created);
         $theme_datafield->setUpdated($created);

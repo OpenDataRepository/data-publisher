@@ -1974,6 +1974,7 @@ class ThemeController extends ODRCustomController
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
 //                        'hidden' => $submitted_data->getHidden(),    // Not allowed to change this value through this controller action
+//                        'hideHeader' => $submitted_data->getHideHeader(),    // Not allowed to change this value through this controller action
                     );
                     $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
 
@@ -2093,6 +2094,113 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x1dbd0605;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the hidden status of a header for a ThemeDatafield.
+     *
+     * @param integer $theme_element_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themedatafieldheadervisibilityAction($theme_element_id, $datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ( is_null($datafield) )
+                throw new ODRNotFoundException('Datafield');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                array(
+                    'themeElement' => $theme_element_id,
+                    'dataField' => $datafield_id,
+                )
+            );
+            if ( is_null($theme_datafield) )
+                throw new ODRNotFoundException('ThemeDatafield');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // For the moment, this only makes sense on an Image datafield
+            if ( $datafield->getFieldType()->getTypeClass() !== 'Image' )
+                throw new ODRBadRequestException();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme, $datafield);
+            // --------------------
+
+            // Users need to be able to change the "hidden" property on a "master" theme
+            // Most areas of ODR will always display themeElements/themeDatafields in a "master"
+            //  theme, but Display/SearchResults/TextResults will respect this property
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException("Unable to change hidden status of ThemeDatafields on a datatype's master theme");
+
+
+            // Toggle the hidden status of the specified theme_datafield
+            if ( $theme_datafield->getHideHeader() ) {
+                $properties = array(
+                    'hideHeader' => false,
+                );
+                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+            else {
+                $properties = array(
+                    'hideHeader' => true,
+                );
+                $emm_service->updateThemeDatafield($user, $theme_datafield, $properties);
+            }
+
+            // Update cached version of theme
+            $theme_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0xc077b07d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

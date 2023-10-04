@@ -352,6 +352,12 @@ odr_design_theme_datafield_visibility:
     requirements:
         theme_element_id:  \d+
         datafield_id: \d+
+odr_design_theme_datafield_header_visibility:
+    path:  /design/themedatafieldheadervisibility/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themedatafieldheadervisibility }
+    requirements:
+        theme_element_id:  \d+
+        datafield_id: \d+
 
 odr_toggle_theme_public:
     path:  /design/togglepublic/{theme_id}

@@ -241,6 +241,10 @@ class CheminReferencesPlugin implements DatatypePluginInterface
                 )
             );
 
+            // If meant for text output, then replace all whitespace sequences with a single space
+            if ( $rendering_options['context'] === 'text' )
+                $output = preg_replace('/(\s+)/', ' ', $output);
+
             return $output;
         }
         catch (\Exception $e) {

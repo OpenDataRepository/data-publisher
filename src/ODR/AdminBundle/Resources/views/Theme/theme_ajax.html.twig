@@ -504,12 +504,16 @@
 
             case 'datafield':
                 var datafield_id = entity_id;
-
                 var datafield = $("#ThemeElement_" + theme_element_id).find("#Field_" + datafield_id).first();
 
                 var datafield_is_visible = true;
                 if ( $(datafield).hasClass("ODRThemeHiddenElement") || $(datafield).hasClass("ODRThemeVisibleHiddenElement") )
                     datafield_is_visible = false;
+
+                var image_header_div = $(datafield).find('.ODRFileImageHeader').first();
+                var is_image_datafield = false;
+                if ( $(image_header_div).length > 0 )
+                    is_image_datafield = true;
 
                 // ----------------------------------------
                 // Can't add a ThemeElement/Group Box to a Datafield
@@ -531,6 +535,31 @@
                 tools.visible_te.unbind('click').click(function () {
                     toggleThemeDatafieldVisibility(theme_element_id, datafield_id);
                 });
+
+                // ----------------------------------------
+                // Can only change visibility of a datafield's header if it's an image field
+                if ( is_image_datafield ) {
+                    tools.border_te.removeClass('faded');
+
+                    var image_datafield_header_visible = true;
+                    if ( $(image_header_div).hasClass('ODRFileImageHeader_hidden_design') )
+                        image_datafield_header_visible = false;
+
+                    if (image_datafield_header_visible) {
+                        tools.border_te.find('i').addClass('ODRActiveIcon');
+                        tools.border_te.find('.link-text').html('Datafield Header is Visible');
+                        tools.border_te.attr('title', 'The header of this Datafield will be displayed.');
+                    }
+                    else {
+                        // tools.visible_te.find('i').removeClass('ODRActiveIcon');
+                        tools.border_te.find('.link-text').html('Datafield Header is Not Visible');
+                        tools.border_te.attr('title', 'The header of this Datafield will not be displayed.');
+                    }
+
+                    tools.border_te.unbind('click').click(function () {
+                        toggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id);
+                    });
+                }
 
                 // ----------------------------------------
                 // Can't delete a datafield from here
@@ -1136,6 +1165,59 @@
                     clearAllFields();
                     ResetToolSet();
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Toggles whether the given theme_datafield displays its header or not.
+     *
+     * @param {number} theme_element_id
+     * @param {number} datafield_id
+     */
+    function toggleThemeDatafieldHeaderVisibility(theme_element_id, datafield_id) {
+        // var show_hidden_elements = false;
+        // if ($("#ODRThemeShowHidden").is(":checked"))
+        //     show_hidden_elements = true;
+
+        var theme_element = $("#ThemeElement_" + theme_element_id);
+        var datafield = $(theme_element).find("#Field_" + datafield_id).first();
+        var image_header = $(datafield).find(".ODRFileImageHeader");
+
+        var url  = '{{ path('odr_design_theme_datafield_header_visibility', {'theme_element_id': 0, 'datafield_id': 0} ) }}';
+        url = url.substring(0,(url.length-3));
+        url += theme_element_id + '/' + datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function() {
+                notifySaved();
+
+                // Toggle hidden status in UI
+                $(image_header).toggleClass('ODRFileImageHeader_hidden_design');
+
+                // Clear the selected element
+                clearAllFields();
+                ResetToolSet();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

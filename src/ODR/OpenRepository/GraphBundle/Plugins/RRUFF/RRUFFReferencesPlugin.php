@@ -338,6 +338,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface
                         'original_context' => $rendering_options['context'],
                     )
                 );
+
+                // If meant for text output, then replace all whitespace sequences with a single space
+                if ( $rendering_options['context'] === 'text' )
+                    $output = preg_replace('/(\s+)/', ' ', $output);
             }
             else if ( $rendering_options['context'] === 'fake_edit') {
                 // Retrieve mapping between datafields and render plugin fields

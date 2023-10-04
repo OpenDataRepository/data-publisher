@@ -109,6 +109,7 @@
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                                'themeDatafield': theme_datafield,
                             } %}
                         {% elseif derived_datafield_id is not null %}
                             {# The "source" datafields require slightly different saving javascript #}

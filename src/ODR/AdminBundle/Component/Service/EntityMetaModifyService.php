@@ -2317,6 +2317,7 @@ class EntityMetaModifyService
             'cssWidthMed' => $theme_datafield->getCssWidthMed(),
             'cssWidthXL' => $theme_datafield->getCssWidthXL(),
             'hidden' => $theme_datafield->getHidden(),
+            'hideHeader' => $theme_datafield->getHideHeader(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2361,6 +2362,8 @@ class EntityMetaModifyService
             $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
         if (isset($properties['hidden']))
             $new_theme_datafield->setHidden( $properties['hidden'] );
+        if (isset($properties['hideHeader']))
+            $new_theme_datafield->setHideHeader( $properties['hideHeader'] );
 
         $new_theme_datafield->setUpdated($created);
         $new_theme_datafield->setUpdatedBy($user);

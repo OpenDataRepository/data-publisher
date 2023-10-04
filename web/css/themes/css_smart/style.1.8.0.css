@@ -522,6 +522,7 @@ footer ul li:first-child {
 
 .ODRTableWrap,
 #ODRDatatypeList_wrapper,
+#ODRTemplateList_wrapper,
 #ODRRenderPluginList_wrapper {
     box-sizing: border-box;
     padding: 8px;
@@ -892,7 +893,7 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignForm .ODRFloatingCheckbox {
-    margin-top: 6px;
+    /*margin-top: 6px;*/
     margin-right: 8px;
     float: left !important;
 }
@@ -925,6 +926,13 @@ ul#wizardStatus li.completed:before{
 #ThemeDesignWrapper {
     min-width: 1706px;
     overflow: hidden;
+}
+
+.ODRThemeDesignTool {
+    float: right;
+}
+.ODRCheckboxProperty .ODRThemeDesignTool {
+    font-size: 1.25em;
 }
 
 #ThemeLeftColumn {

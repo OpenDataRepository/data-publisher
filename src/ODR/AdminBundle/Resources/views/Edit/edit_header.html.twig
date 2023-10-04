@@ -97,9 +97,9 @@
                 success: function(data, textStatus, jqXHR) {
                     var html = $("#ODRPublicRecord").html();
                     if ( html.indexOf('Non') !== -1 )
-                        $("#ODRPublicRecord").html('Make Record Public');
+                        $("#ODRPublicRecord").html('Make Public');
                     else
-                        $("#ODRPublicRecord").html('Make Record Non-Public');
+                        $("#ODRPublicRecord").html('Make Non-Public');
 
                     $.jGrowl('SAVED');
                 },

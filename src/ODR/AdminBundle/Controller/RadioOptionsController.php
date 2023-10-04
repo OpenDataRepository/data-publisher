@@ -31,18 +31,19 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Templating\EngineInterface;
+use Doctrine\DBAL\Connection as DBALConnection;
 
 
 class RadioOptionsController extends ODRCustomController
@@ -68,6 +69,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var DatabaseInfoService $dbi_service */
             $dbi_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -95,10 +98,10 @@ class RadioOptionsController extends ODRCustomController
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Unable to load radio options for a '.$typeclass.' field');
 
-            // Since re-ordering radio options is permissible, this controller action needs to be
-            //  permitted as well
-//            if ( !is_null($datafield->getMasterDataField()) )
-//                throw new ODRBadRequestException('Not allowed to load radio options for a datafield derived from a template');
+            // If this is a derived field, then some stuff is different
+            $is_derived_field = false;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $is_derived_field = true;
 
 
             // --------------------
@@ -109,9 +112,35 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If this is a derived field...
+            $can_modify_template = false;
+            if ( $is_derived_field ) {
+                // ...then the same permissions checks need to be run on the template field
+                if ( $pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    $can_modify_template = true;
+
+                // Not throwing exceptions here, because want to open the dialog in read-only mode
+                //  if the user doesn't have permissions to modify the template
+            }
+            else if ( $datafield->getIsMasterField() ) {
+                // Ensure this variable remains accurate if the user is attempting to modify a master
+                //  datafield
+                $can_modify_template = true;
+            }
             // --------------------
 
+            // If this is getting called on a derived field...
+            $out_of_sync = false;
+            if ( $is_derived_field ) {
+                // ...then the modal should not allow users to edit if the relevant datafields are
+                //  out of sync
+                if ( $clone_template_service->isDatafieldOutOfSync($datafield) )
+                    $out_of_sync = true;
+            }
 
+
+            // ----------------------------------------
             // Locate cached array entries
             $datatype_array = $dbi_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
             $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
@@ -122,6 +151,10 @@ class RadioOptionsController extends ODRCustomController
                     'ODRAdminBundle:Displaytemplate:radio_option_dialog_form.html.twig',
                     array(
                         'datafield' => $df_array,
+
+                        'is_derived_field' => $is_derived_field,
+                        'can_modify_template' => $can_modify_template,
+                        'out_of_sync' => $out_of_sync,
                     )
                 )
             );
@@ -159,6 +192,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -167,6 +202,11 @@ class RadioOptionsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var DataFields $datafield */
@@ -187,9 +227,11 @@ class RadioOptionsController extends ODRCustomController
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Unable to add a radio option to a '.$typeclass.' field');
-            // This should not work on a datafield that is derived from a master template
+
+            // If this is a derived field, then some stuff is different
+            $is_derived_field = false;
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to add a radio option to a datafield derived from a template');
+                $is_derived_field = true;
 
 
             // --------------------
@@ -200,36 +242,87 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If this is a derived field...
+            if ( $is_derived_field ) {
+                // ...then the same permissions checks need to be run on the template field
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    throw new ODRForbiddenException();
+            }
             // --------------------
 
+            // If this is getting called on a derived field...
+            if ( $is_derived_field ) {
+                // ...then the relevant datafields need to be in sync before continuing
+                if ( $clone_template_service->isDatafieldOutOfSync($datafield) )
+                    throw new ODRBadRequestException('Not allowed to create a new radio option when the derived field is out of sync with its master field');
+            }
 
-            // Create a new RadioOption
-            $force_create = true;
-            $option_name = "Option";
-            $radio_option = $ec_service->createRadioOption($user, $datafield, $force_create, $option_name);
 
-            // Creating a new RadioOption requires an update of the "master_revision" property of
-            //  the datafield it got added to
-            if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
+            // The request to create this radio option can come from one of three places...
+            $master_radio_option = null;
+            $radio_option = null;
+
+            if ( $is_derived_field ) {
+                // ...this is a request to create a radio option for a derived field, which means
+                //  two of them need to get created
+
+                // Create the master radio option first...
+                $master_radio_option = $ec_service->createRadioOption(
+                    $user,
+                    $datafield->getMasterDataField(),
+                    true,    // always create a new radio option
+                    "New Option"
+                );
+
+                // ...then create the derived radio option
+                $radio_option = $ec_service->createRadioOption(
+                    $user,
+                    $datafield,
+                    true,    // always create a new radio option
+                    "New Option",
+                    true    // don't randomly generate a uuid for the derived radio option
+                );
+
+                // The derived radio option needs the UUID of its new master radio option
+                $radio_option->setRadioOptionUuid( $master_radio_option->getRadioOptionUuid() );
+                $em->persist($radio_option);
+            }
+            else {
+                // Otherwise, this is a request to create a radio option for a field which is not
+                //  derived, or a request to create a radio option directly from a template
+                $radio_option = $ec_service->createRadioOption(
+                    $user,
+                    $datafield,
+                    true,    // always create a new radio option
+                    "New Option"
+                );
+            }
 
             // createRadioOption() does not automatically flush when $force_create == true
             $em->flush();
-            $em->refresh($radio_option);
 
-            // If the datafield is sorting its radio options by name, then force a re-sort of all
-            //  of this datafield's radio options
-            if ($datafield->getRadioOptionNameSort())
+            // If the radio options are supposed to be sorted by name, then force a re-sort
+            if ( $is_derived_field && $datafield->getMasterDataField()->getRadioOptionNameSort() === true )
+                $sort_service->sortRadioOptionsByName($user, $datafield->getMasterDataField());
+            if ($datafield->getRadioOptionNameSort() === true)
                 $sort_service->sortRadioOptionsByName($user, $datafield);
 
 
             // ----------------------------------------
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+            else if ( $is_derived_field )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -242,10 +335,11 @@ class RadioOptionsController extends ODRCustomController
 
             // Mark the datatype as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -305,12 +399,19 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var RadioOptions $radio_option */
@@ -330,6 +431,16 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($grandparent_datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Grandparent Datatype');
 
+            // This should only work on a Radio field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to delete a radio option from a '.$typeclass.' field');
+
+            // If this is a derived field, then some stuff is different
+            $is_derived_field = false;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $is_derived_field = true;
+
 
             // --------------------
             // Determine user privileges
@@ -339,17 +450,21 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If this is a derived field...
+            if ( $is_derived_field ) {
+                // ...then the same permissions checks need to be run on the template field
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    throw new ODRForbiddenException();
+            }
             // --------------------
 
-
-            // This should only work on a Radio field
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass !== 'Radio')
-                throw new ODRBadRequestException('Unable to delete a radio option from a '.$typeclass.' field');
-            // This should not work on a datafield that is derived from a master template
-            if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to delete a radio option from a datafield derived from a template');
-
+            // If this is getting called on a derived field...
+            if ( $is_derived_field ) {
+                // ...then the relevant datafields need to be in sync before continuing
+                if ( $clone_template_service->isDatafieldOutOfSync($datafield) )
+                    throw new ODRBadRequestException('Not allowed to delete a radio option when the derived field is out of sync with its master field');
+            }
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this radio option
@@ -366,61 +481,71 @@ class RadioOptionsController extends ODRCustomController
             //  here, the template synchronization needs to tell the user what will be changed, or
             //  changes get made without the user's knowledge/consent...which is bad.
 
+            // ----------------------------------------
+            $radio_options_to_delete = array($radio_option_id);
+            if ( $is_derived_field ) {
+                // ...if this is a request to delete a radio option from a derived field, then its
+                //  master radio option also needs to be deleted
+                /** @var RadioOptions $master_radio_option */
+                $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                    array(
+                        'dataField' => $datafield->getMasterDataField(),
+                        'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
+                    )
+                );
+
+                $radio_options_to_delete[] = $master_radio_option->getId();
+            }
+
+
+            // Run a query to get all of the radio selection entries that need deletion
+            $query = $em->createQuery(
+               'SELECT rs.id
+                FROM ODRAdminBundle:RadioSelection AS rs
+                WHERE rs.radioOption IN (:radio_option_list) AND rs.deletedAt IS NULL'
+            )->setParameters( array('radio_option_list' => $radio_options_to_delete) );
+            $results = $query->getArrayResult();
+
+            $radio_selections_to_delete = array();
+            foreach ($results as $num => $rs)
+                $radio_selections_to_delete[] = $rs['id'];
+
 
             // ----------------------------------------
             // Wrap this in a transaction
             $conn = $em->getConnection();
             $conn->beginTransaction();
 
-            // Delete all radio selection entities attached to the radio option
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RadioSelection AS rs
-                SET rs.deletedAt = :now
-                WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'radio_option_id' => $radio_option_id
-                )
-            );
-            $updated = $query->execute();
+            // Delete all RadioOption and RadioOptionMeta entries
+            $query_str =
+               'UPDATE odr_radio_options AS ro, odr_radio_options_meta AS rom
+                SET ro.deletedAt = NOW(), rom.deletedAt = NOW(),
+                    ro.deletedBy = '.$user->getId().'
+                WHERE rom.radio_option_id = ro.id AND ro.id IN (?)
+                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL';
+            $parameters = array(1 => $radio_options_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
-
-            // Delete the radio option and its meta entry
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RadioOptionsMeta AS rom
-                SET rom.deletedAt = :now
-                WHERE rom.radioOption = :radio_option_id AND rom.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'now' => new \DateTime(),
-                    'radio_option_id' => $radio_option_id
-                )
-            );
-            $updated = $query->execute();
-
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RadioOptions AS ro
-                SET ro.deletedBy = :user, ro.deletedAt = :now
-                WHERE ro = :radio_option_id AND ro.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'user' => $user->getId(),
-                    'now' => new \DateTime(),
-                    'radio_option_id' => $radio_option_id
-                )
-            );
-            $updated = $query->execute();
+            // Delete the RadioSelection entries
+            $query_str =
+               'UPDATE odr_radio_selection AS rs
+                SET rs.deletedAt = NOW()
+                WHERE rs.id IN (?)';
+            $parameters = array(1 => $radio_selections_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // No errors, commit transaction
             $conn->commit();
 
 
             // ----------------------------------------
-            // Deleting a new RadioOption requires an update of the "master_revision" property of
-            //  the datafield it got deleted from
+            // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+            else if ( $is_derived_field )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
 
             // Faster to just delete the cached list of default radio options, rather than try to
             //  figure out specifics
@@ -428,10 +553,11 @@ class RadioOptionsController extends ODRCustomController
 
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -444,12 +570,16 @@ class RadioOptionsController extends ODRCustomController
 
             // Mark this datatype as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to clear the cached datarecord entries since deletion could have unselected a radio option
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to clear the cached datarecord entries since deletion could have unselected a radio option
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+
+                // TODO - modify the modal so that it blocks further changes until the event finishes?
+                // TODO - ...or modify the event to clear a subset of records?  neither is appealing...
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -464,7 +594,6 @@ class RadioOptionsController extends ODRCustomController
             $return['d'] = array(
                 'datafield_id' => $datafield->getId()
             );
-
         }
         catch (\Exception $e) {
             // Rollback if error encountered
@@ -500,9 +629,19 @@ class RadioOptionsController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            $post = $request->request->all();
+            if ( !isset($post['option_name']) )
+                throw new ODRBadRequestException();
+            $option_name = trim( $post['option_name'] );
+            if ($option_name === '')
+                throw new ODRBadRequestException("Radio Option Names can't be blank");
+
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -512,16 +651,10 @@ class RadioOptionsController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
 
-
-            // Grab necessary objects
-            $post = $request->request->all();
-//print_r($post);  exit();
-
-            if ( !isset($post['option_name']) )
-                throw new ODRBadRequestException();
-            $option_name = trim( $post['option_name'] );
-            if ($option_name === '')
-                throw new ODRBadRequestException("Radio Option Names can't be blank");
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var RadioOptions $radio_option */
@@ -541,6 +674,16 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($grandparent_datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Grandparent Datatype');
 
+            // This should only work on a Radio field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to change the name of a radio option for a '.$typeclass.' field');
+
+            // If this is a derived field, then some stuff is different
+            $is_derived_field = false;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $is_derived_field = true;
+
 
             // --------------------
             // Determine user privileges
@@ -550,16 +693,21 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If this is a derived field...
+            if ( $is_derived_field ) {
+                // ...then the same permissions checks need to be run on the template field
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    throw new ODRForbiddenException();
+            }
             // --------------------
 
-            // This should only work on a Radio field
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass !== 'Radio')
-                throw new ODRBadRequestException('Unable to change the name of a radio option for a '.$typeclass.' field');
-            // This should not work on a datafield that is derived from a master template
-            if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to change the name of a radio option for a datafield derived from a template');
-
+            // If this is getting called on a derived field...
+            if ( $is_derived_field ) {
+                // ...then the relevant datafields need to be in sync before continuing
+                if ( $clone_template_service->isDatafieldOutOfSync($datafield) )
+                    throw new ODRBadRequestException('Not allowed to rename a radio option when the derived field is out of sync with its master field');
+            }
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
@@ -574,25 +722,52 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Update the radio option's name
+            // Could have to rename more than one radio option...
+            $master_radio_option = null;
             $properties = array(
                 'optionName' => trim($post['option_name'])
             );
+
+            // The request to rename this radio option can come from one of three places...
+            if ( $is_derived_field ) {
+                // ...if this is a request to rename a radio option from a derived field, then its
+                //  master radio option also needs to be renamed
+                /** @var RadioOptions $master_radio_option */
+                $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                    array(
+                        'dataField' => $datafield->getMasterDataField(),
+                        'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
+                    )
+                );
+                $emm_service->updateRadioOptionsMeta($user, $master_radio_option, $properties, true);    // don't flush immediately
+            }
+
+            // The radio option this controller action was called with should always be updated
             $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties);
+            // Flushing here is intentional
 
             // If the datafield is being sorted by name, then also update the displayOrder
             $changes_made = false;
             if ( $datafield->getRadioOptionNameSort() )
                 $changes_made = $sort_service->sortRadioOptionsByName($user, $datafield);
+            if ( $is_derived_field && $datafield->getMasterDataField()->getRadioOptionNameSort() === true )
+                $sort_service->sortRadioOptionsByName($user, $datafield->getMasterDataField());
 
 
             // ----------------------------------------
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+            else if ( $is_derived_field )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -605,12 +780,16 @@ class RadioOptionsController extends ODRCustomController
 
             // Update the cached version of the datatype...
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
-                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to clear the cached datarecord entries since they store the radio option's name
+                if ( $is_derived_field ) {
+                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to wipe cached datarecord entries since they have radio option names
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+
+                $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries since they have radio option names
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+
+                // TODO - modify the modal so that it blocks further changes until the event finishes?
+                // TODO - ...or modify the event to clear a subset of records?  neither is appealing...
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -643,7 +822,8 @@ class RadioOptionsController extends ODRCustomController
 
 
     /**
-     * Toggles whether a given RadioOption entity is automatically selected upon creation of a new datarecord.
+     * Toggles whether a given RadioOption entity is automatically selected upon creation of a
+     * new datarecord.
      *
      * @param integer $radio_option_id The database id of the RadioOption to modify.
      * @param Request $request
@@ -663,10 +843,17 @@ class RadioOptionsController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var RadioOptions $radio_option */
@@ -686,14 +873,15 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($grandparent_datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Grandparent Datatype');
 
-
             // This should only work on a Radio field
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass !== 'Radio')
-                throw new ODRBadRequestException('Unable to set a default radio option on a '.$typeclass.' field');
-            // This should not work on a datafield that is derived from a master template
+                throw new ODRBadRequestException('Unable to add a radio option to a '.$typeclass.' field');
+
+            // If this is a derived field, then some stuff is different
+            $is_derived_field = false;
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to set a default radio option on a datafield derived from a template');
+                $is_derived_field = true;
 
 
             // --------------------
@@ -704,52 +892,38 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If this is a derived field...
+            if ( $is_derived_field ) {
+                // ...then the same permissions checks need to be run on the template field
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    throw new ODRForbiddenException();
+            }
             // --------------------
 
-
-            // Save whether the given radio option is currently "default" or not
-            $originally_was_default = $radio_option->getIsDefault();
-
-            $field_typename = $datafield->getFieldType()->getTypeName();
-            if ( $field_typename == 'Single Radio' || $field_typename == 'Single Select' ) {
-                // Only one option allowed to be default for Single Radio/Select DataFields, find the other option(s) where isDefault == true
-                $query = $em->createQuery(
-                   'SELECT ro
-                    FROM ODRAdminBundle:RadioOptions AS ro
-                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                    WHERE rom.isDefault = 1 AND ro.dataField = :datafield
-                    AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield->getId()) );
-                $results = $query->getResult();
-
-                /** @var RadioOptions[] $results */
-                foreach ($results as $num => $ro) {
-                    $properties = array(
-                        'isDefault' => false
-                    );
-                    $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
-                }
-
-                if ( $originally_was_default ) {
-                    // If the radio option was originally marked as default, then this request was to
-                    //  change it to not default...the previous for loop has already accomplished that
-                }
-                else {
-                    // Set this radio option as selected by default
-                    $properties = array(
-                        'isDefault' => true
-                    );
-                    $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
-                }
+            // If this is getting called on a derived field...
+            if ( $is_derived_field ) {
+                // ...then the relevant datafields need to be in sync before continuing
+                if ( $clone_template_service->isDatafieldOutOfSync($datafield) )
+                    throw new ODRBadRequestException('Not allowed to change default status of a radio option when the derived field is out of sync with its master field');
             }
-            else {
-                // Multiple options allowed as defaults, toggle default status of current radio option
-                $properties = array(
-                    'isDefault' => !$originally_was_default
+
+            // The request to change this propery can come from one of three places...
+            if ( $is_derived_field ) {
+                // ...if this request came from a derived field, then the relevant master radio option
+                //  also needs to be modified
+                /** @var RadioOptions $master_radio_option */
+                $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                    array(
+                        'dataField' => $datafield->getMasterDataField(),
+                        'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
+                    )
                 );
-                $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
+                self::updateDefaultStatus($em, $emm_service, $user, $master_radio_option);
             }
 
+            // The radio option this controller action was called with should always be updated
+            self::updateDefaultStatus($em, $emm_service, $user, $radio_option);
 
             // Now that changes are made, flush the database
             $em->flush();
@@ -760,12 +934,21 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+            else if ( $is_derived_field )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+
+            // Don't need to fire off an event for the datafields here
+
             // Mark this datatype as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -793,6 +976,66 @@ class RadioOptionsController extends ODRCustomController
 
 
     /**
+     * Because updating a "default" radio option is a bit of a pain, it's easier to have the logic
+     * off in its own function so updating a derived datafield isn't as messy
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EntityMetaModifyService $emm_service
+     * @param ODRUser $user
+     * @param RadioOptions $radio_option
+     */
+    private function updateDefaultStatus($em, $emm_service, $user, $radio_option)
+    {
+        // Save whether the given radio option is currently "default" or not
+        $originally_was_default = $radio_option->getIsDefault();
+
+        $datafield = $radio_option->getDataField();
+        $field_typename = $datafield->getFieldType()->getTypeName();
+        if ( $field_typename == 'Single Radio' || $field_typename == 'Single Select' ) {
+            // Only one option allowed to be default for Single Radio/Select DataFields, so find
+            //  the other option(s) where isDefault == true...
+            $query = $em->createQuery(
+               'SELECT ro
+                FROM ODRAdminBundle:RadioOptions AS ro
+                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                WHERE rom.isDefault = 1 AND ro.dataField = :datafield
+                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            /** @var RadioOptions[] $results */
+            foreach ($results as $num => $ro) {
+                // ...and set them all to false
+                $properties = array(
+                    'isDefault' => false
+                );
+                $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+            }
+
+            if ( $originally_was_default ) {
+                // If the radio option was originally marked as default, then this request was to
+                //  change it to not default...the previous foreach loop has already accomplished that
+            }
+            else {
+                // Set this radio option as selected by default
+                $properties = array(
+                    'isDefault' => true
+                );
+                $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
+            }
+        }
+        else {
+            // Multiple radio options are allowed to be "default" for Multiple Radio/Select fields,
+            //  so only need to toggle the "default" status for the current radio option
+            $properties = array(
+                'isDefault' => !$originally_was_default
+            );
+            $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
+        }
+    }
+
+
+    /**
      * Updates the display order of the DataField's associated RadioOption entities.
      *
      * @param integer $datafield_id
@@ -808,6 +1051,8 @@ class RadioOptionsController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            $post = $request->request->all();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -817,12 +1062,12 @@ class RadioOptionsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
-            $post = $request->request->all();
-//print_r($post);  exit();
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -837,6 +1082,17 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($grandparent_datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Grandparent Datatype');
 
+            // This should only work on a Radio field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to modify order of radio options for a '.$typeclass.' field');
+
+            // Unlike most of the other radio option controller actions, this one doesn't need to
+            //  simultaneously update the master datafield if it has one
+//            $is_derived_field = false;
+//            if ( !is_null($datafield->getMasterDataField()) )
+//                $is_derived_field = true;
+
 
             // --------------------
             // Determine user privileges
@@ -846,61 +1102,55 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // Not updating the master datafield also means not having to check permissions for the
+            //  master datafield
             // --------------------
-
-            // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId());
-
-            // This should only work on a Radio field
-            $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass !== 'Radio')
-                throw new ODRBadRequestException('Unable to modify order of radio options for a '.$typeclass.' field');
-
-            // Re-ordering radio options in a derived datafield is permissible...doing so doesn't
-            //  fundamentally change content
-//            if ( !is_null($datafield->getMasterDataField()) )
-//                throw new ODRBadRequestException('Not allowed to modify order of radio options for a datafield derived from a template');
 
 
             // ----------------------------------------
-            // Store whether the datafield is sorting by name or not
-            $sort_by_name = $datafield->getRadioOptionNameSort();
-
-            // Load all RadioOption and RadioOptionMeta entities for this datafield
-            $query = $em->createQuery(
-               'SELECT ro, rom
-                FROM ODRAdminBundle:RadioOptions AS ro
-                JOIN ro.radioOptionMeta AS rom
-                WHERE ro.dataField = :datafield
-                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield_id) );
-            /** @var RadioOptions[] $results */
-            $results = $query->getResult();
-
-            // Organize by the id of the radio option
-            /** @var RadioOptions[] $radio_option_list */
-            $radio_option_list = array();
-            foreach ($results as $result) {
-                $ro_id = $result->getId();
-                $radio_option_list[$ro_id] = $result;
-            }
-
-
-            if ($sort_by_name) {
-                // Sort the radio options by name
+            // If the datafield is being sorted by name...
+            if ( $datafield->getRadioOptionNameSort() ) {
+                // ...then do that
                 $sort_service->sortRadioOptionsByName($user, $datafield);
             }
             else {
-                // Look to the $_POST for the new order
+                // ...if not, then the $_POST will have the new order
+
+                // Need to potentially look up radio options if their displayOrder gets changed
+                $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+
+                $query = $em->createQuery(
+                   'SELECT ro.id AS ro_id, rom.displayOrder
+                    FROM ODRAdminBundle:RadioOptions AS ro
+                    JOIN ro.radioOptionMeta AS rom
+                    WHERE ro.dataField = :datafield
+                    AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $datafield_id) );
+                $results = $query->getArrayResult();
+
+                // Organize by the id of the radio option
+                $radio_option_list = array();
+                foreach ($results as $result) {
+                    $ro_id = $result['ro_id'];
+                    $display_order = $result['displayOrder'];
+
+                    $radio_option_list[$ro_id] = $display_order;
+                }
+
                 $changes_made = false;
                 foreach ($post as $index => $radio_option_id) {
                     $ro_id = intval($radio_option_id);
                     if ( !isset($radio_option_list[$ro_id]) )
                         throw new ODRBadRequestException('Invalid radio option specified');
 
-                    $ro = $radio_option_list[$ro_id];
-                    if ( $ro->getDisplayOrder() !== $index ) {
-                        // This radio option should be in a different spot
+                    $display_order = $radio_option_list[$ro_id];
+                    if ( $display_order !== $index ) {
+                        // ...if a radio option is not in the correct order, then hydrate it...
+                        /** @var RadioOptions $ro */
+                        $ro = $repo_radio_options->find($ro_id);
+
+                        // ...and update its displayOrder
                         $properties = array(
                             'displayOrder' => $index,
                         );
@@ -918,10 +1168,8 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Mark the datatype as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                // Not updating the master datafield also means not having to fire events for it
+
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
@@ -932,7 +1180,7 @@ class RadioOptionsController extends ODRCustomController
 //                    throw $e;
             }
 
-            // Don't need to update cached versions of datarecords or themes
+            // Don't need to update cached versions of datarecords, datafields, or themes
 
             // A change in order doesn't affect cached search results either
         }
@@ -974,6 +1222,8 @@ class RadioOptionsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -982,6 +1232,11 @@ class RadioOptionsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
 
 
             /** @var DataFields $datafield */
@@ -997,14 +1252,15 @@ class RadioOptionsController extends ODRCustomController
             if ( !is_null($grandparent_datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Grandparent Datatype');
 
-
             // This should only work on a Radio field
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Unable to import radio options to a '.$typeclass.' field');
-            // This should not work on a datafield that is derived from a master template
+
+            // If this is a derived field, then some stuff is different
+            $is_derived_field = false;
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException('Not allowed to import radio options to a datafield derived from a template');
+                $is_derived_field = true;
 
 
             // --------------------
@@ -1015,14 +1271,47 @@ class RadioOptionsController extends ODRCustomController
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If this is a derived field...
+            if ( $is_derived_field ) {
+                // ...then the same permissions checks need to be run on the template field
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype->getMasterDataType()) )
+                    throw new ODRForbiddenException();
+            }
             // --------------------
 
+            // If this is getting called on a derived field...
+            if ( $is_derived_field ) {
+                // ...then the relevant datafields need to be in sync before continuing
+                if ( $clone_template_service->isDatafieldOutOfSync($datafield) )
+                    throw new ODRBadRequestException('Not allowed to import new radio options when the derived field is out of sync with its master field');
+            }
+
+            // Want to prevent duplicate radio options from being created
+            $query = $em->createQuery(
+               'SELECT ro.id AS ro_id, rom.optionName
+                FROM ODRAdminBundle:RadioOptions ro
+                JOIN ODRAdminBundle:RadioOptionsMeta rom WITH rom.radioOption = ro
+                WHERE ro.dataField = :datafield_id
+                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
+            )->setParameters( array('datafield_id' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            $existing_radio_options = array();
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $ro_name = $result['optionName'];
+
+                $existing_radio_options[$ro_name] = $ro_id;
+            }
+
+
+            // ----------------------------------------
             $radio_option_list = array();
             if ( strlen($post['radio_option_list']) > 0 )
-                $radio_option_list = preg_split("/\n/", $post['radio_option_list']);
+                $radio_option_list = explode("\n", $post['radio_option_list']);
 
             // Parse and process radio options
-            $processed_options = array();
             foreach ($radio_option_list as $option_name) {
                 // Remove whitespace
                 $option_name = trim($option_name);
@@ -1032,44 +1321,73 @@ class RadioOptionsController extends ODRCustomController
                     continue;
 
                 // Add option to datafield
-                if ( !in_array($option_name, $processed_options) ) {
-                    // Create a new RadioOption
-                    $force_create = true;
-                    $ec_service->createRadioOption(
-                        $user,
-                        $datafield,
-                        $force_create,
-                        $option_name
-                    );
+                if ( !isset($existing_radio_options[$option_name]) ) {
 
-                    array_push($processed_options, $option_name);
+                    if ( $is_derived_field ) {
+                        // ...this is a request to create a radio option for a derived field, which means
+                        //  two of them need to get created
+
+                        // Create the master radio option first...
+                        $master_radio_option = $ec_service->createRadioOption(
+                            $user,
+                            $datafield->getMasterDataField(),
+                            true,    // always create a new radio option
+                            $option_name
+                        );
+
+                        // ...then create the derived radio option
+                        $radio_option = $ec_service->createRadioOption(
+                            $user,
+                            $datafield,
+                            true,    // always create a new radio option
+                            $option_name,
+                            true    // don't randomly generate a uuid for the derived radio option
+                        );
+
+                        // The derived radio option needs the UUID of its new master radio option
+                        $radio_option->setRadioOptionUuid( $master_radio_option->getRadioOptionUuid() );
+                        $em->persist($radio_option);
+                    }
+                    else {
+                        // Otherwise, this is a request to create a radio option for a field which is not
+                        //  derived, or a request to create a radio option directly from a template
+                        $ec_service->createRadioOption(
+                            $user,
+                            $datafield,
+                            true,    // always create a new radio option
+                            $option_name
+                        );
+                    }
+
+                    // Ensure that duplicate options do not get created
+                    $existing_radio_options[$option_name] = 1;
                 }
             }
-
-
-            // ----------------------------------------
-            // Creating a new RadioOption requires an update of the "master_revision" property of
-            //  the datafield it got added to
-            if ( $datafield->getIsMasterField() )
-                $emm_service->incrementDatafieldMasterRevision($user, $datafield, true);    // don't flush immediately...
 
             // createRadioOption() does not automatically flush when $force_create == true
             $em->flush();
 
-
-            // If the datafield is sorting its radio options by name, then re-sort all of this
-            //  datafield's radio options again
-            if ($datafield->getRadioOptionNameSort())
+            // If the radio options are supposed to be sorted by name, then force a re-sort
+            if ( $is_derived_field && $datafield->getMasterDataField()->getRadioOptionNameSort() === true )
+                $sort_service->sortRadioOptionsByName($user, $datafield->getMasterDataField());
+            if ($datafield->getRadioOptionNameSort() === true)
                 $sort_service->sortRadioOptionsByName($user, $datafield);
 
 
             // ----------------------------------------
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield);
+            else if ( $is_derived_field )
+                $emm_service->incrementDatafieldMasterRevision($user, $datafield->getMasterDataField());
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
+                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatafieldModifiedEvent($datafield, $user);
                 $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
@@ -1082,10 +1400,11 @@ class RadioOptionsController extends ODRCustomController
 
             // Mark the datatype as updated
             try {
-                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                if ( $is_derived_field ) {
+                    $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
+                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                }
+
                 $event = new DatatypeModifiedEvent($datatype, $user);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }

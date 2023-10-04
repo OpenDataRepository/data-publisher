@@ -2223,6 +2223,10 @@ class DisplaytemplateController extends ODRCustomController
             // Ensure the datatype has a master theme...
             $theme_service->getDatatypeMasterTheme($datatype->getId());
 
+            $is_derived_field = false;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $is_derived_field = true;
+
 
             // --------------------
             // Determine user privileges
@@ -2283,8 +2287,15 @@ class DisplaytemplateController extends ODRCustomController
                 UpdateDataFieldsForm::class,
                 $submitted_data,
                 array(
+                    'is_derived_field' => $is_derived_field,
                     'allowed_fieldtypes' => $allowed_fieldtypes,
                     'current_typeclass' => $datafield->getFieldType()->getTypeClass(),
+                    'prevent_fieldtype_change' => $prevent_fieldtype_change,
+                    'must_be_unique' => $must_be_unique,
+                    'no_user_edits' => $no_user_edits,
+                    'has_tag_hierarchy' => $has_tag_hierarchy,
+                    'single_uploads_only' => $single_uploads_only,
+                    'has_multiple_uploads' => $has_multiple_uploads,
                 )
             );
             $datafield_form->handleRequest($request);
@@ -2371,6 +2382,30 @@ class DisplaytemplateController extends ODRCustomController
                     $reload_datafield = true;
                 }
 
+                // ----------------------------------------
+                // If a datafield is derived, then several of its properties must remain synchronized
+                //  with its master datafield
+                if ( !is_null($datafield->getMasterDataField()) ) {
+                    $master_datafield = $datafield->getMasterDataField();
+
+                    // The commented lines are there in case I change my mind later on...
+//                    $submitted_data->setRequired( $master_datafield->getRequired() );
+                    $submitted_data->setIsUnique( $master_datafield->getIsUnique() );
+//                    $submitted_data->setPreventUserEdits( $master_datafield->getPreventUserEdits() );
+                    $submitted_data->setAllowMultipleUploads( $master_datafield->getAllowMultipleUploads() );
+//                    $submitted_data->setShortenFilename( $master_datafield->getShortenFilename() );
+//                    $submitted_data->setNewFilesArePublic( $master_datafield->getNewFilesArePublic() );
+//                    $submitted_data->setChildrenPerRow( $master_datafield->getChildrenPerRow() );
+                    $submitted_data->setRadioOptionNameSort( $master_datafield->getRadioOptionNameSort() );
+//                    $submitted_data->setRadioOptionDisplayUnselected( $master_datafield->getRadioOptionDisplayUnselected() );
+                    $submitted_data->setTagsAllowMultipleLevels( $master_datafield->getTagsAllowMultipleLevels() );
+//                    $submitted_data->setTagsAllowNonAdminEdit( $master_datafield->getTagsAllowNonAdminEdit() );
+//                    $submitted_data->setSearchable( $master_datafield->getSearchable() );
+//                    $submitted_data->setInternalReferenceName( $master_datafield->getInternalReferenceName() );
+
+                    // NOTE - if adding/removing any of these datafieldMeta entries, need to modify
+                    //  both CloneTemplateService and UpdateDataFieldsForm as well
+                }
 
                 // ----------------------------------------
                 // Ensure the datafield is marked as unique if it needs to be
@@ -2552,8 +2587,15 @@ class DisplaytemplateController extends ODRCustomController
                     UpdateDataFieldsForm::class,
                     $datafield_meta,
                     array(
+                        'is_derived_field' => $is_derived_field,
                         'allowed_fieldtypes' => $allowed_fieldtypes,
                         'current_typeclass' => $datafield->getFieldType()->getTypeClass(),
+                        'prevent_fieldtype_change' => $prevent_fieldtype_change,
+                        'must_be_unique' => $must_be_unique,
+                        'no_user_edits' => $no_user_edits,
+                        'has_tag_hierarchy' => $has_tag_hierarchy,
+                        'single_uploads_only' => $single_uploads_only,
+                        'has_multiple_uploads' => $has_multiple_uploads,
                     )
                 );
 
@@ -2568,6 +2610,8 @@ class DisplaytemplateController extends ODRCustomController
                 $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
                     array(
+                        'is_derived_field' => $is_derived_field,
+
                         'must_be_unique' => $must_be_unique,
                         'no_user_edits' => $no_user_edits,
                         'single_uploads_only' => $single_uploads_only,
@@ -3547,6 +3591,8 @@ if ($debug)
 
             // ----------------------------------------
             // Grab necessary stuff for pheanstalk...
+//            $clone_template_service->syncWithTemplate($user, $datatype);
+
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');

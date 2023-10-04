@@ -37,6 +37,11 @@
                         {% set is_reference_field = true %}
                     {% endif %}
 
+                    {% set is_status_notes_field = false %}
+                    {% if plugin_fields[ datafield.id ] is defined and plugin_fields[ datafield.id ]['rpf_name'] == "Status Notes" %}
+                        {% set is_status_notes_field = true %}
+                    {% endif %}
+
                     {% if theme_datafield.hidden == 0 %}
                     <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
@@ -47,15 +52,20 @@
                                 'datarecord': datarecord,
                                 'datafield': datafield,
 
-                                'rpf_name': plugin_fields[ datafield.id ]['rpf_name'],
                                 'related_reference_info': related_reference_info,
+                            } %}
+                        {% elseif is_status_notes_field %}
+                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_status_notes_datafield.html.twig' with {
+                                'datarecord': datarecord,
+                                'datafield': datafield,
 
-                                'is_datatype_admin': is_datatype_admin,
+                                'status_notes_info': status_notes_info,
                             } %}
                         {% else %}
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                                'themeDatafield': theme_datafield,
                             } %}
                         {% endif %}
                     </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->

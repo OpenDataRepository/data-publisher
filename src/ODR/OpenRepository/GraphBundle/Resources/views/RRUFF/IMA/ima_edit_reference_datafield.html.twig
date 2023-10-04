@@ -34,40 +34,16 @@
     <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
 
     {# Intentionally ignoring the possibility of a datafield render plugin #}
-
-    {# Instead, we want to render the related reference if it exists #}
-    {% set rendering_options = {'is_top_level': false, 'context': 'text', 'is_datatype_admin': is_datatype_admin} %}
-
-    {# Despite the underlying field being an integer, we don't want to render the integer value #}
-    {# We instead want to render each of the linked datarecords as a <option> in a <select> #}
     {% set rendered_related_reference = false %}
 
     {# Extract the related reference data from its array #}
     {% set reference_dt = related_reference_info['datatype'] %}
-    {% set reference_df_id = related_reference_info['id_field'] %}
-    {% set reference_theme = related_reference_info['theme'] %}
-    {% set reference_a_dr = related_reference_info['datarecord_a'] %}
-    {% set reference_b_dr = related_reference_info['datarecord_b'] %}
-    {% set can_view_datarecord_a = related_reference_info['can_view_datarecord_a'] %}
-    {% set can_view_datarecord_b = related_reference_info['can_view_datarecord_b'] %}
+    {% set reference_mapping = related_reference_info['reference_mapping'] %}
+    {% set invalid_references = related_reference_info['invalid_references'] %}
+    {% set can_view_references = related_reference_info['can_view_references'] %}
+    {% set prerendered_references = related_reference_info['prerendered_references'] %}
 
-    {# The related reference for this field isn't guaranteed to exist #}
-    {% set reference_dr = null %}
-    {% if rpf_name == 'Reference A' and reference_a_dr is not null %}
-        {% set reference_dr = reference_a_dr %}
-    {% elseif rpf_name == 'Reference B' and reference_b_dr is not null %}
-        {% set reference_dr = reference_b_dr %}
-    {% endif %}
-
-    {# If it does exist, then it's also not guaranteed that the user has permissions to view it #}
-    {% set can_view_related_reference = false %}
-    {% if rpf_name == 'Reference A' and reference_a_dr is not null and can_view_datarecord_a %}
-        {% set can_view_related_reference = true %}
-    {% elseif rpf_name == 'Reference B' and reference_b_dr is not null and can_view_datarecord_b %}
-        {% set can_view_related_reference = true %}
-    {% endif %}
-
-    {# If the user can't view the reference, then the loop below won't be able to locate reference_dr #}
+    {# If the user can't view the reference, then prerendered_references won't contain it #}
 
     <fieldset>
         <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
@@ -77,73 +53,42 @@
                 <i class="fa fa-exclamation-triangle ODRInputError"></i>&nbsp;The "{{ datatype.dataTypeMeta.shortName }}" database is not linked to a database using the "RRUFF Reference" render plugin.
             </div>
         {% else %}
-            {# The RRUFF Reference plugin should always be able to be run, so just extract the render plugin instance #}
-            {% set render_plugin_instance = null %}
-            {% set can_execute_plugin = true %}
-            {% for rpi_num,rpi in reference_dt.renderPluginInstances %}
-                {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render == 'odr_plugins.rruff.rruff_references' %}
-                    {# Only want to save the render_plugin_instance if it's render-able #}
-                    {% set render_plugin_instance = rpi %}
-                {% endif %}
-            {% endfor %}
 
+            {# Despite the underlying field being an integer, we don't want to render the integer value #}
+            {# We instead want to render each of the linked datarecords as a <option> in a <select> #}
             <select id="{{ input_id }}" class="pure-u-24-24" name="{{ input_name }}">
                 {# Want to provide a "blank" option for deselecting purposes #}
                 <option value="">&lt;No Reference Selected&gt;</option>
 
-                {# Want to execute the reference plugin on each of this record's linked references #}
-                {% set reference_dt_id = reference_dt['id'] %}
-                {% set linked_records = [] %}
-                {% if datarecord['children'][reference_dt_id] is defined %}
-                    {% set linked_records = datarecord['children'][reference_dt_id] %}
-                {% endif %}
-                {# The Linked Descendant Merger plugin might have moved the references from 'children' to somewhere else...but if it did, then it will have left a copy in 'original_children' #}
-                {# ...though for the moment, said plugin doesn't actually work in Edit mode, so this technically does nothing #}
-                {% if datarecord['original_children'][reference_dt_id] is defined %}
-                    {% set linked_records = datarecord['original_children'][reference_dt_id] %}
-                {% endif %}
-
-                {% for dr_id,dr in linked_records %}
-                    {# Determine whether the current field is referring to the current datarecord #}
+                {% for ref_id,dr_id in reference_mapping %}
+                    {# Ensure the correct reference is selected #}
                     {% set selected = false %}
-                    {% if reference_dr is not null and reference_a_dr['id'] == dr_id %}
+                    {% if valuefield_value == ref_id %}
+                        {% set rendered_related_reference = true %}
                         {% set selected = true %}
-                        {% set related_reference_exists = true %}
                     {% endif %}
 
-                    {# Determine the current datarecord's reference_id value #}
-                    {% set dr_ref_id = 0 %}
-                    {% if dr['dataRecordFields'][reference_df_id] is defined %}
-                        {% set drf = dr['dataRecordFields'][reference_df_id] %}
-                        {% if drf['integerValue'] is defined and drf['integerValue'][0] is defined %}
-                            {% set dr_ref_id = drf['integerValue'][0]['value'] %}
-                        {% endif %}
-                    {% endif %}
-
-                    {# Execute the RRUFF References plugin on each datarecord #}
-                    {% set content = [dr]|datatype_plugin(reference_dt, render_plugin_instance, reference_theme, rendering_options, datarecord) %}
-                    <option value="{{ dr_ref_id }}" {% if selected %}selected{% endif %}>
-                        {{ content|raw }}
-                    </option>
-                {% endfor %}
-
-                {# If the field has a value but nothing got rendered... #}
-                {% if valuefield_value != '' and not rendered_related_reference %}
-                    {# ...then create an option to make it clear something is different #}
-                    {% if reference_dr is null %}
+                    {# The actual contents of the option depend on the status of the reference #}
+                    {% if prerendered_references[ref_id] is defined %}
+                        {# The RRUFF Reference is linked to this IMA Record, and user can see it #}
+                        <option value="{{ ref_id }}" {% if selected %}selected{% endif %}>
+                            {{ prerendered_references[ref_id]|raw }}
+                        </option>
+                    {% elseif invalid_references[ref_id] is defined %}
+                        {# The RRUFF Reference is not linked to this IMA Record #}
                         <option selected>&lt;&lt; Invalid Reference &gt;&gt;</option>
-                    {% elseif not can_view_related_reference %}
+                    {% elseif can_view_references[ref_id] is defined and can_view_references[ref_id] == false %}
+                        {# The RRUFF Reference is linked to this IMA Record, but the user can't see it #}
                         <option selected>&lt;&lt; You are not permitted to view the related reference &gt;&gt;</option>
                     {% endif %}
-                {% endif %}
+                {% endfor %}
             </select>
 
             {# If the field has a value but nothing got rendered... #}
             {% if valuefield_value != '' and not rendered_related_reference %}
-                {% if reference_dr is null %}
-                    <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}">This field no longer points to a valid reference.</label>
-                {% endif %}
+                <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}">This field no longer points to a valid reference.</label>
             {% endif %}
+
         {% endif %}
     </fieldset>
 </form>

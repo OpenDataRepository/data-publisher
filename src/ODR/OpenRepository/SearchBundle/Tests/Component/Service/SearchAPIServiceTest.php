@@ -751,7 +751,55 @@ class SearchAPIServiceTest extends WebTestCase
                 ),
                 array(),
                 false
-            ]
+            ],
+
+            // ----------------------------------------
+            // Searches where a descendant returns no results
+            'RRUFF Reference: search for non-public records' => [
+                array(
+                    'dt_id' => 1,
+                    'dt_1_pub' => 0,
+                ),
+                array(),    // should return no results
+                true
+            ],
+
+            'IMA List: search for minerals with non-public references' => [
+                array(
+                    'dt_id' => 2,
+                    'dt_1_pub' => 0,
+                ),
+                array(),    // should return no results, because all references are public
+                true
+            ],
+            'IMA List: search for minerals with non-public references and mineral_display_name !== ""' => [
+                array(
+                    'dt_id' => 2,
+                    'dt_1_pub' => 0,
+                    '18' => '!""',
+                ),
+                array(),    // should also return no results, despite the other part of the search matching all minerals
+                true
+            ],
+
+            'RRUFF Sample: search for minerals with non-public references and mineral_display_name !== ""' => [
+                array(
+                    'dt_id' => 2,
+                    'dt_1_pub' => 0,
+                    '18' => '!""',
+                ),
+                array(),    // should also return no results, despite the other part of the search returning results
+                true
+            ],
+            'RRUFF Sample: search for minerals with non-public references and rruff_id !== ""' => [
+                array(
+                    'dt_id' => 2,
+                    'dt_1_pub' => 0,
+                    '30' => '!""',
+                ),
+                array(),    // should also return no results, despite the other part of the search returning results
+                true
+            ],
         ];
     }
 

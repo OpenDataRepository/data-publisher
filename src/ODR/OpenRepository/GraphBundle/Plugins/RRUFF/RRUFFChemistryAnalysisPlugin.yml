@@ -14,12 +14,14 @@ odr_plugins.rruff.chemistry_analysis:
 
         # ----------------------------------------
         # These fields are temporary...they only exist to make it easier to import
-#        child_rruff_id:
-#            name: Child RRUFF ID
-#            description:
-#            type: ShortVarchar
-        description:
-            name: Description
+        child_rruff_id:        # belongs to tbl_sample_child
+            name: Child RRUFF ID
+            description:
+            type: ShortVarchar
+#            properties:
+#                - must_be_unique    # Intentionally not enforcing uniqueness on this
+        sample_description:    # belongs to tbl_sample_child...the description field from tbl_sample_child_record_chemistry is not being imported
+            name: Sample Description
             description:
             type: LongText
 

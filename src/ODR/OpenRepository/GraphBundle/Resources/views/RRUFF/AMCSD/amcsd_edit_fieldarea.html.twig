@@ -75,6 +75,7 @@
                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
+                                'themeDatafield': theme_datafield,
                             } %}
                         {% elseif is_amc_file_datafield or is_cif_file_datafield %}
                             {# the "AMC File" datafield requires slightly different file upload javascript #}
