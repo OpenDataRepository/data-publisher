@@ -632,7 +632,7 @@ class SearchAPIService
             // ...if both types of searches were executed, then the merging algorithm needs to
             //  separately track which type of search each record matched (they could match both too)
             $differentiate_search_types = $was_general_seach && $was_advanced_search;
-            self::mergeSearchResults(true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
+            self::mergeSearchResults($criteria, true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
 
@@ -1312,7 +1312,7 @@ class SearchAPIService
             // ...if both types of searches were executed, then the merging algorithm needs to keep
             //  track of which type of search each record matched
             $differentiate_search_types = $was_general_seach && $was_advanced_search;
-            self::mergeSearchResults(true, $template_datatype->getId(), $search_datatree[$template_datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
+            self::mergeSearchResults($criteria, true, $template_datatype->getId(), $search_datatree[$template_datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
 
@@ -2158,6 +2158,7 @@ class SearchAPIService
      * childtype don't match"...if you're dying to know how the previous version worked for whatever
      * reason, then you can check out SearchAPIService::mergeSearchArrays() in commit 17df21c.
      *
+     * @param array $criteria
      * @param bool $is_top_level
      * @param int $datatype_id
      * @param array $search_datatree
@@ -2167,7 +2168,7 @@ class SearchAPIService
      *
      * @return array
      */
-    private function mergeSearchResults($is_top_level, $datatype_id, $search_datatree, $facet_dr_list, &$flattened_list, $differentiate_search_types)
+    private function mergeSearchResults($criteria, $is_top_level, $datatype_id, $search_datatree, $facet_dr_list, &$flattened_list, $differentiate_search_types)
     {
         // The advanced and general searches in ODR need to have their results combined separately
         $facets = array('adv' => array(), 'gen' => array());
@@ -2221,7 +2222,7 @@ class SearchAPIService
 
         foreach ($search_datatree['children'] as $child_dt_id => $child_data) {
             // Determine which records from this child datatype end up matching the search
-            $tmp = self::mergeSearchResults(false, $child_dt_id, $child_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
+            $tmp = self::mergeSearchResults($criteria, false, $child_dt_id, $child_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
 
             // Store that this datatype's results depend on all of its descendants through this route
             if ( !isset($descendants[$child_dt_id]) )
@@ -2247,11 +2248,19 @@ class SearchAPIService
                         $facets['gen'][$facet_num][$parent_dr_id] = 1;
                 }
             }
+
+            // If the child datatype was searched on, but had no results...then create an empty array
+            //  in $facets, otherwise the rest of the function will think the descendant wasn't searched on
+            //  i.e. DOESN'T_MATTER
+            if ( empty($tmp['records']['adv']) && !empty($criteria[$child_dt_id]) )
+                $facets['adv'][$child_dt_id] = array();
+            if ( empty($tmp['records']['gen']) && isset($criteria['general']) )
+                $facets['gen'][$child_dt_id] = array();
         }
 
         foreach ($search_datatree['links'] as $linked_dt_id => $link_data) {
             // Determine which records from this linked datatype end up matching the search
-            $tmp = self::mergeSearchResults(false, $linked_dt_id, $link_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
+            $tmp = self::mergeSearchResults($criteria, false, $linked_dt_id, $link_data, $facet_dr_list, $flattened_list, $differentiate_search_types);
 
             // Store that this datatype's results depend on all of its descendants through this route
             if ( !isset($descendants[$linked_dt_id]) )
@@ -2283,6 +2292,14 @@ class SearchAPIService
                     }
                 }
             }
+
+            // If the linked datatype was searched on, but had no results...then create an empty array
+            //  in $facets, otherwise the rest of the function will think the descendant wasn't searched on
+            //  i.e. DOESN'T_MATTER
+            if ( empty($tmp['records']['adv']) && !empty($criteria[$linked_dt_id]) )
+                $facets['adv'][$linked_dt_id] = array();
+            if ( empty($tmp['records']['gen']) && isset($criteria['general']) )
+                $facets['gen'][$linked_dt_id] = array();
         }
 
 
