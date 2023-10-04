@@ -42,6 +42,8 @@ parameters:
     # database_uuids: ['ias9lasdf8jsadflss', '9dsfasfdasdfks',...]
     #
     elastic_dataset_uuids: [(Bracketed array of databse uuids)]
+    elastic_server_baseurl: [http://127.0.0.1:9299]
+
 
     #
     # END Elastic Search Configuration

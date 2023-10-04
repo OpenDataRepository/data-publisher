@@ -556,8 +556,8 @@ class FacadeController extends Controller
 
             // Random cross domain search
             $log = "Cross domain search: " . $datatype->getUniqueId() . '<br />';
-            // $url = "http://localhost:9299/" . $datatype->getUniqueId() . '/_search?*.*&pretty=true';
-            $url = "http://localhost:9299/" . $datatype->getUniqueId() . '/_search?pretty=true';
+            // $url =$this->container->getParameter('elastic_server_baseurl') . $datatype->getUniqueId() . '/_search?*.*&pretty=true';
+            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
@@ -714,7 +714,7 @@ class FacadeController extends Controller
          * {"_index":"ahed","_id":"7e7f170c64ee9790344baccc170c","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}
         */
         $log = "Pushing document: " . $datatype->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
-        $url = "http://localhost:9299/" . $datatype->getUniqueId() . "/_doc/" . $record->getUniqueId();
+        $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . "/_doc/" . $record->getUniqueId();
         $ch = curl_init($url);
         # Setup request to send json via POST.
         $payload = $data;
@@ -731,7 +731,7 @@ class FacadeController extends Controller
         // Also build index for cross template search
         if($datatype->getMasterDataType()) {
             $log .= "Pushing document: " . $datatype->getMasterDataType()->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
-            $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId() . "/_doc/" . $record->getUniqueId();
+            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . "/_doc/" . $record->getUniqueId();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
@@ -777,7 +777,7 @@ class FacadeController extends Controller
                 throw new ODRNotFoundException('Datatype');
 
             // Ensure all index exists for the datatype
-            $url = "http://localhost:9299/" . $datatype->getUniqueId();
+            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -791,7 +791,7 @@ class FacadeController extends Controller
 
             // Ensure all index has total_field limit set properly
             $log .= "Setting index total_field limit: " . $datatype->getUniqueId() . '<br />';
-            $url = "http://localhost:9299/" . $datatype->getUniqueId() . '/_settings';
+            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_settings';
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -809,7 +809,7 @@ class FacadeController extends Controller
             if($datatype->getMasterDataType()) {
                 $log .= "Creating Index: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
                 // Ensure all index exists
-                $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId();
+                $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId();
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -823,7 +823,7 @@ class FacadeController extends Controller
 
                 $log .= "Setting index total_field limit: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
                 // Ensure all index has total_field limit set properly
-                $url = "http://localhost:9299/" . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
+                $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -838,6 +838,7 @@ class FacadeController extends Controller
             }
 
             /** @var DataRecord[] $records */
+            // TODO use "updated" to only update records modified within the last 24 hours
             $records = $em->getRepository('ODRAdminBundle:DataRecord')
                 ->findBy(
                     array(
@@ -845,19 +846,13 @@ class FacadeController extends Controller
                     )
                 );
 
-            /** @var SearchAPIServiceNoConflict $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
-
             // Get the pheanstalk queue
             $pheanstalk = $this->get('pheanstalk');
-
             $baseurl = $this->container->getParameter('site_baseurl');
 
             $counter = 0;
             foreach($records as $record) {
-
                 $url = $this->generateUrl('odr_search_seed_elastic_record', array('record_uuid' => $record->getUniqueId()));
-
                 $url = $baseurl . $url;
 
                 // Add record to pheanstalk queue

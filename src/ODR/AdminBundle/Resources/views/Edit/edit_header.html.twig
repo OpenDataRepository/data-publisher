@@ -27,8 +27,33 @@
 {% endif %}
 
 <div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
+
     {% if search_key != '' %}
-        <div class="pure-u-1" style="text-align: right">
+        <div class="pure-u-2-3" id="ODRPublicExportButtons">
+    {% else %}
+        <div class="pure-u-1" id="ODRPublicExportButtons">
+    {% endif %}
+        <button id="ODRViewRecord" type="button" class="pure-button pure-button-primary">View</button>
+{#        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export Record</button>#}
+
+    {% if can_change_public_status %}
+        <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary">Make {% if datarecord.ispublic %}Non-{% endif %}Public</button>
+    {% endif %}
+
+    {% if can_delete_record %}
+        <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary">Delete</button>
+    {% endif %}
+
+    {% if can_add_record and is_top_level and datatype.isMasterType == 0 %}
+        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">Add</button>
+    {% endif %}
+
+        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>
+
+        <button id="ODRTracking" type="button" class="pure-button pure-button-primary">View History</button>
+    </div>
+    {% if search_key != '' %}
+        <div class="pure-u-1-3" style="text-align: right">
             {% include 'ODRAdminBundle:Default:search_header.html.twig' with {
                 'search_key': search_key,
                 'page_length': page_length,
@@ -44,26 +69,6 @@
         </div>
     {% endif %}
 
-    <div class="pure-u-1" id="ODRPublicExportButtons">
-        <button id="ODRViewRecord" type="button" class="pure-button pure-button-primary">View Record</button>
-{#        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export Record</button>#}
-
-    {% if can_change_public_status %}
-        <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary">Make Record {% if datarecord.ispublic %}Non-{% endif %}Public</button>
-    {% endif %}
-
-    {% if can_delete_record %}
-        <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary">Delete Record</button>
-    {% endif %}
-
-    {% if can_add_record and is_top_level and datatype.isMasterType == 0 %}
-        <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary">Add Record</button>
-    {% endif %}
-
-        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary">Download Files...</button>
-
-        <button id="ODRTracking" type="button" class="pure-button pure-button-primary">View Recent Changes</button>
-    </div>
 </div>
 
 <script>

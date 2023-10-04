@@ -106,6 +106,7 @@ input,
     background-color: white;
 }
 
+
 .ODRInnerBox_HideBorder {
     border: none !important;
 }
@@ -172,7 +173,7 @@ label.ODRResults_radio {
 /* END Graph Plugin Decorations */
 
 .pure-skin-odr .pure-button {
-    min-width: 10em;
+    min-width: 6em;
     box-sizing: border-box;
     box-shadow: none;
     background: none;
@@ -185,7 +186,7 @@ label.ODRResults_radio {
 }
 
 .pure-skin-odr .pure-button-primary {
-    min-width: 10em;
+    min-width: 6em;
     box-sizing: border-box;
     box-shadow: none;
     background: none;
@@ -256,9 +257,9 @@ h3.ui-accordion-header a {
 
 .ODRFileDatafield_header {
     background-image: none;
-    background-color: #4D88DC;
+    background: none; /* #7fb9d8 none repeat scroll 0 0; */
+    color: RGBA(77, 136, 220, 1.00);
     box-shadow: none;
-    color: white;
 }
 
 .ODRThemeElement {
