@@ -106,16 +106,17 @@ odr_random_network_search:
         limit: '\d+'
         offset: '\d+'
 
+# need a realtime seed call - reseed specific database now (recent changes)
 odr_search_seed_elastic:
     path: /elastic
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElastic, version: 'v5' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElastic, version: 'v4' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_search_seed_elastic_record:
     path: /elastic/record/{record_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElasticRecord, version: 'v5' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElasticRecord, version: 'v4' }
     methods: [ GET ]
     requirements:
         record_uuid: '^[a-z0-9]+$'

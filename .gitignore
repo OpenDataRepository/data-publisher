@@ -53,4 +53,5 @@
 web/chemin-map-demo
 
 
+/background_services/node_modules/
 /puppeteer_graphs/node_modules/

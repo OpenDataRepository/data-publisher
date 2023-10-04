@@ -2248,6 +2248,19 @@ h3 .DatatypeTools,
     border-radius: 6px;
 }
 
+.ODRListHeader {
+    height: 44px;
+}
+.ODRListHeader .ODRRecordName {
+    position: relative;
+    top: 11px;
+}
+.ODRListHeader .DatatypeTools {
+    position: relative;
+    top: 6px !important;
+    margin-right: 8px;
+}
+
 .ODRTabAccordion .DataTypeTools {
     float: right;
     top: -96px;
@@ -3234,12 +3247,13 @@ form .row {
     font-size: 0.8em;
     border-radius: 5px 5px 0px 0px;
 }
+
 .ODRFileDatafield_file, .ODRFileDatafield_empty {
     font-size: 0.8em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
-    background: #b8e8fa none repeat scroll 0 0;
+    background: none;
     padding-right: 8px;
     position: relative;
 
@@ -3247,6 +3261,12 @@ form .row {
     display: -moz-flex;
     display: -ms-flexbox;
     display: flex;
+}
+
+.ODRFileImageHeader {
+    color: white !important;
+    font-weight: bold;
+    background: #5B87E6 none repeat scroll 0 0 !important;
 }
 
 .ODRDownloadAllFiles {

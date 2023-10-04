@@ -23,10 +23,11 @@
     {% endif %}
 {% endif %}
 
+
 {% if is_top_level or display_type == ACCORDION_HEADER or display_type == NO_HEADER %}
     <div class="ODRAccordionWrapper ODRFormAccordion">
     {% if datarecord_list|length == 0 and is_top_level == 0 %}    {# only display something here when there are no child datarecords for this datatype #}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="55 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
 
@@ -69,7 +70,7 @@
 
 {% elseif display_type == TABBED_HEADER %}
     <div class="ODRAccordionWrapper ODRTabAccordion">
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="66 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
 
@@ -129,7 +130,7 @@
 
 {% elseif display_type == DROPDOWN_HEADER %}
     <div class="ODRAccordionWrapper ODRDropdownAccordion">
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="88 ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
 
