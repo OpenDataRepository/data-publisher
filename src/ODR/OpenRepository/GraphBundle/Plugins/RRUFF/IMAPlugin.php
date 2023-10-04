@@ -1633,32 +1633,41 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             return;
         }
 
-        // ...but if there is stuff to pre-render, then load the RRUFF References plugin
+        // ...but if it does, then going to attempt to pre-render the references
+        $can_view_references = $related_reference_info['can_view_references'];
         $rruff_reference_records = $ima_datarecord[$key][$rruff_reference_dt_id];
-
-        /** @var DatatypePluginInterface $rruff_reference_plugin */
-        $rruff_reference_plugin = $this->container->get('odr_plugins.rruff.rruff_references');
 
         foreach ($prerendered_references as $ref_id => $num) {
             // Determine which ODR record this reference ID is referring to
             $reference_dr_id = $related_reference_info['reference_mapping'][$ref_id];
-            $reference_dr = $rruff_reference_records[$reference_dr_id];
 
-            // Render the requested reference...
-            $content = $rruff_reference_plugin->execute(
-                array($reference_dr_id => $reference_dr),
-                $related_reference_info['datatype'],
-                $related_reference_info['renderPluginInstance'],
-                $related_reference_info['theme'],
-                $rendering_options,
-                $ima_datarecord,
-                $datatype_permissions,
-                $datafield_permissions,
-                $token_list
-            );
+            // If the user can view the requested reference...
+            if ( $can_view_references[$ref_id] ) {
+                // ...then render it...
+                $reference_dr = $rruff_reference_records[$reference_dr_id];
 
-            // ...and store it for later use
-            $prerendered_references[$ref_id] = $content;
+                /** @var DatatypePluginInterface $rruff_reference_plugin */
+                $rruff_reference_plugin = $this->container->get('odr_plugins.rruff.rruff_references');
+                $content = $rruff_reference_plugin->execute(
+                    array($reference_dr_id => $reference_dr),
+                    $related_reference_info['datatype'],
+                    $related_reference_info['renderPluginInstance'],
+                    $related_reference_info['theme'],
+                    $rendering_options,
+                    $ima_datarecord,
+                    $datatype_permissions,
+                    $datafield_permissions,
+                    $token_list
+                );
+
+                // ...and store it for later use
+                $prerendered_references[$ref_id] = $content;
+            }
+            else {
+                // ...if the user can't view the requested reference, then get rid of the array entry
+                //  so twig can inform the user of their lack of permissions
+                unset( $prerendered_references[$ref_id] );
+            }
         }
     }
 

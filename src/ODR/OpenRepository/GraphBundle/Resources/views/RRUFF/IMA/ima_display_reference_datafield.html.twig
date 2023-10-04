@@ -54,7 +54,7 @@
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 {% if invalid_references[valuefield_value] is defined %}
                     <input id="{{ input_id }}" class="pure-u-1 Cursor ODRInputError" type="text" value="" readonly="readonly" style="border: 1px solid red;" />
-                    <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">This field no longer points to a valid reference.</label>
+                    <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">This field does not point to a valid reference.</label>
                 {% elseif can_view_references[valuefield_value] is defined and can_view_references[valuefield_value] == false %}
                     <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">You are not permitted to view the related reference.</label>
                 {% endif %}
