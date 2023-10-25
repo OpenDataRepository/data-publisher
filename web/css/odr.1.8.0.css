@@ -3976,6 +3976,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     opacity: 0.4;
 }
 
+.ODRUnselectedCSVExportField {
+    background-color: #ff8888;
+}
+.ODRSelectedCSVExportField {
+    background-color: #88ff88;
+}
+
 
 #ODRGroupListHeader {
     margin-left: 20px;

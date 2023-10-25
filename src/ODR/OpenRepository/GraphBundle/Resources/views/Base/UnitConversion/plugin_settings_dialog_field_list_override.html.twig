@@ -1,0 +1,73 @@
+{% spaceless %}
+
+{% set current_option_value = '' %}
+{% if current_plugin_config['conversion_type'] is defined and current_plugin_config['target_units'] is defined %}
+    {% set current_option_value = current_plugin_config['conversion_type'] ~ ':' ~ current_plugin_config['target_units'] %}
+{% endif %}
+
+<div class="pure-u-1">
+    <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_option_value }}</textarea>
+
+    <div class="pure-u-1 ODRRenderPlugin_UnitConversion_header">
+        <div class="pure-u-1">
+            This plugin also needs you to select which unit to convert all of this field's data into. TODO
+        </div>
+    </div>
+
+    {% set current_target_units = '' %}
+    {% if current_plugin_config['target_units'] is defined %}
+        {%  set current_target_units = current_plugin_config['target_units'] %}
+    {% endif %}
+
+    <div class="pure-u-1 ODRRenderPlugin_UnitConversion_body">
+        <label for="ODRRenderPlugin_UnitConversion_select">
+            Conversion Type:&nbsp;
+            <select id="ODRRenderPlugin_UnitConversion_select">
+                <option value=""></option>
+            {% for category,conversions in available_conversions %}
+                <optgroup label="{{ category }}">
+                {% for label,unit in conversions %}
+                    <option value="{{ category }}:{{ unit }}" {% if current_target_units == unit %}selected{% endif %}>{{ label }}&nbsp;({{ unit }})</option>
+                {% endfor %}
+                </optgroup>
+            {% endfor %}
+            </select>
+        </label>
+    </div>
+</div>
+
+<style>
+    .ODRRenderPlugin_UnitConversion_header {
+        text-align: left;
+        text-indent: 15px;
+
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+    .ODRRenderPlugin_UnitConversion_body {
+        text-align: left;
+        text-indent: 15px;
+
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+</style>
+
+<script>
+    var UnitConversion_timeout = null;
+    var UnitConversion_SaveTimeout = 500;
+
+    $(function() {
+        // Since the resizing apparently refuses to pick up the actual height of the items inside
+        //  it for this particular application, force the modal to use the entire screen.
+        resetRemodalInnerHeight(true);
+
+        $("#ODRRenderPlugin_UnitConversion_select").unbind('change').change(function() {
+            var selected_value = $(this).val();
+            // console.log(selected_value);
+            $("#plugin_option_{{ rpo_id }}").val(selected_value);
+        });
+    });
+
+</script>
+{% endspaceless %}

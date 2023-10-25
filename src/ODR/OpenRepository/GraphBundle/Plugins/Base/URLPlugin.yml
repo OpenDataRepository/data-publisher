@@ -7,8 +7,11 @@ odr_plugins.base.url:
     override_fields: false
     override_field_reload: false
     override_child: false
-    description: The contents of this datafield will be used as the basis for a URL link.
     override_table_fields: true
+    override_export: false
+    override_search: false
+    override_sort: false
+    description: The contents of this datafield will be used as the basis for a URL link.
     registered_events:
         PluginAttachEvent: onPluginAttach
         PluginOptionsChangedEvent: onPluginOptionsChanged

@@ -1,13 +1,16 @@
 services:
+    # ----------------------------------------
     # Datatype plugins
     odr_plugins.base.references:
         class: '%odr_plugin_base_classpath%\Base\ReferencesPlugin'
         arguments:
             $templating: '@templating'
+
     odr_plugins.base.comment:
         class: '%odr_plugin_base_classpath%\Base\CommentPlugin'
         arguments:
             $templating: '@templating'
+
     odr_plugins.base.link:
         class: '%odr_plugin_base_classpath%\Base\LinkPlugin'
         arguments:
@@ -39,25 +42,21 @@ services:
             $templating: '@templating'
             $tokenGenerator: '@fos_user.util.token_generator'
 
-    odr_plugins.base.linked_descendant_merger:
-        class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
-        arguments:
-            $database_info_service: "@odr.database_info_service"
-            $sort_service: "@odr.sort_service"
-            $templating: '@templating'
-            $logger: "@logger"
 
+    # ----------------------------------------
     # Datafield plugins
     odr_plugins.base.chemistry:
         class: '%odr_plugin_base_classpath%\Base\ChemistryPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
+
     odr_plugins.base.url:
         class: '%odr_plugin_base_classpath%\Base\URLPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
+
     odr_plugins.base.currency:
         class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:
@@ -92,5 +91,28 @@ services:
             $datatree_info_service: "@odr.datatree_info_service"
             $upload_service: "@odr.upload_service"
             $odr_tmp_directory: '%odr_tmp_directory%'
+            $templating: '@templating'
+            $logger: "@logger"
+
+    odr_plugins.base.unit_conversion:
+        class: '%odr_plugin_base_classpath%\Base\UnitConversionPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $event_dispatcher: "@event_dispatcher"
+            $cache_service: "@odr.cache_service"
+            $database_info_service: "@odr.database_info_service"
+            $search_service: "@odr.search_service"
+            $sort_service: "@odr.sort_service"
+            $templating: '@templating'
+            $logger: "@logger"
+
+
+    # ----------------------------------------
+    # Array plugins
+    odr_plugins.base.linked_descendant_merger:
+        class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
+        arguments:
+            $database_info_service: "@odr.database_info_service"
+            $sort_service: "@odr.sort_service"
             $templating: '@templating'
             $logger: "@logger"

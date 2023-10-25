@@ -8,6 +8,9 @@ odr_plugins.rruff.raman_spectra:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     description: TODO
     registered_events:
     required_fields:

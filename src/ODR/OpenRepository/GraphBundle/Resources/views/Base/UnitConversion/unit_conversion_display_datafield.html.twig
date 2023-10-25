@@ -1,0 +1,39 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+{% set value_to_display = original_value %}
+{% set conversion_msg = 'Converted to "' ~ converted_value ~'"' %}
+{% if plugin_options['display_converted'] == 'yes' %}
+    {% set value_to_display = converted_value %}
+    {% set conversion_msg = 'Converted from "' ~ original_value ~'"' %}
+{% endif %}
+
+{% set derivation_error = false %}
+{% if original_value != '' and converted_value == '' %}
+    {% set derivation_error = true %}
+{% endif %}
+
+    <fieldset>
+        <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+            {{ datafield_meta.fieldName }}
+
+            <i class="fa fa-info-circle" title="{{ conversion_msg }}"></i>
+        </label>
+        <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+            <input id="{{ input_id }}" class="pure-u-1 Cursor" type="text" value="{{ value_to_display }}" readonly="readonly"/>
+        </div>
+
+        {% if derivation_error %}
+        <div class="pure-u-1">
+            <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">It appears as if the value in this field did not get converted properly.</label>
+        </div>
+        {% endif %}
+    </fieldset>
+
+{% endspaceless %}

@@ -1,4 +1,5 @@
 services:
+    # ----------------------------------------
     # Datatype plugins
     odr_plugins.rruff.amcsd:
         class: '%odr_plugin_base_classpath%\RRUFF\AMCSDPlugin'
@@ -78,6 +79,7 @@ services:
 
 
     # ----------------------------------------
+    # ThemeElement Plugins
     odr_plugins.rruff.rruff_sample_links:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleLinksPlugin'
         arguments:
@@ -88,6 +90,20 @@ services:
 
 
     # ----------------------------------------
+    # Datafield plugins
+    odr_plugins.rruff.chemical_elements_search:
+        class: '%odr_plugin_base_classpath%\RRUFF\ChemicalElementsSearchPlugin'
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $search_service: "@odr.search_service"
+            $sort_service: "@odr.sort_service"
+            $templating: "@templating"
+            $logger: "@logger"
+
+
+    # ----------------------------------------
+    # Temporary datatype plugins
     odr_plugins.rruff.chemistry_analysis:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFChemistryAnalysisPlugin'
         arguments:
@@ -116,15 +132,4 @@ services:
     odr_plugins.rruff.powder_diffraction:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPowderDiffractionPlugin'
         arguments:
-            $logger: "@logger"
-
-    # ----------------------------------------
-    odr_plugins.rruff.chemical_elements_search:
-        class: '%odr_plugin_base_classpath%\RRUFF\ChemicalElementsSearchPlugin'
-        arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $cache_service: "@odr.cache_service"
-            $search_service: "@odr.search_service"
-            $sort_service: "@odr.sort_service"
-            $templating: "@templating"
             $logger: "@logger"

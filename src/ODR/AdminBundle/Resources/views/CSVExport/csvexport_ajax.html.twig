@@ -180,9 +180,7 @@
     $(function() {
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-        // The overlay divs need this transition to finish before they can get the correct width
-        setTimeout("resizeCSVExportOverlayDivs()", 300);
-        setTimeout( function() { $("#ODRCSVExport_selectall").trigger('click'); }, 300);
+        setTimeout( function() { $("#ODRCSVExport_selectall").trigger('click'); }, 350);
 
         initCSVExportPage();
         window.scrollTo(0,0);
@@ -192,16 +190,16 @@
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         $("#ODRCSVExport_selectall").unbind('click').click(function() {
-            $(".ODRCSVExport").each(function() {
-                if ( $(this).hasClass('ODRUnselectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
-                    $(this).trigger('click');
+            $(".ODRCSVExportField").each(function() {
+                if ( $(this).hasClass('ODRUnselectedCSVExportField') && !$(this).hasClass('ODRBlockedCSVExportField') )
+                    $(this).trigger('click').trigger('selectAll.ODRCSVExport');
             });
         });
 
         $("#ODRCSVExport_deselectall").unbind('click').click(function() {
-            $(".ODRCSVExport").each(function() {
-                if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') )
-                    $(this).trigger('click');
+            $(".ODRCSVExportField").each(function() {
+                if ( $(this).hasClass('ODRSelectedCSVExportField') && !$(this).hasClass('ODRBlockedCSVExportField') )
+                    $(this).trigger('click').trigger('deselectAll.ODRCSVExport');
             });
         });
 
@@ -214,28 +212,6 @@
         });
         ODRCSVExport_setupIntroJS();
     });
-
-    /**
-     * Resizes datafield overlays to fit the field.
-     */
-    function resizeCSVExportOverlayDivs() {
-        // Attach an overlay div of sorts over each datafield
-        $(".ODROverlayDiv").each(function() {
-            // console.log('resized ' + $(this).attr('id') );
-
-            // Need dimensions of parent div...
-            var height = $(this).parent().css('height');
-            var width = $(this).parent().css('width');
-
-            // Apply dimensions of parent div to loading div
-            $(this).css({"height": height, "line-height": height, "width": width});
-
-            if ( $(this).hasClass('ODRBlockedDatafield') )
-                $(this).attr('title', "This datafield can't be exported");
-            else
-                $(this).attr('title', "This datafield will not be exported");
-        });
-    }
 
     /**
      * Hides elements and attaches click handlers to the page.
@@ -254,10 +230,13 @@
                 $(this).hide();
         });
 
-        $(".ODRCSVExport").unbind('click').click(function() {
-            if ( $(this).hasClass('ODRUnselectedDatafield') ) {
+        $(".ODRCSVExportField").unbind('click').click(function() {
+            if ( $(this).hasClass('ODRExportPluginField') )
+                return;
+
+            if ( $(this).hasClass('ODRUnselectedCSVExportField') ) {
                 $(this).attr('title', 'This datafield will be exported');
-                $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
+                $(this).removeClass('ODRUnselectedCSVExportField').addClass('ODRSelectedCSVExportField');
 
                 if ( $(this).hasClass('ODRExportFileImageField') ) {
                     $(".ODRFileImageDelimiter").show();
@@ -286,12 +265,12 @@
             }
             else {
                 $(this).attr('title', 'This datafield will not be exported');
-                $(this).addClass('ODRUnselectedDatafield').removeClass('ODRSelectedDatafield');
+                $(this).addClass('ODRUnselectedCSVExportField').removeClass('ODRSelectedCSVExportField');
 
                 // Don't want to disable secondary delimiter fields if another datafield being exported
                 //  still needs them
                 if ( $(this).hasClass('ODRExportFileImageField') ) {
-                    if ( $(".ODRExportFileImageField.ODRSelectedDatafield").length === 0) {
+                    if ( $(".ODRExportFileImageField.ODRSelectedCSVExportField").length === 0) {
                         $(".ODRFileImageDelimiter").hide();
 
                         var option = $(".FileImageDelimiterSelect").children('option').first();
@@ -300,7 +279,7 @@
                     }
                 }
                 if ( $(this).hasClass('ODRExportRadioField') ) {
-                    if ( $(".ODRExportRadioField.ODRSelectedDatafield").length === 0) {
+                    if ( $(".ODRExportRadioField.ODRSelectedCSVExportField").length === 0) {
                         $(".ODRRadioDelimiter").hide();
 
                         var option = $(".RadioDelimiterSelect").children('option').first();
@@ -309,7 +288,7 @@
                     }
                 }
                 if ( $(this).hasClass('ODRExportTagField') ) {
-                    if ( $(".ODRExportTagField.ODRSelectedDatafield").length === 0) {
+                    if ( $(".ODRExportTagField.ODRSelectedCSVExportField").length === 0) {
                         $(".ODRTagDelimiter").hide();
 
                         var option = $(".TagDelimiterSelect").children('option').first();
@@ -318,7 +297,7 @@
                     }
                 }
                 if ( $(this).hasClass('ODRExportTagHierarchy') ) {
-                    if ( $(".ODRExportTagHierarchy.ODRSelectedDatafield").length === 0) {
+                    if ( $(".ODRExportTagHierarchy.ODRSelectedCSVExportField").length === 0) {
                         $(".ODRTagHierarchyDelimiter").hide();
 
                         var option = $(".TagHierarchyDelimiterSelect").children('option').first();
@@ -594,14 +573,37 @@
 
         // Grab which fields to export
         var do_export = false;
-        $(".ODRCSVExport").each(function() {
-            if ( $(this).hasClass('ODRSelectedDatafield') && !$(this).hasClass('ODRBlockedDatafield') ) {
-                // Grab the ID of the field
-                var datafield_id = $(this).attr('rel');
+        $(".ODRCSVExportField").each(function() {
+            if ( $(this).hasClass('ODRSelectedCSVExportField') && !$(this).hasClass('ODRBlockedCSVExportField') ) {
+                var id_data = $(this).attr('id').split(/_/);
+                var datafield_id = id_data[1];
 
-                do_export = true;
-                var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[]"});
-                $("#csvexport_form").append(element);
+                if ( !$(this).hasClass('ODRExportPluginField') ) {
+                    // For regular datafields, just throw the field's id into a form
+                    do_export = true;
+                    var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[]"});
+                    $("#csvexport_form").append(element);
+                }
+                else {
+                    // For plugin fields, find each html element that has a name attribute
+                    $(this).find('[name]').each(function() {
+                        var element_name = $(this).attr('name');
+                        var element_value = $(this).attr('value');
+
+                        // Only add elements if they're active
+                        var export_element = false;
+                        if ( $(this).attr('type') === 'text' )
+                            export_element = true;
+                        else if ( $(this).attr('type') === 'checkbox' && $(this).prop('checked') )
+                            export_element = true;
+
+                        if ( export_element ) {
+                            do_export = true;
+                            var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: element_value, name: "plugin_datafields[" + datafield_id + "][" + element_name + "]"});
+                            $("#csvexport_form").append(element);
+                        }
+                    });
+                }
             }
         });
 
@@ -613,8 +615,7 @@
         var data = $("#csvexport_form").serialize();
         var url = $("#csvexport_form").attr('action');
 
-        // console.log( data );
-        // return;
+        // console.log( data.replaceAll('%5B', '[').replaceAll('%5D', ']') ); return;
 
         $.ajax({
             type: 'POST',

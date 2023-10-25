@@ -52,12 +52,6 @@ class RenderPlugin
      */
     const ARRAY_PLUGIN = 4;
 
-    /*
-     * These technically don't "render" anything, but instead completely override the search system
-     * for specific datafields.  Ideally, they still respect the search system caching.
-     */
-    const SEARCH_PLUGIN = 5;
-
 
     /**
      * @var integer
@@ -113,6 +107,21 @@ class RenderPlugin
      * @var bool
      */
     private $overrideTableFields;
+
+    /**
+     * @var bool
+     */
+    private $overrideExport;
+
+    /**
+     * @var bool
+     */
+    private $overrideSearch;
+
+    /**
+     * @var bool
+     */
+    private $overrideSort;
 
     /**
      * @var integer
@@ -422,6 +431,78 @@ class RenderPlugin
     public function getOverrideTableFields()
     {
         return $this->overrideTableFields;
+    }
+
+    /**
+     * Set overrideExport.
+     *
+     * @param bool $overrideExport
+     *
+     * @return RenderPlugin
+     */
+    public function setOverrideExport($overrideExport)
+    {
+        $this->overrideExport = $overrideExport;
+
+        return $this;
+    }
+
+    /**
+     * Get overrideExport.
+     *
+     * @return bool
+     */
+    public function getOverrideExport()
+    {
+        return $this->overrideExport;
+    }
+
+    /**
+     * Set overrideSearch.
+     *
+     * @param bool $overrideSearch
+     *
+     * @return RenderPlugin
+     */
+    public function setOverrideSearch($overrideSearch)
+    {
+        $this->overrideSearch = $overrideSearch;
+
+        return $this;
+    }
+
+    /**
+     * Get overrideSearch.
+     *
+     * @return bool
+     */
+    public function getOverrideSearch()
+    {
+        return $this->overrideSearch;
+    }
+
+    /**
+     * Set overrideSort.
+     *
+     * @param bool $overrideSort
+     *
+     * @return RenderPlugin
+     */
+    public function setOverrideSort($overrideSort)
+    {
+        $this->overrideSort = $overrideSort;
+
+        return $this;
+    }
+
+    /**
+     * Get overrideSort.
+     *
+     * @return bool
+     */
+    public function getOverrideSort()
+    {
+        return $this->overrideSort;
     }
 
     /**

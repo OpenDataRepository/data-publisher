@@ -44,7 +44,8 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\SortService;
-use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\ParameterType;
@@ -53,7 +54,7 @@ use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
 
 
-class ChemicalElementsSearchPlugin implements SearchPluginInterface
+class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOverrideInterface
 {
 
     // The plugin assumes that it is receiving chemical elements...so it can also take the liberty
@@ -502,6 +503,41 @@ class ChemicalElementsSearchPlugin implements SearchPluginInterface
 
 
     /**
+     * Returns whether the plugin can be executed in the current context.
+     *
+     * @param array $render_plugin_instance
+     * @param array $datafield
+     * @param array|null $datarecord
+     * @param array $rendering_options
+     *
+     * @return bool
+     */
+    public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
+    {
+        // Never want to execute this plugin in the datafield context
+        return false;
+    }
+
+
+    /**
+     * Executes the RenderPlugin on the provided datafield
+     *
+     * @param array $datafield
+     * @param array|null $datarecord
+     * @param array $render_plugin_instance
+     * @param array $rendering_options
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
+    {
+        // If this is called for some reason, return nothing so ODR's rendering does its thing
+        return '';
+    }
+
+
+    /**
      * Returns whether the plugin wants to override its entry in the search sidebar.
      *
      * @param array $render_plugin_instance
@@ -510,7 +546,7 @@ class ChemicalElementsSearchPlugin implements SearchPluginInterface
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin_instance, $datafield, $rendering_options)
+    public function canExecuteSearchPlugin($render_plugin_instance, $datafield, $rendering_options)
     {
         // Don't need any of the provided parameters to make a decision
         return true;
@@ -528,7 +564,7 @@ class ChemicalElementsSearchPlugin implements SearchPluginInterface
      *
      * @return string
      */
-    public function execute($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options)
+    public function executeSearchPlugin($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options)
     {
         $output = $this->templating->render(
             'ODROpenRepositoryGraphBundle:RRUFF:ChemicalElementsSearch/chemical_elements_search_datafield.html.twig',

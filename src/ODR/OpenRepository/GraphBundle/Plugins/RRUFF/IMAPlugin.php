@@ -1200,9 +1200,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
     /**
-     * If some sort of error/exception was thrown, then attempt to blank out all the fields derived
-     * from the file being read...this won't stop the file from being encrypted, which will allow
-     * the renderplugin to recognize and display that something is wrong with this file.
+     * If some sort of error/exception was thrown, then attempt to blank out the given derived
+     * field...this doesn't fix the underlying problem, but at least the renderplugin can recognize
+     * and display that something is wrong with the source field.
      *
      * @param ODRUser $user
      * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $destination_storage_entity
@@ -1213,16 +1213,14 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $df = $destination_storage_entity->getDataField();
 
         try {
-            if ( !is_null($destination_storage_entity) ) {
-                $this->emm_service->updateStorageEntity(
-                    $user,
-                    $destination_storage_entity,
-                    array('value' => ''),
-                    false,    // no point delaying flush
-                    false    // don't fire PostUpdate event...nothing depends on these fields
-                );
-                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', array(self::class, 'saveOnError()'));
-            }
+            $this->emm_service->updateStorageEntity(
+                $user,
+                $destination_storage_entity,
+                array('value' => ''),
+                false,    // no point delaying flush
+                false    // don't fire PostUpdate event...nothing depends on these fields
+            );
+            $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', array(self::class, 'saveOnError()'));
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it

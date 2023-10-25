@@ -12,7 +12,13 @@ ODR\AdminBundle\Entity\ShortVarchar:
             nullable: false
             generator:
                 strategy: IDENTITY
+
         value:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+        converted_value:
             type: string
             length: 32
             fixed: false

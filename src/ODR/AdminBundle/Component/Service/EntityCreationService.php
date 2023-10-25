@@ -2240,6 +2240,10 @@ class EntityCreationService
                 if ($typeclass === 'DecimalValue')
                     $storage_entity->setOriginalValue($insert_value);
 
+                if ($typeclass === 'ShortVarchar') {
+                    $storage_entity->setConvertedValue('');
+                }
+
                 $storage_entity->setCreated($created);
                 $storage_entity->setUpdated($created);
                 $storage_entity->setCreatedBy($user);

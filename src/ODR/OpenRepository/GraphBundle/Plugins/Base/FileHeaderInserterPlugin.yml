@@ -8,6 +8,9 @@ odr_plugins.base.file_header_inserter:
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
     description: This plugin attempts to insert a header to any file that gets uploaded to the attached field, based on the values of other related datafields.  This is an advanced plugin that only works on a proper relational database setup...certain usage requirements force the plugin to provide every possible configuration, even though most of the available configurations will be completely worthless.  IMPORTANT - detaching this plugin does not delete the inserted headers, and changing the Comment Prefix after headers are inserted will result in duplicate headers.
     registered_events:
         FilePreEncryptEvent: onFilePreEncrypt

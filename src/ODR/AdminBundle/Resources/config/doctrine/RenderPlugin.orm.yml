@@ -68,6 +68,21 @@ ODR\AdminBundle\Entity\RenderPlugin:
             nullable: false
             column: override_table_fields
             default: false
+        overrideExport:
+            type: boolean
+            nullable: false
+            column: override_export
+            default: false
+        overrideSearch:
+            type: boolean
+            nullable: false
+            column: override_search
+            default: false
+        overrideSort:
+            type: boolean
+            nullable: false
+            column: override_sort
+            default: false
 
         plugin_type:
             type: smallint

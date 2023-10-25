@@ -22,7 +22,7 @@ interface DatafieldPluginInterface
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -33,7 +33,7 @@ interface DatafieldPluginInterface
      * Executes the RenderPlugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *

@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * Search Plugin Interface
+ * Search Override Interface
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -16,7 +16,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 
-interface SearchPluginInterface
+interface SearchOverrideInterface
 {
 
     /**
@@ -41,7 +41,7 @@ interface SearchPluginInterface
      *
      * @return bool
      */
-    public function canExecutePlugin($render_plugin_instance, $datafield, $rendering_options);
+    public function canExecuteSearchPlugin($render_plugin_instance, $datafield, $rendering_options);
 
 
     /**
@@ -55,5 +55,5 @@ interface SearchPluginInterface
      *
      * @return string
      */
-    public function execute($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options);
+    public function executeSearchPlugin($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options);
 }

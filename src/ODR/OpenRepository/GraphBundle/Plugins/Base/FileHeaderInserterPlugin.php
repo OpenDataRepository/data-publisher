@@ -174,7 +174,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      *
      * @param array $render_plugin_instance
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $rendering_options
      *
      * @return bool
@@ -199,7 +199,7 @@ class FileHeaderInserterPlugin implements DatafieldPluginInterface, PluginSettin
      * Executes the FileRenamer Plugin on the provided datafield
      *
      * @param array $datafield
-     * @param array $datarecord
+     * @param array|null $datarecord
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *

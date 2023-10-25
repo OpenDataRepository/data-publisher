@@ -1,13 +1,16 @@
 odr_plugins.rruff.chemical_elements_search:
     name: Chemical Elements Search
     category: RRUFF
-    plugin_type: search
+    plugin_type: datafield
     render: odr_plugins.rruff.chemical_elements
     version: 1.0.0
     override_fields: false
     override_field_reload: false
     override_child: false
     override_table_fields: false
+    override_export: false
+    override_search: true
+    override_sort: false
     description: Overrides ODR's search system for this datafield so that search terms are treated as chemical elements.  Without this, searching for certain elements (e.g. "S") will also return results for other elements (e.g. "Si", "Sn", etc).
     registered_events:
 
