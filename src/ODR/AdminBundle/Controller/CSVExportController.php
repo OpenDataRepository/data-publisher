@@ -557,7 +557,7 @@ class CSVExportController extends ODRCustomController
 
 //print '<pre>'.print_r($payload, true).'</pre>';    exit();
 
-                $delay = 1; // one second
+                // $delay = 1; // one second
                 $pheanstalk->useTube('csv_export_worker')->put($payload, $priority, $delay);
             }
         }

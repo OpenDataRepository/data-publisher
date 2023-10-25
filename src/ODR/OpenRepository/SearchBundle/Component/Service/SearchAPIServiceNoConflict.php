@@ -29,6 +29,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Bridge\Monolog\Logger;
 
@@ -769,7 +770,7 @@ class SearchAPIServiceNoConflict
 
     /**
      * @param $version
-     * @param $datarecord_uuid
+     * @param $datarecord_uuid - record uuid or record ID
      * @param $baseurl
      * @param $format
      * @param bool $display_metadata
@@ -785,22 +786,32 @@ class SearchAPIServiceNoConflict
         $display_metadata = false,
         $user = null,
         $flush = false
-    )
-    {
+    ) {
         // ----------------------------------------
 
         // /** @var PermissionsManagementService $pm_service */
         // $pm_service = $this->container->get('odr.permissions_management_service');
 
-
         /** @var DataRecord $datarecord */
-        $datarecord = $this->em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-            array('unique_id' => $datarecord_uuid)
-        );
+        $datarecord = $this->em
+            ->getRepository('ODRAdminBundle:DataRecord')
+            ->findOneBy(
+                array('unique_id' => $datarecord_uuid)
+            );
+
+        if ($datarecord == null) {
+            $datarecord = $this->em
+                ->getRepository('ODRAdminBundle:DataRecord')
+                ->findOneBy(
+                    array('id' => $datarecord_uuid)
+                );
+        }
+
         if ($datarecord == null)
             throw new ODRNotFoundException('Datarecord');
 
         $datarecord_id = $datarecord->getId();
+        $datarecord_uuid = $datarecord->getUniqueId();
 
         $datatype = $datarecord->getDataType();
         if (!$datatype || $datatype->getDeletedAt() != null)
@@ -808,7 +819,6 @@ class SearchAPIServiceNoConflict
 
         if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
             throw new ODRBadRequestException('Only permitted on top-level datarecords');
-
 
         // ----------------------------------------
         // Determine user privileges
@@ -836,7 +846,7 @@ class SearchAPIServiceNoConflict
         $data = $this->cache_service
             ->get('json_record_' . $datarecord_uuid);
 
-        $flush = true;
+        // $flush = true;
         if (!$data || $flush) {
             // Render the requested datarecord
             $data = $this->dre_service->getData(
@@ -1259,7 +1269,14 @@ class SearchAPIServiceNoConflict
      */
     public function performSearch($datatype, $search_key, $user_permissions, $sort_df_id = 0, $sort_ascending = true, $search_as_super_admin = false)
     {
-        throw new ODRException('Please use the regular SearchAPIService instead, this one does not return correct results');
+
+        // ----------------------------------------
+        // This really shouldn't be null, but just in case...
+        if ( is_null($datatype) ) {
+            $search_params = $this->search_key_service->decodeSearchKey($search_key);
+            $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
+        }
+
 
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
@@ -1285,11 +1302,12 @@ class SearchAPIServiceNoConflict
         // Get the base information needed so getSearchArrays() can properly setup the search arrays
         $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
 
-        // Going to need these two arrays to be able to accurately determine which datarecords
-        //  end up matching the query
-        $search_arrays = self::getSearchArrays(array($datatype->getId()), $search_permissions);
+        // Going to need three arrays so mergeSearchResults() can correctly determine which records
+        //  end up matching the search
+        $search_arrays = self::getSearchArrays( array($datatype->getId()), $search_permissions );
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
+        $search_datatree = $search_arrays['search_datatree'];
 
         // An "empty" search run with no criteria needs to return all top-level datarecord ids
         $return_all_results = true;
@@ -1297,94 +1315,114 @@ class SearchAPIServiceNoConflict
         // Need to keep track of the result list for each facet separately...they end up merged
         //  together after all facets are searched on
         $facet_dr_list = array();
-        foreach ($criteria as $facet => $facet_data) {
-            // Need to keep track of the matches for each facet individually
-            $facet_dr_list[$facet] = null;
-            $merge_type = $facet_data['merge_type'];
-            $search_terms = $facet_data['search_terms'];
+        foreach ($criteria as $dt_id => $facet_list) {
+            // Need to keep track of the matches for each datatype individually...
+            $facet_dr_list[$dt_id] = array();
 
-            // For each search term within this facet...
-            foreach ($search_terms as $key => $search_term) {
-                // Don't return all top-level datarecord ids at the end
-                $return_all_results = false;
+            foreach ($facet_list as $facet_num => $facet) {
+                // ...and also keep track of the matches for each facet within this datatype individually
+                $facet_dr_list[$dt_id][$facet_num] = null;
 
-                // ...extract the entity for this search term
-                $entity_type = $search_term['entity_type'];
-                $entity_id = $search_term['entity_id'];
-                /** @var DataType|DataFields $entity */
-                $entity = $hydrated_entities[$entity_type][$entity_id];
+                $facet_type = $facet['facet_type'];
+                $merge_type = $facet['merge_type'];
+                $search_terms = $facet['search_terms'];
 
-                // Run/load the desired query based on the criteria
-                $dr_list = array();
-                if ($key === 'created')
-                    $dr_list = $this->search_service->searchCreatedDate($entity, $search_term['before'], $search_term['after']);
-                else if ($key === 'createdBy')
-                    $dr_list = $this->search_service->searchCreatedBy($entity, $search_term['user']);
-                else if ($key === 'modified')
-                    $dr_list = $this->search_service->searchModifiedDate($entity, $search_term['before'], $search_term['after']);
-                else if ($key === 'modifiedBy')
-                    $dr_list = $this->search_service->searchModifiedBy($entity, $search_term['user']);
-                else if ($key === 'publicStatus')
-                    $dr_list = $this->search_service->searchPublicStatus($entity, $search_term['value']);
-                else {
-                    // Datafield search depends on the typeclass of the field
-                    $typeclass = $entity->getFieldType()->getTypeClass();
+                // For each search term within this facet...
+                foreach ($search_terms as $key => $search_term) {
+                    // Don't return all top-level datarecord ids at the end
+                    $return_all_results = false;
 
-                    if ($typeclass === 'Boolean') {
-                        // Only split from the text/number searches to avoid parameter confusion
-                        $dr_list = $this->search_service->searchBooleanDatafield($entity, $search_term['value']);
-                    }
-                    else if ($typeclass === 'Radio' && $facet === 'general') {
-                        // General search only provides a string, and only wants selected radio options
-                        $dr_list = $this->search_service->searchForSelectedRadioOptions($entity, $search_term['value']);
-                    }
-                    else if ($typeclass === 'Radio' && $facet !== 'general') {
-                        // The more specific version of searching a radio datafield provides an array of selected/deselected options
-                        $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
-                    }
-                    else if ($typeclass === 'Tag' && $facet === 'general') {
-                        // General search only provides a string, and only wants selected tags
-                        $dr_list = $this->search_service->searchforSelectedTags($entity, $search_term['value']);
-                    }
-                    else if ($typeclass === 'Tag' && $facet !== 'general') {
-                        // The more specific version of searching a tag datafield provides an array of selected/deselected options
-                        $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
-                    }
-                    else if ($typeclass === 'File' || $typeclass === 'Image') {
-                        // TODO - implement searching based on public status of file/image?
-                        // Searches on Files/Images are effectively interchangable
-                        $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term['filename'], $search_term['has_files']);
-                    }
-                    else if ($typeclass === 'DatetimeValue') {
-                        // DatetimeValue needs to worry about before/after...
-                        $dr_list = $this->search_service->searchDatetimeDatafield($entity, $search_term['before'], $search_term['after']);
+                    // ...extract the entity for this search term
+                    $entity_type = $search_term['entity_type'];
+                    $entity_id = $search_term['entity_id'];
+                    /** @var DataType|DataFields $entity */
+                    $entity = $hydrated_entities[$entity_type][$entity_id];
+
+                    // Run/load the desired query based on the criteria
+                    $dr_list = array();
+                    if ($key === 'created')
+                        $dr_list = $this->search_service->searchCreatedDate($entity, $search_term['before'], $search_term['after']);
+                    else if ($key === 'createdBy')
+                        $dr_list = $this->search_service->searchCreatedBy($entity, $search_term['user']);
+                    else if ($key === 'modified')
+                        $dr_list = $this->search_service->searchModifiedDate($entity, $search_term['before'], $search_term['after']);
+                    else if ($key === 'modifiedBy')
+                        $dr_list = $this->search_service->searchModifiedBy($entity, $search_term['user']);
+                    else if ($key === 'publicStatus')
+                        $dr_list = $this->search_service->searchPublicStatus($entity, $search_term['value']);
+                    else if ( isset($hydrated_entities['renderPlugin'][$entity_id]) ) {
+                        // The render plugin is already loaded, stored by the id of the datafield
+                        //  that is using it
+                        $tmp = $hydrated_entities['renderPlugin'][$entity_id];
+                        /** @var SearchPluginInterface $rp */
+                        $rp = $tmp['renderPlugin'];
+                        $rpo = $tmp['renderPluginOptions'];
+
+                        // The plugin will return the same format that the regular searches do
+                        $dr_list = $rp->searchPluginField($entity, $search_term, $rpo);
                     }
                     else {
-                        // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
-                        $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
+                        // Datafield search depends on the typeclass of the field
+                        $typeclass = $entity->getFieldType()->getTypeClass();
+
+                        if ($typeclass === 'Boolean') {
+                            // Only split from the text/number searches to avoid parameter confusion
+                            $dr_list = $this->search_service->searchBooleanDatafield($entity, $search_term['value']);
+                        }
+                        else if ($typeclass === 'Radio' && $facet_type === 'general') {
+                            // General search only provides a string, and only wants selected radio options
+                            $dr_list = $this->search_service->searchForSelectedRadioOptions($entity, $search_term['value']);
+                        }
+                        else if ($typeclass === 'Radio' && $facet_type !== 'general') {
+                            // The more specific version of searching a radio datafield provides an array of selected/deselected options
+                            $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                        }
+                        else if ($typeclass === 'Tag' && $facet_type === 'general') {
+                            // General search only provides a string, and only wants selected tags
+                            $dr_list = $this->search_service->searchForSelectedTags($entity, $search_term['value']);
+                        }
+                        else if ($typeclass === 'Tag' && $facet_type !== 'general') {
+                            // The more specific version of searching a tag datafield provides an array of selected/deselected options
+                            $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                        }
+                        else if ($typeclass === 'File' || $typeclass === 'Image') {
+                            // TODO - implement searching based on public status of file/image?
+                            // Searches on Files/Images are effectively interchangable
+                            $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term['filename'], $search_term['has_files']);
+                        }
+                        else if ($typeclass === 'DatetimeValue') {
+                            // DatetimeValue needs to worry about before/after...
+                            $dr_list = $this->search_service->searchDatetimeDatafield($entity, $search_term['before'], $search_term['after']);
+                        }
+                        else {
+                            // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
+                            $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
+                        }
                     }
-                }
 
 
-                // ----------------------------------------
-                // Need to merge this result with the existing matches for this facet
-                if ($merge_type === 'OR') {
-                    if ( is_null($facet_dr_list[$facet]) )
-                        $facet_dr_list[$facet] = array();
+                    // ----------------------------------------
+                    // Need to merge this result with the existing matches for this facet
+                    if ($merge_type === 'OR') {
+                        if ( is_null($facet_dr_list[$dt_id][$facet_num]) )
+                            $facet_dr_list[$dt_id][$facet_num] = array();
 
-                    // Merging by 'OR' criteria...every datarecord returned from the search matches
-                    foreach ($dr_list['records'] as $dr_id => $num)
-                        $facet_dr_list[$facet][$dr_id] = $num;
-                }
-                else {
-                    // Merging by 'AND' criteria...if this is the first (or only) criteria...
-                    if ( is_null($facet_dr_list[$facet]) ) {
-                        // ...use the datarecord list returned by the first search
-                        $facet_dr_list[$facet] = $dr_list['records'];
+                        // When merging by 'OR', every datarecord returned by the SearchService
+                        //  functions ends up matching
+                        foreach ($dr_list['records'] as $dr_id => $num)
+                            $facet_dr_list[$dt_id][$facet_num][$dr_id] = $num;
                     }
                     else {
-                        // Otherwise, intersect the list returned by the search with the existing list
-                        $facet_dr_list[$facet] = array_intersect_key($facet_dr_list[$facet], $dr_list['records']);
+                        // When merging by 'AND'...if this is the first (or only) facet of criteria...
+                        if ( is_null($facet_dr_list[$dt_id][$facet_num]) ) {
+                            // ...use the datarecord list returned by the first SearchService call
+                            $facet_dr_list[$dt_id][$facet_num] = $dr_list['records'];
+                        }
+                        else {
+                            // ...otherwise, intersect the list returned by the search with the
+                            //  currently stored list
+                            $facet_dr_list[$dt_id][$facet_num] = array_intersect_key($facet_dr_list[$dt_id][$facet_num], $dr_list['records']);
+                        }
                     }
                 }
             }
@@ -1392,70 +1430,134 @@ class SearchAPIServiceNoConflict
 
 
         // ----------------------------------------
-        // In most cases, there will be a number of different datarecord lists by this point...
-        if (!$return_all_results) {
-            // Perform the final merge, getting all facets down into a single list of matching datarecords
-            $final_dr_list = null;
-            foreach ($facet_dr_list as $facet => $dr_list) {
-                if (is_null($final_dr_list))
-                    $final_dr_list = $dr_list;
-                else
-                    $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
-            }
-
-            // Need to transfer the values from $facet_dr_list into $flattened_list...
-            if (!is_null($final_dr_list)) {
-                foreach ($final_dr_list as $dr_id => $num) {
-                    // ...but only if they're not excluded because of public status
-                    if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
-                        $flattened_list[$dr_id] = 1;
-                }
-            }
-            else if (count($criteria) === 0) {
-                // If a search was run without criteria, then everything that the user can see
-                //  matches the search
-                foreach ($flattened_list as $dr_id => $num) {
-                    if ($num >= -1)
-                        $flattened_list[$dr_id] = 1;
-                }
+        // Now that the individual search queries have been run...
+        if ( $return_all_results ) {
+            // When no search criteria is specified, then every datarecord that the user can see
+            //  needs to be marked as "matching" the search
+            foreach ($flattened_list as $dr_id => $num) {
+                if ( !($num & SearchAPIService::CANT_VIEW) )
+                    $flattened_list[$dr_id] |= SearchAPIService::MATCHES_BOTH;
             }
         }
         else {
-            // ...but when no search criteria was specified, then every datarecord that the user
-            // can see needs to be marked as "matching" the search
-            foreach ($flattened_list as $dr_id => $num) {
-                if ($num >= -1)
-                    $flattened_list[$dr_id] = 1;
+            // Determine whether a 'general' search was executed...
+            $was_general_seach = false;
+            if ( isset($facet_dr_list['general']) )
+                $was_general_seach = true;
+
+            // Determine whether an 'advanced' search was executed...
+            $was_advanced_search = false;
+            foreach ($facet_dr_list as $key => $facet_list) {
+                // ...then just need to save that an advanced search was run
+                if ( is_numeric($key) && !empty($facet_list) ) {
+                    $was_advanced_search = true;
+                    break;
+                }
             }
+
+            // ...if both types of searches were executed, then the merging algorithm needs to
+            //  separately track which type of search each record matched (they could match both too)
+            $differentiate_search_types = $was_general_seach && $was_advanced_search;
+            self::mergeSearchResults($criteria, true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
 
         // ----------------------------------------
-        // Need to transfer the values from $flattened_list into the tree structure of $inflated_list
-        self::mergeSearchArrays($flattened_list, $inflated_list);
+        // If the user needs a list of datarecords that includes child/linked descendants...
+        if ( $return_complete_list ) {
+            // ...then traverse $inflated_list to get the final set of datarecords that match the search
+            $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
+            $datarecord_ids = array_keys($datarecord_ids);
 
-        // Traverse $inflated_list to get the final set of datarecords that match the search
-        $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
-        $datarecord_ids = array_keys($datarecord_ids);
+            // There's no correct method to sort this list, so might as well return immediately
+            return $datarecord_ids;
+        }
 
-        // Traverse the top-level of $inflated_list to get the grandparent datarecords that match
-        //  the search
+
+        // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
+        //  search...can traverse the top-level of $inflated list for that
         $grandparent_ids = array();
         if ( isset($inflated_list[$datatype->getId()]) ) {
             foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
-                if ($flattened_list[$gp_id] == 1)
+                if ( ($flattened_list[$gp_id] & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
                     $grandparent_ids[] = $gp_id;
             }
         }
 
 
-        // Sort the resulting array
+        // Sort the resulting array if any results were found
         $sorted_datarecord_list = array();
         if ( !empty($grandparent_ids) ) {
-            if ($sort_df_id === 0)
-                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
-            else
-                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
+            $source_dt_id = $datatype->getId();
+            $grandparent_ids_for_sorting = implode(',', $grandparent_ids);
+
+            // Want to use SortService::getSortedDatarecordList() unless the provided sort datafields
+            //  or directions are different from the datatype's default sort order
+            $has_sortfields = false;
+            $is_default_sort_order = true;
+            foreach ($sort_directions as $num => $dir) {
+                if ( $dir !== 'asc' )
+                    $is_default_sort_order = false;
+            }
+            foreach ($datatype->getSortFields() as $display_order => $df) {
+                $has_sortfields = true;
+                if ( !isset($sort_datafields[$display_order]) || $df->getId() !== $sort_datafields[$display_order] )
+                    $is_default_sort_order = false;
+            }
+            if ( $has_sortfields && $is_default_sort_order )
+                $sort_datafields = $sort_directions = array();
+
+            // ----------------------------------------
+            if ( empty($sort_datafields) ) {
+                // No sort datafields defined for this request, use the datatype's default ordering
+                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($source_dt_id, $grandparent_ids_for_sorting);
+            }
+            else if ( count($sort_datafields) === 1 ) {
+                // If the user wants to only use one datafield for sorting, then it's better to call
+                //  the relevant functions in SortService directly
+                $sort_df_id = $sort_datafields[0];
+                $sort_dir = $sort_directions[0];
+
+                if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) ) {
+                    // The sort datafield belongs to the datatype being searched on
+                    $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_dir, $grandparent_ids_for_sorting);
+                }
+                else {
+                    // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
+                    $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_dir, $grandparent_ids_for_sorting);
+                }
+            }
+            else {
+                // If more than one datafield is needed for sorting, then multisort has to be used
+                $linked_datafields = array();
+                $numeric_datafields = array();
+
+                foreach ($sort_datafields as $display_order => $sort_df_id) {
+                    // It's easier to determine whether this is a linked field or not here instead
+                    //  of inside the multisort function
+                    if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) )
+                        $linked_datafields[$display_order] = false;
+                    else
+                        $linked_datafields[$display_order] = true;
+
+                    // Same deal with whether the datafield is an integer/decimal field or not
+                    foreach ($searchable_datafields as $sort_df_dt_id => $fields) {
+                        // The field may not belong to $source_dt_id...
+                        if ( isset($fields[$sort_df_id]) ) {
+                            $typeclass = $fields[$sort_df_id]['typeclass'];
+                            if ( $typeclass === 'IntegerValue' || $typeclass === 'DecimalValue' )
+                                $numeric_datafields[$display_order] = true;
+                            else
+                                $numeric_datafields[$display_order] = false;
+
+                            // Don't continue looking for this field
+                            break;
+                        }
+                    }
+                }
+
+                $sorted_datarecord_list = $this->sort_service->multisortDatarecordList($source_dt_id, $sort_datafields, $sort_directions, $linked_datafields, $numeric_datafields, $grandparent_ids_for_sorting);
+            }
 
             // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
             $sorted_datarecord_list = array_keys($sorted_datarecord_list);
@@ -1463,16 +1565,9 @@ class SearchAPIServiceNoConflict
 
 
         // ----------------------------------------
-        // Save/return the end result
-        $search_result = array(
-            'complete_datarecord_list' => $datarecord_ids,
-            'grandparent_datarecord_list' => $sorted_datarecord_list,
-        );
-
-        // There's not really any need or point to caching the end result
-        return $search_result;
+        // There's no point to caching the end result...it depends heavily on the user's permissions
+        return $sorted_datarecord_list;
     }
-
 
     /**
      * Extracts all datafield/datatype entities listed in $criteria, and returns them as hydrated

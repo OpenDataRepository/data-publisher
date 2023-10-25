@@ -2297,7 +2297,8 @@ h3 .DatatypeTools,
 
 .ODRResults .AccordionSelect {
     float: right;
-    margin-right: 38px !important;
+    margin-top: -4px;
+    margin-right: 4px !important;
     max-width: 350px;
     padding: 4px 4px 2px 4px !important;
     height: 32px !important;
@@ -3273,6 +3274,7 @@ form .row {
 }
 .ODRFileImageHeader_hidden_design {
     /* don't actually want to hide the header in the design page... */
+    opacity: 40%;
     box-shadow: 0 0 4px 4px rgba(255,0,0,0.7);
 }
 
@@ -3292,7 +3294,8 @@ form .row {
     flex: 0 0 auto;
 
     width: 4px;
-    display: inline-block;
+    /* display: inline-block; */
+    display: none;
     cursor: default;
 }
 .ODRFileSpacer_public {

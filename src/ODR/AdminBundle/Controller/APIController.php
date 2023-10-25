@@ -6076,6 +6076,8 @@ class APIController extends ODRCustomController
 
 
     /**
+     * Retrieves a dataset record by the record UUID
+     *
      * @param string $version
      * @param string $record_uuid
      * @param Request $request
@@ -6210,7 +6212,8 @@ class APIController extends ODRCustomController
     }
 
     /**
-     * Renders and returns the json/XML version of the given DataRecord.
+     * Renders and returns the json/XML version of the
+     * given DataRecord.
      *
      * @param $version
      * @param $record_uuid
@@ -6218,8 +6221,9 @@ class APIController extends ODRCustomController
      * @param null $user
      * @return Response
      */
-    public function getDatarecordExportAction($version, $record_uuid, Request $request, $user = null)
-    {
+    public function getDatarecordExportAction(
+        $version, $record_uuid, Request $request, $user = null
+    ) {
         try {
             // ----------------------------------------
             // Default to only showing all info about the datarecord

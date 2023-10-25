@@ -882,6 +882,196 @@ class FacadeController extends Controller
 
     }
 
+
+    /**
+     * @param $version
+     * @param $ima_uuid
+     * @param $cell_params_uuid
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRNotFoundException
+     */
+    public function IMAListRebuildAction($version, Request $request) {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Determine API URL for record lists
+            /*
+                mineral_list: 'web/uploads/mineral_list.js'
+                cell_params: 'web/uploads/cell_params.js'
+                cell_params_range: 'web/uploads/cell_params_range.js'
+                cell_params_synonyms: 'web/uploads/cell_params_synonyms.js'
+                tag_data: 'web/uploads/master_tag_data.js'
+            */
+            $baseurl = $this->container->getParameter('baseurl_no_prefix');
+            $job_data = array(
+                'base_url' => $baseurl,
+                'ima_uuid' => $this->container->getParameter('ima_uuid'),
+                'cell_params_uuid' => $this->container->getParameter('cell_params_uuid'),
+                'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid'),
+                'powder_diffraction_search_key' => $this->container->getParameter('powder_diffraction_search_key'),
+                'mineral_list' => $this->container->getParameter('mineral_list'),
+                'cell_params' => $this->container->getParameter('cell_params'),
+                'cell_params_range' => $this->container->getParameter('cell_params_range'),
+                'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
+                'tag_data' => $this->container->getParameter('tag_data')
+            );
+
+            // Get the pheanstalk queue
+            $pheanstalk = $this->get('pheanstalk');
+
+            $ima_url = $this->generateUrl(
+                'odr_api_datarecord_list',
+                array(
+                    'datatype_uuid' => $job_data['ima_uuid'],
+                    'version' => 'v4'
+                )
+            );
+            $ima_url = $baseurl . $ima_url;
+
+            $cell_params_url = $this->generateUrl(
+                'odr_api_datarecord_list',
+                array(
+                    'datatype_uuid' => $job_data['cell_params_uuid'],
+                    'version' => 'v4'
+                )
+            );
+            $cell_params_url = $baseurl . $cell_params_url;
+
+            $powder_diffraction_url = $this->generateUrl(
+                'odr_search_api_general_search',
+                array(
+                    'search_key' => $job_data['powder_diffraction_search_key'],
+                    // 'datatype_uuid' => $job_data['rruff_database_uuid'],
+                    'limit' => 0,
+                    'offset' => 0,
+                    'version' => 'v4',
+                    'return_as_list' => 1
+                )
+            );
+            $powder_diffraction_url = $baseurl . $powder_diffraction_url;
+
+            $job_data['ima_url'] = $ima_url;
+            $job_data['cell_params_url'] = $cell_params_url;
+            $job_data['powder_diffraction_url'] = $powder_diffraction_url;
+
+            $job_data['cell_params_map'] = $this->container->getParameter('cell_params_map');
+            $job_data['powder_diffraction_map'] = $this->container->getParameter('powder_diffraction_map');
+
+            // Add record to pheanstalk queue
+            $payload = json_encode($job_data);
+
+            $pheanstalk->useTube('odr_ima_data_builder')->put($payload);
+            // Wrap array for JSON compliance
+            $output = array("done" => true );
+
+            return new JsonResponse($output);
+        }
+        catch(\Exception $e) {
+            print $e->getMessage(); exit();
+        }
+
+    }
+
+
+    /**
+     *
+     * Search an individual datatype via the API
+     *
+     * @param $version
+     * @param $limit
+     * @param $offset
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
+    public function datasetSearchAction(
+        $version,
+        $search_key,
+        $limit,
+        $offset,
+        $return_as_list = false,
+        Request $request
+    ) {
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        $params = json_decode(base64_decode($search_key), true);
+
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array(
+                'id' => $params['dt_id']
+            )
+        );
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $this->container->get('odr.search_api_service');
+        $baseurl = $this->container->getParameter('site_baseurl');
+        // $records = $search_api_service->performSearch($datatype, $baseurl, $params);
+        $records = $search_api_service->performSearch(
+            $datatype,
+            $search_key,
+            array(),
+            false,
+            array(),
+            array(),
+            false,
+            true
+        );
+
+        // Flatten the associative array
+        $records = array_values($records);
+
+        // Slice for Limit/Offset
+        if($limit > 0) {
+            $records = array_slice($records, $offset, $limit);
+        }
+        $search_api_service_nc = $this->container->get('odr.search_api_service_no_conflict');
+
+        $output_data = [];
+        if(!$return_as_list) {
+            foreach($records as $record) {
+                $record_data = $search_api_service_nc->getRecordData(
+                    'v3',
+                    $record, // should be the record_id
+                    $baseurl,
+                    'json',
+                    true,
+                    null,
+                    false
+                );
+                $output_data[] = json_decode($record_data);
+            }
+        }
+        else {
+            $output_data = $records;
+        }
+
+        // Wrap array for JSON compliance
+        $output = array(
+            'count' => count($output_data),
+            'records' => $output_data
+        );
+        return new JsonResponse($output);
+
+    }
+
+
+    /**
+     * @param $version
+     * @param $limit
+     * @param $offset
+     * @param Request $request
+     * @return JsonResponse
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
     public function searchTemplatePostOptimizedAction($version, $limit, $offset, Request $request) {
 
         /** @var \Doctrine\ORM\EntityManager $em */
