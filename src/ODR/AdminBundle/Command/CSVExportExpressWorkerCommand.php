@@ -56,7 +56,6 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
         // TODO - generate a random number to use for identifying a file
         $tokenGenerator = $container->get('fos_user.util.token_generator');
-        $random_id = substr($tokenGenerator->generateToken(), 0, 8);
 
         // Run command until manually stopped
         while (true) {
@@ -64,7 +63,6 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
             try {
                 // Wait for a job?
                 $job = $pheanstalk->watch('csv_export_worker_express')->ignore('default')->reserve();
-                $output->writeln( 'Job' );
 
                 // Get Job Data
                 $data = json_decode($job->getData());
@@ -77,6 +75,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                 $output->writeln($data->url);
 
                 // TODO - determine filename
+                $random_id = substr($tokenGenerator->generateToken(), 0, 8);
                 $random_key = $random_id.'_'.$data->datatype_id.'_'.$data->tracked_job_id;
 
                 // Create the required url and the parameters to send
@@ -541,6 +540,10 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                     $delay = 0.500; // 500ms delay
                     $pheanstalk->useTube('csv_export_express_finalize')->put($payload, $priority, $delay);
                 }
+
+
+                // Close the connection to prevent stale handles
+                $em->getConnection()->close();
 
                 // Dealt with (or ignored) the job
                 $pheanstalk->delete($job);

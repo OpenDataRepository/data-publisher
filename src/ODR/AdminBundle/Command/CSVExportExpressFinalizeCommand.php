@@ -36,6 +36,8 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $output->writeln( 'CSV Express Export Finalize Start' );
+
         // Only need to load these once...
         $container = $this->getContainer();
         $logger = $container->get('logger');
@@ -121,6 +123,10 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
                     $em->flush();
                 }
                 fclose($final_file);
+
+
+                // Close the connection to prevent stale handles
+                $em->getConnection()->close();
 
                 // Dealt with (or ignored) the job
                 $pheanstalk->delete($job);
