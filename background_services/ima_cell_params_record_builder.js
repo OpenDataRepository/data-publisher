@@ -88,8 +88,8 @@ async function app() {
                         // The array key is the IMA Mineral UUID
                         let ima_record = await findRecordByTemplateUUID(record_data['records_' + cp_map.template_uuid],cp_map.ima_template_uuid);
                         content += 'cellparams[\'' +
-                            // ima_record.record_uuid +
-                            await findValue(cp_map.mineral_name, record_data)
+                            ima_record.record_uuid +
+                            // await findValue(cp_map.mineral_name, record_data) +
                             '\'].push("' +
                             // Source
                             await 'R|' +
@@ -148,8 +148,8 @@ async function app() {
                         console.log('Processing Powder Diffraction Record');
                         let ima_record = await findRecordByTemplateUUID(record_data['records_' + pd_map.template_uuid],cp_map.ima_template_uuid);
                         content += 'cellparams[\'' +
-                            // ima_record.record_uuid +
-                            await findValue(pd_map.mineral_name, record_data)
+                            ima_record.record_uuid +
+                            // await findValue(pd_map.mineral_name, record_data) +
                             '\'].push("' +
                             // Source
                             'R|' +

@@ -109,6 +109,16 @@ async function app() {
                         '\';';
 
                     content += '' +
+                        'mineral_name_keys[\'' +
+                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            // Mineral Name
+                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                        '\']=\'' +
+                            // Mineral ID
+                            record_data.record_uuid +
+                        '\';';
+
+                    content += '' +
                         'mineral_data_array[' +
                             // Mineral ID
                             '\'' + record_data.record_uuid + '\'' +

@@ -66,6 +66,7 @@ async function app() {
                     let content = '' +
                         'var mineral_data_array = new Array();\n' +
                         'var mineral_keys = new Array();\n' +
+                        'var mineral_name_keys = new Array();\n' +
                         'let minerals_by_name = [];\n';
 
                     // console.log('WriteFile Init');
@@ -88,8 +89,8 @@ async function app() {
                     // Send jobs to IMA Tube
                     //
                     let cell_params_headers = '';
-                    for(let i = 0; i < 10; i++) {
-                    // for(let i = 0; i < 100; i++) {
+                    // for(let i = 0; i < 10; i++) {
+                    for(let i = 0; i < 100; i++) {
                     // for(let i = 0; i < ima_record_data.records.length; i++) {
                         let record = ima_record_data['records'][i];
                         /*
@@ -144,8 +145,8 @@ async function app() {
                     //
                     // Send jobs to Cell Params Tube
                     //
-                    for(let i = 0; i < 10; i++) {
-                    // for(let i = 0; i < 100; i++) {
+                    // for(let i = 0; i < 10; i++) {
+                    for(let i = 0; i < 100; i++) {
                     // for(let i = 0; i < cell_params_record_data.records.length; i++) {
                         let record = cell_params_record_data['records'][i];
                         /*
@@ -192,8 +193,8 @@ async function app() {
                     // Send to Powder Diffraction Tube
                     //
                     // console.log('PD Records:', powder_diffraction_record_data.records.length);
-                    for(let i = 0; i < 10; i++) {
-                    // for(let i = 0; i < 100; i++) {
+                    // for(let i = 0; i < 10; i++) {
+                    for(let i = 0; i < 300; i++) {
                     // for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
                         let record = powder_diffraction_record_data.records[i];
                         record.cell_params_index = i;
