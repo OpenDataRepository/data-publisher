@@ -519,7 +519,7 @@ Forms Core
 .pure-skin-odr .pure-form label {
     margin: 0.3em 0 0.1em;
     /* color: #878787; */
-    font-size: 80%;
+    /* font-size: 80%;  /* MOD NAS 20231030 */
 }
 .pure-skin-odr .pure-form fieldset {
     margin: 0;
@@ -2888,7 +2888,7 @@ form .row {
 
 
 .ODRResults label {
-    font-size: 0.96em;
+    font-size: 0.96em !important;
     font-weight: bold;
     padding-left: 0.5em;
 }
@@ -2898,7 +2898,7 @@ form .row {
     margin: 0 0 2px 0;
     min-height: 1em;
     line-height: normal;
-    font-size: 12.8px;
+    font-size: 0.96em;
 }
 
 /*
@@ -4315,6 +4315,7 @@ i {
     font-size: 12px;
     font-weight: 600;
     color: #3b8bba;
+    margin-left: 0;
 }
 
 #ODRMessageList i {
@@ -4329,7 +4330,8 @@ i {
     position: relative;
     background: rgba(0,0,255, 0.04);
     padding: 8px;
-    margin-left: -30px;
+    max-width: 96%;
+    margin-left: 2%;
     margin-right: 8px;
     margin-top: 6px;
     border-radius: 6px;
@@ -4347,7 +4349,7 @@ i {
 
 #ODRMessageList .JobDownloadLink {
     position: absolute;
-    top: 25px;
+    top: -12px;
     right: 10px;
     width: 137px;
 }
