@@ -95,7 +95,6 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
                 /** @var \Doctrine\ORM\EntityManager $em */
                 $em = $container->get('doctrine')->getManager();
 
-
                 // -----------------------------------------
                 // Append the contents of one of the temporary files to the final file
                 $csv_export_path = $container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
@@ -107,7 +106,7 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
                 $tracked_csv_export_id = null;
                 foreach ($random_keys as $tracked_csv_export_id => $random_key) {
                     $tmp_filename = 'f_'.$random_key.'.csv';
-                    $output->writeln('Appending fine: ' . $tmp_filename);
+                    $output->writeln('Appending file: ' . $tmp_filename);
                     $str = file_get_contents($csv_export_path.$tmp_filename);
 
                     if ( fwrite($final_file, $str) === false )

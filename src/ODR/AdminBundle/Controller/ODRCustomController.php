@@ -600,8 +600,16 @@ class ODRCustomController extends Controller
      *
      * @return TrackedJob
      */
-    protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
-    {
+    protected function ODR_getTrackedJob(
+        $em,
+        $user,
+        $job_type,
+        $target_entity,
+        $additional_data,
+        $restrictions,
+        $total,
+        $reuse_existing = false
+    ) {
         // TODO - this way this is called technically allows one user to overwrite another job
         // TODO - ...at least, if the job is stalled for some reason
 

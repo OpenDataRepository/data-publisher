@@ -62,7 +62,8 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-                $job = $pheanstalk->watch('csv_export_worker_express')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('csv_export_worker_express')
+                    ->ignore('default')->reserve();
 
                 // Get Job Data
                 $data = json_decode($job->getData());
@@ -94,6 +95,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                     'complete_datarecord_list' => $data->complete_datarecord_list,
                     'datafields' => $data->datafields,
 
+                    'job_order' => $data->job_order,
                     'api_key' => $data->api_key,
                     'random_key' => $random_key,
                 );
@@ -107,6 +109,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                     || !isset($parameters['complete_datarecord_list'])
                     || !isset($parameters['datafields'])
 
+                    || !isset($parameters['job_order'])
                     || !isset($parameters['api_key'])
                     || !isset($parameters['random_key'])
                 ) {
@@ -125,8 +128,8 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                 $api_key = $parameters['api_key'];
                 $random_key = $parameters['random_key'];
 
-                // Don't need to do any additional verification on these...that was handled back in
-                //  csvExportStartAction()
+                // Don't need to do any additional verification on these...
+                // that was handled back in csvExportStartAction()
                 $delimiters = array(
                     'base' => $parameters['delimiter'],
                     'file' => null,
@@ -140,6 +143,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
                 if ( isset($parameters['radio_delimiter']) )
                     $delimiters['radio'] = $parameters['radio_delimiter'];
+
                 if ( $delimiters['radio'] === 'space' )
                     $delimiters['radio'] = ' ';
 
@@ -148,16 +152,6 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
                 if ( isset($parameters['tag_hierarchy_delimiter']) )
                     $delimiters['tag_hierarchy'] = $parameters['tag_hierarchy_delimiter'];
-
-
-
-                // // Load symfony objects
-                // $beanstalk_api_key = $container->getParameter('beanstalk_api_key');
-                // /** @var Pheanstalk $pheanstalk */
-                // $pheanstalk = $this->get('pheanstalk');
-//
-                // if ($api_key !== $beanstalk_api_key)
-                    // throw new ODRBadRequestException();
 
 
                 /** @var \Doctrine\ORM\EntityManager $em */
@@ -199,7 +193,6 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                 // Perform filtering before attempting to find anything else
                 $user_permissions = $pm_service->getUserPermissionsArray($user);
                 $dt_array = $dbi_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
-
 
                 // ----------------------------------------
                 // Gather basic info about all datafields prior to actually loading data
@@ -340,23 +333,25 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                 if ($tracked_csv_export == null) {
                     $query =
                         'INSERT INTO odr_tracked_csv_export 
-                            (random_key, tracked_job_id, finalize)
+                            (random_key, tracked_job_id, finalize, job_order)
                             SELECT * FROM (SELECT :random_key AS random_key, 
-                                :tj_id AS tracked_job_id, :finalize AS finalize) AS tmp
+                                :tj_id AS tracked_job_id, :finalize AS finalize, 
+                                :job_order as job_order) AS tmp
                             WHERE NOT EXISTS (
                                 SELECT random_key FROM odr_tracked_csv_export 
                                 WHERE random_key = :random_key AND tracked_job_id = :tj_id
+                                AND job_order = :job_order
                             ) LIMIT 1;';
                     $params = array(
                         'random_key' => $random_key,
                         'tj_id' => $tracked_job_id,
-                        'finalize' => 0
+                        'finalize' => 0,
+                        'job_order' => $parameters['job_order']
                     );
                     $conn = $em->getConnection();
                     $rowsAffected = $conn->executeUpdate($query, $params);
-                    $output->writeln('Rows Affected (Random Key): ' . $rowsAffected);
+                    $output->writeln('Rows Affected (Random Key): ' . $rowsAffected . ' - ' . $parameters['job_order']);
 
-                    //print 'rows affected: '.$rowsAffected."\n";
                 }
 
                 // Ensure directories exists
@@ -431,7 +426,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                         'SELECT tce.id AS id, tce.random_key AS random_key
                             FROM ODRAdminBundle:TrackedCSVExport AS tce
                             WHERE tce.trackedJob = :tracked_job AND tce.finalize = 0
-                            ORDER BY tce.id'
+                            ORDER BY tce.job_order asc'
                     )->setParameters( array('tracked_job' => $tracked_job_id) );
                     $results = $query->getArrayResult();
 

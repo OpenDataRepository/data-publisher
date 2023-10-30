@@ -24,6 +24,11 @@ ODR\AdminBundle\Entity\TrackedCSVExport:
             nullable: false
             default: false
 
+        job_order:
+            type: integer
+            unsigned: false
+            nullable: true
+
     manyToOne:
         trackedJob:
             targetEntity: TrackedJob

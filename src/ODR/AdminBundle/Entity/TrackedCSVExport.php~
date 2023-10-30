@@ -121,4 +121,33 @@ class TrackedCSVExport
     {
         return $this->trackedJob;
     }
+    /**
+     * @var int|null
+     */
+    private $order;
+
+
+    /**
+     * Set order.
+     *
+     * @param int|null $order
+     *
+     * @return TrackedCSVExport
+     */
+    public function setOrder($order = null)
+    {
+        $this->order = $order;
+
+        return $this;
+    }
+
+    /**
+     * Get order.
+     *
+     * @return int|null
+     */
+    public function getOrder()
+    {
+        return $this->order;
+    }
 }
