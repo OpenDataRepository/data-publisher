@@ -135,6 +135,20 @@ class UpdateDataFieldsForm extends AbstractType
         );
 
 
+        if ( $current_typeclass == 'ShortVarchar' || $current_typeclass == 'MediumVarchar'
+            || $current_typeclass == 'LongVarchar' || $current_typeclass == 'LongText'
+        ) {
+            $builder->add(
+                'force_numeric_sort',
+                CheckboxType::class,
+                array(
+                    'label' => 'Always sort numerically',
+                    'required' => false
+                )
+            );
+        }
+
+
         if ( $current_typeclass == 'Boolean' || $current_typeclass == 'DatetimeValue'
             || $current_typeclass == 'IntegerValue' || $current_typeclass == 'DecimalValue'
             || $current_typeclass == 'ShortVarchar' || $current_typeclass == 'MediumVarchar'

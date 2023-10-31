@@ -449,6 +449,7 @@ class ValidationController extends ODRCustomController
 
                     $dfm->setMarkdownText('');
                     $dfm->setIsUnique(false);
+                    $dfm->setForceNumericSort(false);
                     $dfm->setRequired(false);
                     $dfm->setPreventUserEdits(false);
                     $dfm->setSearchable(DataFields::NOT_SEARCHED);

@@ -879,6 +879,16 @@ class DataFields
     }
 
     /**
+     * Get force_numeric_sort
+     *
+     * @return boolean
+     */
+    public function getForceNumericSort()
+    {
+        return $this->getDataFieldMeta()->getForceNumericSort();
+    }
+
+    /**
      * Get preventUserEdits.
      *
      * @return bool

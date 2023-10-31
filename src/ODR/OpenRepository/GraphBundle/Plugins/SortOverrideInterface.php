@@ -13,18 +13,16 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// Entities
-use ODR\AdminBundle\Entity\DataFields;
-
 interface SortOverrideInterface
 {
 
     /**
-     * Sorts the specified datafield TODO
+     * Returns whether SortService should use the "value" or the "converted_value" to sort the
+     * given datafield.
      *
-     * @param DataFields $datafield
+     * @param array $render_plugin_options
      *
-     * @return array
+     * @return boolean
      */
-    public function sortPluginField($datafield);
+    public function useConvertedValue($render_plugin_options);
 }

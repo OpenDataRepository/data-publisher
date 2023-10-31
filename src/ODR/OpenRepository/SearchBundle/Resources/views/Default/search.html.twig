@@ -204,6 +204,24 @@
             }
         });
 
+        $(".ODRPluginSearchField").each(function(index,elem) {
+            var id = '#' + $(elem).attr("id");
+            var main_value = $(id + "_main").val();
+            var alt_value = $(id + "_alt").val();
+
+            if ( alt_value === '' ) {
+                $(elem).val(main_value);
+            }
+            else {
+                var new_value = '';
+                if ( main_value !== '' )
+                    new_value = main_value;
+
+                new_value += ":" + alt_value;
+                $(elem).val(new_value);
+            }
+        });
+
 
         var search_form = $(context).find("#search_form");
         // console.log(search_form);

@@ -47,7 +47,8 @@
 
         {% if derivation_error %}
         <div class="pure-u-1">
-            <label id="{{ input_id }}-error" class="ODRInputError" for="{{ input_id }}" style="color: red">It appears as if the value in this field did not get converted properly.</label>
+            <label id="{{ input_id }}-error" {#class="ODRInputError"#} for="{{ input_id }}" style="color: red">It appears as if the value in this field did not get converted properly.</label>
+            {# NOTE: ODRInputError is commented out, because otherwise the validate plugin removes it on any keyup #}
         </div>
         {% endif %}
     </fieldset>

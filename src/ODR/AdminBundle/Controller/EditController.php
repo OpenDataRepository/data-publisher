@@ -1750,6 +1750,11 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $event_dispatcher */
+            $dispatcher = $this->get('event_dispatcher');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityCreationService $ec_service */
@@ -1959,10 +1964,6 @@ class EditController extends ODRCustomController
                         // ----------------------------------------
                         // Fire off an event notifying that the modification of the datafield is done
                         try {
-                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                            /** @var EventDispatcherInterface $event_dispatcher */
-                            $dispatcher = $this->get('event_dispatcher');
                             $event = new DatafieldModifiedEvent($datafield, $user);
                             $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                         }
@@ -1975,10 +1976,6 @@ class EditController extends ODRCustomController
 
                         // Mark this datarecord as updated
                         try {
-                            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-                            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-                            /** @var EventDispatcherInterface $event_dispatcher */
-                            $dispatcher = $this->get('event_dispatcher');
                             $event = new DatarecordModifiedEvent($datarecord, $user);
                             $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                         }
@@ -1988,6 +1985,13 @@ class EditController extends ODRCustomController
 //                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                                throw $e;
                         }
+
+                        // Notify that a change was made
+                        $return['d'] = array('change_made' => true);
+                    }
+                    else {
+                        // Notify that no change was made
+                        $return['d'] = array('change_made' => false);
                     }
                 }
                 else {

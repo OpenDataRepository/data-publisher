@@ -892,8 +892,8 @@ class SearchAPIService
                 'override_search' => true
             );
 
-            // Due to search plugins only being allowed on datafields, the query below does not
-            //  have to use the renderPluginMap table
+            // Due to search_override plugins only being allowed on datafields, the query below does
+            //  not have to use the renderPluginMap table
             $query = $this->em->createQuery(
                'SELECT df.id AS df_id, rp.pluginClassName AS plugin_classname,
                     rpom.value AS rpom_value, rpod.name AS rpod_name

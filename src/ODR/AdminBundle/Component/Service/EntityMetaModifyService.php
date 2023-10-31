@@ -307,6 +307,7 @@ class EntityMetaModifyService
             'phpValidator' => $old_meta_entry->getPhpValidator(),
             'required' => $old_meta_entry->getRequired(),
             'is_unique' => $old_meta_entry->getIsUnique(),
+            'force_numeric_sort' => $old_meta_entry->getForceNumericSort(),
             'prevent_user_edits' => $old_meta_entry->getPreventUserEdits(),
             'allow_multiple_uploads' => $old_meta_entry->getAllowMultipleUploads(),
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
@@ -465,6 +466,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setRequired( $properties['required'] );
         if ( isset($properties['is_unique']) )
             $new_datafield_meta->setIsUnique( $properties['is_unique'] );
+        if ( isset($properties['force_numeric_sort']) )
+            $new_datafield_meta->setForceNumericSort( $properties['force_numeric_sort'] );
         if ( isset($properties['prevent_user_edits']) )
             $new_datafield_meta->setPreventUserEdits( $properties['prevent_user_edits'] );
         if ( isset($properties['allow_multiple_uploads']) )

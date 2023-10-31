@@ -31,11 +31,7 @@ use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
-// Services
-use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatabaseInfoService;
-use ODR\AdminBundle\Component\Service\SortService;
+// Interfaces
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
@@ -44,7 +40,12 @@ use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SortOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\UnitConversionsDef;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -84,6 +85,11 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     private $search_service;
 
     /**
+     * @var SearchQueryService
+     */
+    private $search_query_service;
+
+    /**
      * @var SortService
      */
     private $sort_service;
@@ -107,6 +113,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param SearchService $search_service
+     * @param SearchQueryService $search_query_service
      * @param SortService $sort_service
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -117,6 +124,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         CacheService $cache_service,
         DatabaseInfoService $database_info_service,
         SearchService $search_service,
+        SearchQueryService $search_query_service,
         SortService $sort_service,
         EngineInterface $templating,
         Logger $logger
@@ -126,6 +134,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         $this->cache_service = $cache_service;
         $this->dbi_service = $database_info_service;
         $this->search_service = $search_service;
+        $this->search_query_service = $search_query_service;
         $this->sort_service = $sort_service;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -307,10 +316,28 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      */
     public function executeSearchPlugin($datafield, $render_plugin_instance, $datatype_id, $preset_value, $rendering_options)
     {
-        $options = $render_plugin_instance['renderPluginOptionsMap'];
-        $search_converted = false;
-        if ( $options['search_converted'] === 'yes' )
-            $search_converted = true;
+        // Apparently can't use javascript to determine the preset values for the text inputs, as
+        //  the sidebar won't collapse properly
+        $preset_value_main = $preset_value_alt = '';
+
+        $plugin_options = $render_plugin_instance['renderPluginOptionsMap'];
+
+        if ( $preset_value !== '' ) {
+            if ( strpos($preset_value, ':') === false ) {
+                // If the delimiter isn't in a given preset value, then it goes into the "main" input
+                $preset_value_main = $preset_value;
+            }
+            else {
+                // If the delimiter does exist, then split the preset value apart
+                $preset_values = explode(':', $preset_value);
+
+                // The first value always goes into the "main" input, while the second always goes
+                //  into the "alt" input
+                $preset_value_main = $preset_values[0];
+                $preset_value_alt = $preset_values[1];
+            }
+        }
+
 
         $output = $this->templating->render(
             'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_search_datafield.html.twig',
@@ -319,8 +346,10 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 'datafield' => $datafield,
 
                 'preset_value' => $preset_value,
+                'preset_value_main' => $preset_value_main,
+                'preset_value_alt' => $preset_value_alt,
 
-                'search_converted' => $search_converted,
+                'plugin_options' => $plugin_options,
             )
         );
 
@@ -565,71 +594,142 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     public function searchPluginField($datafield, $search_term, $render_plugin_options)
     {
         // ----------------------------------------
-        // Determine which value the user wanted to search on
-        $search_converted = false;
-        if ( $render_plugin_options['search_converted'] === 'yes' )
-            $search_converted = true;
-
-        // If the user doesn't want to search on the converted value, then just use the default
-        //  search system
-        if ( !$search_converted )
-            return $this->search_service->searchTextOrNumberDatafield($datafield, $search_term['value']);
-
-        // Otherwise, going to have to duplicate parts of the search...
-        throw new ODRNotImplementedException('asdf');    // TODO
-
-
-        // ----------------------------------------
-        // Don't continue if called on the wrong type of datafield
+        // Don't continue if somehow called on the wrong type of datafield
         $allowed_typeclasses = array(
+//            'DecimalValue',
             'ShortVarchar',
         );
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
-            throw new ODRBadRequestException('ChemicalElementsSearchPlugin::searchPluginField() called with '.$typeclass.' datafield', 0xc508f89f);
-
-        // This should already be cached from earlier in the search routine
-        $datarecord_list = $this->search_service->getCachedSearchDatarecordList($datafield->getDataType()->getId());
+            throw new ODRBadRequestException('UnitConversionPlugin::searchPluginField() called with '.$typeclass.' datafield', 0x7a7d1906);
 
 
         // ----------------------------------------
-        // Going to attempt to use the cache system if at all possible
-        $recache = false;
+        // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
             $cached_searches = array();
 
-        // TODO - ...that's a lot of stuff to duplicate for this search
+        // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
+        $value = $search_term['value'];
+        $cache_key = mb_strtolower($value);
+        if ( isset($cached_searches[$cache_key]) )
+            return $cached_searches[$cache_key];
 
 
         // ----------------------------------------
-        // If any database queries had to be made, then save the modifications
-        if ( $recache )
-            $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        // Otherwise, going to need to run the search again...
+        $search_converted = false;
+        if ( $render_plugin_options['search_converted'] === 'yes' )
+            $search_converted = true;
 
-        // Now that the elements have been combined, convert into the format SearchAPIService
-        //  expects...
-        $end_result = array(
-            'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $results
-        );
+        // How to recache the search depends on what the user searched for...
+        $end_result = array();
+        if ( strpos($value, ':') === false ) {
+            // If the user is only doing a default search, then run that directly
+            $result = $this->search_query_service->searchTextOrNumberDatafield(
+                $datafield->getDataType()->getId(),
+                $datafield->getId(),
+                $typeclass,
+                $value,
+                $search_converted    // get whichever value the user wants by default
+            );
 
-        // ...then return the results of the search
+            $end_result = array(
+                'dt_id' => $datafield->getDataType()->getId(),
+                'records' => $result
+            );
+        }
+        else {
+            // If the user wants to search on a specific value, then need to get a bit fancier
+            $values = explode(':', $value);
+
+            $original_value = $converted_value = '';
+            if ( $search_converted ) {
+                // User wants to search on converted values by default, so the first entry is the
+                //  converted value
+                $converted_value = $values[0];
+                $original_value = $values[1];
+            }
+            else {
+                // User wants to search on original values by default, so the first entry is the
+                //  original value
+                $original_value = $values[0];
+                $converted_value = $values[1];
+            }
+
+            // Run the required searches
+            $original_result = $converted_result = null;
+            if ( $original_value !== '' ) {
+                $original_result = $this->search_query_service->searchTextOrNumberDatafield(
+                    $datafield->getDataType()->getId(),
+                    $datafield->getId(),
+                    $typeclass,
+                    $original_value,
+                    false    // get the original value in this field
+                );
+            }
+
+            if ( $converted_value !== '' ) {
+                $converted_result = $this->search_query_service->searchTextOrNumberDatafield(
+                    $datafield->getDataType()->getId(),
+                    $datafield->getId(),
+                    $typeclass,
+                    $converted_value,
+                    true    // get the converted value in this field
+                );
+            }
+
+            // Need to combine the two results together
+            $result = array();
+            if ( is_null($original_result) && is_null($converted_result) ) {
+                // If neither search was run, then treat it as not matching anything
+                $result = array();
+            }
+            else if ( !is_null($original_result) && is_null($converted_result) ) {
+                // Only searched on the original value
+                $result = $original_result;
+            }
+            else if ( is_null($original_result) && !is_null($converted_result) ) {
+                // Only searched on the converted value
+                $result = $converted_result;
+            }
+            else {
+                // Searched on both...take the intersection of both arrays
+                $result = array_intersect_key($original_result, $converted_result);
+            }
+
+            $end_result = array(
+                'dt_id' => $datafield->getDataType()->getId(),
+                'records' => $result
+            );
+        }
+
+
+        // ----------------------------------------
+        // Recache the search result...
+        $cached_searches[$cache_key] = $end_result;
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+
+        // ...then return it
         return $end_result;
     }
 
 
     /**
-     * Sorts the specified datafield TODO
+     * Returns whether SortService should use the "value" or the "converted_value" to sort the
+     * given datafield.
      *
-     * @param DataFields $datafield
+     * @param array $render_plugin_options
      *
-     * @return array
+     * @return boolean
      */
-    public function sortPluginField($datafield)
+    public function useConvertedValue($render_plugin_options)
     {
-        // TODO: Implement sortPluginField() method.
-        throw new ODRNotImplementedException('asdf');
+        if ( isset($render_plugin_options['sort_converted']) && $render_plugin_options['sort_converted'] === 'yes')
+            return true;
+        else
+            return false;
     }
 
 

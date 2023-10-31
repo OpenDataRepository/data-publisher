@@ -1777,16 +1777,19 @@ function SaveRecordData(form_id, interval, datafields_to_reload = []) {
         dataType: "json",
         data: post_data,
         success: function(data, textStatus, xhr) {
-            // Remove any warnings about uniqueness conflicts
-            $(form_id).removeClass('ODRInputError');
-            // Could potentially be a jquery validate error message in here too...since the save
-            //  finished successfully, remove all warning labels
-            $(input_div).children('label').remove();
+            if ( data.d.change_made ) {
+                // Remove any warnings about uniqueness conflicts
+                $(form_id).removeClass('ODRInputError');
+                // Could potentially be a jquery validate error message in here too...since the save
+                //  finished successfully, remove all warning labels
+                $(input_div).children('label').remove();
 
-            $.each(datafields_to_reload, function(index, df_id) {
-                // TODO - should this be a generic callback instead?
-                ReloadEditDatafield(datarecord_id, df_id);
-            });
+                // Only reload the datafields when a change was made
+                $.each(datafields_to_reload, function(index, df_id) {
+                    // TODO - should this be a generic callback instead?
+                    ReloadEditDatafield(datarecord_id, df_id);
+                });
+            }
         },
         error: function(jqXHR, textStatus, errorThrown) {
             if ( jqXHR.status !== 409 ) {

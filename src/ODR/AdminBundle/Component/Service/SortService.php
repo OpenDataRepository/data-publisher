@@ -27,14 +27,21 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\OpenRepository\GraphBundle\Plugins\SortOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
 class SortService
 {
+
+    /**
+     * @var ContainerInterface
+     */
+    private $container;
 
     /**
      * @var EntityManager
@@ -65,6 +72,7 @@ class SortService
     /**
      * SortService constructor.
      *
+     * @param ContainerInterface $container
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param EntityMetaModifyService $entity_meta_modify_service
@@ -72,12 +80,14 @@ class SortService
      * @param Logger $logger
      */
     public function __construct(
+        ContainerInterface $container,
         EntityManager $entity_manager,
         CacheService $cache_service,
         EntityMetaModifyService $entity_meta_modify_service,
         SearchService $search_service,
         Logger $logger
     ) {
+        $this->container = $container;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->emm_service = $entity_meta_modify_service;
@@ -426,6 +436,53 @@ class SortService
         if ( !isset($sorted_datarecord_list[$sort_dir]) ) {
             // The requested list isn't in the cache...need to rebuild it
 
+            // Due to sort_override, the main queries may need to use "e.converted_value" instead of
+            //  "e.value"
+            $use_converted_value = false;
+
+
+            // ----------------------------------------
+            // Due to sort_override plugins only being allowed on datafields, the query below does not
+            //  have to use the renderPluginMap table
+            $query = $this->em->createQuery(
+               'SELECT rp.pluginClassName AS plugin_classname, rpom.value AS rpom_value, rpod.name AS rpod_name
+                FROM ODRAdminBundle:RenderPlugin AS rp
+                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                WHERE rp.overrideSort = :override_sort AND rp.active = 1 AND df.id IN (:datafield_id)
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
+                AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
+                AND df.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'override_sort' => true,
+                    'datafield_id' => $datafield_id,
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // Should never be more than one result...
+            $plugin_classname = null;
+            $render_plugin_options = array();
+            foreach ($results as $result) {
+                $plugin_classname = $result['plugin_classname'];
+                $option_name = $result['rpod_name'];
+                $option_value = $result['rpom_value'];
+
+                if ( !is_null($option_name) )
+                    $render_plugin_options[$option_name] = $option_value;
+            }
+
+            if ( !is_null($plugin_classname) ) {
+                /** @var SortOverrideInterface $plugin */
+                $plugin = $this->container->get($plugin_classname);
+                $use_converted_value = $plugin->useConvertedValue($render_plugin_options);
+            }
+
+
+            // ----------------------------------------
             // Need a list of all datarecords for this datatype
             $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getId());
 
@@ -495,20 +552,40 @@ class SortService
             }
             else {
                 // All other sortable fieldtypes have a value field that should be used
-                $query = $this->em->createQuery(
-                   'SELECT dr.id AS dr_id, e.value AS sort_value
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                    WHERE dr.dataType = :datatype AND e.dataField = :datafield
-                    AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
-                )->setParameters(
-                    array(
-                        'datatype' => $datatype->getId(),
-                        'datafield' => $datafield->getId()
-                    )
-                );
-                $results = $query->getArrayResult();
+                $results = array();
+                if ( !$use_converted_value ) {
+                    $query = $this->em->createQuery(
+                       'SELECT dr.id AS dr_id, e.value AS sort_value
+                        FROM ODRAdminBundle:DataRecord AS dr
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                        JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
+                        WHERE dr.dataType = :datatype AND e.dataField = :datafield
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'datatype' => $datatype->getId(),
+                            'datafield' => $datafield->getId()
+                        )
+                    );
+                    $results = $query->getArrayResult();
+                }
+                else {
+                    $query = $this->em->createQuery(
+                       'SELECT dr.id AS dr_id, e.converted_value AS sort_value
+                        FROM ODRAdminBundle:DataRecord AS dr
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                        JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
+                        WHERE dr.dataType = :datatype AND e.dataField = :datafield
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+                    )->setParameters(
+                        array(
+                            'datatype' => $datatype->getId(),
+                            'datafield' => $datafield->getId()
+                        )
+                    );
+                    $results = $query->getArrayResult();
+                }
+
 
                 // Store the value of the datafield for each datarecord
                 foreach ($results as $num => $result) {
@@ -536,7 +613,7 @@ class SortService
 
             // Case-insensitive natural sort works in most cases...
             $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+            if ($datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 
             if ($sort_dir === 'asc')
@@ -763,7 +840,7 @@ class SortService
 
             // Case-insensitive natural sort works in most cases...
             $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+            if ($template_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 
             if ($sort_dir === 'asc')
@@ -914,7 +991,7 @@ class SortService
             // ----------------------------------------
             // Case-insensitive natural sort works in most cases...
             $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+            if ($linked_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 
             if ($sort_dir === 'asc')
