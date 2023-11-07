@@ -56,10 +56,12 @@ odr_plugins.base.unit_conversion:
             description: Whether to sort the datafield using the converted values.
             display_order: 3
 
-        # Because I would prefer this be expandable, and because the 'choices' option in these config
-        #  files sucks, thse config options are going to be done with custom rendering
+        # TODO - probably need some other options to configure how values are returned...
+
+        # Because the 'choices' option in these config files sucks, this config options is going to
+        #  be done with custom rendering
         conversion_type:
-            # These four properties aren't really used, but are still required by the database
+            # These five properties aren't really used, but are still required by the database
             name: Conversion Type
             type: string
             default:

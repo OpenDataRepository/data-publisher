@@ -4,22 +4,27 @@
 {% if current_plugin_config['conversion_type'] is defined and current_plugin_config['target_units'] is defined %}
     {% set current_option_value = current_plugin_config['conversion_type'] ~ ':' ~ current_plugin_config['target_units'] %}
 {% endif %}
+{% set current_precision_type = 'none' %}
+{% if current_plugin_config['precision_type'] is defined %}
+    {% set current_precision_type = current_plugin_config['precision_type'] %}
+{% endif %}
 
 <div class="pure-u-1">
     <textarea id="plugin_option_{{ rpo_id }}" name="plugin_options[{{ rpo_id }}]" style="display: none;">{{ current_option_value }}</textarea>
 
     <div class="pure-u-1 ODRRenderPlugin_UnitConversion_header">
         <div class="pure-u-1">
-            This plugin also needs you to select which unit to convert all of this field's data into. TODO
+            This plugin also needs you to select which unit to convert all of this field's data into.
+            As such, this plugin makes no sense when attached to fields that hold multiple "kinds" of data.  e.g. having both Pressure and Temperature data in the same field.
         </div>
     </div>
 
     {% set current_target_units = '' %}
     {% if current_plugin_config['target_units'] is defined %}
-        {%  set current_target_units = current_plugin_config['target_units'] %}
+        {% set current_target_units = current_plugin_config['target_units'] %}
     {% endif %}
 
-    <div class="pure-u-1 ODRRenderPlugin_UnitConversion_body">
+    <div class="pure-u-1-2 ODRRenderPlugin_UnitConversion_body">
         <label for="ODRRenderPlugin_UnitConversion_select">
             Conversion Type:&nbsp;
             <select id="ODRRenderPlugin_UnitConversion_select">
@@ -33,6 +38,40 @@
             {% endfor %}
             </select>
         </label>
+    </div>
+    <div class="pure-u-1-2 ODRRenderPlugin_UnitConversion_body">
+        <label for="ODRRenderPlugin_PrecisionType_select">
+            Precision Type:&nbsp;
+            <select id="ODRRenderPlugin_PrecisionType_select">
+                <option value="none" {% if current_precision_type == 'none' %}selected{% endif %}>None</option>
+                <option value="greedy" {% if current_precision_type == 'greedy' %}selected{% endif %}>Greedy</option>
+                <option value="minimal" {% if current_precision_type == 'minimal' %}selected{% endif %}>Minimal</option>
+{#                <option value="decimal" {% if current_precision_type == 'decimal' %}selected{% endif %}># of Decimal places</option>#}  {# TODO? #}
+            </select>
+        </label>
+
+        <div id="ODRRenderPlugin_UnitConversion_none_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will completely ignore the idea of significant figures.  As such, the result may have spurious digits.
+            <br>For instance: "1 meter" will be converted to something like "3.28084 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_greedy_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will assume that all digits in the source value are significant, and round the converted value accordingly.
+            <br>For instance: "1 meter" will be converted to "3 feet"
+            <br>"10 meters" will be converted to "32 feet"
+            <br>"100 meters" will be converted to "328 feet"
+            <br>"100.0 meters" will be converted to "328.1 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_minimal_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            With this option selected, the plugin will assume that trailing zeros are not significant, and round the converted value accordingly.
+            <br>For instance: "1 meter" will be converted to "3 feet"
+            <br>"100 meters" will be converted to "300 feet"
+            <br>"100.0 meters" will be converted to "328.1 feet"
+        </div>
+        <div id="ODRRenderPlugin_UnitConversion_temperature_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+            Temperature conversions work differently, and will instead be rounded to the same number of decimal places.
+            <br>For instance: "10 C" will be converted to "283 K"
+            <br>"10.5 C" will be converted to "283.6 K"
+        </div>
     </div>
 </div>
 
@@ -51,6 +90,13 @@
         margin-top: 5px;
         margin-bottom: 5px;
     }
+
+    .ODRRenderPlugin_UnitConversion_info {
+        text-indent: 0px;
+        font-size: 0.8em;
+
+        margin-top: 5px;
+    }
 </style>
 
 <script>
@@ -63,10 +109,36 @@
         resetRemodalInnerHeight(true);
 
         $("#ODRRenderPlugin_UnitConversion_select").unbind('change').change(function() {
-            var selected_value = $(this).val();
-            // console.log(selected_value);
-            $("#plugin_option_{{ rpo_id }}").val(selected_value);
+            var conversion_unit_value = $(this).val();
+            var precision_type_value = $("#ODRRenderPlugin_PrecisionType_select").val();
+
+            var option_value = conversion_unit_value + ':' + precision_type_value;
+            // console.log(option_value);
+            $("#plugin_option_{{ rpo_id }}").val(option_value);
         });
+
+        $("#ODRRenderPlugin_PrecisionType_select").unbind('change').change(function() {
+            var conversion_unit_value = $("#ODRRenderPlugin_UnitConversion_select").val();
+            var precision_type_value = $(this).val();
+
+            var option_value = conversion_unit_value + ':' + precision_type_value;
+            // console.log(option_value);
+            $("#plugin_option_{{ rpo_id }}").val(option_value);
+
+            $(".ODRRenderPlugin_UnitConversion_info").hide();
+            if ( precision_type_value === 'none' )
+                $("#ODRRenderPlugin_UnitConversion_none_info").show();
+            else {
+                $("#ODRRenderPlugin_UnitConversion_temperature_info").show();
+
+                if ( precision_type_value === 'greedy' )
+                    $("#ODRRenderPlugin_UnitConversion_greedy_info").show();
+                else if ( precision_type_value === 'minimal' )
+                    $("#ODRRenderPlugin_UnitConversion_minimal_info").show();
+            }
+        });
+
+        $("#ODRRenderPlugin_PrecisionType_select").trigger('change');
     });
 
 </script>

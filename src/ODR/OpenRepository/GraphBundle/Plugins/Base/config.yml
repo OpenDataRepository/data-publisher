@@ -103,7 +103,6 @@ services:
             $database_info_service: "@odr.database_info_service"
             $search_service: "@odr.search_service"
             $search_query_service: "@odr.search_query_service"
-            $sort_service: "@odr.sort_service"
             $templating: '@templating'
             $logger: "@logger"
 

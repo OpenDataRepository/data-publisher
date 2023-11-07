@@ -17,6 +17,8 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 class UnitConversionsDef
 {
 
+    // TODO - so these are the "most used" conversions...do I go through the effort to add "all" of the "standard" conversions?  e.g. gigameter
+
     /**
      * Holds the conversion factor between the "standard SI unit" and the various other units of a
      * particular conversion type.  This setup allows for converting from any unit to any other unit
@@ -48,6 +50,8 @@ class UnitConversionsDef
             'kg' => 1.0,  // kilograms, standard SI unit
             'g' => 1e-3,  // grams
             'mg' => 1e-6, // milligrams
+            'µg' => 1e-9, // microgram
+            'ng' => 1e-12, // nanogram
 
             // non-SI units => kg
             'lb' => 4.5359237e-1,      // pounds
@@ -61,7 +65,7 @@ class UnitConversionsDef
             'hPa' => 1e2, // hectopascals
             'Pa' => 1.0,  // pascals, standard SI unit
 
-            // bars (SI unit) => Pa
+            // bars (kinda SI unit) => Pa
             'Mbar' => 1e11, // megabars
             'kbar' => 1e8,  // kilobars
             'bar' => 1e5,   // bars
@@ -75,16 +79,19 @@ class UnitConversionsDef
             // kelvin (SI unit)
             'K' => 1.0,
 
-            // non-SI units
-            'C' => array( // Celsius
+            // Celsius is kinda SI unit, apparently
+            'C' => array(
                 'to' => 'convertToC',
                 'from' => 'convertFromC',
             ),
-            'F' => array( // Fahrenheit
+
+            // Fahrenheit is non-SI
+            'F' => array(
                 'to' => 'convertToF',
                 'from' => 'convertFromF',
             ),
-            'R' => 5/9,   // Rankine
+            // Rankine
+            'R' => 5/9,
         ),
         'Time' => array(
             // seconds (SI unit) => s
@@ -136,6 +143,32 @@ class UnitConversionsDef
             'angstroms' => 'Å',
 
             // "Unofficial" names after
+            'kilometer' => 'km',
+            'meter' => 'm',
+            'centimeter' => 'cm',
+            'millimeter' => 'mm',
+            'micrometer' => 'µm',
+            'nanometer' => 'nm',
+
+            'kilometres' => 'km',
+            'metres' => 'm',
+            'centimetres' => 'cm',
+            'millimetres' => 'mm',
+            'micrometres' => 'µm',
+            'nanometres' => 'nm',
+
+            'kilometre' => 'km',
+            'metre' => 'm',
+            'centimetre' => 'cm',
+            'millimetre' => 'mm',
+            'micrometre' => 'µm',
+            'nanometre' => 'nm',
+
+            'mile' => 'mi',
+            'yard' => 'yd',
+            'foot' => 'ft',
+            'inch' => 'in',
+
             'kms' => 'km',
             'microns' => 'µm',
             'um' => 'µm',
@@ -146,11 +179,25 @@ class UnitConversionsDef
             'kilograms' => 'kg',
             'grams' => 'g',
             'milligrams' => 'mg',
+            'micrograms' => 'µg',
+            'nanograms' => 'ng',
 
             'pounds' => 'lb',
             'ounces' => 'oz',
 
             // "Unofficial" names after
+            'kilogram' => 'kg',
+            'gram' => 'g',
+            'milligram' => 'mg',
+            'microgram' => 'µg',
+            'nanogram' => 'ng',
+
+            'ug' => 'µg',
+            'mcg' => 'µg',
+
+            'pound' => 'lb',
+            'ounce' => 'oz',
+
             'lbs' => 'lb',
         ),
         'Pressure' => array(
@@ -169,8 +216,9 @@ class UnitConversionsDef
             'atmospheres' => 'atm',
             'pounds per square inch' => 'psi',
 
-            // "Unofficial" names after
+            // "Unofficial" names after...
             'kb' => 'kbar',
+            'poundspersquareinch' => 'psi',   // need this one because spaces are stripped...
         ),
         'Temperature' => array(
             // "Official" names first...
@@ -180,7 +228,7 @@ class UnitConversionsDef
             'rankine' => 'R',
 
             // "Unofficial" names after...
-            // These are usually capitalized, but need to do lowercase to be sure
+            // These are usually capitalized, but need to define them as lowercase to be sure
             '°k' => 'K',
             'deg k' => 'K',
             '°c' => 'C',
@@ -188,6 +236,13 @@ class UnitConversionsDef
             '°f' => 'F',
             'deg f' => 'F',
             '°r' => 'R',
+            'deg r' => 'R',
+
+            // Need these because spaces are stripped...
+            'degk' => 'K',
+            'degc' => 'C',
+            'degf' => 'F',
+            'degr' => 'R',
         ),
         'Time' => array(
             // "Official" names first...
@@ -255,60 +310,110 @@ class UnitConversionsDef
 
 
     /**
-     * Attempts to convert the given value into a value with the given units.
+     * This function extracts the various numerical "parts" that make up a value to be converted.
+     * This is separate from self::performConversion() so it's easier to test.
      *
-     * @param string $original_value
-     * @param string $conversion_type
-     * @param string $target_units
-     * @return string
+     * @param string $original_value The value that might be converted
+     * @param string $conversion_type One of the top-level keys in self::$conversions..e.g. "Pressure" or "Temperature"
+     * @param string $target_units One of the values in self::$conversions...e.g. "GPa" or "K"
+     *
+     * @return null|string|array If null, then no conversion can be performed. If a string, then no conversion needs to be done.  Otherwise, returns an array.
      */
-    public static function performConversion($original_value, $conversion_type, $target_units)
+    public static function explodeValue($original_value, $conversion_type, $target_units)
     {
         // If no value was given, then there's nothing to convert
-        $original_value = trim($original_value);
-        if ( $original_value === '' )
-            return '';
+        $regex_value = trim($original_value);
+        if ( $regex_value === '' )
+            return null;
 
-        // If missing the information to convert to, then there's nothing that can be done
-        if ( $conversion_type === '' || $target_units === '' )
-            return '';
-        // Don't attempt to convert to something that's undefined...
-        if ( !isset(self::$conversions[$conversion_type][$target_units]) )
-            return '';
+        // Want to remove all whitespace from the string, so the regex is slightly easier to understand
+        $regex_value = str_replace(array(" ", "\t", "\n", "\r", "\0", "\x0B"), '', $regex_value);
+        // TODO - perform other replacements on the value to make things conform better...
+        $regex_value = str_replace( array("·"), "⋅", $regex_value);    // replace U+00B7 with U+22C5
+
+        // Need to split the given string apart...
+        $source_value_str = $source_value = null;
+        $first_exponent_str = $first_exponent = null;
+        $tolerance_value_str = $tolerance_value = null;
+        $second_exponent_str = $second_exponent = null;
+        $source_units = null;
+
+        // Due to wanting the original value to have units, and because existence of decimal places
+        //  are important, we can't just use floatval()...
+        $decimal = '\d*(?:\.\d*)?';                         // standard decimal number regex
+        $exponent = '(?:e|E|x10|×10|⋅10|\*10)[\^\-\+]*\d+'; // exponent regex, matches a couple different varieties
+
+        $pattern =  '/\(?';                         // optional open parens...for values with "global exponents" like "(12.3±5.0)×10-12"
+
+        $pattern .= '(';                            // open the first capture group ($source_value)...
+            $pattern .= '\-?'.$decimal;             // standard decimal number regex, with an optional minus sign
+        $pattern .= ')';                            // close the first capture group
+
+        $pattern .= '(';                            // open the second capture group ($first_exponent)...
+            $pattern .= $exponent;                  // standard exponent regex
+        $pattern .= ')?';                           // close the second capture group...exponents are optional
+
+        $pattern .= '(';                            // open the third capture group ($tolerance_value)...
+            $pattern .= '\('.$decimal.'\)';         // standard decimal regex wrapped with literal '(' and ')' characters
+            $pattern .= '|';                        // or
+            $pattern .= '(?:\+\/\-|±)'.$decimal;    // a couple different plus/minus variants followed by a decimal
+        $pattern .= ')?';                           // close the third capture group...tolerances are optional
+
+        $pattern .= '\)?';                          // optional close parens, for values with "global exponents" like "(12.3±5.0)×10-12"
+
+        $pattern .= '(';                            // open the fourth capture group ($second_exponent)...
+            $pattern .= $exponent;                  // standard exponent regex
+        $pattern .= ')?';                           // close the fourth capture group...exponents are optional
+
+        $pattern .= '(.*)/';                        // capture the remaining characters, hopefully getting the source units
 
 
         // ----------------------------------------
-        // Attempt to determine the units of the original value
-        $source_value = null;
-        $tolerance_value = null;
-        $source_units = null;
-
-        // Due to wanting the original value to have units, we can't just use floatval()...
-        $pattern = '/(\-?\d+(?:\.\d+)?(?:e\-?\d+)?)(\(\d+\))?\s*(.+)/';
-        // An optional '-' character, followed by digits, followed by an optional decimal portion, followed by an optional (negative) exponent...
-        // ...then an optional sequence of digits between open/close parenthesis...
-        // ...then some number of spaces before matching anything remaining in the value
         $matches = array();
-        preg_match($pattern, $original_value, $matches, PREG_UNMATCHED_AS_NULL);    // need to track whether the second capture group matched anything or not
-        if ( !is_null($matches[1]) )
-            $source_value = floatval( $matches[1] );
+        preg_match($pattern, $regex_value, $matches, PREG_UNMATCHED_AS_NULL);    // need to track whether each capture group matched anything or not
+        // Extract the strings first, if they exist
+        if ( !is_null($matches[1]) && $matches[1] !== '' ) {    // apparently the first capture group can return the empty string when just given text
+            $source_value_str = $matches[1];
+
+            // Positive decimals less than 1 look better with a zero out front...
+            if ( $source_value_str[0] === '.' )
+                $source_value_str = '0'.$source_value_str;
+        }
+
         if ( !is_null($matches[2]) )
-            $tolerance_value = floatval( substr($matches[2], 1, -1) );  // cut out the parenthesis before converting to float
-        if ( !is_null($matches[3]) )
-            $source_units = trim( $matches[3] );
+            $first_exponent_str = self::fixExponent($matches[2]);
 
-        // If the original value couldn't be converted into a number, then the conversion can't
-        //  continue
-        if ( is_null($source_value) )
-            return '';
-        // If the original value didn't have any units, then the conversion can't continue
-        if ( is_null($source_units) )
-            return '';
+        if ( !is_null($matches[3]) ) {
+            $tmp = $matches[3];
 
+            // The regex includes more than just the actual number for the tolerance...want to cut
+            //  the extraneous characters out
+            for ($i = 0; $i < strlen($tmp); $i++) {
+                $char = $tmp[$i];
+                if ( ($char >= '0' && $char <= '9') || $char === '.' )
+                    $tolerance_value_str .= $char;
+            }
+            // If the final character is a decimal, the put another zero on the end for clarity
+            if ( substr($tolerance_value_str, -1) === '.' )
+                $tolerance_value_str .= '0';
+        }
+
+        if ( !is_null($matches[4]) )
+            $first_exponent_str = self::fixExponent($matches[4]);
+
+        if ( !is_null($matches[5]) )
+            $source_units = $matches[5];
+
+
+        // ----------------------------------------
+        // If either the source value str or the source units str are null, then the conversion will
+        //  never work
+        if ( is_null($source_value_str) || is_null($source_units) )
+            return null;
 
         // If the source units aren't already in the expected format...
         if ( !isset(self::$conversions[$conversion_type][$source_units]) ) {
-            // Then attempt to use the aliases to ensure that the source units is in an expected form
+            // ...then have to attempt to use the aliases to figure out what the user entered
             $lowercase_source_units = strtolower($source_units);
 
             $tmp = '';
@@ -329,9 +434,9 @@ class UnitConversionsDef
                     }
                 }
 
-                // NOTE: this will likely break when dealing with "mega" (M) and "milli" (m) prefixes
-                //  ...but if it does break, that's the user's fault for not storing their data
-                //  correctly in the first place.
+                // NOTE: this will break when dealing with "mega" (M) and "milli" (m) prefixes...
+                //  ...but it's not really my fault that the user isn't storing their data correctly
+                //  in the first place.
             }
 
             if ( $tmp !== '' ) {
@@ -340,22 +445,172 @@ class UnitConversionsDef
             }
             else {
                 // Otherwise, this is an unknown alias...unable to continue converting
-                return '';
+                return null;
             }
         }
 
-        // If the source value is already in the correct units, then don't need to convert...return
-        //  a lightly modified version
-        if ( $source_units === $target_units ) {
-            if ( is_null($tolerance_value) )
-                return $source_value.' '.$target_units;
-            else
-                return $source_value.'('.$tolerance_value.') '.$target_units;
+        // If the source value is already in the correct units, then don't need to continue parsing
+        //  the original value...
+        if ( $source_units === $target_units )
+            return $original_value;
+
+
+        // ----------------------------------------
+        // Otherwise, need to actually perform a conversion
+
+        // Need to first get the source/tolerance values into floats, which is slightly tricky
+        //  because the exponents aren't trivially tied to the source/tolerance values...
+        if ( !is_null($first_exponent_str) && is_null($second_exponent_str) ) {
+            // In this case, the first exponent always belongs to the source value
+            $source_value_str .= 'e'.$first_exponent_str;
+
+            // ...unless the user entered something like "123e4(5)", which is ambiguous
+            if ( !is_null($tolerance_value_str) )
+                return null;
+        }
+        else if ( !is_null($first_exponent_str) && !is_null($second_exponent_str) ) {
+            // In this case, the source value and the tolerance value have their own individual
+            //  exponents
+            $source_value_str .= 'e'.$first_exponent_str;
+            if ( !is_null($tolerance_value_str) )
+                $tolerance_value_str .= 'e'.$second_exponent_str;
+        }
+        else if ( is_null($first_exponent_str) && !is_null($second_exponent_str) ) {
+            // In this case, the exponent is understood to apply to both the source value and the
+            //  tolerance value at the same time
+            $source_value_str .= 'e'.$second_exponent_str;
+            if ( !is_null($tolerance_value_str) )
+                $tolerance_value_str .= 'e'.$second_exponent_str;
+        }
+
+        // Convert the resulting strings into floats so the math can do its thing
+        $source_value = floatval($source_value_str);
+        if ( !is_null($tolerance_value_str) ) {
+            // If the tolerance value has a decimal point...
+            if ( strpos($tolerance_value_str, '.') !== false ) {
+                // ...then it's understood to be an "absolute" tolerance...
+                //  e.g. 1.23(1.5) means 1.23±1.5, or a value between -0.27 and 2.73
+                $tolerance_value = floatval($tolerance_value_str);
+            }
+            else {
+                // ...otherwise, it's "relative" to the number of decimal places in the source value
+                //  e.g. 1.23(15) means 1.23±0.15, or a value between 1.05 and 1.38
+                $decimal_index = strpos($source_value_str, '.');
+                if ( $decimal_index === false ) {
+                    // ...but if the source value has no decimal, then it's relative to the ones place anyways
+                    $tolerance_value = floatval($tolerance_value_str);
+                }
+                else {
+                    // Need to determine how many decimal places the source value had...easier to do
+                    //  that with the raw regex match
+                    $decimal_places = 0;
+                    for ($i = $decimal_index+1; $i < strlen($source_value_str); $i++) {
+                        $char = $source_value_str[$i];
+                        if ( $char >= '0' && $char <= '9' )
+                            $decimal_places++;
+                        else
+                            break;
+                    }
+                    // NOTE - for a value like "12.(34)", the decimal point is superfluous as far as the tolerance is concerned
+                    $tolerance_value = floatval($tolerance_value_str) * floatval('1e-'.$decimal_places);
+                }
+            }
+        }
+
+        return array(
+            'source_value_str' => $source_value_str,
+            'source_value' => $source_value,
+            'tolerance_value_str' => $tolerance_value_str,
+            'tolerance_value' => $tolerance_value,
+            'source_units' => $source_units,
+        );
+    }
+
+
+    /**
+     * Easier to have the exponent stuff off in its own function...
+     *
+     * @param string $match
+     * @return string
+     */
+    private static function fixExponent($match)
+    {
+        // Ensure the optional '^' character doesn't exist
+        $tmp = strtolower( str_replace(array('^', '+'), '', $match) );
+
+        // The regex includes more than just the actual number for the exponent...trim it down
+        $str = '';
+        if ( strpos($tmp, 'e') !== false ) {
+            // The exponent was presented with either 'e' or 'E'
+            $str = substr($tmp, 1);
+        }
+        else {
+            // The exponent was presented with some variant of '*10'...
+            $str = str_replace(array('x10', '×10', '⋅10', '*10'), '', $tmp);
+        }
+
+        // Strip leading zeros
+        for ($i = 0; $i < strlen($str); $i++) {
+            if ( $str[$i] !== '0' ) {
+                $str = substr($str, $i);
+                break;
+            }
+        }
+
+        return $str;
+    }
+
+
+    /**
+     * Attempts to convert the given value into a value with the given units.
+     *
+     * @param string $original_value The value that might be converted
+     * @param string $conversion_type One of the top-level keys in self::$conversions..e.g. "Pressure" or "Temperature"
+     * @param string $target_units One of the values in self::$conversions...e.g. "GPa" or "K"
+     * @param string $precision_type One of 'none', 'greedy', or 'minimal'
+     *
+     * @return string
+     */
+    public static function performConversion($original_value, $conversion_type, $target_units, $precision_type = 'none')
+    {
+        // If missing the information to convert to, then there's nothing that can be done
+        if ( $conversion_type === '' || $target_units === '' )
+            return '';
+        // Don't attempt to convert to something that's undefined...
+        if ( !isset(self::$conversions[$conversion_type][$target_units]) )
+            return '';
+
+
+        // ----------------------------------------
+        // Extract the usable information from the given string
+        $ret = self::explodeValue($original_value, $conversion_type, $target_units);
+
+        $source_value_str = $source_value = null;
+        $tolerance_value_str = $tolerance_value = null;
+        $source_units = null;
+
+        if ( is_null($ret) ) {
+            // If the return is null, then the given string can't be converted for some reason
+            return '';
+        }
+        else if ( !is_array($ret) ) {
+            // If the return is a string, then the given string doesn't need to be converted
+            return $ret;
+
+            // TODO - do normalization processing to the string?
+        }
+        else {
+            // If the return is an array, then extract the data from it
+            $source_value_str = $ret['source_value_str'];
+            $source_value = $ret['source_value'];
+            $tolerance_value_str = $ret['tolerance_value_str'];
+            $tolerance_value = $ret['tolerance_value'];
+            $source_units = $ret['source_units'];
         }
 
 
         // ----------------------------------------
-        // Otherwise, need to the math to convert from the source units to the "standard" unit...
+        // Need to do the maths to convert from the source units to the "standard" unit...
         $tmp_value = '';
         if ( is_numeric(self::$conversions[$conversion_type][$source_units]) ) {
             // This conversion is described by a conversion factor
@@ -394,15 +649,223 @@ class UnitConversionsDef
                 $tolerance_value = call_user_func(array(self::class, $tmp_func), $tolerance_value);
         }
 
+        // NOTE - due to effectively all of these conversions being a multiplication/division, we
+        //  don't need to do fancy shit with the tolerance value...the "relative uncertainty" remains
+        //  the same
+
 
         // ----------------------------------------
-        // Due to floating point bullshit, the converted value probably needs to be cleaned up a bit
-        // TODO
+        // The converted value probably needs to be cleaned up a bit...both due to significant figures
+        //  and due to the possibility of floating point bullshit
+        if ( $precision_type !== 'none' ) {
+            // Temperatures seem to typically be rounded/truncated based on the number of digits past
+            //  the decimal point (e.g. 30C -> 303K, or 30.5C -> 303.6K)
+            if ( $conversion_type === 'Temperature' ) {
+                // Temperatures are typically treated as precise out to the units position...
+                $precision = 0;
 
+                // ...but if they have precision past the decimal point...
+                $decimal = strpos($source_value, '.');
+                if ( $decimal !== false ) {
+                    // ...then they're typically rounded to the same number of decimal places as the
+                    //  original value
+                    $precision = strlen($source_value) - 1 - $decimal;
+                }
+
+                // Perform the actual rounding
+                $target_value = round($target_value, $precision);
+                if ( !is_null($tolerance_value) )
+                    $tolerance_value = round($tolerance_value, $precision);
+            }
+            else {
+                $source_value_precision = $tolerance_value_precision = null;
+                if ( is_null($tolerance_value_str) ) {
+                    // If a tolerance value does not exist, then determine the precision based on
+                    //  what the plugin was configured to use
+                    $source_value_precision = self::determinePrecision($source_value_str, $precision_type);
+                }
+                else {
+                    // If a tolerance value exists, then all digits in the source value are significant
+                    $source_value_precision = self::determinePrecision($source_value_str, 'greedy');
+                    $tolerance_value_precision = self::determinePrecision($tolerance_value_str, 'greedy');
+                }
+
+                // Ensure the converted values have the correct precision
+                $target_value = self::applyPrecision($source_value_precision, $target_value);
+                if ( !is_null($tolerance_value) )
+                    $tolerance_value = self::applyPrecision($tolerance_value_precision, $target_value);
+            }
+        }
+
+
+        // ----------------------------------------
         // Now that the conversion is done, return the result
         if ( is_null($tolerance_value) )
             return $target_value.' '.$target_units;
         else
             return $target_value.'('.$tolerance_value.') '.$target_units;
+    }
+
+
+    /**
+     * Iterates over a numerical string to determine how many digits of precision it has.
+     *
+     * @param string $source_value_str
+     * @param string $precision_type
+     *
+     * @return int
+     */
+    public static function determinePrecision($source_value_str, $precision_type)
+    {
+        // Going to make one pass through the source value...
+        $found_digit = $has_decimal = false;
+        $digits = $trailing_zeros = 0;
+
+        for ($i = 0; $i < strlen($source_value_str); $i++) {
+            $char = $source_value_str[$i];
+            if ( $char >= '1' && $char <= '9' ) {
+                // Guard against leading zeros
+                $found_digit = true;
+
+                // Each one of these digits increases the precision, and also resets any trailing zeros
+                $digits += 1 + $trailing_zeros;
+                $trailing_zeros = 0;
+            }
+            else if ( $char === '0' ) {
+                // Zeros are only significant when they're preceeded by a non-zero digit...
+                if ( $found_digit ) {
+                    // ...but can't just add them straight to $digits because it depends on the
+                    //  $precision_type
+                    $trailing_zeros++;
+                }
+            }
+            else if ( $char === 'e' || $char === 'E' || $char === '+' || $char === '±' ) {
+                // Now in the "exponent" part of the number, so done determining precision
+                break;
+            }
+            else if ( $char === '.' ) {
+                // Also need to keep track of whether a decimal existed
+                $has_decimal = true;
+            }
+        }
+
+        // The return value depends on the type of precision demanded...
+        if ( $precision_type === 'greedy' || $has_decimal ) {
+            // 'greedy' treats all digits, including trailing zeros, as significant
+            // 'minimal' also treats all digits as significant, but only when a decimal point exists
+            return $digits + $trailing_zeros;
+        }
+        else /*if ( $precision_type === 'minimal' )*/ {
+            // 'minimal' only treats digits as significant when a decimal point does not exist
+            return $digits;
+        }
+    }
+
+
+    /**
+     * Modifies the given value to have the requested number of digits of precision.
+     * TODO - round() or truncate()?
+     *
+     * @param int $precision
+     * @param float $target_value
+     *
+     * @return string
+     */
+    public static function applyPrecision($precision, $target_value)
+    {
+        // Need to convert the float back into a string, due to potentially requiring arbitrary zeros
+        $target_value_str = strval($target_value);
+        $target_value_precision = self::determinePrecision($target_value_str, 'minimal');
+
+        $fixed_value_str = $target_value_str;
+        if ( $target_value_precision > $precision ) {
+            // Most of the conversions are going to end up creating values that need to be rounded
+            //  in order for significant digits to be correctly applied...
+            $decimal_point = strpos($target_value_str, '.');
+            if ( $decimal_point === false ) {
+                // If the $target_value doesn't have a decimal point (e.g. "101325"), then pretend
+                //  it's at the end so round() continues to work properly (e.g. "101325.")
+                $decimal_point = strlen($target_value_str);
+            }
+
+            if ( $target_value >= 1.0 ) {
+                // Using the built-in round() function is straightforward when the converted
+                //  value is greater than 1...
+                $new_target_value = round($target_value, ($precision-$decimal_point));    // TODO - or should this be some version of truncation instead?
+                $fixed_value_str = strval($new_target_value);
+            }
+            else {
+                // ...otherwise, need to offset the round() so it works properly
+
+                // Check whether the target value has an exponent first...
+                $exponent = strpos($fixed_value_str, 'E');
+                if ($exponent !== false) {
+                    $val = substr($fixed_value_str, $exponent+1);
+                    $offset = intval($val);
+
+                    // $decimal_point should always be 1 at this point
+                    $new_target_value = round($target_value, ($precision-$decimal_point-$offset));    // TODO - or should this be some version of truncation instead?
+                    $fixed_value_str = strval($new_target_value);
+
+                    // If the number is small enough that PHP returns it in exponentiated
+                    //  format, then it'll always appear to have at least 2 digits of
+                    //  precision...
+                    if ( strpos($fixed_value_str, 'E') !== false && $precision === 1 ) {
+                        // ...so if only one digit of precision is required, fix that
+                        $fixed_value_str = $fixed_value_str[0] . substr($fixed_value_str, 3);
+                    }
+                }
+                // TODO - do i need the other version of exponentiation?  php is only ever going to return with 'E'...
+                else {
+                    // If the target value is less than 1, but doesn't have an exponent, then
+                    //  need to crawl through the string to find the first non-zero digit
+                    $offset = 0;
+
+                    // Start looking from the first character after the period
+                    for ($i = 2; $i < strlen($target_value_str); $i++) {
+                        $char = $target_value_str[$i];
+                        if ( $char >= '1' && $char <= '9' )
+                            break;
+                        else
+                            $offset++;
+                    }
+
+                    // $offset is now the correct value for round() to work properly
+                    $new_target_value = round($target_value, ($precision+$offset));    // TODO - or should this be some version of truncation instead?
+                    $fixed_value_str = strval($new_target_value);
+                }
+            }
+        }
+
+
+        // For the conversions which happen to end up creating results that are "less precise" than
+        //  the input, or for the ones where round() happens to lose digits of precision...it's
+        //  necessary to add more
+        $existing_precision = strlen($fixed_value_str);
+        if ( $existing_precision < $precision) {    // TODO - this was originally in here, then removed, then added back in...had something to do with converting extremely precise values to like 1...
+            if (strpos($fixed_value_str, '.') === false) {
+                // When the result doesn't already have a decimal point, then need to add a decimal
+                //  point first...
+                $fixed_value_str .= '.';
+            }
+            else if ($fixed_value_str[0] === '0' && $fixed_value_str[1] === '.') {
+                // If the converted value is "0.xxx" something, then the resulting precision is two less
+                //  than the length of the string
+                $existing_precision -= 2;
+            }
+            else {
+                // Otherwise the resulting precision is only one less than the length of the string
+                $existing_precision -= 1;
+            }
+
+            // After the prep work, continue adding trailing zeros until the precision requirements
+            //  are met
+            while ($existing_precision < $precision) {
+                $fixed_value_str .= '0';
+                $existing_precision++;
+            }
+        }
+
+        return $fixed_value_str;
     }
 }

@@ -23,7 +23,9 @@
         <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
             {{ datafield_meta.fieldName }}
 
+            {% if original_value != '' %}
             <i class="fa fa-info-circle" title="{{ conversion_msg }}"></i>
+            {% endif %}
         </label>
         <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
             <input id="{{ input_id }}" class="pure-u-1 Cursor" type="text" value="{{ value_to_display }}" readonly="readonly"/>

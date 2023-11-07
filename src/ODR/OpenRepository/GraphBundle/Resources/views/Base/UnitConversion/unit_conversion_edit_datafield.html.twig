@@ -29,7 +29,9 @@
         {% endif %}
             {{ datafield_meta.fieldName }}
 
+            {% if original_value != '' %}
             <i class="fa fa-info-circle" title="{{ conversion_msg }}"></i>
+            {% endif %}
         </label>
 
         <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">

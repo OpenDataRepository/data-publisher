@@ -1984,6 +1984,7 @@ class EntityMetaModifyService
             $new_entity->setValue( $entity->getValue() );
             if ($typeclass == 'DecimalValue')
                 $new_entity->setOriginalValue( $entity->getOriginalValue() );
+            $new_entity->setConvertedValue( $entity->getConvertedValue() );
 
             $new_entity->setCreated($created);
             $new_entity->setCreatedBy($user);
