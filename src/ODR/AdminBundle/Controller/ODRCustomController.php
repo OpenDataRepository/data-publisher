@@ -90,8 +90,8 @@ class ODRCustomController extends Controller
         $odr_tab_service = $this->container->get('odr.tab_helper_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
+        /** @var ThemeInfoService $theme_info_service */
+        $theme_info_service = $this->container->get('odr.theme_info_service');
         /** @var SearchService $search_service */
         $search_service = $this->container->get('odr.search_service');
         /** @var TableThemeHelperService $tth_service */
@@ -128,7 +128,7 @@ class ODRCustomController extends Controller
                 // ...then this user can't use this theme
 
                 // Find a theme they can use
-                $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
                 $display_theme_warning = true;
@@ -136,7 +136,10 @@ class ODRCustomController extends Controller
         }
 
         // Might as well set the session default theme here
-        $theme_service->setSessionTheme($datatype->getId(), $theme);
+        $page_type = 'search_results';
+//        if ( $intent === 'linking' )
+//            $page_type = 'linking';    // TODO - do I actually want a separate page type for linking purposes?
+        $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
 
         // Determine whether the currently preferred theme needs to be synchronized with its source
         //  and the user notified of it
@@ -276,12 +279,12 @@ class ODRCustomController extends Controller
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
-        if ( $theme->getThemeType() != 'table' ) {
+        if ( !$theme->getIsTableTheme() ) {
             // -----------------------------------
             // Load and stack the cached theme data...this can happen now since it's not filtered
-            $theme_array = $theme_service->getThemeArray($theme->getId());
+            $theme_array = $theme_info_service->getThemeArray($theme->getId());
             $stacked_theme_array[ $theme->getId() ] =
-                $theme_service->stackThemeArray($theme_array, $theme->getId());
+                $theme_info_service->stackThemeArray($theme_array, $theme->getId());
 
             // Determine which datatypes are going to actually be visible to the user
             $rendered_dt_ids = self::getRenderedDatatypes($stacked_theme_array);
@@ -422,9 +425,10 @@ class ODRCustomController extends Controller
                 )
             );
         }
-        else if ( $theme->getThemeType() == 'table' ) {
+        else {
             // -----------------------------------
-            $theme_array = $theme_service->getThemeArray($theme->getId());
+            // This is a theme that the user wants to render as a table
+            $theme_array = $theme_info_service->getThemeArray($theme->getId());
 
             $column_data = array();
             $row_data = array();

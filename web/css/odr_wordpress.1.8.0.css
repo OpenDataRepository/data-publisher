@@ -3814,9 +3814,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
 }
 .ODRDefaultPersonal,
+.ODRUnsetDefaultPersonal,
 .ODRDefaultDatabase,
+.ODRUnsetDefaultDatabase,
 .ODRMakeCurrentView,
-.ODRMakeViewPublic,
+.ODRMakeViewShared,
 .ODREditThemeName,
 .ODRModifyTheme,
 .ODRCopyModifyTheme,
@@ -3825,9 +3827,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRDefaultPersonal:hover,
+.ODRUnsetDefaultPersonal:hover,
 .ODRDefaultDatabase:hover,
+.ODRUnsetDefaultDatabase:hover,
 .ODRMakeCurrentView:hover,
-.ODRMakeViewPublic:hover,
+.ODRMakeViewShared:hover,
 .ODREditThemeName:hover,
 .ODRModifyTheme:hover,
 .ODRCopyModifyTheme:hover,

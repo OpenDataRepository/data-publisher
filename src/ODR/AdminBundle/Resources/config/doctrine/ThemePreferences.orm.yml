@@ -13,10 +13,12 @@ ODR\AdminBundle\Entity\ThemePreferences:
             generator:
                 strategy: IDENTITY
 
-        isDefault:
-            type: boolean
+        defaultFor:
+            type: integer
+            unsigned: false
             nullable: false
-            column: is_default
+            default: 0
+            column: default_for
 
         created:
             type: datetime

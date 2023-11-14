@@ -65,11 +65,11 @@
         // Attach click handlers to tags
         setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
-{% if search_key == '' %}
+    {% if search_key == '' %}
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-{% else %}
+    {% else %}
         enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-{% endif %}
+    {% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }
@@ -110,6 +110,7 @@
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
+            'page_type': 'display',
             'search_key': search_key,
         }%}
         {% endif %}

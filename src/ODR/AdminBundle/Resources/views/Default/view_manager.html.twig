@@ -64,9 +64,7 @@
 {% else %}
     <h1 class="no-margin-top-phone">
         <span>{{ title }} &raquo; <span class="ODRRecordName">{{ datatype.dataTypeMeta.shortName }}</span></span>
-        {% if page_type != 'edit' %}
         <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
-        {% endif %}
     </h1>
 {% endif %}
 
@@ -82,13 +80,11 @@
             </li>
         {% endif %}
 
-        {% if page_type != 'edit' %}
             <li class="pure-menu-item SpacerRight">
                 <label id="ChooseView" class="pure-button">
                     Choose View
                 </label>
             </li>
-        {% endif %}
 
         {% if display_add_record %}
             <li class="pure-menu-item SpacerRight">
@@ -287,16 +283,12 @@
      */
     function chooseView() {
         modal_options = {
-            title: "Choose from available views:",
+            title: "Choose from available layouts for {{ page_type|replace({'_': ' '})|title }} mode:",
             // body: "<div>Loading will not display if body is set.</div>",
             // loading: true,  // Force loading to display
         };
         openODRRemodal(modal_options);
-{% if page_type != 'linking' %}
         var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': page_type }) }}';
-{% else %}
-        var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': 'table' }) }}';
-{% endif %}
 
         $.ajax({
             cache: false,
@@ -356,6 +348,12 @@
             applyView(theme_id, redirect, persist);
         });
 
+        $(".ODRUnsetDefaultPersonal").unbind('click').click(function() {
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var selected_page_type = $(this).attr('rel');
+            unsetPersonalDefaultView(theme_id, selected_page_type);
+        });
+
         $(".ODRMakeCurrentView").unbind('click').click(function() {
             setModalMessage("Setting view for session.");
 
@@ -383,11 +381,17 @@
             makeDatabaseDefault(theme_id);
         });
 
-        $(".ODRMakeViewPublic").unbind('click').click(function() {
+        $(".ODRUnsetDefaultDatabase").unbind('click').click(function() {
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var selected_page_type = $(this).attr('rel');
+            unsetDatabaseDefaultView(theme_id, selected_page_type);
+        });
+
+        $(".ODRMakeViewShared").unbind('click').click(function() {
             setModalMessage("Toggling public status of view.");
 
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-            makeViewPublic(theme_id);
+            makeViewShared(theme_id);
         });
     }
 
@@ -404,7 +408,7 @@
         else
             persist = 0;
 
-        var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'theme_id': 0, 'persist': 0 }) }}';
+        var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'page_type': page_type, 'theme_id': 0, 'persist': 0 }) }}';
         url = url.substr(0, (url.length - 3)) + theme_id + "/" + persist;
 
         $.ajax({
@@ -415,7 +419,7 @@
             success: function (data, textStatus, jqXHR) {
                 if (redirect) {
                     closeODRRemodal();
-{% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
+{% if page_type == 'display' or page_type == 'edit' %}
                     // If viewing a single datarecord, reload the search content...the correct theme
                     //  will be pulled from the user's session
                     reloadPage();
@@ -533,12 +537,12 @@
     }
 
     /**
-     * Toggles the public status of the given theme.
+     * Toggles whether the given theme is shared or not.
      *
      * @param {number} theme_id
      */
-    function makeViewPublic(theme_id) {
-        var url = '{{ path('odr_toggle_theme_public', { 'theme_id': 0 }) }}';
+    function makeViewShared(theme_id) {
+        var url = '{{ path('odr_toggle_theme_shared', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
 
         $.ajax({
@@ -572,13 +576,13 @@
     }
 
     /**
-     * Sets the given theme as its datatype's default theme (for the inferred context...display,
-     *  table, search_results, etc)
+     * Sets the given theme as its datatype's default theme for the current page_type (display, edit,
+     * search results, etc)
      *
      * @param {number} theme_id
      */
     function makeDatabaseDefault(theme_id) {
-        var url = '{{ path('odr_make_default_theme', { 'theme_id': 0 }) }}';
+        var url = '{{ path('odr_make_default_theme', { 'page_type': page_type, 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
 
         $.ajax({
@@ -591,6 +595,92 @@
                 var redirect = true;
                 var persist = true;
                 applyView(theme_id, redirect, persist);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Updates the given theme so it's no longer considered the default for a database.
+     *
+     * @param {number} theme_id
+     * @param {string} selected_page_type
+     */
+    function unsetDatabaseDefaultView(theme_id, selected_page_type) {
+        // Need to mess with the given page type a bit...
+        selected_page_type = selected_page_type.toLowerCase().replaceAll(' ', '_');
+
+        var url = '{{ path('odr_unset_default_theme', { 'page_type': '', 'theme_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_page_type + '/' + theme_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Do not apply view to user's session or redirect
+                closeODRRemodal();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Updates the given theme so it's no longer considered the default for a user.
+     *
+     * @param {number} theme_id
+     * @param {string} selected_page_type
+     */
+    function unsetPersonalDefaultView(theme_id, selected_page_type) {
+        // Need to mess with the given page type a bit...
+        selected_page_type = selected_page_type.toLowerCase().replaceAll(' ', '_');
+
+        var url = '{{ path('odr_unset_personal_theme', { 'page_type': '', 'theme_id': 0 }) }}';
+        url = url.substr(0, (url.length - 2)) + selected_page_type + '/' + theme_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Do not apply view to user's session or redirect
+                closeODRRemodal();
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -634,7 +724,7 @@
 
                 // Close modal and reload page
                 closeODRRemodal();
-{% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
+{% if page_type == 'display' or page_type == 'edit' %}
                 {# Don't change the URL when viewing a single datarecord #}
                 reloadPage();
 {% else %}

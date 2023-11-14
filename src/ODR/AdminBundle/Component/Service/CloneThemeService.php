@@ -201,8 +201,6 @@ class CloneThemeService
      *
      * @param Theme $theme
      *
-     * @throws ODRBadRequestException
-     *
      * @return array
      */
     public function getThemeSourceDiff($theme)
@@ -516,7 +514,8 @@ class CloneThemeService
 
 
                     // ----------------------------------------
-                    // Clone the theme element...
+                    // Create a new theme element...DO NOT CLONE, because that also forces a doctrine
+                    //  load of the source themeElement's themeDatafield list
                     $new_theme_element = new ThemeElement();
                     $new_theme_element->setTheme($current_theme);
 
@@ -564,7 +563,8 @@ class CloneThemeService
 
 
                     // ----------------------------------------
-                    // Clone the theme element...
+                    // Create a new theme element...DO NOT CLONE, because that also forces a doctrine
+                    //  load of the source themeElement's themeDatafield list
                     $new_theme_element = new ThemeElement();
                     $new_theme_element->setTheme($current_theme);
 
@@ -635,8 +635,8 @@ class CloneThemeService
             if ( count($tdf_list) > 0 ) {
                 // Create a copy of this themeElement from the source theme
 
-                // Do NOT clone the relevant source themeElement, as that seems to carry over that
-                //  source themeElement's themeDatafield list
+                // Create a new theme element...DO NOT CLONE, because that also forces a doctrine load
+                //  of the source themeElement's themeDatafield list
                 $new_te = new ThemeElement();
                 $new_te->setTheme($current_theme);
 
@@ -684,7 +684,7 @@ class CloneThemeService
      * unacceptable, any new themeDatafield entries should instead be attached to a newly-created
      * hidden ThemeElement.
      *
-     * @param array $diff_array @see self::getThemeSourceDiff()
+     * @param array $diff_array {@link self::getThemeSourceDiff()}
      * @param Theme $current_theme
      * @param ODRUser $user
      * @param int $indent
@@ -753,16 +753,14 @@ class CloneThemeService
 
     /**
      * This function creates a copy of an existing theme, with the only real change being to its
-     * theme_type (e.g. "master" theme -> "search_results" theme).  This only makes sense when
-     * called on a top-level theme for a top-level datatype.
+     * theme_type (e.g. "master" theme -> "custom" theme).  This only makes sense when called on a
+     * top-level theme for a top-level datatype.
      *
      * Unlike self::syncThemeWithSource(), this function will ALWAYS create a new theme.
      *
      * @param ODRUser $user
      * @param Theme $source_theme
-     * @param string $dest_theme_type @see ThemeInfoService::VALID_THEMETYPES
-     *
-     * @throws ODRBadRequestException
+     * @param string $dest_theme_type {@link ThemeInfoService::THEME_TYPES}
      *
      * @return Theme
      */
@@ -774,7 +772,7 @@ class CloneThemeService
             throw new ODRBadRequestException("Don't clone a child Datatype's Theme...any cloning or synchronizing must start from a top-level Theme");
 
         // ...also verify that the given theme_type is valid
-        if ( !in_array($dest_theme_type, ThemeInfoService::VALID_THEMETYPES) )
+        if ( !in_array($dest_theme_type, ThemeInfoService::THEME_TYPES) )
             throw new ODRBadRequestException('Invalid theme_type given to CloneThemeService::cloneSourceTheme()');
 
         // ...also make some attempt to prevent duplicate "master" themes
@@ -808,7 +806,7 @@ class CloneThemeService
         $new_theme_meta->setTheme($new_theme);
         $new_theme_meta->setTemplateName( 'Copy of '.$new_theme_meta->getTemplateName() );
         $new_theme_meta->setShared(false);
-        $new_theme_meta->setIsDefault(false);
+        $new_theme_meta->setDefaultFor(0);
 
         $new_theme->addThemeMetum($new_theme_meta);
         self::persistObject($new_theme_meta, $user);    // think it also needs flushed here
@@ -818,7 +816,7 @@ class CloneThemeService
 
         // ----------------------------------------
         // Now that a theme exists, synchronize it with its source theme
-        // Since this function isn't called recursively, indent should always be 1
+        // Since this function isn't called recursively, indent should always be 1 here
         $indent = 1;
         self::cloneThemeContents($user, $source_theme, $new_theme, $dest_theme_type, $indent);
 
@@ -827,7 +825,8 @@ class CloneThemeService
 
 
         // ----------------------------------------
-        // Don't want to mark the theme as updated, but need to ensure any new stuff is in there
+        // Don't need to mark the new theme as updated, but need to ensure it doesn't exist in a
+        //  partially cached state
         $this->cache_service->delete('cached_theme_'.$new_theme->getId());
         $this->logger->info('----------------------------------------');
 
@@ -844,7 +843,7 @@ class CloneThemeService
      * @param ODRUser $user
      * @param Theme $source_theme
      * @param Theme $new_theme
-     * @param string $dest_theme_type
+     * @param string $dest_theme_type {@link ThemeInfoService::THEME_TYPES}
      * @param int $indent
      */
     private function cloneThemeContents($user, $source_theme, $new_theme, $dest_theme_type, $indent = 0)
@@ -866,8 +865,8 @@ class CloneThemeService
 
         foreach ($theme_elements as $source_te) {
             /** @var ThemeElement $source_te */
-            // ...create a new theme element...do NOT clone because that also brings over doctrine's
-            //  cached themeDatafield list
+            // Create a new theme element...DO NOT CLONE, because that also forces a doctrine load
+            //  of the source themeElement's themeDatafield list
             $new_te = new ThemeElement();
             $new_te->setTheme($new_theme);
 
@@ -949,12 +948,11 @@ class CloneThemeService
      * @param ThemeElement $theme_element Which ThemeElement the new themeDatatype goes into
      * @param Theme $source_theme Which Theme this should copy from
      * @param Datatype $dest_datatype Which child/linked Datatype the themeDatatype should point to
-     * @param string $dest_theme_type @see ThemeInfoService::VALID_THEMETYPES
-     * @param ThemeDataType|null If null, this function will create a new ThemeDatatype...if not,
-     *                           then this function will clone the given ThemeDatatype
+     * @param string $dest_theme_type {@link ThemeInfoService::THEME_TYPES}
+     * @param ThemeDataType|null $source_theme_datatype If null, this function will create a new
+     *                                                  ThemeDatatype...if not, then this function
+     *                                                  will clone the given ThemeDatatype
      * @param int $indent
-     *
-     * @throws ODRBadRequestException
      *
      * @return Theme
      */
@@ -988,11 +986,11 @@ class CloneThemeService
         $new_theme_meta->setTemplateName( 'Copy of '.$new_theme_meta->getTemplateName() );
         if ($dest_theme_type == 'master') {
             $new_theme_meta->setShared(true);
-            $new_theme_meta->setIsDefault(true);
+            $new_theme_meta->setDefaultFor(0);    // Don't want to clone this value
         }
         else {
             $new_theme_meta->setShared(false);
-            $new_theme_meta->setIsDefault(false);
+            $new_theme_meta->setDefaultFor(0);
         }
         $new_theme_meta->setTheme($new_theme);
 

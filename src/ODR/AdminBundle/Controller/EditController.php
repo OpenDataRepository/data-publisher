@@ -486,7 +486,7 @@ class EditController extends ODRCustomController
 
                 if ( count($remaining) > 0 ) {
                     // Return to the list of datarecords since at least one datarecord of this datatype still exists
-                    $preferred_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                    $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                     $url = $this->generateUrl(
                         'odr_search_render',
                         array(
@@ -1726,9 +1726,10 @@ class EditController extends ODRCustomController
 
     /**
      * Parses a $_POST request to update the contents of a datafield.
-     * File and Image uploads are handled by @see FlowController
-     * Changes to RadioSelections are handled by EditController::radioselectionAction(), and changes
-     * to Tags are handled by TagsController::tagselectionAction()
+     *
+     * File and Image uploads are handled by FlowController, changes to RadioSelections are handled
+     * by EditController::radioselectionAction(), and changes to Tags are handled by
+     * TagsController::tagselectionAction()
      *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
@@ -2139,8 +2140,8 @@ class EditController extends ODRCustomController
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataFields $datafield */
@@ -2180,7 +2181,7 @@ class EditController extends ODRCustomController
             // Need to locate the theme element being reloaded...
             // TODO - ODRRenderService can technically render a non-master theme for Edit mode...
             // TODO - ...though self::editAction() doesn't let it happen, yet
-            $master_theme = $ti_service->getDatatypeMasterTheme($datatype->getId());
+            $master_theme = $theme_info_service->getDatatypeMasterTheme($datatype->getId());
             $query = $em->createQuery(
                'SELECT te
                 FROM ODRAdminBundle:Theme AS t
@@ -2447,8 +2448,10 @@ class EditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
             /** @var Router $router */
@@ -2474,7 +2477,7 @@ class EditController extends ODRCustomController
 
             // Ensure the datatype has a "master" theme...ODRRenderService will use it by default
             // TODO - alternate themes?
-            $ti_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_info_service->getDatatypeMasterTheme($datatype->getId());
 
             // If $search_theme_id is set...
             if ($search_theme_id != 0) {
@@ -2694,10 +2697,13 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Determine the user's preferred theme
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
             // Render the edit page for this datarecord
-            /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
-            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id);
+            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme);
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),

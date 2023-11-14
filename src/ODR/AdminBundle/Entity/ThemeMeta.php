@@ -38,9 +38,9 @@ class ThemeMeta
     private $templateDescription;
 
     /**
-     * @var boolean
+     * @var int
      */
-    private $isDefault;
+    private $defaultFor;
 
     /**
      * @var integer
@@ -155,26 +155,27 @@ class ThemeMeta
     }
 
     /**
-     * Set isDefault
+     * Set defaultFor.
      *
-     * @param boolean $isDefault
+     * @param int $defaultFor
+     *
      * @return ThemeMeta
      */
-    public function setIsDefault($isDefault)
+    public function setDefaultFor($defaultFor = null)
     {
-        $this->isDefault = $isDefault;
+        $this->defaultFor = $defaultFor;
 
         return $this;
     }
 
     /**
-     * Get isDefault
+     * Get defaultFor.
      *
-     * @return boolean 
+     * @return int
      */
-    public function getIsDefault()
+    public function getDefaultFor()
     {
-        return $this->isDefault;
+        return $this->defaultFor;
     }
 
     /**

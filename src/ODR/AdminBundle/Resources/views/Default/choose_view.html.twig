@@ -1,33 +1,33 @@
 {% spaceless %}
 
-    <ul id="ODRChooseView" class="pure-u-1">
-        {# The user's currently selected theme goes at the top of the list... #}
-        {% for theme in themes %}
-            {% if theme.id == selected_theme_id %}
-                {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
-                    'theme': theme,
-                    'user': user,
-                    'is_datatype_admin': is_datatype_admin,
+<ul id="ODRChooseView" class="pure-u-1">
+    {# The user's currently selected theme goes at the top of the list... #}
+    {% for theme_data in available_themes %}
+        {% if theme_data.id == selected_theme_id %}
+            {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
+                'theme': theme_data,
+                'user': user,
+                'selected_theme_id': selected_theme_id,
 
-                    'selected_theme_id': selected_theme_id,
-                    'user_preferred_theme_id': user_preferred_theme_id
-                } %}
-            {% endif %}
-        {% endfor %}
+                'is_datatype_admin': is_datatype_admin,
+                'formatted_page_type': formatted_page_type,
+            } %}
+        {% endif %}
+    {% endfor %}
 
-        {# ...all other themes come after the currently selected theme #}
-        {% for theme in themes %}
-            {% if theme.id != selected_theme_id %}
-                {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
-                    'theme': theme,
-                    'user': user,
-                    'is_datatype_admin': is_datatype_admin,
+    {# ...all other themes come after the currently selected theme #}
+    {% for theme_data in available_themes %}
+        {% if theme_data.id != selected_theme_id %}
+            {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
+                'theme': theme_data,
+                'user': user,
+                'selected_theme_id': selected_theme_id,
 
-                    'selected_theme_id': selected_theme_id,
-                    'user_preferred_theme_id': user_preferred_theme_id
-                } %}
-            {% endif %}
-        {% endfor %}
-    </ul>
+                'is_datatype_admin': is_datatype_admin,
+                'formatted_page_type': formatted_page_type,
+            } %}
+        {% endif %}
+    {% endfor %}
+</ul>
 
 {% endspaceless %}

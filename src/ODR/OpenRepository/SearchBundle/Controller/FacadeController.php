@@ -23,16 +23,18 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
-use ODR\AdminBundle\Component\Service\DatatypeCreateService;
-use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIServiceNoConflict;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
-// use FOS\UserBundle\Model\UserManagerInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
+use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -478,7 +480,7 @@ class FacadeController extends Controller
                 if($odr_wordpress_user) {
                     // print $odr_wordpress_user . ' ';
                     $user_manager = $this->container->get('fos_user.user_manager');
-                    /** @var User $admin_user */
+                    /** @var ODRUser $admin_user */
                     $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
                 }
             }
@@ -543,7 +545,7 @@ class FacadeController extends Controller
             $odr_tab_id = $odr_tab_service->createTabId();
 
             // TODO - modify search page to allow users to select from available themes
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -684,7 +686,7 @@ class FacadeController extends Controller
             );
 
         if(!$record) {
-            throw ODRNotFoundException('Record');
+            throw new ODRNotFoundException('Record');
         }
 
         // Get the datatype

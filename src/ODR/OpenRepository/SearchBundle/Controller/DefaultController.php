@@ -82,7 +82,7 @@ class DefaultController extends Controller
                 if($odr_wordpress_user) {
                     // print $odr_wordpress_user . ' ';
                     $user_manager = $this->container->get('fos_user.user_manager');
-                    /** @var User $admin_user */
+                    /** @var ODRUser $admin_user */
                     $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
                 }
             }
@@ -264,7 +264,7 @@ class DefaultController extends Controller
 
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -558,7 +558,7 @@ class DefaultController extends Controller
 
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -886,8 +886,8 @@ class DefaultController extends Controller
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ODRCustomController $odrcc */
@@ -958,7 +958,7 @@ class DefaultController extends Controller
             $search_theme_id = intval($search_theme_id);
             if ($search_theme_id == 0) {
                 // ...attempt to get the user's preferred theme for this datatype
-                $search_theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $search_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
 
                 if ($intent === 'searching') {
                     // ...before redirecting them to the search results URL with their preferred theme
@@ -980,7 +980,7 @@ class DefaultController extends Controller
 //                throw new ODRForbiddenException('Theme is non-public');
 
             // Set the currently selected theme as the user's preferred theme for this session
-//            $theme_service->setSessionTheme($datatype->getId(), $theme);
+//            $theme_info_service->setSessionTheme($datatype->getId(), $theme);
 
 
             // ----------------------------------------
@@ -1468,8 +1468,8 @@ class DefaultController extends Controller
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $ssb_service */
             $ssb_service = $this->container->get('odr.search_sidebar_service');
-            /** @var ThemeInfoService $ti_service */
-            $ti_service = $this->container->get('odr.theme_info_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             // Ensure it's a valid search key first...
@@ -1510,7 +1510,7 @@ class DefaultController extends Controller
                 $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype->getId());
                 $user_list = $ssb_service->getSidebarUserList($user, $datatype_array);
 
-                $preferred_theme_id = $ti_service->getPreferredTheme($user, $target_datatype->getId(), 'search_results');
+                $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
 
                 // Twig can technically figure out which radio options/tags are selected or
                 //  unselected from the search key, but it's irritating to do so...it's easier to

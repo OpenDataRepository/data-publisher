@@ -6,9 +6,9 @@
 {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
     'datatype': datatype,
     'theme': theme,
-    'page_type': 'linking',
+    'page_type': 'search_results',
     'search_key': '',
-} %}
+} %}    {# TODO - do I actually want a separate page type for linking purposes? #}
 
 <div class="ODRTableOuterWrap">
     <table id="TextResults_search" class="display ODRDatatableInstance"></table>

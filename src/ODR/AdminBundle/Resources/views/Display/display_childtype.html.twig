@@ -7,7 +7,7 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 
-{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'display', 'is_datatype_admin': is_datatype_admin} %}
+{% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'display', 'is_datatype_admin': is_datatype_admin} %}
 
 {# Determine whether any array render plugins need to be run #}
 {% for rpi_num,rpi in datatype.renderPluginInstances %}
