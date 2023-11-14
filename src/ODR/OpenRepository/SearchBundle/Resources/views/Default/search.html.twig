@@ -269,9 +269,10 @@
                     // Save the search key so TODO
                     $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
 
-                    // UpdateURL() will end up forcing a hashchange event one way or another
+                    // UpdateURL() will end up forcing a hashchange event one way or another, and
+                    //  also replace the search overlay
+                    // hideSearchOverlay();
                     UpdateURL(url);
-                    // hideSearchOverlay();    // Don't hide search overlay here, rendering takes longer than searching
                 }
                 else if ( intent === 'linking' ) {
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
@@ -287,7 +288,9 @@
                             $(context).find("#ODRSidebarSearchKey").val(data.d.search_key);
                             $("#ODRSearchBoxContent").html(data.d.html);
 
-                            // hideSearchOverlay();
+                            // Linking does need the search overlay to be hidden though, since the
+                            //  results are spliced onto the page
+                            hideSearchOverlay();
                         }
                     });
                 }

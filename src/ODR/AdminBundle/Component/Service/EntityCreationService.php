@@ -2608,7 +2608,7 @@ class EntityCreationService
         $theme_meta->setTemplateName('');
         $theme_meta->setTemplateDescription('');
 
-        $theme_meta->setIsDefault(false);
+        $theme_meta->setDefaultFor(0);
         $theme_meta->setShared(false);
         $theme_meta->setIsTableTheme(false);
         $theme_meta->setDisplaysAllResults(false);

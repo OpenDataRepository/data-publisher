@@ -818,28 +818,27 @@ class PlugExtension extends \Twig_Extension
 
             // If the theme element has a themeDatatype entry...
             if ( !empty($theme_element['themeDataType']) ) {
-
-                // ...and that entry has not been filtered out and is not hidden...
                 foreach ($theme_element['themeDataType'] as $num => $tdt) {
 
-                    // Note: Display mode won't pass this check if the child datatype doesn't have any child/linked datarecords for this datatype
-                    //  Edit mode will apparently always pass this check
                     if ( isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
-
                         $child_datatype_id = $tdt['dataType']['id'];
 
-                        if ( $tdt['is_link'] == 0 && $mode == 'edit' ) {
-                            // In edit mode, a theme element is only considered "empty" if there's no child datatype entry due to filtering
+                        if ( $mode == 'edit' ) {
+                            // In edit mode...
                             if ( isset($datatype['descendants'][$child_datatype_id]) && count($datatype['descendants'][$child_datatype_id]['datatype']) > 0 )
+                                // ...a theme element is considered "not empty" if the child/linked datatype exists...
                                 return false;
                             else
+                                // ...if the child/linked datatype entry doesn't exist because it was filtered, then the theme element is "empty"
                                 return true;
                         }
                         else {
-                            // In display mode, or when displaying linked datatypes in edit mode, the theme element is only considered empty when there are no child/linked datarecords
-                            if ( isset($datarecord['children']) && isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
+                            // In display mode...
+                            if ( isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
+                                // ...a theme element is considered "not empty" if datarecords of this child/linked datatype exist...
                                 return false;
                             else
+                                // ...otherwise, the theme element is "empty"
                                 return true;
                         }
                     }

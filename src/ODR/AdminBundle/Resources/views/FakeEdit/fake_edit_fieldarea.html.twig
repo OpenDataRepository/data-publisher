@@ -36,7 +36,7 @@
         {% set trpi = theme_element.themeRenderPluginInstance %}
         {% set current_rpi_target = trpi[0].renderPluginInstance.id %}
 
-        {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'fake_edit', 'is_datatype_admin': is_datatype_admin} %}
+        {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'fake_edit', 'is_datatype_admin': is_datatype_admin} %}
 
         {% set can_execute_plugin = false %}
         {% set render_plugin_instance = null %}

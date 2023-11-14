@@ -12,7 +12,11 @@ $("#ODRMainMenu").overhang({
 
     callback: function(selection) {
         if (selection === true) {
-            var url = '{{ path('odr_modify_theme', {'datatype_id': datatype_id, 'theme_id': theme_id, 'search_key': search_key}) }}'
+{% if page_type == 'display' or page_type == 'edit' %}
+            var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': theme_id }) }}';
+{% else %}
+            var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': theme_id, 'search_key': search_key }) }}';
+{% endif %}
             UpdateURL(url);
         }
     }

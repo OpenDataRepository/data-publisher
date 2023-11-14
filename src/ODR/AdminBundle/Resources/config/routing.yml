@@ -326,7 +326,7 @@ odr_get_available_themes:
     defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes }
     requirements:
         datatype_id:  \d+
-        page_type:  'display|edit|search_results|table'
+        page_type:  '|search_results|display|edit'
 
 odr_save_theme_properties:
     path:  /view/theme_properties/{theme_id}
@@ -359,16 +359,30 @@ odr_design_theme_datafield_header_visibility:
         theme_element_id:  \d+
         datafield_id: \d+
 
-odr_toggle_theme_public:
-    path:  /design/togglepublic/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themepublic }
+odr_toggle_theme_shared:
+    path:  /design/toggleshared/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeshared }
     requirements:
         theme_id:  \d+
 
 odr_make_default_theme:
-    path:  /design/makedefault/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themedefault }
+    path:  /design/makedefault/{page_type}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:setdatabasedefaulttheme }
     requirements:
+        page_type:  '|search_results|display|edit'
+        theme_id:  \d+
+
+odr_unset_default_theme:
+    path:  /design/unsetdefault/{page_type}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:unsetdatabasedefaulttheme }
+    requirements:
+        page_type:  '|search_results|display|edit'
+        theme_id:  \d+
+odr_unset_personal_theme:
+    path:  /design/unsetpersonal/{page_type}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:unsetpersonaldefaulttheme }
+    requirements:
+        page_type:  '|search_results|display|edit'
         theme_id:  \d+
 
 odr_delete_custom_theme:
@@ -386,11 +400,10 @@ odr_modify_theme:
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_clone_theme:
-    path:  /design/copy_view/{theme_id}/{new_theme_type}
-    defaults: { _controller: ODRAdminBundle:Theme:clonetheme, new_theme_type: '' }
+    path:  /design/copy_view/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:clonetheme }
     requirements:
         theme_id:  \d+
-        new_theme_type: '[a-z\-\_]*'
 
 odr_theme_reload_theme_element:
     path: /design/theme/themeelementreload/{theme_element_id}
@@ -1572,10 +1585,11 @@ odr_session_toggle_show_editable:
     methods: [ POST ]
 
 odr_apply_theme:
-    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
+    path:  /session/apply_theme/apply/{datatype_id}/{page_type}/{theme_id}/{persist}
     defaults: { _controller: ODRAdminBundle:Session:applytheme }
     requirements:
         datatype_id:  \d+
+        page_type:  '|search_results|display|edit'
         theme_id:  \d+
         persist: 0|1
 
