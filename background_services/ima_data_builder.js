@@ -2,6 +2,8 @@
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
  */
 
+/* jshint esversion: 8 */
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
@@ -35,11 +37,12 @@ async function app() {
                     console.log('Starting job: ' + job.id)
                     // console.log('Job Data: ', job)
 
+
                     /*
                     {
                         "ima_uuid":"0f59b751673686197f49f4e117e9",
                         "cell_params_uuid":"a85a97461686ef3dfe77e14e2209",
-                        "mineral_list":"web\\/uploads\\/mineral_list.js",
+                        "mineral_data":"web\\/uploads\\/mineral_data.js",
                         "cell_params":"web\\/uploads\\/cell_params.js",
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
@@ -70,8 +73,8 @@ async function app() {
                         'let minerals_by_name = [];\n';
 
                     // console.log('WriteFile Init');
-                    console.log('writeFile: ' + basepath + data.mineral_list + '.' + tmp_file_extension);
-                    await writeFile(basepath + data.mineral_list + '.' + tmp_file_extension, content);
+                    console.log('writeFile: ' + basepath + data.mineral_data + '.' + tmp_file_extension);
+                    await writeFile(basepath + data.mineral_data + '.' + tmp_file_extension, content);
 
                     // Initialize temp files
                     content = 'var cellparams=new Array();';
@@ -85,19 +88,28 @@ async function app() {
                     content = 'var sg_synonyms={';
                     await writeFile(basepath + data.cell_params_synonyms + '.' + tmp_file_extension, content);
 
+                    // Initialize master_tag_data
+                    content = 'var master_tag_data = new Array();'
+                    // Get IMA Template (for Tag Data)
+                    let ima_record_template = await loadPage(data.ima_template_url);
+                    let ima_record_map = data.ima_record_map;
+                    let tag_array = await buildTagData(ima_record_map.ima_template_tags_uuid, ima_record_template);
+
+                    await writeFile(basepath + data.master_tag_data + '.' + tmp_file_extension, content);
+
                     //
                     // Send jobs to IMA Tube
                     //
                     let cell_params_headers = '';
-                    // for(let i = 0; i < 10; i++) {
-                    for(let i = 0; i < 100; i++) {
+                    for(let i = 0; i < 10; i++) {
+                    // for(let i = 0; i < 100; i++) {
                     // for(let i = 0; i < ima_record_data.records.length; i++) {
                         let record = ima_record_data['records'][i];
                         /*
                             'base_url' => $baseurl,
                             'ima_uuid' => $this->container->getParameter('ima_uuid'),
                             'cell_params_uuid' => $this->container->getParameter('cell_params_uuid'),
-                            'mineral_list' => $this->container->getParameter('mineral_list'),
+                            'mineral_data' => $this->container->getParameter('mineral_data'),
                             'cell_params' => $this->container->getParameter('cell_params'),
                             'cell_params_range' => $this->container->getParameter('cell_params_range'),
                             'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
@@ -109,7 +121,7 @@ async function app() {
                         record.base_path = basepath;
                         record.base_url = data.base_url;
                         record.cell_params_uuid = data.cell_params_uuid;
-                        record.mineral_list = data.mineral_list;
+                        record.mineral_data = data.mineral_data;
                         record.cell_params = data.cell_params;
                         record.cell_params_range = data.cell_params_range;
                         record.cell_params_synonyms = data.cell_params_synonyms;
@@ -145,15 +157,15 @@ async function app() {
                     //
                     // Send jobs to Cell Params Tube
                     //
-                    // for(let i = 0; i < 10; i++) {
-                    for(let i = 0; i < 100; i++) {
+                    for(let i = 0; i < 10; i++) {
+                    // for(let i = 0; i < 100; i++) {
                     // for(let i = 0; i < cell_params_record_data.records.length; i++) {
                         let record = cell_params_record_data['records'][i];
                         /*
                             'base_url' => $baseurl,
                             'ima_uuid' => $this->container->getParameter('ima_uuid'),
                             'cell_params_uuid' => $this->container->getParameter('cell_params_uuid'),
-                            'mineral_list' => $this->container->getParameter('mineral_list'),
+                            'mineral_data' => $this->container->getParameter('mineral_data'),
                             'cell_params' => $this->container->getParameter('cell_params'),
                             'cell_params_range' => $this->container->getParameter('cell_params_range'),
                             'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
@@ -165,7 +177,7 @@ async function app() {
                         record.base_path = basepath;
                         record.base_url = data.base_url;
                         record.cell_params_uuid = data.cell_params_uuid;
-                        record.mineral_list = data.mineral_list;
+                        record.mineral_data = data.mineral_data;
                         record.cell_params = data.cell_params;
                         record.cell_params_range = data.cell_params_range;
                         record.cell_params_synonyms = data.cell_params_synonyms;
@@ -193,8 +205,8 @@ async function app() {
                     // Send to Powder Diffraction Tube
                     //
                     // console.log('PD Records:', powder_diffraction_record_data.records.length);
-                    // for(let i = 0; i < 10; i++) {
-                    for(let i = 0; i < 300; i++) {
+                    for(let i = 0; i < 30; i++) {
+                    // for(let i = 0; i < 300; i++) {
                     // for(let i = 0; i <  powder_diffraction_record_data.records.length; i++) {
                         let record = powder_diffraction_record_data.records[i];
                         record.cell_params_index = i;
@@ -202,7 +214,7 @@ async function app() {
                         record.base_path = basepath;
                         record.base_url = data.base_url;
                         record.cell_params_uuid = data.cell_params_uuid;
-                        record.mineral_list = data.mineral_list;
+                        record.mineral_data = data.mineral_data;
                         record.cell_params = data.cell_params;
                         record.cell_params_range = data.cell_params_range;
                         record.cell_params_synonyms = data.cell_params_synonyms;
@@ -450,6 +462,94 @@ async function findValue(field_uuid, record) {
         }
     }
     return '';
+}
+
+async function buildTagTree(tagTree, tag_data, parent_tag) {
+    for(let x in tagTree) {
+       let tag = tagTree[x];
+       let tag_string = tag.id + '||' + tag.name + '|| ||mineral||1||' + tag.name;
+       if(parent_tag.id !== undefined) {
+           tag_string += '||' + parent_tag.id;
+       }
+       else {
+           tag_string += '||0';
+       }
+       tag_data[tag.id] = tag_string;
+
+       if(tag.tags !== undefined) {
+           await buildTagTree(tag.tags, tag_data, tag)
+       }
+    }
+}
+
+async function buildTagData(field_uuid, record) {
+    if(
+        record['fields_' + record.template_uuid] !== undefined
+        && record['fields_' + record.template_uuid].length > 0
+    ) {
+        let fields = record['fields_' + record.template_uuid];
+        for(let i = 0; i < fields.length; i++) {
+            if(fields[i].template_field_uuid !== undefined && fields[i].template_field_uuid === field_uuid) {
+                if(fields[i].tags !== undefined) {
+                    let tag_data = [];
+                    return await buildTagTree(fields[i].tags, tag_data, {});
+                }
+            }
+            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid === field_uuid) {
+                if(fields[i].tags !== undefined) {
+                    let tag_data = [];
+                    return await buildTagTree(fields[i].tags, tag_data, {});
+                }
+            }
+        }
+    }
+    if(
+        record['fields_' + record.record_uuid] !== undefined
+        && record['fields_' + record.record_uuid].length > 0
+    ) {
+        let fields = record['fields_' + record.record_uuid];
+        for(let i = 0; i < fields.length; i++) {
+            if(
+                fields[i].template_field_uuid !== undefined
+                && fields[i].template_field_uuid === field_uuid
+            ) {
+                if(fields[i].tags !== undefined) {
+                    let tag_data = [];
+                    return await buildTagTree(fields[i].tags, tag_data, {});
+                }
+            }
+            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid === field_uuid) {
+                if(fields[i].tags !== undefined) {
+                    let tag_data = [];
+                    return await buildTagTree(fields[i].tags, tag_data, {});
+                }
+            }
+        }
+    }
+    if(
+        record['records_' + record.template_uuid] !== undefined
+        && record['records_' + record.template_uuid].length > 0
+    ) {
+        for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
+            let result = await buildTagData(field_uuid, record['records_' + record.template_uuid][i]);
+            if(result !== '') {
+                return result;
+            }
+        }
+    }
+    else if(
+        record['records_' + record.record_uuid] !== undefined
+        && record['records_' + record.record_uuid].length > 0
+    ) {
+        for(let i = 0; i < record['records_' + record.record_uuid].length; i++) {
+            let result = await buildTagData(field_uuid, record['records_' + record.record_uuid][i]);
+            if(result !== '') {
+                return result;
+            }
+        }
+    }
+    return '';
+
 }
 
 app();

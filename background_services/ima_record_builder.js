@@ -35,7 +35,7 @@ async function app() {
                         "ima_uuid":"0f59b751673686197f49f4e117e9",
                         "mineral_index": <1023>,
                         "cell_params_uuid":"a85a97461686ef3dfe77e14e2209",
-                        "mineral_list":"web\\/uploads\\/mineral_list.js",
+                        "mineral_data":"web\\/uploads\\/mineral_data.js",
                         "cell_params":"web\\/uploads\\/cell_params.js",
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
@@ -70,8 +70,8 @@ async function app() {
                     // ||
                     // ||1
                     // ||Na Pb C O H
-                    // ||785 765 786 90 236 173 766 813 895 893 1132 1135 1000001 1000008
-                    // ||18519 18520 19655 19668 19924
+                    // TAG Data: ||785 765 786 90 236 173 766 813 895 893 1132 1135 1000001 1000008 Tags???
+                    // WHAT is this?? ||18519 18520 19655 19668 19924
                     // ||
                     // ||
                     // ||NaPb^2+^_2_(CO_3_)_2_(OH)
@@ -91,10 +91,10 @@ async function app() {
                     let content = '' +
                         'minerals_by_name[' + record.mineral_index + ']={name:"' +
                             // Mineral Name
-                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data) +
                         '",id:"' +
                             // Mineral ID
-                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data) +
                              record_data.record_uuid +
                         '"};';
 
@@ -102,17 +102,17 @@ async function app() {
                         'mineral_keys[' +
                             // Mineral ID
                             '\'' + record_data.record_uuid + '\'' +
-                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data) +
                         ']=\'' +
                             // Mineral Name
-                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data) +
                         '\';';
 
                     content += '' +
                         'mineral_name_keys[\'' +
-                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data) +
                             // Mineral Name
-                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            await findValue('15ecaaaa9bebc84862bc45523aab' , record_data) +
                         '\']=\'' +
                             // Mineral ID
                             record_data.record_uuid +
@@ -122,69 +122,69 @@ async function app() {
                         'mineral_data_array[' +
                             // Mineral ID
                             '\'' + record_data.record_uuid + '\'' +
-                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) +
+                            // await findValue('5b8394b6683f3714786a2dbde9b4' , record_data) +
                         ']=\'' +
                         // Mineral Name
-                        await findValue('15ecaaaa9bebc84862bc45523aab' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('15ecaaaa9bebc84862bc45523aab' , record_data) + '||' +
                         // Mineral Display Name
-                        await findValue('f756a7e5caac372fffc51e63d380' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('f756a7e5caac372fffc51e63d380' , record_data) + '||' +
                         // Ideal IMA Formula (html)
-                        formatChemistry(await findValue('46a794d871c38c924e85ae4b9e21' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5)) + '||' +
+                        formatChemistry(await findValue('46a794d871c38c924e85ae4b9e21' , record_data)) + '||' +
                         // RRUFF Formula (html)
-                        formatChemistry(await findValue('95ed4300139930bdce915d72cb4f' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5)) + '||' +
+                        formatChemistry(await findValue('95ed4300139930bdce915d72cb4f' , record_data)) + '||' +
                         // <empty>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // <empty>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // <unknown>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // Chemistry Elements
-                        await findValue('f5c20d29acd83ccb3fce86cd1f6f' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('f5c20d29acd83ccb3fce86cd1f6f' , record_data) + '||' +
+                        // Tag Data
+                        await findValue('a3c5ec7e195e9126b4ece76eed51' , record_data) + '||' +
                         // <unknown>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
-                        // <unknown>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // <empty>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // <empty>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // Ideal IMA Formula (raw)
-                        await findValue('46a794d871c38c924e85ae4b9e21' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('46a794d871c38c924e85ae4b9e21' , record_data) + '||' +
                         // RRUFF Formula (raw)
-                        await findValue('95ed4300139930bdce915d72cb4f' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('95ed4300139930bdce915d72cb4f' , record_data) + '||' +
                         // <empty>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // <empty>
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // Mineral ID
-                        await findValue('5b8394b6683f3714786a2dbde9b4' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('5b8394b6683f3714786a2dbde9b4' , record_data) + '||' +
                         // Status Notes Base64
                         Buffer.from(
-                            await findValue('cd59394d60904fc702a96a8ab6b0' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5)
+                            await findValue('cd59394d60904fc702a96a8ab6b0' , record_data)
                         ).toString('base64') + '||' +
                         // Chemistry Elements
-                        await findValue('' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('' , record_data) + '||' +
                         // IMA Number
-                        await findValue('be5d90b42f5616a373fd3fa73526' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('be5d90b42f5616a373fd3fa73526' , record_data) + '||' +
                         // Mineral Name
-                        await findValue('15ecaaaa9bebc84862bc45523aab' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('15ecaaaa9bebc84862bc45523aab' , record_data) + '||' +
                         // Type Locality Country
-                        await findValue('0da35a7e99e4f45e4dfcc1a3f938' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('0da35a7e99e4f45e4dfcc1a3f938' , record_data) + '||' +
                         // Year First Published
-                        await findValue('655f1d215f4a47c285b9c57907aa' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('655f1d215f4a47c285b9c57907aa' , record_data) + '||' +
                         // Valence Elements
-                        await findValue('7e748addd1c79fa45a281838f2f8' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('7e748addd1c79fa45a281838f2f8' , record_data) + '||' +
                         // Mineral Display Abbreviation
-                        await findValue('968802c020d5cc648c85c36ec506' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('968802c020d5cc648c85c36ec506' , record_data) + '||' +
                         // Mineral Display Abbreviation
-                        await findValue('968802c020d5cc648c85c36ec506' , record_data.fields_529c7007b0b9c5937d90c1f1e5d5) + '||' +
+                        await findValue('968802c020d5cc648c85c36ec506' , record_data) + '||' +
                         // Mineral UUID
                         record_data.record_uuid +
                         '\';\n';
 
                     // console.log(content)
-                    console.log('writeFile: ' + record.base_path + record.mineral_list + '.' + record.file_extension);
-                    await appendFile( record.base_path + record.mineral_list + '.' + record.file_extension, content);
+                    console.log('writeFile: ' + record.base_path + record.mineral_data + '.' + record.file_extension);
+                    await appendFile( record.base_path + record.mineral_data + '.' + record.file_extension, content);
 
 
 
@@ -236,7 +236,7 @@ async function writeFile(file_name, content) {
     }
 }
 
-async function findValue(field_uuid, record) {
+async function findValueDep(field_uuid, record) {
     for(let i = 0; i < record.length; i++) {
         if(record[i].template_field_uuid !== undefined && record[i].template_field_uuid == field_uuid) {
             if(record[i].value !== undefined) {
@@ -328,5 +328,168 @@ async function loadPage(page_url) {
         throw(err);
     }
 }
+
+
+
+async function findValue(field_uuid, record) {
+    if(
+        record['fields_' + record.template_uuid] !== undefined
+        && record['fields_' + record.template_uuid].length > 0
+    ) {
+        let fields = record['fields_' + record.template_uuid];
+        for(let i = 0; i < fields.length; i++) {
+            if(fields[i].template_field_uuid !== undefined && fields[i].template_field_uuid === field_uuid) {
+                if(
+                    fields[i].files !== undefined
+                    && fields[i].files[0] !== undefined
+                    && fields[i].files[0].href !== undefined
+                ) {
+                    // console.log('Getting file: ', fields[i].files[0])
+                    return fields[i].files[0].href;
+                }
+                if(fields[i].value !== undefined) {
+                    return fields[i].value.toString().replace(/'/g, "\\'");
+                }
+                else if(fields[i].tags !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].tags.length; j++) {
+                        output += fields[i].tags[j].id + ' ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else if(fields[i].values !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].values.length; j++) {
+                        output += fields[i].values[j].name + ', ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else {
+                    return '';
+                }
+            }
+            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid === field_uuid) {
+                if(
+                    fields[i].files !== undefined
+                    && fields[i].files[0] !== undefined
+                    && fields[i].files[0].href !== undefined
+                ) {
+                    // console.log('Getting file 2: ', fields[i].files[0])
+                    return fields[i].files[0].href;
+                }
+                if(fields[i].value !== undefined) {
+                    return fields[i].value.toString().replace(/'/g, "\\'");
+                }
+                else if(fields[i].tags !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].tags.length; j++) {
+                        output += fields[i].tags[j].id + ' ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else if(fields[i].values !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].values.length; j++) {
+                        output += fields[i].values[j].name + ', ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else {
+                    return '';
+                }
+            }
+        }
+    }
+    if(
+        record['fields_' + record.record_uuid] !== undefined
+        && record['fields_' + record.record_uuid].length > 0
+    ) {
+        let fields = record['fields_' + record.record_uuid];
+        for(let i = 0; i < fields.length; i++) {
+            if(fields[i].template_field_uuid !== undefined && fields[i].template_field_uuid == field_uuid) {
+                if(fields[i].files !== undefined && fields[i].files[0].href !== undefined) {
+                    return fields[i].files[0].href;
+                }
+                if(fields[i].value !== undefined) {
+                    return fields[i].value.toString().replace(/'/g, "\\'");
+                }
+                else if(fields[i].tags !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].tags.length; j++) {
+                        output += fields[i].tags[j].id + ' ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else if(fields[i].values !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].values.length; j++) {
+                        output += fields[i].values[j].name + ', ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else {
+                    return '';
+                }
+            }
+            else if(fields[i].field_uuid !== undefined && fields[i].field_uuid == field_uuid) {
+                if(fields[i].files !== undefined && fields[i].files[0].href !== undefined) {
+                    return fields[i].files[0].href;
+                }
+                if(fields[i].value !== undefined) {
+                    return fields[i].value.toString().replace(/'/g, "\\'");
+                }
+                else if(fields[i].tags !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].tags.length; j++) {
+                        output += fields[i].tags[j].id + ' ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else if(fields[i].values !== undefined) {
+                    let output = '';
+                    for(let j = 0; j < fields[i].values.length; j++) {
+                        output += fields[i].values[j].name + ', ';
+                    }
+                    output = output.replace(/,\s$/, '');
+                    return output;
+                }
+                else {
+                    return '';
+                }
+            }
+        }
+    }
+    if(
+        record['records_' + record.template_uuid] !== undefined
+        && record['records_' + record.template_uuid].length > 0
+    ) {
+        for(let i = 0; i < record['records_' + record.template_uuid].length; i++) {
+            let result = await findValue(field_uuid, record['records_' + record.template_uuid][i]);
+            if(result !== '') {
+                return result;
+            }
+        }
+    }
+    if(
+        record['records_' + record.record_uuid] !== undefined
+        && record['records_' + record.record_uuid].length > 0
+    ) {
+        for(let i = 0; i < record['records_' + record.record_uuid].length; i++) {
+            let result = await findValue(field_uuid, record['records_' + record.record_uuid][i]);
+            if(result !== '') {
+                return result;
+            }
+        }
+    }
+    return '';
+}
+
 
 app();

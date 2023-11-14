@@ -898,7 +898,7 @@ class FacadeController extends Controller
 
             // Determine API URL for record lists
             /*
-                mineral_list: 'web/uploads/mineral_list.js'
+                mineral_data: 'web/uploads/mineral_data.js'
                 cell_params: 'web/uploads/cell_params.js'
                 cell_params_range: 'web/uploads/cell_params_range.js'
                 cell_params_synonyms: 'web/uploads/cell_params_synonyms.js'
@@ -908,10 +908,11 @@ class FacadeController extends Controller
             $job_data = array(
                 'base_url' => $baseurl,
                 'ima_uuid' => $this->container->getParameter('ima_uuid'),
+                'ima_template_uuid' => $this->container->getParameter('ima_template_uuid'),
                 'cell_params_uuid' => $this->container->getParameter('cell_params_uuid'),
                 'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid'),
                 'powder_diffraction_search_key' => $this->container->getParameter('powder_diffraction_search_key'),
-                'mineral_list' => $this->container->getParameter('mineral_list'),
+                'mineral_data' => $this->container->getParameter('mineral_data'),
                 'cell_params' => $this->container->getParameter('cell_params'),
                 'cell_params_range' => $this->container->getParameter('cell_params_range'),
                 'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
@@ -929,6 +930,15 @@ class FacadeController extends Controller
                 )
             );
             $ima_url = $baseurl . $ima_url;
+
+            $ima_template_url = $this->generateUrl(
+                'odr_api_get_template_single',
+                array(
+                    'datatype_uuid' => $job_data['ima_uuid'],
+                    'version' => 'v4'
+                )
+            );
+            $ima_template_url = $baseurl . $ima_template_url;
 
             $cell_params_url = $this->generateUrl(
                 'odr_api_datarecord_list',
@@ -953,9 +963,11 @@ class FacadeController extends Controller
             $powder_diffraction_url = $baseurl . $powder_diffraction_url;
 
             $job_data['ima_url'] = $ima_url;
+            $job_data['ima_template_url'] = $ima_template_url;
             $job_data['cell_params_url'] = $cell_params_url;
             $job_data['powder_diffraction_url'] = $powder_diffraction_url;
 
+            $job_data['ima_record_map'] = $this->container->getParameter('ima_record_map');
             $job_data['cell_params_map'] = $this->container->getParameter('cell_params_map');
             $job_data['powder_diffraction_map'] = $this->container->getParameter('powder_diffraction_map');
 

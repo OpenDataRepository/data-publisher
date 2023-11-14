@@ -52,6 +52,11 @@ class GraphController extends ODRCustomController
      */
     public function staticAction($datatype_id, $datarecord_id, Request $request)
     {
+        // TODO HOLY F*({ - let's check if the graph exists and return
+        // it.  If not, then build all this garbage.  Maybe determine
+        // if all rolled up files are public and then have a public
+        // version already exist.  This is un-necessary to check every
+        // time.
         try {
             $is_rollup = false;
             // Check if this is a rollup and filter datarecord_id

@@ -35,7 +35,7 @@ async function app() {
                         "ima_uuid":"0f59b751673686197f49f4e117e9",
                         "mineral_index": <1023>,
                         "cell_params_uuid":"a85a97461686ef3dfe77e14e2209",
-                        "mineral_list":"web\\/uploads\\/mineral_list.js",
+                        "mineral_data":"web\\/uploads\\/mineral_data.js",
                         "cell_params":"web\\/uploads\\/cell_params.js",
                         "cell_params_range":"web\\/uploads\\/cell_params_range.js",
                         "cell_params_synonyms":"web\\/uploads\\/cell_params_synonyms.js",
@@ -120,7 +120,7 @@ async function app() {
                             // Temperature
                             await findValue(cp_map.temperature, record_data) + '|' +
                             // Crystal System
-                            await findValue(cp_map.crystal_system, record_data) + '|' +
+                            await convertCrystalSystem(await findValue(cp_map.crystal_system, record_data)) + '|' +
                             // Point Group
                             await findValue(cp_map.point_group, record_data) + '|' +
                             // Space Group
@@ -180,7 +180,7 @@ async function app() {
                             // Temperature
                             await findValue(pd_map.temperature, record_data) + '|' +
                             // Crystal System
-                            await findValue(pd_map.crystal_system, record_data) + '|' +
+                            await convertCrystalSystem(await findValue(pd_map.crystal_system, record_data)) + '|' +
                             // Point Group
                             await findValue(pd_map.point_group, record_data) + '|' +
                             // Space Group
@@ -223,6 +223,27 @@ async function app() {
         }
         resJob();
     });
+}
+
+async function convertCrystalSystem(cp_value) {
+    let crystal_systems_map = {
+        'cubic': 1,
+        'hexagonal': 2,
+        'tetragonal': 3,
+        'orthorhombic': 4,
+        'monoclinic': 5,
+        'triclinic': 6,
+        'amorphous': 7,
+        'unknown': 8,
+        'rhombohedral': 9,
+        'isometric': 10
+    };
+    for(const key in crystal_systems_map) {
+        if(cp_value.toString().toLowerCase() === key) {
+            return crystal_systems_map[key];
+        }
+    }
+    return 0;
 }
 
 async function writeFile(file_name, content) {

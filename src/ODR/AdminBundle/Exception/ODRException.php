@@ -13,10 +13,11 @@
 
 namespace ODR\AdminBundle\Exception;
 
-use Symfony\Component\HttpKernel\Exception\HttpException;
+// use Symfony\Component\HttpKernel\Exception\HttpException;
 
 
-class ODRException extends HttpException
+// TODO Why was this HttpException?
+class ODRException extends \Exception
 {
 
 //    protected $message;

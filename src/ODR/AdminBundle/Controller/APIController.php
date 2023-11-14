@@ -4339,9 +4339,9 @@ class APIController extends ODRCustomController
                                 'descendant' => $record_data_type->getId()
                             )
                         );
+
                         if ($datatree == null)
                             throw new ODRNotFoundException('Datatree');
-
 
                         if ($datatree->getIsLink()) {
                             $is_link = true;

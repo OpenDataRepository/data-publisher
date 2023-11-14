@@ -1034,6 +1034,12 @@ odr_image_download:
     requirements:
         image_id:  \d+
 
+odr_public_image_download:
+    path:  /uploads/images/{image_filename}
+    defaults: { }
+    requirements:
+        image_filename: '[a-zA-Z\d\.\_]+'
+
 odr_get_file_list:
     path:  /view/file_list/{grandparent_datarecord_id}/{group_by_datafield}
     defaults: { _controller: ODRAdminBundle:Display:listallfiles, group_by_datafield: 0 }
