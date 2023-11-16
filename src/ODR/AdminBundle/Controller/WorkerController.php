@@ -1137,14 +1137,12 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Unfortunately, can't transfer the name/sort field to the new DatatypeSpecialFields table
-     * without using php...
+     * TODO - think i can repurpose this...
      *
-     * @param integer $field_purpose
      * @param Request $request
      * @return Response
      */
-    public function asdfAction($field_purpose, Request $request)
+    public function asdfAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1152,8 +1150,6 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         try {
-            $field_purpose = intval($field_purpose);
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -1165,141 +1161,162 @@ $ret .= '  Set current to '.$count."\n";
                 throw new ODRForbiddenException();
             // --------------------
 
-            $query = '';
-            if ( $field_purpose === DataTypeSpecialFields::NAME_FIELD ) {
-                $query =
-                   'SELECT dtm.data_type_id AS dt_id, dtm.type_name_datafield_id AS df_id, '.DataTypeSpecialFields::NAME_FIELD.' AS field_purpose, dtm.created, dtm.createdBy, dtm.updated, dtm.updatedBy, dtm.deletedAt
-                    FROM odr_data_type_meta dtm
-                    WHERE 1=1
-                    ORDER BY dtm.data_type_id, dtm.id';
-            }
-            else if ( $field_purpose === DataTypeSpecialFields::SORT_FIELD ) {
-                $query =
-                   'SELECT dtm.data_type_id AS dt_id, dtm.sort_datafield_id AS df_id, '.DataTypeSpecialFields::SORT_FIELD.' AS field_purpose, dtm.created, dtm.createdBy, dtm.updated, dtm.updatedBy, dtm.deletedAt
-                    FROM odr_data_type_meta dtm
-                    WHERE 1=1
-                    ORDER BY dtm.data_type_id, dtm.id';
-            }
-            else {
-                throw new ODRBadRequestException();
-            }
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.shortName, t.id AS t_id, t.themeType, tm.templateName, tm.isDefault
+                FROM ODRAdminBundle:Theme t
+                JOIN ODRAdminBundle:ThemeMeta tm with tm.theme = t
+                JOIN ODRAdminBundle:DataType dt WITH t.dataType = dt
+                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                WHERE t = t.parentTheme
+                AND t.deletedAt IS NULL AND tm.deletedAt IS NULL
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                ORDER BY dt.id, t.themeType'
+            );
+            $results = $query->getArrayResult();
 
-            $conn = $em->getConnection();
-            $results = $conn->executeQuery($query);
+            $new_custom_view_defaults = array();
+            $new_search_results_defaults = array();
 
-            $dt_data = array();
+            $theme_renames_to_blank = array();
+            $theme_renames_to_search_results = array();
+            $theme_renames_to_table = array();
+
+            $previous_dt_id = 0;
+            $tmp = array();
             foreach ($results as $result) {
-                $dt_id = intval($result['dt_id']);
-                if ( !isset($dt_data[$dt_id]) )
-                    $dt_data[$dt_id] = array();
+                $dt_id = $result['dt_id'];
+                $datatype_name = $result['shortName'];
+                $theme_id = $result['t_id'];
+                $theme_type = $result['themeType'];
+                $template_name = $result['templateName'];
+                $is_default = $result['isDefault'];
 
-                $dt_data[$dt_id][] = array(
-                    'df_id' => $result['df_id'],
-                    'field_purpose' => $result['field_purpose'],
-                    'created' => $result['created'],
-                    'createdBy' => $result['createdBy'],
-                    'updated' => $result['updated'],
-                    'updatedBy' => $result['updatedBy'],
-                    'deletedAt' => $result['deletedAt'],
+                if ( $dt_id !== $previous_dt_id ) {
+                    // Determine what to change
+                    foreach ($tmp as $t_id => $t_data) {
+                        // Want to preserve defaults...
+                        if ( $t_data['default'] ) {
+                            if ( $t_data['type'] === 'table' || $t_data['type'] === 'search_results' )
+                                $new_search_results_defaults[$t_id] = 1;
+                            else if ( $t_data === 'custom_view' )
+                                $new_custom_view_defaults[$t_id] = 1;
+                        }
+
+                        // Want to fix the endless "copy of" names...
+                        $reduced_template_name = str_replace('copy of', '', $t_data['name']);
+                        if ( trim($reduced_template_name) === '' ) {
+                            if ( $t_data['type'] === 'search_results' )
+                                $theme_renames_to_search_results[$t_id] = 1;
+                            else if ( $t_data['type'] === 'table' )
+                                $theme_renames_to_table[$t_id] = 1;
+                            else if ( $t_data['name'] !== '' )
+                                $theme_renames_to_blank[$t_id] = 1;
+                        }
+                    }
+
+                    // Reset for next set of themes
+                    $tmp = array();
+                    $previous_dt_id = $dt_id;
+                }
+
+                $tmp[$theme_id] = array(
+                    'type' => $theme_type,
+                    'name' => strtolower($template_name),
+                    'default' => $is_default
                 );
             }
 
-            foreach ($dt_data as $dt_id => $data) {
-                $last_good_field = null;
-                for ($i = 0; $i < count($data); $i++) {
-                    if ( is_null($last_good_field) ) {
-                        // If this is currently the earliest entry for this datatype...
-                        if ( is_null($data[$i]['df_id']) ) {
-                            // ...then get rid of the entry if it doesn't actually define a field
-                            unset( $dt_data[$dt_id][$i] );
-                            $last_good_field = null;
-                        }
-                        else if ( is_null($data[$i]['df_id']) ) {
-                            // ...discard the current entry if the name/sort field was set to null
-                            unset( $dt_data[$dt_id][$i] );
-                        }
-                        else {
-                            // ...then the entry defines a valid field
-                            $last_good_field = $i;
-                        }
-                    }
-                    else {
-                        // Otherwise, this is not the earliest entry...
-                        if ( $data[$last_good_field]['df_id'] === $data[$i]['df_id'] ) {
-                            // ...transfer over the deletedAt date
-                            $dt_data[$dt_id][$last_good_field]['deletedAt'] = $data[$i]['deletedAt'];
-                            // ...and discard the current entry since the name/sort field hasn't changed
-                            unset( $dt_data[$dt_id][$i] );
-                        }
-                        else if ( is_null($data[$i]['df_id']) ) {
-                            // ...discard the current entry if the name/sort field was set to null
-                            unset( $dt_data[$dt_id][$i] );
-                        }
-                        else {
-                            // ...keep the current entry if the name/sort field has changed
-                            $last_good_field = $i;
-                        }
-                    }
+            // Determine what to change
+            foreach ($tmp as $t_id => $t_data) {
+                // Want to preserve defaults...
+                if ( $t_data['default'] ) {
+                    if ( $t_data['type'] === 'table' || $t_data['type'] === 'search_results' )
+                        $new_search_results_defaults[$t_id] = 1;
+                    else if ( $t_data === 'custom_view' )
+                        $new_custom_view_defaults[$t_id] = 1;
                 }
 
-                // No sense creating entries when the datatype doesn't have a name/sort field
-                if ( empty($dt_data[$dt_id]) )
-                    unset( $dt_data[$dt_id] );
-            }
-
-            $insert = 'INSERT INTO odr_data_type_special_fields (data_type_id, data_field_id, display_order, field_purpose, created, createdBy, updated, updatedBy, deletedAt)'."\nVALUES\n";
-            $values = array();
-            $warnings = array();
-            foreach ($dt_data as $dt_id => $data) {
-
-                $tmp = array();
-                foreach ($data as $num => $fields) {
-                    $tmp = array(
-                        $dt_id,
-                    );
-
-                    if ( !is_null($fields['df_id']) )
-                        $tmp[] = $fields['df_id'];
-                    else {
-                        $tmp[] = 'null';
-                        $warnings[] = 'datatype '.$dt_id.' has a null datafield in it...the new table should not have nulls';
-                    }
-
-                    $tmp[] = 0;    // display_order will be zero always
-                    $tmp[] = $field_purpose;
-
-                    if ( !is_null($fields['created']) )
-                        $tmp[] = "'".$fields['created']."'";
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['createdBy']) )
-                        $tmp[] = $fields['createdBy'];
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['updated']) )
-                        $tmp[] = "'".$fields['updated']."'";
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['updatedBy']) )
-                        $tmp[] = $fields['updatedBy'];
-                    else
-                        $tmp[] = 'null';
-
-                    if ( !is_null($fields['deletedAt']) )
-                        $tmp[] = "'".$fields['deletedAt']."'";
-                    else
-                        $tmp[] = 'null';
-
-                    $values[] = '('.implode(', ', $tmp).')';
+                // Want to fix the endless "copy of" names...
+                $reduced_template_name = str_replace('copy of', '', $t_data['name']);
+                if ( trim($reduced_template_name) === '' ) {
+                    if ( $t_data['type'] === 'search_results' )
+                        $theme_renames_to_search_results[$t_id] = 1;
+                    else if ( $t_data['type'] === 'table' )
+                        $theme_renames_to_table[$t_id] = 1;
+                    else if ( $t_data['name'] !== '' )
+                        $theme_renames_to_blank[$t_id] = 1;
                 }
             }
 
-            $insert = $insert.implode(",\n", $values).';';
-            print '<pre>'.implode("\n", $warnings).'</pre>';
-            print '<pre>'.$insert.'</pre>';
+
+            $ret = '<table border="1">';
+            $ret .= '<thead><tr>';
+            $ret .= '<th>Datatype Name</th>';
+            $ret .= '<th>Theme ID</th>';
+            $ret .= '<th>is Default?</th>';
+            $ret .= '<th>New is Default?</th>';
+            $ret .= '<th>Theme Type</th>';
+            $ret .= '<th>New Theme Type</th>';
+            $ret .= '<th>Theme Name</th>';
+            $ret .= '<th>New Theme Name</th>';
+            $ret .= '</tr></thead>';
+
+            $ret .= '<tbody>';
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $datatype_name = $result['shortName'];
+                $theme_id = $result['t_id'];
+                $theme_type = $result['themeType'];
+                $template_name = $result['templateName'];
+                $is_default = $result['isDefault'];
+
+                $new_theme_type = '';
+                if ( $theme_type !== 'master' )
+                    $new_theme_type = 'custom';
+
+                $new_template_name = '';
+                if ( isset($theme_renames_to_blank[$theme_id]) )
+                    $new_template_name = '*blank*';
+                else if ( isset($theme_renames_to_search_results[$theme_id]) )
+                    $new_template_name = 'Search Results View';
+                else if ( isset($theme_renames_to_table[$theme_id]) )
+                    $new_template_name = 'Table View';
+
+                $is_new_default = '';
+                if ( isset($new_search_results_defaults[$theme_id]) || isset($new_custom_view_defaults[$theme_id]) )
+                    $is_new_default = '1';
+
+                $ret .= '<tr>';
+                $ret .= '<td>'.$datatype_name.'</td>';
+                $ret .= '<td>'.$theme_id.'</td>';
+                $ret .= '<td>'.$is_default.'</td>';
+                $ret .= '<td><b>'.$is_new_default.'</b></td>';
+                $ret .= '<td>'.$theme_type.'</td>';
+                $ret .= '<td><b>'.$new_theme_type.'</b></td>';
+                $ret .= '<td>'.$template_name.'</td>';
+                $ret .= '<td><b>'.$new_template_name.'</b></td>';
+                $ret .= '</tr>';
+            }
+
+            $ret .= '</tbody>';
+            $ret .= '</table>';
+
+            print '<pre>'.$ret.'</pre>';
+
+            print 'UPDATE odr_theme_meta tm SET tm.default_for = 1 WHERE tm.theme_id IN ('.implode(',', array_keys($new_search_results_defaults)).') AND tm.deletedAt IS NULL;';
+            print '<br><br>';
+            if ( !empty($new_custom_view_defaults) ) {
+                print 'UPDATE odr_theme_meta tm SET tm.default_for = 1 WHERE tm.theme_id IN ('.implode(',', array_keys($new_custom_view_defaults)).') AND tm.deletedAt IS NULL;';
+                print '<br><br>';
+            }
+
+            print 'UPDATE odr_theme_meta tm SET tm.template_name = "Search Results View" WHERE tm.theme_id IN ('.implode(',', array_keys($theme_renames_to_search_results)).') AND tm.deletedAt IS NULL;';
+            print '<br><br>';
+            print 'UPDATE odr_theme_meta tm SET tm.template_name = "Table View" WHERE tm.theme_id IN ('.implode(',', array_keys($theme_renames_to_table)).') AND tm.deletedAt IS NULL;';
+            print '<br><br>';
+            print 'UPDATE odr_theme_meta tm SET tm.template_name = "" WHERE tm.theme_id IN ('.implode(',', array_keys($theme_renames_to_blank)).') AND tm.deletedAt IS NULL;';
+            print '<br><br>';
+
         }
         catch (\Exception $e) {
             $source = 0xd3cdfe7c;

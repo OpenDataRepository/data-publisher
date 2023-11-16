@@ -2112,7 +2112,6 @@ odr_track_get_user_selector:
 
 
 odr_asdf:
-    path: /admin/asdf/{field_purpose}
+    path: /admin/asdf
     defaults: { _controller: ODRAdminBundle:Worker:asdf }
     requirements:
-        field_purpose: \d+

@@ -549,7 +549,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     switch ($precision_type) {
                         case 'none':
                         case 'greedy':
-                        case 'minimal':
+                        case 'precise':
 //                        case 'decimal':    // TODO?
                             break;
 

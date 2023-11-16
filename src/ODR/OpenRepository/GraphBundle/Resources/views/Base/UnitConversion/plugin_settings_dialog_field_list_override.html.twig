@@ -45,7 +45,7 @@
             <select id="ODRRenderPlugin_PrecisionType_select">
                 <option value="none" {% if current_precision_type == 'none' %}selected{% endif %}>None</option>
                 <option value="greedy" {% if current_precision_type == 'greedy' %}selected{% endif %}>Greedy</option>
-                <option value="minimal" {% if current_precision_type == 'minimal' %}selected{% endif %}>Minimal</option>
+                <option value="precise" {% if current_precision_type == 'precise' %}selected{% endif %}>Precise</option>
 {#                <option value="decimal" {% if current_precision_type == 'decimal' %}selected{% endif %}># of Decimal places</option>#}  {# TODO? #}
             </select>
         </label>
@@ -61,7 +61,7 @@
             <br>"100 meters" will be converted to "328 feet"
             <br>"100.0 meters" will be converted to "328.1 feet"
         </div>
-        <div id="ODRRenderPlugin_UnitConversion_minimal_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
+        <div id="ODRRenderPlugin_UnitConversion_precise_info" class="pure-u-1 ODRRenderPlugin_UnitConversion_info" style="display: none;">
             With this option selected, the plugin will assume that trailing zeros are not significant, and round the converted value accordingly.
             <br>For instance: "1 meter" will be converted to "3 feet"
             <br>"100 meters" will be converted to "300 feet"
@@ -133,8 +133,8 @@
 
                 if ( precision_type_value === 'greedy' )
                     $("#ODRRenderPlugin_UnitConversion_greedy_info").show();
-                else if ( precision_type_value === 'minimal' )
-                    $("#ODRRenderPlugin_UnitConversion_minimal_info").show();
+                else if ( precision_type_value === 'precise' )
+                    $("#ODRRenderPlugin_UnitConversion_precise_info").show();
             }
         });
 

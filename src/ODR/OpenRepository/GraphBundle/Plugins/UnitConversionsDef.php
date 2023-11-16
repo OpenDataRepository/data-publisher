@@ -14,6 +14,8 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+
 class UnitConversionsDef
 {
 
@@ -310,6 +312,18 @@ class UnitConversionsDef
 
 
     /**
+     * Due to academics,
+     *
+     * @var string[]
+     */
+    public static $precision_types = array(
+        'none',
+        'precise', // do the calculation "correctly"..."100" has a precision of "1", because the zeros are ambiguous
+        'greedy',  // treat "100" as having a precision of "3"
+    );
+
+
+    /**
      * This function extracts the various numerical "parts" that make up a value to be converted.
      * This is separate from self::performConversion() so it's easier to test.
      *
@@ -343,7 +357,8 @@ class UnitConversionsDef
         $decimal = '\d*(?:\.\d*)?';                         // standard decimal number regex
         $exponent = '(?:e|E|x10|×10|⋅10|\*10)[\^\-\+]*\d+'; // exponent regex, matches a couple different varieties
 
-        $pattern =  '/\(?';                         // optional open parens...for values with "global exponents" like "(12.3±5.0)×10-12"
+        $pattern =  '/';
+//        $pattern =  '/\(?';                         // optional open parens...for values with "global exponents" like "(12.3±5.0)×10-12"
 
         $pattern .= '(';                            // open the first capture group ($source_value)...
             $pattern .= '\-?'.$decimal;             // standard decimal number regex, with an optional minus sign
@@ -359,7 +374,7 @@ class UnitConversionsDef
             $pattern .= '(?:\+\/\-|±)'.$decimal;    // a couple different plus/minus variants followed by a decimal
         $pattern .= ')?';                           // close the third capture group...tolerances are optional
 
-        $pattern .= '\)?';                          // optional close parens, for values with "global exponents" like "(12.3±5.0)×10-12"
+//        $pattern .= '\)?';                          // optional close parens, for values with "global exponents" like "(12.3±5.0)×10-12"
 
         $pattern .= '(';                            // open the fourth capture group ($second_exponent)...
             $pattern .= $exponent;                  // standard exponent regex
@@ -399,7 +414,7 @@ class UnitConversionsDef
         }
 
         if ( !is_null($matches[4]) )
-            $first_exponent_str = self::fixExponent($matches[4]);
+            $second_exponent_str = self::fixExponent($matches[4]);
 
         if ( !is_null($matches[5]) )
             $source_units = $matches[5];
@@ -567,7 +582,7 @@ class UnitConversionsDef
      * @param string $original_value The value that might be converted
      * @param string $conversion_type One of the top-level keys in self::$conversions..e.g. "Pressure" or "Temperature"
      * @param string $target_units One of the values in self::$conversions...e.g. "GPa" or "K"
-     * @param string $precision_type One of 'none', 'greedy', or 'minimal'
+     * @param string $precision_type {@link UnitConversionsDef::$precision_types}
      *
      * @return string
      */
@@ -651,7 +666,7 @@ class UnitConversionsDef
 
         // NOTE - due to effectively all of these conversions being a multiplication/division, we
         //  don't need to do fancy shit with the tolerance value...the "relative uncertainty" remains
-        //  the same
+        //  the same (in theory)
 
 
         // ----------------------------------------
@@ -690,10 +705,16 @@ class UnitConversionsDef
                     $tolerance_value_precision = self::determinePrecision($tolerance_value_str, 'greedy');
                 }
 
+                // TODO - so technically the number of significant digits isn't "gospel"...it's more about retaining the "relative uncertainty", as stated at the end of:
+                // TODO - https://chem.libretexts.org/Bookshelves/General_Chemistry/Chem1_(Lower)/04%3A_The_Basics_of_Chemistry/4.06%3A_Significant_Figures_and_Rounding
+
+                // TODO - to copy the argument, 9 inches only has 1 significant digit (implied to be roughly 6% uncertainty)...it converts to 22.86 cm
+                // TODO - ...rounding to one sig fig (to make 20 cm) implies ~25% uncertainty.  rounding to two sig figs (to make 23 cm) implies ~2% uncertainty, and fits a little better
+
                 // Ensure the converted values have the correct precision
-                $target_value = self::applyPrecision($source_value_precision, $target_value);
+                $target_value = self::applyPrecision($target_value, $source_value_precision);
                 if ( !is_null($tolerance_value) )
-                    $tolerance_value = self::applyPrecision($tolerance_value_precision, $target_value);
+                    $tolerance_value = self::applyPrecision($target_value, $tolerance_value_precision);
             }
         }
 
@@ -711,12 +732,16 @@ class UnitConversionsDef
      * Iterates over a numerical string to determine how many digits of precision it has.
      *
      * @param string $source_value_str
-     * @param string $precision_type
+     * @param string $precision_type {@link UnitConversionsDef::$precision_types}
      *
      * @return int
      */
     public static function determinePrecision($source_value_str, $precision_type)
     {
+        // Ensure the precision type isn't stupid...
+        if ( $precision_type === 'none' || !in_array($precision_type, self::$precision_types) )
+            throw new ODRBadRequestException('Invalid precision_type of "'.$precision_type.'" given to UnitConversionsDef::determinePrecision()', 0xf93585b8);
+
         // Going to make one pass through the source value...
         $found_digit = $has_decimal = false;
         $digits = $trailing_zeros = 0;
@@ -752,11 +777,11 @@ class UnitConversionsDef
         // The return value depends on the type of precision demanded...
         if ( $precision_type === 'greedy' || $has_decimal ) {
             // 'greedy' treats all digits, including trailing zeros, as significant
-            // 'minimal' also treats all digits as significant, but only when a decimal point exists
+            // 'precise' also treats all digits as significant, but only when a decimal point exists
             return $digits + $trailing_zeros;
         }
-        else /*if ( $precision_type === 'minimal' )*/ {
-            // 'minimal' only treats digits as significant when a decimal point does not exist
+        else /*if ( $precision_type === 'precise' )*/ {
+            // 'precise' only treats digits as significant when a decimal point does not exist
             return $digits;
         }
     }
@@ -766,19 +791,19 @@ class UnitConversionsDef
      * Modifies the given value to have the requested number of digits of precision.
      * TODO - round() or truncate()?
      *
-     * @param int $precision
      * @param float $target_value
+     * @param int $desired_precision
      *
      * @return string
      */
-    public static function applyPrecision($precision, $target_value)
+    public static function applyPrecision($target_value, $desired_precision)
     {
         // Need to convert the float back into a string, due to potentially requiring arbitrary zeros
         $target_value_str = strval($target_value);
-        $target_value_precision = self::determinePrecision($target_value_str, 'minimal');
+        $target_value_precision = self::determinePrecision($target_value_str, 'precise');
 
         $fixed_value_str = $target_value_str;
-        if ( $target_value_precision > $precision ) {
+        if ( $target_value_precision > $desired_precision ) {
             // Most of the conversions are going to end up creating values that need to be rounded
             //  in order for significant digits to be correctly applied...
             $decimal_point = strpos($target_value_str, '.');
@@ -791,7 +816,7 @@ class UnitConversionsDef
             if ( $target_value >= 1.0 ) {
                 // Using the built-in round() function is straightforward when the converted
                 //  value is greater than 1...
-                $new_target_value = round($target_value, ($precision-$decimal_point));    // TODO - or should this be some version of truncation instead?
+                $new_target_value = round($target_value, ($desired_precision-$decimal_point));
                 $fixed_value_str = strval($new_target_value);
             }
             else {
@@ -804,13 +829,13 @@ class UnitConversionsDef
                     $offset = intval($val);
 
                     // $decimal_point should always be 1 at this point
-                    $new_target_value = round($target_value, ($precision-$decimal_point-$offset));    // TODO - or should this be some version of truncation instead?
+                    $new_target_value = round($target_value, ($desired_precision-$decimal_point-$offset));
                     $fixed_value_str = strval($new_target_value);
 
                     // If the number is small enough that PHP returns it in exponentiated
                     //  format, then it'll always appear to have at least 2 digits of
                     //  precision...
-                    if ( strpos($fixed_value_str, 'E') !== false && $precision === 1 ) {
+                    if ( strpos($fixed_value_str, 'E') !== false && $desired_precision === 1 ) {
                         // ...so if only one digit of precision is required, fix that
                         $fixed_value_str = $fixed_value_str[0] . substr($fixed_value_str, 3);
                     }
@@ -831,7 +856,7 @@ class UnitConversionsDef
                     }
 
                     // $offset is now the correct value for round() to work properly
-                    $new_target_value = round($target_value, ($precision+$offset));    // TODO - or should this be some version of truncation instead?
+                    $new_target_value = round($target_value, ($desired_precision+$offset));
                     $fixed_value_str = strval($new_target_value);
                 }
             }
@@ -841,28 +866,36 @@ class UnitConversionsDef
         // For the conversions which happen to end up creating results that are "less precise" than
         //  the input, or for the ones where round() happens to lose digits of precision...it's
         //  necessary to add more
-        $existing_precision = strlen($fixed_value_str);
-        if ( $existing_precision < $precision) {    // TODO - this was originally in here, then removed, then added back in...had something to do with converting extremely precise values to like 1...
-            if (strpos($fixed_value_str, '.') === false) {
-                // When the result doesn't already have a decimal point, then need to add a decimal
-                //  point first...
-                $fixed_value_str .= '.';
-            }
-            else if ($fixed_value_str[0] === '0' && $fixed_value_str[1] === '.') {
-                // If the converted value is "0.xxx" something, then the resulting precision is two less
-                //  than the length of the string
-                $existing_precision -= 2;
-            }
-            else {
-                // Otherwise the resulting precision is only one less than the length of the string
-                $existing_precision -= 1;
+        $fixed_value_precision = self::determinePrecision($fixed_value_str, 'precise');
+        if ( $fixed_value_precision < $desired_precision) {
+            // The adjustment needs to fall back to counting the characters in the result...
+            $fixed_value_len = strlen($fixed_value_str);
+            $decimal_pos = strpos($fixed_value_str, '.');
+            if ( $decimal_pos !== false ) {
+                // If the fixed value has a decimal point, then it shouldn't be part of the length
+                $fixed_value_len -= 1;
+                if ( $fixed_value_str[0] === '0' )
+                    // If the fixed value is also between 0 and 1, then also do not count the leading zero
+                    $fixed_value_len -= 1;
             }
 
-            // After the prep work, continue adding trailing zeros until the precision requirements
-            //  are met
-            while ($existing_precision < $precision) {
-                $fixed_value_str .= '0';
-                $existing_precision++;
+            if ( $fixed_value_len <= $desired_precision ) {
+                // The only way to make the "fixed value" more precise in this case is to add zeros
+                //  after a decimal point...
+                if ( $decimal_pos === false) {
+                    // ...ensure a decimal point exists
+                    $fixed_value_str .= '.';
+
+                    // If adding a decimal point, then $fixed_value_precision should now equal the
+                    //  number of digits before the decimal point
+                    $fixed_value_precision = $fixed_value_len;
+                }
+
+                // Continue adding trailing zeros until the precision requirements are met
+                while ($fixed_value_precision < $desired_precision) {
+                    $fixed_value_str .= '0';
+                    $fixed_value_precision++;
+                }
             }
         }
 
