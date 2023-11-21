@@ -60,11 +60,12 @@ class ThemeController extends ODRCustomController
      *
      * @param integer $datatype_id
      * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
+     * @param string $search_key
      * @param Request $request
      *
      * @return Response $response
      */
-    public function getavailablethemesAction($datatype_id, $page_type, Request $request)
+    public function getavailablethemesAction($datatype_id, $page_type, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -95,12 +96,15 @@ class ThemeController extends ODRCustomController
             $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
+            // Not attempting to verify $page_type...
+            $selected_theme_id = 0;
+            if ( $page_type !== '' ) {
+                // ...ThemeInfoService will verify if being called from a location where it matters
+                $selected_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype_id, $page_type);
+            }
 
             // Get all available themes for this datatype that the user can view
             $available_themes = $theme_info_service->getAvailableThemes($user, $datatype);
-
-            // Get the theme currently being used on this page
-            $selected_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype_id, $page_type);
 
 
             // ----------------------------------------
@@ -108,16 +112,27 @@ class ThemeController extends ODRCustomController
             //  returned as part of the "default_for" entry
             $formatted_page_type = ucfirst( str_replace('_', ' ', $page_type) );
 
+            $available_page_types = array();
+            foreach (ThemeInfoService::PAGE_TYPES as $num => $str)
+                $available_page_types[$str] = ucfirst( str_replace('_', ' ', $str) );
+
+
             // Render and return the theme chooser dialog
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:choose_view.html.twig',
                 array(
+                    'user' => $user,
+                    'is_datatype_admin' => $is_datatype_admin,
+
+                    'datatype' => $datatype,
+                    'search_key' => $search_key,
+
                     'available_themes' => $available_themes,
                     'selected_theme_id' => $selected_theme_id,
 
-                    'user' => $user,
-                    'is_datatype_admin' => $is_datatype_admin,
+                    'page_type' => $page_type,
                     'formatted_page_type' => $formatted_page_type,
+                    'available_page_types' => $available_page_types,
                 )
             );
         }

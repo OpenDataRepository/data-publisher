@@ -322,11 +322,12 @@ odr_copy_normal_database:
 #-----------------------------------------
 # Theme Controller
 odr_get_available_themes:
-    path:  /view/getthemes/{datatype_id}/{page_type}
-    defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes }
+    path:  /view/getthemes/{datatype_id}/{page_type}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Theme:getavailablethemes, search_key: '' }
     requirements:
         datatype_id:  \d+
         page_type:  '|search_results|display|edit'
+        search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_save_theme_properties:
     path:  /view/theme_properties/{theme_id}
