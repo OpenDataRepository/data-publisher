@@ -12,17 +12,22 @@
     "tag_{{ tag.id }}": {
         "name": "{{ tag_meta.tagName }}",
     {% elseif version == 'v2' %}
-    "{{ tag_meta.tagName }}": {
+        "{{ tag_meta.tagName }}": {
+    {% elseif version == 'v3' %}
     {% endif %}
 
         "name": "{{ tag_meta.tagName }}",
+        "id": "{{ tag.id }}",
         "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
         {% if tag.tag_parent_uuid is defined %}
             "tag_parent_uuid": {{ tag.tag_parent_uuid }},
         {% endif %}
+        {% if tag.tag_parent_id is defined %}
+            "tag_parent_id": {{ tag.tag_parent_id }},
+        {% endif %}
         "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
     {% if has_children %}
-        "children": [
+        "tags": [
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:XMLExport:datatype_tag.json.twig' with {
                 'tag': child_tag,

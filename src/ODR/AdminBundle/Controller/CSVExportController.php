@@ -210,6 +210,404 @@ class CSVExportController extends ODRCustomController
     }
 
 
+
+    /**
+     * Begins the process of mass exporting to a csv file, by creating a beanstalk job containing
+     * which datafields to export for each datarecord being exported
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function newCsvExportStartAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+            //print_r($post);  exit();
+
+            if ( !isset($post['odr_tab_id'])
+                || !isset($post['datafields'])
+                || !isset($post['datatype_id'])
+                || !isset($post['delimiter'])
+            ) {
+                throw new ODRBadRequestException();
+            }
+
+            $odr_tab_id = $post['odr_tab_id'];
+            $datafields = $post['datafields'];
+            $datatype_id = $post['datatype_id'];
+            $delimiter = trim($post['delimiter']);
+
+            $file_image_delimiter = null;
+            if ( isset($post['file_image_delimiter']) )
+                $file_image_delimiter = trim($post['file_image_delimiter']);
+
+            $radio_delimiter = null;
+            if ( isset($post['radio_delimiter']) )
+                $radio_delimiter = trim($post['radio_delimiter']);
+
+            $tag_delimiter = null;
+            if ( isset($post['tag_delimiter']) )
+                $tag_delimiter = trim($post['tag_delimiter']);
+
+            $tag_hierarchy_delimiter = null;
+            if ( isset($post['tag_hierarchy_delimiter']) )
+                $tag_hierarchy_delimiter = trim($post['tag_hierarchy_delimiter']);
+
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $dbi_service */
+            $dbi_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var TrackedJobService $tracked_job_service */
+            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            if ($datatype->getId() !== $datatype->getGrandparent()->getId())
+                throw new ODRBadRequestException('Unable to run CSVExport from a child datatype');
+
+            // This doesn't make sense on a master datatype
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to export from a master template');
+
+
+            $session = $request->getSession();
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+            $url = $this->generateUrl('odr_csv_export_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // ----------------------------------------
+            // Check whether any jobs that are currently running would interfere with a newly
+            //  created 'csv_export' job for this datatype
+            $new_job_data = array(
+                'job_type' => 'csv_export',
+                'target_entity' => $datatype,
+            );
+
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to start a new CSVExport job, as it would interfere with an already running '.$conflicting_job.' job');
+
+
+            // ----------------------------------------
+            // Translate the primary delimiter if needed
+            if ($delimiter === 'tab')
+                $delimiter = "\t";
+            if ( $delimiter === '' || strlen($delimiter) > 1 )
+                throw new ODRBadRequestException('Invalid column delimiter');
+
+            // If they exist, ensure that the secondary delimiters are legal
+            if ( !is_null($file_image_delimiter)
+                && ($file_image_delimiter === '' || strlen($file_image_delimiter) > 3)
+            ) {
+                throw new ODRBadRequestException('Invalid file/image delimiter');
+            }
+
+            if ( !is_null($radio_delimiter)
+                && ($radio_delimiter === '' || strlen($radio_delimiter) > 3)
+            ) {
+                if ( $radio_delimiter !== 'space' ) {
+                    // Radio delimiter is allowed to be 'space', otherwise it wouldn't really
+                    //  transfer through the background jobs
+                    throw new ODRBadRequestException('Invalid radio delimiter');
+                }
+            }
+
+            if ( !is_null($tag_delimiter)
+                && ($tag_delimiter === '' || strlen($tag_delimiter) > 3)
+            ) {
+                throw new ODRBadRequestException('Invalid tag delimiter');
+            }
+
+            if ( !is_null($tag_hierarchy_delimiter)
+                && ($tag_hierarchy_delimiter === '' || strlen($tag_hierarchy_delimiter) > 3)
+            ) {
+                throw new ODRBadRequestException('Invalid tag hierarchy delimiter');
+            }
+
+            // Ensure that the secondary delimiters don't contain the primary delimiter...
+            if ( !is_null($file_image_delimiter) && strpos($file_image_delimiter, $delimiter) !== false )
+                throw new ODRBadRequestException('Invalid file/image delimiter');
+            if ( !is_null($radio_delimiter) && strpos($radio_delimiter, $delimiter) !== false )
+                throw new ODRBadRequestException('Invalid radio delimiter');
+            if ( !is_null($tag_delimiter) && strpos($tag_delimiter, $delimiter) !== false )
+                throw new ODRBadRequestException('Invalid tag delimiter');
+            if ( !is_null($tag_hierarchy_delimiter) && strpos($tag_hierarchy_delimiter, $delimiter) !== false )
+                throw new ODRBadRequestException('Invalid tag hierarchy delimiter');
+            // ...or the field delimiter used by fputcsv() later on
+            if ( !is_null($file_image_delimiter) && strpos($file_image_delimiter, "\"") !== false )
+                throw new ODRBadRequestException('Invalid file/image delimiter');
+            if ( !is_null($radio_delimiter) && strpos($radio_delimiter, "\"") !== false )
+                throw new ODRBadRequestException('Invalid radio delimiter');
+            if ( !is_null($tag_delimiter) && strpos($tag_delimiter, "\"") !== false )
+                throw new ODRBadRequestException('Invalid tag delimiter');
+            if ( !is_null($tag_hierarchy_delimiter) && strpos($tag_hierarchy_delimiter, "\"") !== false )
+                throw new ODRBadRequestException('Invalid tag hierarchy delimiter');
+
+
+            // If both tag delimiters are set, ensure that one doesn't contain the other
+            if ( !is_null($tag_delimiter) && !is_null($tag_hierarchy_delimiter) ) {
+                if ( strpos($tag_delimiter, $tag_hierarchy_delimiter) !== false
+                    || strpos($tag_hierarchy_delimiter, $tag_delimiter) !== false
+                ) {
+                    throw new ODRBadRequestException('Invalid tag delimiters');
+                }
+            }
+
+
+            // ----------------------------------------
+            // Need to validate the given datafield information...
+            $dt_array = $dbi_service->getDatatypeArray($datatype->getId(), true);    // may need linked datatypes
+            $dr_array = array();
+            $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+
+            $df_mapping = array();
+            foreach ($datafields as $num => $df_id) {
+                foreach ($dt_array as $dt_id => $dt) {
+                    if ( isset($dt['dataFields'][$df_id]) ) {
+                        $df_mapping[$df_id] = $dt_id;
+
+                        $df = $dt['dataFields'][$df_id];
+                        $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+
+                        // Require the relevant delimiter to be set if exporting File/Image/Radio/Tag typeclasses
+                        if ( ($typeclass === 'File' || $typeclass === 'Image') && is_null($file_image_delimiter) )
+                            throw new ODRBadRequestException('File/Image delimiter not set');
+                        if ( ($typename === 'Multiple Radio' || $typename === 'Multiple Select') && is_null($radio_delimiter) )
+                            throw new ODRBadRequestException('Radio delimiter not set');
+                        if ($typeclass === 'Tag' && is_null($tag_delimiter) )
+                            throw new ODRBadRequestException('Tag delimiter not set');
+
+                        // Tag fields that permit multiple levels also need the tag hierarchy delimiter
+                        $allow_multiple_levels = $df['dataFieldMeta']['tags_allow_multiple_levels'];
+                        if ($allow_multiple_levels && is_null($tag_hierarchy_delimiter) )
+                            throw new ODRBadRequestException('Tag hierarchy delimiter not set');
+                    }
+                }
+            }
+
+            // TODO - How could this even be possible?  The list of fields presented to the user
+            // is generated by the system and is 100% of teh viewable fields to the user. Even
+            // if they were manipulating the POST request, the permissions would catch the invalid
+            // permissions and filter the data accordingly.
+            // TODO - This should be struck entirely and we need to investigate whie it is even
+            // possible to trigger this error in the first place.  Happens every time I select
+            // all of the RRUFF fields and I'm a super admin.  There is no way this should exist
+            // and it should not be possible to fire if a super admin is logged in.
+            //
+            // If these arrays don't match...then either the user can't view at least one of the
+            //  fields they want to export, or they tried to export a field from an unrelated
+            //  datatype.  This will typically only be triggered by manual edits of the POST data.
+            if ( count($datafields) !== count($df_mapping) )
+                throw new ODRBadRequestException('Invalid Datafield list');
+
+
+            // ----------------------------------------
+            // Grab datarecord list and search key from user session...didn't use the cache because
+            //  that could've been cleared and would cause this to work on a different subset of
+            //  datarecords
+            if ( !$session->has('csv_export_datarecord_lists') )
+                throw new ODRBadRequestException('Missing CSVExport session variable');
+            $list = $session->get('csv_export_datarecord_lists');
+            if ( !isset($list[$odr_tab_id]) )
+                throw new ODRBadRequestException('Missing CSVExport session variable');
+            if ( !isset($list[$odr_tab_id]['filtered_search_key']) )
+                throw new ODRBadRequestException('Malformed CSVExport session variable');
+
+            // ...and need to not be blank
+            $search_key = $list[$odr_tab_id]['filtered_search_key'];
+            if ($search_key === '')
+                throw new ODRBadRequestException('Search key is blank');
+
+            // Shouldn't be an issue, but delete the datarecord list out of the user's session
+            unset( $list[$odr_tab_id] );
+            $session->set('csv_export_datarecord_lists', $list);
+
+
+            // ----------------------------------------
+            // CSVExport needs both versions of the lists of datarecords from a search result...
+
+            // ...the grandparent datarecord list so that the export knows how many beanstalk jobs
+            //  to create in the csv_export_worker queue...
+            $grandparent_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions
+            );    // this only returns grandparent datarecord ids
+
+            // ...and the complete datarecord list so that the csv_export_worker process can export
+            //  the correct child/linked records
+            $complete_datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions,
+                true
+            );    // this also returns child/linked descendant datarecord ids
+
+            // However, the complete datarecord list can't be passed directly to the csv_export_worker
+            //  queue because the list can easily exceed the maximum allowed job length...
+            // Therefore, the list needs to be filtered for each csv_export_worker job so it only
+            //  contains the child/linked records that are relevant to the grandparent datarecord
+            $complete_datarecord_list = array_flip($complete_datarecord_list);
+
+
+            // The most...reusable...method of performing this filtering is to copy the initial logic
+            //  from SearchAPIService::performSearch().  This is duplication of work, but it should
+            //  be fast enough to not make a noticable difference...
+
+
+            // Convert the search key into a format suitable for searching
+            $searchable_datafields = $search_api_service->getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions);
+            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
+
+            // Need to grab hydrated versions of the datafields/datatypes being searched on
+            $hydrated_entities = $search_api_service->hydrateCriteria($criteria);
+
+            // Each datatype being searched on (or the datatype of a datafield being search on) needs
+            //  to be initialized to "-1" (does not match) before the results of each facet search
+            //  are merged together into the final array
+            $affected_datatypes = $criteria['affected_datatypes'];
+            unset( $criteria['affected_datatypes'] );
+            // Also don't want the list of all datatypes anymore either
+            unset( $criteria['all_datatypes'] );
+            // ...or what type of search this is
+            unset( $criteria['search_type'] );
+
+            // Get the base information needed so getSearchArrays() can properly setup the search arrays
+            $search_permissions = $search_api_service->getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions);
+
+            // Going to need these two arrays to be able to accurately determine which datarecords
+            //  end up matching the query
+            $search_arrays = $search_api_service->getSearchArrays(array($datatype->getId()), $search_permissions);
+//            $flattened_list = $search_arrays['flattened'];
+            $inflated_list = $search_arrays['inflated'];
+            // The top-level of $inflated_list is wrapped in the top-level datatype id...get rid of it
+            $inflated_list = $inflated_list[ $datatype->getId() ];
+
+
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this datatype recache
+            $job_type = 'csv_export';
+            $target_entity = 'datatype_'.$datatype_id;
+            $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
+            $restrictions = '';
+            $total = count($grandparent_datarecord_list);
+
+            $tracked_job = self::ODR_getTrackedJob(
+                $em, $user, $job_type, $target_entity,
+                $additional_data, $restrictions, $total,
+                false
+            );
+            $tracked_job_id = $tracked_job->getId();
+
+            $return['d'] = array("tracked_job_id" => $tracked_job_id);
+
+            // ----------------------------------------
+            // Create a beanstalk job for each of these datarecords
+            $datarecord_ids = [];
+            $complete_datarecord_list_array = [];
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+            $job_order = 0;
+            $counter = 0;
+            foreach ($grandparent_datarecord_list as $num => $datarecord_id) {
+                // Need to use $complete_datarecord_list and $inflated_list to locate the child/linked
+                //  datarecords related to this top-level datarecord
+                $tmp_list = array($datarecord_id => $inflated_list[$datarecord_id]);
+                $filtered_datarecord_list = self::getFilteredDatarecordList($tmp_list, $complete_datarecord_list);
+                $datarecord_ids[] = $datarecord_id;
+                $complete_datarecord_list_array[] = $filtered_datarecord_list;
+
+                // Job order - used for reassembly of export temp files in the proper
+                // order to match the original query.
+                $counter++;
+                if(
+                    $counter % 200 === 0
+                    || $counter === count($grandparent_datarecord_list)
+                ) {
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            'tracked_job_id' => $tracked_job_id,
+                            'user_id' => $user->getId(),
+
+                            'delimiter' => $delimiter,
+                            'file_image_delimiter' => $file_image_delimiter,
+                            'radio_delimiter' => $radio_delimiter,
+                            'tag_delimiter' => $tag_delimiter,
+                            'tag_hierarchy_delimiter' => $tag_hierarchy_delimiter,
+                            'job_order' => $job_order,
+
+                            'datatype_id' => $datatype_id,
+                            // top-level datarecord id
+                            'datarecord_id' => $datarecord_ids,
+                            // list of all datarecords related to $datarecord_id that matched the search
+                            'complete_datarecord_list' => $complete_datarecord_list_array,
+                            'datafields' => $datafields,
+
+                            'redis_prefix' => $redis_prefix,    // debug purposes only
+                            'url' => $url,
+                            'api_key' => $api_key,
+                        )
+                    );
+                    $this->putCSVTube($payload, $priority, 0);
+                    $datarecord_ids = [];
+                    $complete_datarecord_list_array= [];
+                    $job_order++;
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x86acf50b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    private function putCSVTube($payload, $priority, $delay) {
+        /** @var Pheanstalk $pheanstalk */
+        $pheanstalk = $this->get('pheanstalk');
+        //print '<pre>'.print_r($payload, true).'</pre>';    exit();
+        $pheanstalk->useTube('csv_export_worker_express')->put($payload, $priority, $delay);
+    }
+
+
     /**
      * Begins the process of mass exporting to a csv file, by creating a beanstalk job containing
      * which datafields to export for each datarecord being exported
@@ -514,10 +912,12 @@ class CSVExportController extends ODRCustomController
             $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
             $restrictions = '';
             $total = count($grandparent_datarecord_list);
-            $reuse_existing = false;
-//$reuse_existing = true;
 
-            $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+            $tracked_job = self::ODR_getTrackedJob(
+                $em, $user, $job_type, $target_entity,
+                $additional_data, $restrictions, $total,
+                false
+            );
             $tracked_job_id = $tracked_job->getId();
 
             $return['d'] = array("tracked_job_id" => $tracked_job_id);
@@ -555,10 +955,7 @@ class CSVExportController extends ODRCustomController
                     )
                 );
 
-//print '<pre>'.print_r($payload, true).'</pre>';    exit();
-
-                $delay = 1; // one second
-                $pheanstalk->useTube('csv_export_worker')->put($payload, $priority, $delay);
+                $pheanstalk->useTube('csv_export_worker')->put($payload, $priority, 0.05);
             }
         }
         catch (\Exception $e) {
@@ -858,7 +1255,6 @@ class CSVExportController extends ODRCustomController
                 $lines[] = $line;
             }
 
-
             // ----------------------------------------
             // Ensure the random key is stored in the database for later retrieval by the finalization process
             $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->findOneBy( array('random_key' => $random_key) );
@@ -873,7 +1269,7 @@ class CSVExportController extends ODRCustomController
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query, $params);
 
-//print 'rows affected: '.$rowsAffected."\n";
+                // print 'rows affected: '.$rowsAffected."\n";
             }
 
             // Ensure directories exists
@@ -1015,7 +1411,6 @@ class CSVExportController extends ODRCustomController
 
                 fclose($final_file);
 
-
                 // ----------------------------------------
                 // Now that the "final" file exists, need to splice the temporary files together into it
                 $url = $this->generateUrl('odr_csv_export_finalize', array(), UrlGeneratorInterface::ABSOLUTE_URL);
@@ -1035,7 +1430,6 @@ class CSVExportController extends ODRCustomController
                         'api_key' => $api_key,
                     )
                 );
-
 
                 $delay = 1; // one second
                 $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
@@ -1533,7 +1927,6 @@ class CSVExportController extends ODRCustomController
             foreach ($random_keys as $tracked_csv_export_id => $random_key) {
                 $tmp_filename = 'f_'.$random_key.'.csv';
                 $str = file_get_contents($csv_export_path.$tmp_filename);
-//print $str."\n\n";
 
                 if ( fwrite($final_file, $str) === false )
                     print 'could not write to "'.$csv_export_path.$final_filename.'"'."\n";

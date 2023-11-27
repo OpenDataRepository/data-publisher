@@ -38,6 +38,11 @@ class TrackedCSVExport
     private $finalize;
 
     /**
+     * @var int|null
+     */
+    private $job_order;
+
+    /**
      * @var \ODR\AdminBundle\Entity\TrackedJob
      */
     private $trackedJob;
@@ -100,6 +105,30 @@ class TrackedCSVExport
     }
 
     /**
+     * Set jobOrder.
+     *
+     * @param int|null $jobOrder
+     *
+     * @return TrackedCSVExport
+     */
+    public function setJobOrder($jobOrder = null)
+    {
+        $this->job_order = $jobOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get jobOrder.
+     *
+     * @return int|null
+     */
+    public function getJobOrder()
+    {
+        return $this->job_order;
+    }
+
+    /**
      * Set trackedJob
      *
      * @param \ODR\AdminBundle\Entity\TrackedJob $trackedJob
@@ -120,5 +149,34 @@ class TrackedCSVExport
     public function getTrackedJob()
     {
         return $this->trackedJob;
+    }
+    /**
+     * @var int|null
+     */
+    private $order;
+
+
+    /**
+     * Set order.
+     *
+     * @param int|null $order
+     *
+     * @return TrackedCSVExport
+     */
+    public function setOrder($order = null)
+    {
+        $this->order = $order;
+
+        return $this;
+    }
+
+    /**
+     * Get order.
+     *
+     * @return int|null
+     */
+    public function getOrder()
+    {
+        return $this->order;
     }
 }

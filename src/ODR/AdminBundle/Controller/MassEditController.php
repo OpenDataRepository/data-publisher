@@ -1930,7 +1930,7 @@ class MassEditController extends ODRCustomController
                 );
 
                 // If at least one datarecord remains, redirect to the search results list
-                $preferred_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                 $url = $this->generateUrl(
                     'odr_search_render',
                     array(

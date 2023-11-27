@@ -365,7 +365,7 @@ Forms Core
     padding: 0.4em 0.2em 0.4em 0.4em;
     display: inline-block;
     border: 1px solid #e6e6e6;
-    font-size: 0.8em;
+    font-size: 0.96em;
     box-shadow: inset 0 1px 3px #e6e6e6;
     border-radius: 2px;
     -webkit-transition: 0.3s linear border;
@@ -415,7 +415,7 @@ Forms Core
     padding: 0 0.2em 0.2em 0.2em;
     display: inline-block;
     border: none;
-    font-size: 0.8em;
+    font-size: 0.96em;
     box-shadow: none;
     border-radius: 2px;
     -webkit-transition: 0.3s linear border;
@@ -519,7 +519,7 @@ Forms Core
 .pure-skin-odr .pure-form label {
     margin: 0.3em 0 0.1em;
     /* color: #878787; */
-    font-size: 80%;
+    /* font-size: 80%;  /* MOD NAS 20231030 */
 }
 .pure-skin-odr .pure-form fieldset {
     margin: 0;
@@ -1283,7 +1283,7 @@ a.pure-button-primary {
     cursor: pointer;
     top: -0.813em;
     position: relative;
-    font-size: 0.8em;
+    font-size: 0.96em;
 }
 
 .grid-output-tabs .grid-tab-link,
@@ -2329,8 +2329,8 @@ h3 .DatatypeTools,
 
 .ODRResults .AccordionSelect {
     float: right;
-    margin-top: -5px;
-    margin-right: 38px !important;
+    margin-top: -4px;
+    margin-right: 4px !important;
     max-width: 350px;
     /* padding: 4px 4px 2px 4px !important; */
     height: 32px !important;
@@ -2731,7 +2731,7 @@ form .row {
     box-shadow: none;
     box-sizing: border-box;
     display: inline-block;
-    font-size: 0.8em;
+    font-size: 0.96em;
     padding: 0.2em;
     transition: border 0.3s linear 0s;
     cursor: default;
@@ -2888,7 +2888,7 @@ form .row {
 
 
 .ODRResults label {
-    font-size: 0.8em;
+    font-size: 0.96em !important;
     font-weight: bold;
     padding-left: 0.5em;
 }
@@ -2898,7 +2898,7 @@ form .row {
     margin: 0 0 2px 0;
     min-height: 1em;
     line-height: normal;
-    font-size: 12.8px;
+    font-size: 0.96em;
 }
 
 /*
@@ -3021,7 +3021,7 @@ form .row {
 }
 
 .ODRReference {
-    font-size: 0.8em;
+    font-size: 0.96em;
     padding-left: 0.8em;
     padding-top: 0.3em;
     padding-bottom: 0.6em;
@@ -3280,12 +3280,12 @@ form .row {
     background: none; /* #7fb9d8 none repeat scroll 0 0; */
     color: RGBA(77, 136, 220, 1.00);
     padding: 4px 0 4px 8px;
-    font-size: 0.8em;
+    font-size: 0.96em;
     border-radius: 5px 5px 0px 0px;
 }
 
 .ODRFileDatafield_file, .ODRFileDatafield_empty {
-    font-size: 0.8em;
+    font-size: 0.96em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
     box-sizing: border-box;
@@ -3309,6 +3309,7 @@ form .row {
 }
 .ODRFileImageHeader_hidden_design {
     /* don't actually want to hide the header in the design page... */
+    opacity: 40%;
     box-shadow: 0 0 4px 4px rgba(255,0,0,0.7);
 }
 
@@ -3328,7 +3329,8 @@ form .row {
     flex: 0 0 auto;
 
     width: 4px;
-    display: inline-block;
+    /* display: inline-block; */
+    display: none;
     cursor: default;
 }
 .ODRFileSpacer_public {
@@ -3583,7 +3585,7 @@ form .row {
 #ODRFileDownloadFormWrapper, #ODRMassDownloadFormWrapper {
     display: none;
     text-align: left;
-    font-size: 0.8em;
+    font-size: 0.96em;
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
@@ -3812,9 +3814,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
 }
 .ODRDefaultPersonal,
+.ODRUnsetDefaultPersonal,
 .ODRDefaultDatabase,
+.ODRUnsetDefaultDatabase,
 .ODRMakeCurrentView,
-.ODRMakeViewPublic,
+.ODRMakeViewShared,
 .ODREditThemeName,
 .ODRModifyTheme,
 .ODRCopyModifyTheme,
@@ -3823,9 +3827,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRDefaultPersonal:hover,
+.ODRUnsetDefaultPersonal:hover,
 .ODRDefaultDatabase:hover,
+.ODRUnsetDefaultDatabase:hover,
 .ODRMakeCurrentView:hover,
-.ODRMakeViewPublic:hover,
+.ODRMakeViewShared:hover,
 .ODREditThemeName:hover,
 .ODRModifyTheme:hover,
 .ODRCopyModifyTheme:hover,
@@ -4313,6 +4319,7 @@ i {
     font-size: 12px;
     font-weight: 600;
     color: #3b8bba;
+    margin-left: 0;
 }
 
 #ODRMessageList i {
@@ -4327,7 +4334,8 @@ i {
     position: relative;
     background: rgba(0,0,255, 0.04);
     padding: 8px;
-    margin-left: -30px;
+    max-width: 96%;
+    margin-left: 2%;
     margin-right: 8px;
     margin-top: 6px;
     border-radius: 6px;
@@ -4345,7 +4353,7 @@ i {
 
 #ODRMessageList .JobDownloadLink {
     position: absolute;
-    top: 25px;
+    top: -12px;
     right: 10px;
     width: 137px;
 }
@@ -4448,12 +4456,12 @@ i {
 .ODRRemoteSearch_dialog {
     /*display: none;*/
     text-align: left;
-    /*font-size: 0.8em;*/
+    /*font-size: 0.96em;*/
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
 .ODRRemoteSearch_pre {
-    margin: 0px;
+    margin: 0;
     padding: 7px;
 }
 .ODRRemoteSearch_extra {

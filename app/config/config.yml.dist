@@ -32,6 +32,8 @@ twig:
     #cache: memcached
     #cache: false
     exception_controller: ODR.exception_controller:showAction
+    globals:
+        config_site_baseurl: '%site_baseurl%'
 
 # Knp Markdown Configuration
 knp_markdown:

@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatafieldDeletedEvent;
@@ -872,5 +873,35 @@ class SearchCacheService implements EventSubscriberInterface
 
         // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
         // It doesn't contain any information about linking
+
+
+        // ----------------------------------------
+        // If the descendant datatype has fields which are being used by an ancestor datatype for
+        //  sorting...
+        $query = $this->em->createQuery(
+           'SELECT DISTINCT(dt.id) AS dt_id
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+            JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
+            JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
+            WHERE df.dataType = :descendant_datatype AND dtsf.field_purpose = :field_purpose
+            AND dr IN (:datarecord_ids)
+            AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'descendant_datatype' => $datatype->getId(),
+                'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
+                'datarecord_ids' => $event->getDatarecordIds()
+            )
+        );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            // ...then need to reset the cached sort order of each ancestor datatype when any of its
+            //  records are linked/unlinked
+            $dt_id = $result['dt_id'];
+            $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
+        }
     }
 }

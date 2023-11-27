@@ -96,6 +96,14 @@ odr_reload_search_sidebar:
         search_key: '[a-zA-Z0-9\-\_]*'
         intent: 'searching|linking|stored_search_keys|'
 
+
+#
+#
+#
+# API and Custom Functions for integration
+#
+#
+#
 odr_random_network_search:
     path: /network
     defaults: { _controller: ODROpenRepositorySearchBundle:Facade:networkSearchAPI, dataset_uuid: 'eb0451ce86d7f6cd20505170ea69', offset: 0, limit: 1000000, version: 'v5' }
@@ -105,6 +113,14 @@ odr_random_network_search:
         dataset_uuid: '^[a-z0-9]+$'
         limit: '\d+'
         offset: '\d+'
+
+# IMA List Rebuilder
+odr_ima_list_rebuild:
+    path: /ima_list_rebuild
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:IMAListRebuild, version: 'v4' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
 
 # need a realtime seed call - reseed specific database now (recent changes)
 odr_search_seed_elastic:
@@ -122,13 +138,18 @@ odr_search_seed_elastic_record:
         record_uuid: '^[a-z0-9]+$'
         version: 'v\d+'
 
-# ----------------------------------------
-
 odr_precache_search:
     path:  /precache/{datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:SearchCache:preCacheRecords }
     requirements:
         datatype_id: \d+
+
+#
+#
+#
+# END API and Custom Functions for integration
+#
+# ----------------------------------------
 
 # ----------------------------------------
 # NOTE: odr.search_slug_blacklist parameter is defined in SearchBundle/Resources/config/services.yml

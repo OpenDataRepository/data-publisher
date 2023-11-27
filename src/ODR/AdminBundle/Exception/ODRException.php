@@ -15,7 +15,6 @@ namespace ODR\AdminBundle\Exception;
 
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
-
 class ODRException extends HttpException
 {
 

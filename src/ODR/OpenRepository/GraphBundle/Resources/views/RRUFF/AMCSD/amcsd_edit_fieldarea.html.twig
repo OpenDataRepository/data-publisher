@@ -26,8 +26,9 @@
 } %}
 
 {% for theme_element in theme.themeElements %}
+    {% if not theme_element|is_empty(datarecord, datatype, 'edit') %}
     <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
-        <div class="ODRInnerBox">
+        <div class="ODRInnerBox{% if theme_element.themeElementMeta.hideBorder %} ODRInnerBox_HideBorder{% endif %}">
 
         {% if theme_element.themeDataFields is defined %}
             {% for theme_datafield in theme_element.themeDataFields %}
@@ -57,57 +58,59 @@
                         {% set is_file_contents_datafield = true %}
                     {% endif %}
 
-                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
-                         id="Field_{{ datarecord.id }}_{{ datafield.id }}"
-                         rel="{{ theme.id }}"
-                    {% if datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
-                         title="You are not allowed to make changes to this datafield."
-                         style="cursor:help;"
-                    {% endif %}
-                    >
-                        {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                            {# markdown fields are their own thing #}
-                            {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
-                                'datafield': datafield
-                            } %}
-                        {% elseif datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
-                            {# user isn't allowed to edit datafield #}
-                            {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
-                                'datarecord': datarecord,
-                                'datafield': datafield,
-                                'themeDatafield': theme_datafield,
-                            } %}
-                        {% elseif is_amc_file_datafield or is_cif_file_datafield %}
-                            {# the "AMC File" datafield requires slightly different file upload javascript #}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_amcfile_datafield.html.twig' with {
-                                'datarecord': datarecord,
-                                'datafield': datafield,
-
-                                'is_link': is_link,
-                                'token_list': token_list,
-
-                                'parent_datarecord': parent_datarecord,
-                                'is_top_level': is_top_level,
-                            } %}
-                        {% else %}
-                            {# user is allowed to edit datafield #}
-                            {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
-                                'datarecord': datarecord,
-                                'datafield': datafield,
-
-                                'is_link': is_link,
-                                'token_list': token_list,
-                                'is_datatype_admin': is_datatype_admin,
-                            } %}
+                    {% if theme_datafield.hidden == 0 %}
+                        <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"
+                             id="Field_{{ datarecord.id }}_{{ datafield.id }}"
+                             rel="{{ theme.id }}"
+                        {% if datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
+                             title="You are not allowed to make changes to this datafield."
+                             style="cursor:help;"
                         {% endif %}
-                    </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+                        >
+                            {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                                {# markdown fields are their own thing #}
+                                {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
+                                    'datafield': datafield
+                                } %}
+                            {% elseif datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
+                                {# user isn't allowed to edit datafield #}
+                                {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
+                                    'themeDatafield': theme_datafield,
+                                } %}
+                            {% elseif is_amc_file_datafield or is_cif_file_datafield %}
+                                {# the "AMC File" datafield requires slightly different file upload javascript #}
+                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_amcfile_datafield.html.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
 
-                    {% if is_file_contents_datafield %}
-                    <script>
-                        $(function() {
-                            $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('textarea').first().addClass('ODRMonospace');
-                        });
-                    </script>
+                                    'is_link': is_link,
+                                    'token_list': token_list,
+
+                                    'parent_datarecord': parent_datarecord,
+                                    'is_top_level': is_top_level,
+                                } %}
+                            {% else %}
+                                {# user is allowed to edit datafield #}
+                                {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
+                                    'datarecord': datarecord,
+                                    'datafield': datafield,
+
+                                    'is_link': is_link,
+                                    'token_list': token_list,
+                                    'is_datatype_admin': is_datatype_admin,
+                                } %}
+                            {% endif %}
+                        </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+
+                        {% if is_file_contents_datafield %}
+                        <script>
+                            $(function() {
+                                $("#Input_{{ datarecord.id }}_{{ datafield.id }}").children('textarea').first().addClass('ODRMonospace');
+                            });
+                        </script>
+                        {% endif %}
                     {% endif %}
 
                 {% endif %}
@@ -155,6 +158,7 @@
 
         </div><!-- End of .ODRInnerBox -->
     </div><!-- End of .ThemeElement -->
+    {% endif %}
 {% endfor %}
 
 {% endspaceless %}

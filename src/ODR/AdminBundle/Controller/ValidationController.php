@@ -766,7 +766,7 @@ class ValidationController extends ODRCustomController
                     $tm->setTheme($theme);
                     $tm->setTemplateName('');
                     $tm->setTemplateDescription('');
-                    $tm->setIsDefault(false);
+                    $tm->setDefaultFor(0);
                     $tm->setDisplayOrder(0);
                     $tm->setShared(false);
                     $tm->setSourceSyncVersion(0);

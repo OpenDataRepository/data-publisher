@@ -46,8 +46,6 @@
                         {% include 'ODRAdminBundle:Theme:theme_properties_form.html.twig' with {
                             'theme': theme,
                             'theme_form': theme_form,
-
-                            'is_short_form': is_short_form,
                         } %}
                         <div>
                             <button type="button" class="pure-button pure-button-primary ODRReturn">Return to previous page</button>
@@ -182,8 +180,30 @@
             clearTimeout(theme_properties_change);
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
         });
+{# NOTE: want more control over the checkboxes here, so not using a generic handler
         $("#ThemePropertiesForm input:checkbox").unbind('change').change(function() {
             // Only want to execute this save once
+            clearTimeout(theme_properties_change);
+            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+        });
+#}
+        {# Actually have access to the form variables here... #}
+        $("#{{ theme_form.isTableTheme.vars.id }}").unbind('change').change(function() {
+            // If the "is_table_theme" checkbox got unselected, then ensure the "display_all_results"
+            //  checkbox is also unselected
+            if ( !$(this).prop('checked') )
+                $("#{{ theme_form.displaysAllResults.vars.id }}").prop('checked', false);
+
+            clearTimeout(theme_properties_change);
+            theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
+        });
+
+        $("#{{ theme_form.displaysAllResults.vars.id }}").unbind('change').change(function() {
+            // If the "display_all_results" checkbox got selected, then ensure the "is_table_theme"
+            //  checkbox is also selected
+            if ( $(this).prop('checked') )
+                $("#{{ theme_form.isTableTheme.vars.id }}").prop('checked', true);
+
             clearTimeout(theme_properties_change);
             theme_properties_change = setTimeout("SaveThemeProperties()", SaveTimeout);
         });
@@ -192,22 +212,15 @@
         updateChildtypeVisibility();
 
         $(".ODRReturn").unbind('click').click(function() {
-            {# TODO - this doesn't return to the correct page if the user got here through the linking UI #}
-{% if not is_short_form %}
-            {# Don't need to change any value in the URL #}
+{# NOTE: whether ThemeController::modifythemAction() gets a search key depends on the page_type...Display/Edit modes don't pass one in #}
+{% if search_key == '' %}
+            // Typically want to return to the previous page...
             window.history.back();
-{% elseif search_key != '' %}
-            {# Want to render the search results list with the theme that was just being modified #}
+{% else %}
+            // Want to render the search results list with the theme that was just being modified
             var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '' }) }}';
             url = url.substr(0, url.length-2);
             url += {{ theme.id }} + '/' + '{{ search_key }}' + '/1';
-
-            UpdateURL(url);
-{% else %}
-            {# For when there's no search key for some reason... #}
-            var url = '{{ path('odr_default_search_render', { 'datatype_id': 0 }) }}';
-            url = url.substr(0, url.length-1);
-            url += {{ initial_datatype_id }};
 
             UpdateURL(url);
 {% endif %}

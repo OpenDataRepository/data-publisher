@@ -18,7 +18,7 @@
     {% if not theme_element|is_empty(datarecord, datatype, 'display') %}
 
         <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
-            <div class="ODRInnerBox">
+            <div class="ODRInnerBox{% if theme_element.themeElementMeta.hideBorder %} ODRInnerBox_HideBorder{% endif %}">
 
                 {% if theme_element.themeDataFields is defined %}
                     {% for theme_datafield in theme_element.themeDataFields %}

@@ -55,7 +55,7 @@
             {% if render_plugin_instance == null %}
                 <div class="ODRInputError ODRPluginErrorDiv">Unable to locate RenderPluginInstance that should be in ThemeElement {{ theme_element.id }} for one of the RenderPlugins attached to Datatype {{ datatype.id }}</div>
             {% else %}
-                {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType, 'multiple_allowed': multiple_allowed, 'context': 'design', 'is_datatype_admin': is_datatype_admin} %}
+                {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'multiple_allowed': multiple_allowed, 'context': 'design', 'is_datatype_admin': is_datatype_admin} %}
 
                 {# All ThemeElement plugins need to display something when in design mode... #}
                 {% set content = datatype|theme_element_plugin_placeholder(render_plugin_instance, theme_array, rendering_options) %}

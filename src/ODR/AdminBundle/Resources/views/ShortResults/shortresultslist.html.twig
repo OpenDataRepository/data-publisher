@@ -92,6 +92,7 @@
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
+            'page_type': 'search_results',
             'search_key': search_key,
         }%}
 {% endif %}
