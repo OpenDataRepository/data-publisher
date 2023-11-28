@@ -1469,6 +1469,10 @@ class DisplaytemplateController extends ODRCustomController
             //  forms that describe the link to the remote datatype
             if ( !$pm_service->isDatatypeAdmin($user, $grandparent_datatype) )
                 throw new ODRForbiddenException();
+
+            // Still need to store whether the user is an admin of the datatype that got clicked on,
+            //  since they might not actually be allowed to modify it
+            $is_target_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
             // The dialog to change searchable/public status for multiple datafields at once depends
@@ -1534,6 +1538,7 @@ class DisplaytemplateController extends ODRCustomController
                 $submitted_data,
                 array(
                     'datatype_id' => $datatype->getId(),
+                    'is_target_datatype_admin' => $is_target_datatype_admin,
                     'is_top_level' => $is_top_level,
                     'is_link' => $is_link,
 
@@ -1730,6 +1735,7 @@ class DisplaytemplateController extends ODRCustomController
                     $datatype_meta,
                     array(
                         'datatype_id' => $datatype->getId(),
+                        'is_target_datatype_admin' => $is_target_datatype_admin,
                         'is_top_level' => $is_top_level,
                         'is_link' => $is_link,
 
@@ -1857,6 +1863,7 @@ class DisplaytemplateController extends ODRCustomController
                         'show_description' => $show_description,
 
                         'datatype' => $datatype,
+                        'is_target_datatype_admin' => $is_target_datatype_admin,
                         'datatype_form' => $datatype_form->createView(),
                         'site_baseurl' => $site_baseurl,
                         'is_top_level' => $is_top_level,

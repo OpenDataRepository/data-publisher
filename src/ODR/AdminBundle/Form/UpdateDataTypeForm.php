@@ -40,12 +40,14 @@ class UpdateDataTypeForm extends AbstractType
     {
         // Load values passed in via constructor
         $datatype_id = $options['datatype_id'];
+        $is_target_datatype_admin = $options['is_target_datatype_admin'];
         $is_top_level = $options['is_top_level'];
         $is_link = $options['is_link'];
         $sortfield_datatypes = $options['sortfield_datatypes'];
 
-        // None of these should be changable if viewing the properties of a linked datatype...
-        if ($is_link == true)
+        // None of these should be visible if viewing the properties of a datatype the user
+        //  isn't allowed to modify...
+        if ( !$is_target_datatype_admin )
             return;
 
         $builder->add(
@@ -232,6 +234,7 @@ class UpdateDataTypeForm extends AbstractType
 
         // Required options should not have defaults set
         $resolver->setRequired('datatype_id');
+        $resolver->setRequired('is_target_datatype_admin');
         $resolver->setRequired('is_top_level');
         $resolver->setRequired('is_link');
 

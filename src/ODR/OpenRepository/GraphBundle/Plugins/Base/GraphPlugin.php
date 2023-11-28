@@ -602,6 +602,10 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
     public function onFilePostEncrypt(FilePostEncryptEvent $event)
     {
         // TODO - method stub
+
+        // NOTE: it's not useful to attempt to delete cached graphs here...if a page actually wants
+        //  to display a graph that has the new file, then it'll request an image with the new file
+        //  id...which will end up forcing it to render
     }
 
 }

@@ -18,7 +18,7 @@ function delay(time) {
 
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
-    console.log('Cell Params Record Builder Start');
+    console.log('Clearing Cell Params Record Builder...');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {
