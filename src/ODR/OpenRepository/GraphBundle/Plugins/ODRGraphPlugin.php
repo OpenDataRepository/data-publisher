@@ -7,8 +7,8 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This abstract class contains the code so PhantomJS can properly pre-render graphs, among other
- * assorted things that all graph plugins should have.
+ * This abstract class contains the code so Puppeteer can properly pre-render graphs, among other
+ * assorted things that most graph plugins should have.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
@@ -48,8 +48,9 @@ abstract class ODRGraphPlugin
      */
     private $logger;
 
+
     /**
-     * GraphPlugin constructor.
+     * ODRGraph Plugin constructor.
      *
      * @param EngineInterface $templating
      * @param string $odr_tmp_directory
@@ -70,8 +71,9 @@ abstract class ODRGraphPlugin
         $this->logger = $logger;
     }
 
+
     /**
-     * Gets phantomJS to build a static graph, and moves the resulting SVG into the proper directory.
+     * Gets Puppeteer to build a static graph, and moves the resulting SVG into the proper directory.
      *
      * @param array $page_data A Map holding all the data that is needed for creating the graph
      *                          html, and for the phantomjs js server to render it.
@@ -103,8 +105,8 @@ abstract class ODRGraphPlugin
         // TODO - is there a way of keeping them outside of web-accessible space?
 
 
-        // phantomJS's temporary output needs to be in ODR's tmp directory, otherwise ODR isn't
-        //  guaranteed to be able to move it to the web-accessible directory
+        // The temporary output needs to be in ODR's tmp directory, otherwise ODR isn't guaranteed
+        //  to be able to move it to the web-accessible directory
         $output_tmp_svg = $this->odr_tmp_directory."/graph_" . Uuid::uuid4()->toString();
         // The final svg needs to be in a web-accessible directory
         $output_svg = $output_path.'graphs/'.$datatype_folder.$filename;
@@ -171,7 +173,7 @@ abstract class ODRGraphPlugin
     /**
      * Locates and deletes all static graphs that are built from a given file.
      *
-     * @param int $file_id
+     * @param int $file_id If zero, then delete all graphs created for this datafield.
      * @param DataFields $datafield
      */
     protected function deleteCachedGraphs($file_id, $datafield)
@@ -203,20 +205,4 @@ abstract class ODRGraphPlugin
             }
         }
     }
-
-    // TODO - is this even useful to have anymore?  it was in DatabaseInfoService, under the function resetDatatypeSortOrder()
-//    public static function deleteCachedGraphsByDatatype($datatype_id)
-//    {
-//        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
-//        if ( file_exists($graph_filepath) ) {
-//            $files = scandir($graph_filepath);
-//            foreach ($files as $filename) {
-//                // TODO - assumes linux?
-//                if ($filename === '.' || $filename === '..')
-//                    continue;
-//
-//                unlink($graph_filepath.'/'.$filename);
-//            }
-//        }
-//    }
 }

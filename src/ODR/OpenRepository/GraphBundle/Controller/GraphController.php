@@ -50,13 +50,8 @@ class GraphController extends ODRCustomController
      *
      * @return RedirectResponse|Response
      */
-    public function staticAction($datatype_id, $datarecord_id, Request $request)
+    public function renderAction($datatype_id, $datarecord_id, Request $request)
     {
-        // TODO HOLY F*({ - let's check if the graph exists and return
-        // it.  If not, then build all this garbage.  Maybe determine
-        // if all rolled up files are public and then have a public
-        // version already exist.  This is un-necessary to check every
-        // time.
         try {
             $is_rollup = false;
             // Check if this is a rollup and filter datarecord_id
@@ -195,7 +190,17 @@ class GraphController extends ODRCustomController
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options);
 
             $site_baseurl = $this->container->getParameter('site_baseurl');
-            return $this->redirect($site_baseurl.$filename);
+//            return $this->redirect($site_baseurl.$filename);
+
+            // Do not want browsers caching the redirect to this request...it can generate completely
+            //  different URLs for the same input
+            $response = new RedirectResponse($site_baseurl.$filename);
+            $response->setMaxAge(0);
+            $response->headers->addCacheControlDirective('no-cache', true);
+            $response->headers->addCacheControlDirective('must-revalidate', true);
+            $response->headers->addCacheControlDirective('no-store', true);
+
+            return $response;
         }
         catch (\Exception $e) {
             $message = $e->getMessage();

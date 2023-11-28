@@ -105,9 +105,8 @@
         {% for dr_id, file_name in odr_chart_output_files %}
             {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
             <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
-                <img class="pure-u-1" src="{{ path('odr_plugin_graph_static',
-                    {'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id }
-                ) }}.svg?nocache=1" />
+                {# Have the browser attempt to load the cached graph image directly, at first... #}
+                <img id="StaticGraph_{{ dr_id }}_img" class="pure-u-1" src="{{ file_name }}" />
                 <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
             </div><!-- end of .ODRGraph -->
             {% endif %}
@@ -130,6 +129,17 @@ jQuery(function() {
             }
         }, 500, "plotly_window_resize")
     };
+
+{% for dr_id, file_name in odr_chart_output_files %}
+    {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
+    {# If the browser fails to load the cached graph image, then instruct it to start the render process #}
+    $("#StaticGraph_{{ dr_id }}_img").on('error', function() {
+        // console.log( 'original src: ' + $(this).attr('src') );
+        {# appending date('U') prevents the browser from caching the response to this request #}
+        $(this).attr('src', '{{ path('odr_plugin_graph_render', {'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id }) }}?{{ 'now'|date('U') }}');
+    });
+    {% endif %}
+{% endfor %}
 
     $(".StaticGraphs").unbind('click').click(function() {
         var parent = $(this).parent();

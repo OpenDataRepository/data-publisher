@@ -1,7 +1,7 @@
 # TODO - move these into other files?
-odr_plugin_graph_static:
+odr_plugin_graph_render:
     path:  /graph/static/{datatype_id}/{datarecord_id}.{_format}
-    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static, _format: 'svg' }
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:render, _format: 'svg' }
     requirements:
         datatype_id: \d+
         datarecord_id: '(rollup_)?\d+'  # sequence of digits, optionally with 'rollup_' in front of it

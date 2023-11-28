@@ -7,7 +7,7 @@ const fs = require('fs');
 
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
-const tube = 'csv_export_worker';
+const tube = 'create_graph_preview';
 let browser;
 
 function delay(time) {
@@ -18,7 +18,7 @@ function delay(time) {
 
 async function app() {
     browser = await puppeteer.launch({headless:'new'});
-    console.log('Clearing CSV Export worker...');
+    console.log('Clearing Graph Preview Creator...');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {
